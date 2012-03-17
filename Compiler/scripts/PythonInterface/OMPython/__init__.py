@@ -40,12 +40,16 @@ if sys.platform == 'win32':
   # add OPENMODELICAHOME\lib to PYTHONPATH so python can load omniORB libraries
   sys.path.append(os.path.join(omhome, 'share', 'omc', 'scripts', 'PythonInterface', 'stubs'))
   sys.path.append(os.path.join(omhome, 'lib'))
-  
-  pathVar = os.getenv('PATH')
   # add OPENMODELICAHOME\bin to path so python can find the omniORB binaries
+  pathVar = os.getenv('PATH')
   pathVar += ';'
   pathVar += os.path.join(omhome, 'bin')
   os.putenv('PATH', pathVar)
+else:
+  import OMConfig
+  omhome = OMConfig.DEFAULT_OPENMODELICAHOME
+  # add OPENMODELICAHOME\lib to PYTHONPATH so python can load omniORB libraries
+  sys.path.append(os.path.join(OMConfig.DEFAULT_OPENMODELICAHOME, 'share', 'omc', 'scripts', 'PythonInterface', 'stubs'))
 
 from subprocess import Popen, PIPE
 from collections import OrderedDict
@@ -63,22 +67,34 @@ random_string = str(datetime.now())
 random_string = ''.join(e for e in random_string if e.isalnum())
 
 # Run the server
-
-ompath = omhome + "bin\omc" + " +d=interactiveCorba" + " +c=" + random_string
+ompath = os.path.join(omhome, 'bin', 'omc') + " +d=interactiveCorba" + " +c=" + random_string
 server = Popen(ompath, shell=True, stdout=PIPE).stdout
 
+# Locating and using the IOR
+import tempfile
+temp = tempfile.gettempdir()
+if sys.platform == 'win32':
+  ior_file = "openmodelica.objid." + random_string
+else:
+  currentUser = os.environ['USER']
+  if currentUser == '':
+    currentUser = "nobody"
+  ior_file = "openmodelica." + currentUser + ".objid." + random_string
+ior_file = os.path.join(temp, ior_file)
+omc_corba_uri= "file:///" + ior_file
+
 # Wait for the server to start
-time.sleep(1.0)
+ticks = 0
+while False == os.path.isfile(ior_file):
+  if ticks == 5:
+    break
+  ticks += 1
+  time.sleep(1.0)
 
 #initialize the ORB with maximum size for the ORB set
 sys.argv.append("-ORBgiopMaxMsgSize")
 sys.argv.append("2147483647")
 orb = CORBA.ORB_init(sys.argv, CORBA.ORB_ID)
-
-# Locating and using the IOR
-temp = os.environ['TEMP']
-ior_file = temp + "\\" + "openmodelica.objid."+random_string
-omc_corba_uri= "file:///" + ior_file
 
 # See if the omc server is running
 if os.path.isfile(ior_file):
