@@ -1,5 +1,5 @@
 2012-03-17 [ganan642@student.liu.se]
-------------------------------
+--------------------------------------------
 
 - Python 2.7 is required. Download python from http://www.python.org/download/.
 - Add python to your PATH.
@@ -8,6 +8,6 @@
 - Use OMPython.run() to test the OMPython API.
 - Use OMPython.send_command("any-OpenModelica-command") to retreive results.
 
-------------------------------
-Anand.
-ganan642@student.liu.se
+---------------------------------------------
+Adeel, Anand.
+adeel.asghar@liu.se, ganan642@student.liu.se

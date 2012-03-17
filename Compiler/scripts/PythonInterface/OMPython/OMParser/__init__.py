@@ -28,7 +28,7 @@
   See the full OSMC Public License conditions for more details.
 
   Author : Anand Kalaiarasi Ganeson
-  Version: 1.0 (Beta)
+  Version: 1.0
 """
  
 import sys

@@ -27,8 +27,8 @@
  
   See the full OSMC Public License conditions for more details.
 
-  Author : Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-17
-  Version: 1.0 (Beta)
+  Author : Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-14
+  Version: 1.0
 """
  
 import sys
@@ -38,9 +38,8 @@ import time
 if sys.platform == 'win32':
   omhome = os.environ['OPENMODELICAHOME']
   # add OPENMODELICAHOME\lib to PYTHONPATH so python can load omniORB libraries
-  sys.path.append(os.path.join(omhome, 'share', 'omc', 'scripts', 'PythonInterface'))
+  sys.path.append(os.path.join(omhome, 'share', 'omc', 'scripts', 'PythonInterface', 'stubs'))
   sys.path.append(os.path.join(omhome, 'lib'))
-  sys.path.append(os.path.join(omhome, 'lib', 'python'))
   # add OPENMODELICAHOME\bin to path so python can find the omniORB binaries
   pathVar = os.getenv('PATH')
   pathVar += ';'
