@@ -27,7 +27,7 @@
  
   See the full OSMC Public License conditions for more details.
 
-  Author : Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-14
+  Author : Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-17
   Version: 1.0 (Beta)
 """
  
@@ -38,8 +38,9 @@ import time
 if sys.platform == 'win32':
   omhome = os.environ['OPENMODELICAHOME']
   # add OPENMODELICAHOME\lib to PYTHONPATH so python can load omniORB libraries
-  sys.path.append(os.path.join(omhome, 'share', 'omc', 'scripts', 'PythonInterface', 'stubs'))
+  sys.path.append(os.path.join(omhome, 'share', 'omc', 'scripts', 'PythonInterface'))
   sys.path.append(os.path.join(omhome, 'lib'))
+  sys.path.append(os.path.join(omhome, 'lib', 'python'))
   # add OPENMODELICAHOME\bin to path so python can find the omniORB binaries
   pathVar = os.getenv('PATH')
   pathVar += ';'
@@ -60,7 +61,7 @@ from omniORB import CORBA
 import _GlobalIDL
 
 # import the parse module
-import OMParser
+import OMPythonParser
 
 # Randomize the IOR file name
 random_string = str(datetime.now())
@@ -83,25 +84,26 @@ else:
 ior_file = os.path.join(temp, ior_file)
 omc_corba_uri= "file:///" + ior_file
 
-# Wait for the server to start
-ticks = 0
-while False == os.path.isfile(ior_file):
-  if ticks == 5:
-    break
-  ticks += 1
-  time.sleep(1.0)
+# See if the omc server is running
+if os.path.isfile(ior_file):
+  print "OMC Server is up and running at " + omc_corba_uri + "\n"
+else:
+  attempts = 0
+  while True:
+    if not os.path.isfile(ior_file):
+      time.sleep(0.25)
+      attempts +=1
+      if attempts == 10:
+        print "OMC Server is down. Please start it! Exiting...\n"
+        sys.exit(2)
+    else:
+      print "OMC Server is up and running at " + omc_corba_uri + "\n"
+      break
 
 #initialize the ORB with maximum size for the ORB set
 sys.argv.append("-ORBgiopMaxMsgSize")
 sys.argv.append("2147483647")
 orb = CORBA.ORB_init(sys.argv, CORBA.ORB_ID)
-
-# See if the omc server is running
-if os.path.isfile(ior_file):
-  print "OMC Server is up and running at " + omc_corba_uri + "\n"
-else:
-  print "OMC Server is down. Please start it! Exiting...\n"
-  sys.exit(2)
 
 # Read the IOR file
 objid_file=open(ior_file)
@@ -133,12 +135,8 @@ def send_command(command):
                 if result[0] == "\"":
                         return result
                 else:
-                        ############## Temporary Bug Fix #####################################################################################################
-                        if "(R_actual = R*(1 + alpha*(T_heatPort - T_ref))" in result:
-                                result = result.replace("(R_actual = R*(1 + alpha*(T_heatPort - T_ref))","(R_actual = R*(1 + alpha*(T_heatPort - T_ref)))")
-                        ####################################################################################################################################
-                        answer = OMParser.check_for_values(result)
-                        OMParser.result = {}                       # Clearing the previous results
+                        answer = OMPythonParser.check_for_values(result)
+                        OMPythonParser.result = {}                       # Clearing the previous results
                         return answer
         
 def run():
@@ -155,12 +153,8 @@ def run():
                         if result[0] == "\"":
                                 print result
                         else:
-                                ############## Temporary Bug Fix #####################################################################################################
-                                if "(R_actual = R*(1 + alpha*(T_heatPort - T_ref))" in result:
-                                        result = result.replace("(R_actual = R*(1 + alpha*(T_heatPort - T_ref))","(R_actual = R*(1 + alpha*(T_heatPort - T_ref)))")
-                                ####################################################################################################################################
-                                answer = OMParser.check_for_values(result)
-                                OMParser.result = {}                       # Clearing the previous results
+                                answer = OMPythonParser.check_for_values(result)
+                                OMPythonParser.result = {}                       # Clearing the previous results
                                 print answer
 
 if __name__ == "__main__":

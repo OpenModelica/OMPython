@@ -2,9 +2,10 @@ from distutils.core import setup
 
 setup(name='OMPython',
       version='1.0',
-      description='OpenModelica Python API Interface',
-      author='Adeel Asghar',
-      author_email='adeel.asghar@liu.se',
+      date="March 2012",
+      description='OpenModelica-Python API Interface',
+      author='Anand Kalaiarasi Ganeson',
+      author_email='ganan642@student.liu.se',
       url='http://openmodelica.org/',
-      packages=['OMPython', 'OMPython.OMParser'],
+      packages=['OMPython', 'OMPython.OMPythonParser'],
      )
