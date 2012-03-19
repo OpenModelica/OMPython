@@ -4,8 +4,10 @@ setup(name='OMPython',
       version='1.0',
       date="March 2012",
       description='OpenModelica-Python API Interface',
-      author='Adeel Asghar',
-      author_email='adeel.asghar@liu.se',
+      author='Anand Kalaiarasi Ganeson'
+      author_email='ganan642@student.liu.se'
+      maintenance='Adeel Asghar',
+      maintainer_email='adeel.asghar@liu.se',
       url='http://openmodelica.org/',
-      packages=['OMPython', 'OMPython.OMPythonParser'],
+      packages=['OMPython', 'OMPython.OMParser'],
      )

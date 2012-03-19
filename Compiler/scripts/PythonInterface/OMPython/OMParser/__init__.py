@@ -27,7 +27,7 @@
  
   See the full OSMC Public License conditions for more details.
 
-  Author : Anand Kalaiarasi Ganeson
+  Author : Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-19
   Version: 1.0
 """
  
@@ -36,10 +36,10 @@ from collections import OrderedDict
 
 result = OrderedDict()
 
-next_set = []
 inner_sets = []
-next_set.append('')
 next_set_list = []
+next_set = []
+next_set.append('')
 
 def typeCheck(string):
     if "\n" in string:
@@ -362,7 +362,7 @@ def get_inner_sets(strings, for_this, name):
                         the_num +=1
                     subset_name = "Subset" + str(the_num)
             result[main_set_name]['Elements'][name]['Properties'][subset_name]={}
-        ### end of making new subset
+        
         start = strings.find("{{")
         end = strings.find("}}")
         sets = strings[start+1:end+1]
@@ -373,7 +373,7 @@ def get_inner_sets(strings, for_this, name):
                 inner_set_end = sets.find("}")
                 inner_set = sets[inner_set_start:inner_set_end+1]
                 sets = sets.replace(inner_set, '')
-                index = 0   ####
+                index = 0
                 make_subset_sets(inner_set,name)
             index +=1
     elif "{" in strings:

@@ -27,7 +27,7 @@
  
   See the full OSMC Public License conditions for more details.
 
-  Author : Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-14
+  Author : Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-19
   Version: 1.0
 """
  
@@ -59,8 +59,8 @@ from omniORB import CORBA
 # import the skeletons for the global module
 import _GlobalIDL
 
-# import the parse module
-import OMPythonParser
+# import the parser module
+import OMParser
 
 # Randomize the IOR file name
 random_string = str(datetime.now())
@@ -123,7 +123,107 @@ if omc is None:
         print "Object reference is not valid"
         sys.exit(1)
 
-# Invoke the sendExpression operation to send text commands to the server
+# Helper class to retrieve the results of (nested) dictionaries using dot separated queries
+class dotdictify(dict):
+    def __init__(self, value=None):
+        if value is None:
+            pass
+        elif isinstance(value, dict):
+            for key in value:
+                self.__setitem__(key, value[key])
+        else:
+            raise TypeError, 'expected a dictionary, re-try'
+
+    def __setitem__(self, key, value):
+        if '.' in key:
+            myKey, restOfKey = key.split('.', 1)
+            target = self.setdefault(myKey, dotdictify())
+            if not isinstance(target, dotdictify):
+                raise KeyError, 'cannot set "%s" in "%s" (%s)' % (restOfKey, myKey, repr(target))
+            target[restOfKey] = value
+        else:
+            if isinstance(value, dict) and not isinstance(value, dotdictify):
+                value = dotdictify(value)
+            dict.__setitem__(self, key, value)
+
+    def __getitem__(self, key):
+        if '.' not in key:
+            return dict.__getitem__(self, key)
+        myKey, restOfKey = key.split('.', 1)
+        target = dict.__getitem__(self, myKey)
+        if not isinstance(target, dotdictify):
+            raise KeyError, 'cannot get "%s" in "%s" (%s)' % (restOfKey, myKey, repr(target))
+        return target[restOfKey]
+
+    def __contains__(self, key):
+        if '.' not in key:
+            return dict.__contains__(self, key)
+        myKey, restOfKey = key.split('.', 1)
+        target = dict.__getitem__(self, myKey)
+        if not isinstance(target, dotdictify):
+            return False
+        return restOfKey in target
+
+    def setdefault(self, key, default):
+        if key not in self:
+            self[key] = default
+        return self[key]
+
+    __setattr__ = __setitem__
+    __getattr__ = __getitem__
+
+def typeCast(string):
+    if string.__class__ == dict:
+      string = dict(string)
+    elif string.__class__ == list:
+      string = list(string)
+    elif string.__class__ == float:
+      string = float(string)
+    elif string.__class__ == long:
+      string = long(string)
+    elif string.__class__ == bool:
+      string = bool(string)
+    elif string.__class__ == tuple:
+      string = tuple(string)
+    elif string.__class__ == complex:
+      string = complex(string)
+    elif string.__class__ == int:
+      string = int(string)
+    elif string.__class__ == file:
+      string = file(string)
+    elif string.__class__ == str:
+      string = str(string)
+    elif inspect.isclass(dotdictify):
+      string = dict(string)
+      if string.__class__ == dict:  
+        string = dict(string)
+    else:
+      print "Unknown datatype :: %s"% string
+    return string
+
+def get(root,query):  
+  if isinstance(root,dict):
+    root = dotdictify(root)
+      
+  try:
+    result = root[query]
+    result = typeCast(result)
+    return result
+  except KeyError:
+    print "KeyError: Cannot GET the value, please check the syntax of your dotted notationed query"
+
+def set(root,query,value):
+  if isinstance(root,dict):
+    root = dotdictify(root)
+      
+  try:
+    root[query]=value
+    result = typeCast(root)
+    return result
+  except KeyError:
+    print "KeyError: Cannot SET the value, please check your dotted notationed query"
+
+# Invoke the sendExpression method to send text commands to the server
 def send_command(command):
         if command == "quit()":
                 omc.sendExpression("quit()")
@@ -134,10 +234,11 @@ def send_command(command):
                 if result[0] == "\"":
                         return result
                 else:
-                        answer = OMPythonParser.check_for_values(result)
-                        OMPythonParser.result = {}                       # Clearing the previous results
+                        answer = OMParser.check_for_values(result)
+                        OMParser.result = {}
                         return answer
-        
+
+# Test commmands        
 def run():
         omc_running = True
         while omc_running:
@@ -152,8 +253,8 @@ def run():
                         if result[0] == "\"":
                                 print result
                         else:
-                                answer = OMPythonParser.check_for_values(result)
-                                OMPythonParser.result = {}                       # Clearing the previous results
+                                answer = OMParser.check_for_values(result)
+                                OMParser.result = {}
                                 print answer
 
 if __name__ == "__main__":
