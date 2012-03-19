@@ -34,6 +34,7 @@
 import sys
 import os
 import time
+import inspect
 
 if sys.platform == 'win32':
   omhome = os.environ['OPENMODELICAHOME']
