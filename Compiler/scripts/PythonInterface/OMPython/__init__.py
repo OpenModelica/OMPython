@@ -41,6 +41,7 @@ if sys.platform == 'win32':
   # add OPENMODELICAHOME\lib to PYTHONPATH so python can load omniORB libraries
   sys.path.append(os.path.join(omhome, 'share', 'omc', 'scripts', 'PythonInterface', 'stubs'))
   sys.path.append(os.path.join(omhome, 'lib'))
+  sys.path.append(os.path.join(omhome, 'lib','python'))
   # add OPENMODELICAHOME\bin to path so python can find the omniORB binaries
   pathVar = os.getenv('PATH')
   pathVar += ';'
@@ -68,8 +69,9 @@ random_string = str(datetime.now())
 random_string = ''.join(e for e in random_string if e.isalnum())
 
 # Run the server
-ompath = os.path.join(omhome, 'bin', 'omc') + " +d=interactiveCorba" + " +c=" + random_string
-server = Popen(ompath, shell=True, stdout=PIPE).stdout
+ompath = omhome + "bin\omc" + " +d=interactiveCorba" + " +c=" + random_string
+with open(os.devnull, 'w') as shutup:
+  server = Popen(ompath,stdout=shutup, stderr=shutup)
 
 # Locating and using the IOR
 import tempfile
@@ -126,81 +128,135 @@ if omc is None:
 
 # Helper class to retrieve the results of (nested) dictionaries using dot separated queries
 class dotdictify(dict):
-    def __init__(self, value=None):
-        if value is None:
-            pass
-        elif isinstance(value, dict):
-            for key in value:
-                self.__setitem__(key, value[key])
-        else:
-            raise TypeError, 'expected a dictionary, re-try'
+  def __init__(self, value=None):
+      if value is None:
+          pass
+      elif isinstance(value, dict):
+          for key in value:
+              self.__setitem__(key, value[key])
+      else:
+          raise TypeError, 'expected a dictionary, re-try'
 
-    def __setitem__(self, key, value):
-        if '.' in key:
-            myKey, restOfKey = key.split('.', 1)
-            target = self.setdefault(myKey, dotdictify())
-            if not isinstance(target, dotdictify):
-                raise KeyError, 'cannot set "%s" in "%s" (%s)' % (restOfKey, myKey, repr(target))
-            target[restOfKey] = value
-        else:
-            if isinstance(value, dict) and not isinstance(value, dotdictify):
-                value = dotdictify(value)
-            dict.__setitem__(self, key, value)
+  def __setitem__(self, key, value):
+      if '.' in key:
+          myKey, restOfKey = key.split('.', 1)
+          target = self.setdefault(myKey, dotdictify())
+          if not isinstance(target, dotdictify):
+              raise KeyError, 'cannot set "%s" in "%s" (%s)' % (restOfKey, myKey, repr(target))
+          target[restOfKey] = value
+      else:
+          if isinstance(value, dict) and not isinstance(value, dotdictify):
+              value = dotdictify(value)
+          dict.__setitem__(self, key, value)
 
-    def __getitem__(self, key):
-        if '.' not in key:
-            return dict.__getitem__(self, key)
-        myKey, restOfKey = key.split('.', 1)
-        target = dict.__getitem__(self, myKey)
-        if not isinstance(target, dotdictify):
-            raise KeyError, 'cannot get "%s" in "%s" (%s)' % (restOfKey, myKey, repr(target))
-        return target[restOfKey]
+  def __getitem__(self, key):
+      if '.' not in key:
+          return dict.__getitem__(self, key)
+      myKey, restOfKey = key.split('.', 1)
+      target = dict.__getitem__(self, myKey)
+      if not isinstance(target, dotdictify):
+          raise KeyError, 'cannot get "%s" in "%s" (%s)' % (restOfKey, myKey, repr(target))
+      return target[restOfKey]
 
-    def __contains__(self, key):
-        if '.' not in key:
-            return dict.__contains__(self, key)
-        myKey, restOfKey = key.split('.', 1)
-        target = dict.__getitem__(self, myKey)
-        if not isinstance(target, dotdictify):
-            return False
-        return restOfKey in target
+  def __contains__(self, key):
+      if '.' not in key:
+          return dict.__contains__(self, key)
+      myKey, restOfKey = key.split('.', 1)
+      target = dict.__getitem__(self, myKey)
+      if not isinstance(target, dotdictify):
+          return False
+      return restOfKey in target
 
-    def setdefault(self, key, default):
-        if key not in self:
-            self[key] = default
-        return self[key]
+  def setdefault(self, key, default):
+      if key not in self:
+          self[key] = default
+      return self[key]
 
-    __setattr__ = __setitem__
-    __getattr__ = __getitem__
+  __setattr__ = __setitem__
+  __getattr__ = __getitem__
+
 
 def typeCast(string):
-    if string.__class__ == dict:
-      string = dict(string)
-    elif string.__class__ == list:
-      string = list(string)
-    elif string.__class__ == float:
-      string = float(string)
-    elif string.__class__ == long:
-      string = long(string)
-    elif string.__class__ == bool:
-      string = bool(string)
-    elif string.__class__ == tuple:
-      string = tuple(string)
-    elif string.__class__ == complex:
-      string = complex(string)
-    elif string.__class__ == int:
-      string = int(string)
-    elif string.__class__ == file:
-      string = file(string)
-    elif string.__class__ == str:
-      string = str(string)
-    elif inspect.isclass(dotdictify):
+  if string.__class__ == dict:
+    string = dict(string)
+  elif string.__class__ == list:
+    string = list(string)
+  elif string.__class__ == float:
+    string = float(string)
+  elif string.__class__ == long:
+    string = long(string)
+  elif string.__class__ == bool:
+    string = bool(string)
+  elif string.__class__ == tuple:
+    string = tuple(string)
+  elif string.__class__ == complex:
+    string = complex(string)
+  elif string.__class__ == int:
+    string = int(string)
+  elif string.__class__ == file:
+    string = file(string)
+  elif string.__class__ == str:
+    string = str(string)
+  elif string.__class__ == None:
+    string = None
+  elif inspect.isclass(dotdictify):
+    try:
       string = dict(string)
       if string.__class__ == dict:  
         string = dict(string)
-    else:
-      print "Unknown datatype :: %s"% string
-    return string
+    except:
+      try:
+        string = list(string)
+        if string.__class__ == list:  
+          string = list(string)
+      except:
+        try:
+          string = float(string)
+          if string.__class__ == float:  
+            string = float(string)
+        except:
+          try:
+            string = long(string)
+            if string.__class__ == long:  
+              string = long(string)
+          except:
+            try:
+              string = None(string)
+              if string.__class__ == None:  
+                string = None(string)
+            except:
+              try:
+                string = tuple(string)
+                if string.__class__ == tuple:  
+                  string = tuple(string)
+              except:
+                try:
+                  string = complex(string)
+                  if string.__class__ == complex:  
+                    string = complex(string)
+                except:
+                  try:
+                    string = int(string)
+                    if string.__class__ == int:  
+                      string = int(string)
+                  except:
+                    try:
+                      string = file(string)
+                      if string.__class__ == file:  
+                        string = file(string)
+                    except:
+                      try:
+                        string = str(string)
+                        if string.__class__ == str:  
+                          string = str(string)
+                      except:
+                        try:
+                          string = bool(string)
+                          if string.__class__ == bool:  
+                            string = bool(string)
+                        except:
+                          print "Unknown datatype :: %s"% string
+  return string
 
 def get(root,query):  
   if isinstance(root,dict):
@@ -225,38 +281,38 @@ def set(root,query,value):
     print "KeyError: Cannot SET the value, please check your dotted notationed query"
 
 # Invoke the sendExpression method to send text commands to the server
-def send_command(command):
-        if command == "quit()":
-                omc.sendExpression("quit()")
-                print "OMC has been Shutdown\n"
-                sys.exit(1)
-        else:
-                result = omc.sendExpression(command)
-                if result[0] == "\"":
-                        return result
-                else:
-                        answer = OMParser.check_for_values(result)
-                        OMParser.result = {}
-                        return answer
+def execute(command):
+  if command == "quit()":
+    omc.sendExpression("quit()")
+    print "\nOMC has been Shutdown\n"
+    sys.exit(1)
+  else:
+    result = omc.sendExpression(command)
+    if result[0] == "\"":
+      return result
+    else:
+      answer = OMParser.check_for_values(result)
+      OMParser.result = {}
+      return answer
 
 # Test commmands        
 def run():
-        omc_running = True
-        while omc_running:
-                command = raw_input("\n>>")
-                if command == "quit()":
-                        omc.sendExpression("quit()")
-                        print "OMC has been Shutdown\n"
-                        omc_running = False
-                        sys.exit(1)
-                else:
-                        result = omc.sendExpression(command)
-                        if result[0] == "\"":
-                                print result
-                        else:
-                                answer = OMParser.check_for_values(result)
-                                OMParser.result = {}
-                                print answer
+  omc_running = True
+  while omc_running:
+    command = raw_input("\n>>")
+    if command == "quit()":
+      omc.sendExpression("quit()")
+      print "\nOMC has been Shutdown\n"
+      omc_running = False
+      sys.exit(1)
+    else:
+      result = omc.sendExpression(command)
+      if result[0] == "\"":
+        print result
+      else:
+        answer = OMParser.check_for_values(result)
+        OMParser.result = {}
+        print answer
 
 if __name__ == "__main__":
         run()

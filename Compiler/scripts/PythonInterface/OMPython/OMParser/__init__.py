@@ -72,7 +72,7 @@ def typeCheck(string):
                     try:
                         string = str(string)
                     except ValueError:
-                        print "String contains Unknown datatype"
+                        print "String contains Un-handled datatype"
     return string
 
 def make_values(strings, name):
@@ -81,7 +81,8 @@ def make_values(strings, name):
     if strings[0] == "{" and strings[-1]=="}":
         strings = strings[1:-1]
 
-    for each_name in result:            # find the highest Set number of SET
+    """ find the highest Set number of SET """
+    for each_name in result:            
         if each_name.find("SET") != -1:
             main_set_name = each_name
 
@@ -94,8 +95,9 @@ def make_values(strings, name):
         stop = 0
         prop_str = strings
         main_set_name = "SET1"
-        
-        while position <len(prop_str):          # remove braces & keep only the SET's values.
+
+        """ remove braces & keep only the SET's values. """
+        while position <len(prop_str):          
                 check = prop_str[position]
                 if check == "{":
                         anchor = position
@@ -179,7 +181,8 @@ def delete_elements(strings):
     index = 0
     while index < len(strings):
             character = strings[index]
-            if character == "(":            # handle data within the parenthesis ()
+            """ handle data within the parenthesis () """
+            if character == "(":            
                     pos = index
                     while pos > 0:
                             char = strings[pos]
@@ -208,22 +211,27 @@ def make_subset_sets(strings, name):
 
     set_list=strings.split(",")
     items = []
-    for each_item in set_list:                                      # make the values list, first.
+    
+    """ make the values list, first. """
+    for each_item in set_list:                                      
         each_item = ''.join(c for c in each_item if c not in '{}')
         each_item = typeCheck(each_item)
         items.append(each_item)  
 
-    if "SET" in name: 
-        for each_name in result:                                    # find the highest SET number
+    if "SET" in name:
+        """ find the highest SET number """
+        for each_name in result:                                    
             if each_name.find("SET") != -1:
                     main_set_name = each_name   
 
-        for each_name in result[main_set_name]:                     # find the highest Subset number
+        """ find the highest Subset number """
+        for each_name in result[main_set_name]:                     
             if each_name.find("Subset") != -1:
                 subset_name = each_name
 
         highest_count = 1
-        for each_name in result[main_set_name][subset_name]:        # find the highest Set number & make the next Set in Subset
+        """ find the highest Set number & make the next Set in Subset """
+        for each_name in result[main_set_name][subset_name]:        
             if each_name.find("Set") != -1:
                 the_num = each_name.replace('Set','')
                 the_num = int(the_num)
@@ -515,7 +523,8 @@ def check_for_next_string(next_string):
     positionn = 0
     stopp = 0
 
-    while positionn <len(next_string):          # remove braces & keep only the SET's values.
+    """ remove braces & keep only the SET's values. """
+    while positionn <len(next_string):          
         check_str = next_string[positionn]
         if check_str == "{":
                 anchorr = positionn
@@ -690,7 +699,7 @@ def get_the_set(string):
         else:
             return (len(string)-1)
 
-#########################################################################
+    """ Main entry of get_the_string() """
     index = 0
     count = 0
     next_set[0] = ''
@@ -723,7 +732,8 @@ def get_the_set(string):
                 current_set = current_set.replace(each_next,'').strip()
 
             pos = 0
-            while pos < len(current_set):       # remove unwanted commas from CS
+            """ remove unwanted commas from CS """
+            while pos < len(current_set):       
                 char = current_set[pos]
                 if char == ",":
                     if current_set[pos+1]=="}":
@@ -743,49 +753,68 @@ def get_the_set(string):
     else:
         print "\nThe following String has no {}s to proceed\n"
         print string
-############################################################################
 
-# Datastructure for SimulationResults & SimulationOptions
-SimulationResults = OrderedDict()
-SimulationOptions = OrderedDict()
+    """ End of get_the_string() """
 
-# String parsing function for SimulationResult
+# String parsing function for SimulationResults
 def formatSimRes(strings):
-        simRes = strings[strings.find('  resultFile')+1:strings.find('\nend SimulationResult')]
-        simRes = simRes.translate(None, "\\")
-        simRes = simRes.split('\n')
-        simOps = simRes.pop(1)
-        options = simOps[simOps.find('"startTime')+1:simOps.find('",')]
-        options = options+","
-        index = 0
-        anchor = 0
-        while index < len(options):
-                update = False
-                character = options[index]
-                if character == "=":
-                        opVar = options[anchor:index]
-                        opVar = (opVar.lstrip()).rstrip()
-                        anchor = index+1
-                        update = False
-                elif character == ",":
-                        opVal = options[anchor:index]
-                        opVal = (opVal.lstrip()).rstrip()
-                        anchor = index+1
-                        update = True
-                index = index + 1
-                if update:
-                        opVal = typeCheck(opVal)
-                        SimulationOptions[opVar] = opVal
+    result['SimulationResults'] = {}
+    simRes = strings[strings.find('  resultFile')+1:strings.find('\nend SimulationResult')]
+    simRes = simRes.translate(None, "\\")
+    simRes = simRes.split('\n')
+    simOps = simRes.pop(1)
+    options = simOps[simOps.find('"startTime')+1:simOps.find('",')]
+    options = options+","
+    index = 0
+    anchor = 0
+    
+    for i in simRes:
+            var = i[i.find('')+1:i.find(" =")]
+            var = var.lstrip()
+            value = i[i.find("= ")+1:i.find("'")]
+            value = value.lstrip()
+            value = typeCheck(value)
+            result['SimulationResults'][var] = value
 
-        for i in simRes:
-                var = i[i.find('')+1:i.find(" =")]
-                var = var.lstrip()
-                value = i[i.find("= ")+1:i.find("'")]
-                value = value.lstrip()
-                value = typeCheck(value)
-                SimulationResults[var] = value
+    result['SimulationOptions']={}
 
+    while index < len(options):
+            update = False
+            character = options[index]
+            if character == "=":
+                    opVar = options[anchor:index]
+                    opVar = (opVar.lstrip()).rstrip()
+                    anchor = index+1
+                    update = False
+            elif character == ",":
+                    opVal = options[anchor:index]
+                    opVal = (opVal.lstrip()).rstrip()
+                    anchor = index+1
+                    update = True
+            index = index + 1
+            if update:
+                    opVal = typeCheck(opVal)
+                    result['SimulationOptions'][opVar] = opVal
 
+# string parsing function for Record types
+def formatRecords(strings):
+    result['RecordResults'] = {}
+    recordName = strings[strings.find("record ") +1:strings.find("\n")]
+    recordName = recordName.replace("ecord ",'').strip()
+    strings = strings.replace(("end "+recordName+";"),'').strip()
+    recordItems = strings[strings.find("\n") +1: len(strings)]
+    recordItems = recordItems.translate(None,"\\")
+    recordItems = recordItems.split("\n")
+    for each_item in recordItems:
+            var = each_item[each_item.find('')+1:each_item.find(" =")]
+            var = (var.lstrip()).rstrip()
+            value = each_item[each_item.find("= ")+1:each_item.find("'")]
+            value = (value.lstrip()).rstrip()
+            value = typeCheck(value)
+            result['RecordResults'][var] = value    
+    
+
+""" Main entry to the OMParser module """
 def check_for_values(string):
     main_set_name = "SET1"
     if len(string)==0:
@@ -793,8 +822,10 @@ def check_for_values(string):
 
     if "record SimulationResult" in string:
         formatSimRes(string)
-        SimulationResults.update(SimulationOptions)
-        return SimulationResults
+        return result
+    elif "record " in string:
+        formatRecords(string)
+        return result
 
     string=typeCheck(string)
     
