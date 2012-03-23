@@ -1,0 +1,13 @@
+IDLPYTHON = omniidl -bpython
+
+install: setup.py OMPython/OMConfig.py OMPython/__init__.py OMPython/OMParser/__init__.py OMPython/omc_communication_idl.py
+	python setup.py install --install-layout=deb --prefix=/home/marsj/dev/trunk/build
+
+.PHONY: install
+
+OMPython/omc_communication_idl.py : $(IDLFILE)
+	$(IDLPYTHON) -COMPython $(IDLFILE)
+
+Makefile: Makefile.in
+	(cd $(top_builddir); ./config.status)
+include Makefile.common
