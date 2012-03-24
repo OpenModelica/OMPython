@@ -1,7 +1,8 @@
 IDLPYTHON = omniidl -bpython
+LAYOUT = `test -d /etc/apt && echo --install-layout=deb`
 
 install: setup.py OMPython/OMConfig.py OMPython/__init__.py OMPython/OMParser/__init__.py OMPython/omc_communication_idl.py
-	python setup.py install --install-layout=deb --prefix=$(top_builddir)/build
+	python setup.py install $(LAYOUT) --prefix=$(top_builddir)/build
 
 .PHONY: install
 
