@@ -9,5 +9,5 @@ setup(name='OMPython',
       maintainer='Adeel Asghar',
       maintainer_email='adeel.asghar@liu.se',
       url='http://openmodelica.org/',
-      packages=['OMPython', 'OMPython.OMParser', 'OMPython._GlobalIDL', 'OMPython._GlobalIDL__POA'],
+      packages=['OMPython', 'OMPython.OMParser'],
      )

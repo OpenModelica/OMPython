@@ -1,16 +1,20 @@
 ifeq (@PYTHON_INTERFACE@,yes)
 IDLPYTHON = omniidl -bpython
 LAYOUT = `test -d /etc/apt && echo --install-layout=deb`
+IDLGENERATED = OMPython/omc_communication_idl.py OMPython/_GlobalIDL.py OMPython/_GlobalIDL__POA.py
 
-install: setup.py OMPython/OMConfig.py OMPython/__init__.py OMPython/OMParser/__init__.py OMPython/omc_communication_idl.py
+install: setup.py OMPython/OMConfig.py OMPython/__init__.py OMPython/OMParser/__init__.py $(IDLGENERATED)
 	! which python2.6 || python2.6 setup.py install --no-compile $(LAYOUT) --prefix=$(top_builddir)/build
 	! which python2.7 || python2.7 setup.py install --no-compile $(LAYOUT) --prefix=$(top_builddir)/build
 	python setup.py install --no-compile $(LAYOUT) --prefix=$(top_builddir)/build
 
 .PHONY: install
 
-OMPython/omc_communication_idl.py : $(IDLFILE)
+$(IDLGENERATED) : $(IDLFILE)
 	$(IDLPYTHON) -COMPython $(IDLFILE)
+	@mv OMPython/_GlobalIDL/__init__.py OMPython/_GlobalIDL.py
+	@mv OMPython/_GlobalIDL__POA/__init__.py OMPython/_GlobalIDL__POA.py
+	@rmdir OMPython/_GlobalIDL OMPython/_GlobalIDL__POA
 else
 install:
 	@echo "*** Python interfaced was disabled by user configuration"
