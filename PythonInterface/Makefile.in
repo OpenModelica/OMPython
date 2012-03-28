@@ -3,20 +3,20 @@ IDLPYTHON = omniidl -bpython -Wbglobal=_OMCIDL -Wbpackage=OMPythonIDL
 LAYOUT = `test -d /etc/apt && echo --install-layout=deb`
 
 install: setup.py OMPython/OMConfig.py OMPython/__init__.py OMPython/OMParser/__init__.py OMPythonIDL/omc_communication_idl.py
-  ! which python2.6 || python2.6 setup.py install --no-compile $(LAYOUT) --prefix=$(top_builddir)/build
-  ! which python2.7 || python2.7 setup.py install --no-compile $(LAYOUT) --prefix=$(top_builddir)/build
-  python setup.py install --no-compile $(LAYOUT) --prefix=$(top_builddir)/build
+	! which python2.6 || python2.6 setup.py install --no-compile $(LAYOUT) --prefix=$(top_builddir)/build
+	! which python2.7 || python2.7 setup.py install --no-compile $(LAYOUT) --prefix=$(top_builddir)/build
+	python setup.py install --no-compile $(LAYOUT) --prefix=$(top_builddir)/build
 
 .PHONY: install
 
 OMPythonIDL/omc_communication_idl.py : $(IDLFILE)
-  $(IDLPYTHON) $(IDLFILE)
+	$(IDLPYTHON) $(IDLFILE)
 else
 install:
-  @echo "*** Python interfaced was disabled by user configuration"
+	@echo "*** Python interfaced was disabled by user configuration"
 .PHONY: install
 endif
 
 Makefile: Makefile.in
-  (cd $(top_builddir); ./config.status)
+	(cd $(top_builddir); ./config.status)
 include Makefile.common
