@@ -6,3 +6,7 @@ builddir_doc=$(top_builddir)/build/doc
 builddir_share=$(top_builddir)/build/share
 
 IDLFILE=$(top_builddir)/Compiler/runtime/omc_communication.idl
+
+clean:
+	rm -rf build/ OMPythonIDL/ OMPython/_GlobalID* OMPython/omc_communication_idl.py
+
