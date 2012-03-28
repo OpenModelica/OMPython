@@ -39,7 +39,6 @@ import inspect
 if sys.platform == 'win32':
   omhome = os.environ['OPENMODELICAHOME']
   # add OPENMODELICAHOME\lib to PYTHONPATH so python can load omniORB libraries
-  sys.path.append(os.path.join(omhome, 'share', 'omc', 'scripts', 'PythonInterface', 'stubs'))
   sys.path.append(os.path.join(omhome, 'lib'))
   sys.path.append(os.path.join(omhome, 'lib','python'))
   # add OPENMODELICAHOME\bin to path so python can find the omniORB binaries
@@ -50,8 +49,6 @@ if sys.platform == 'win32':
 else:
   import OMConfig
   omhome = OMConfig.DEFAULT_OPENMODELICAHOME
-  # add OPENMODELICAHOME\lib to PYTHONPATH so python can load omniORB libraries
-  sys.path.append(os.path.join(OMConfig.DEFAULT_OPENMODELICAHOME, 'share', 'omc', 'scripts', 'PythonInterface', 'stubs'))
 
 from subprocess import Popen, PIPE
 from collections import OrderedDict
@@ -59,7 +56,7 @@ from datetime import datetime
 from omniORB import CORBA
 
 # import the skeletons for the global module
-import _GlobalIDL
+from OMPythonIDL import _OMCIDL
 
 # import the parser module
 import OMParser
@@ -69,13 +66,13 @@ random_string = str(datetime.now())
 random_string = ''.join(e for e in random_string if e.isalnum())
 
 # Run the server
-ompath = omhome + "bin\omc" + " +d=interactiveCorba" + " +c=" + random_string
-with open(os.devnull, 'w') as shutup:
-  server = Popen(ompath,stdout=shutup, stderr=shutup)
-
-# Locating and using the IOR
 import tempfile
 temp = tempfile.gettempdir()
+omc_log_file = open(os.path.join(temp, "openmodelica.omc.output.OMPython"), 'w')
+ompath = os.path.join(omhome, 'bin', 'omc') + " +d=interactiveCorba" + " +c=" + random_string
+server = Popen(ompath, shell=True, stdout=omc_log_file, stderr=omc_log_file)
+
+# Locating and using the IOR
 if sys.platform == 'win32':
   ior_file = "openmodelica.objid." + random_string
 else:
@@ -119,7 +116,7 @@ poa = orb.resolve_initial_references("RootPOA")
 obj = orb.string_to_object(ior)
 
 # Narrow the reference to the OmcCommunication object
-omc = obj._narrow(_GlobalIDL.OmcCommunication)
+omc = obj._narrow(_OMCIDL.OmcCommunication)
 
 # Check if we are using the right object
 if omc is None:
