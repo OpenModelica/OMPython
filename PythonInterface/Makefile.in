@@ -1,3 +1,4 @@
+ifeq (@PYTHON_INTERFACE@,yes)
 IDLPYTHON = omniidl -bpython
 LAYOUT = `test -d /etc/apt && echo --install-layout=deb`
 
@@ -10,6 +11,11 @@ install: setup.py OMPython/OMConfig.py OMPython/__init__.py OMPython/OMParser/__
 
 OMPython/omc_communication_idl.py : $(IDLFILE)
 	$(IDLPYTHON) -COMPython $(IDLFILE)
+else
+install:
+	@echo "*** Python interfaced was disabled by user configuration"
+.PHONY: install
+endif
 
 Makefile: Makefile.in
 	(cd $(top_builddir); ./config.status)
