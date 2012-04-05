@@ -1,42 +1,58 @@
 # -*- coding: cp1252 -*-
 """
   This file is part of OpenModelica.
- 
+
   Copyright (c) 1998-CurrentYear, Open Source Modelica Consortium (OSMC),
   c/o Linköpings universitet, Department of Computer and Information Science,
   SE-58183 Linköping, Sweden.
- 
+
   All rights reserved.
- 
-  THIS PROGRAM IS PROVIDED UNDER THE TERMS OF GPL VERSION 3 LICENSE OR 
-  THIS OSMC PUBLIC LICENSE (OSMC-PL) VERSION 1.2. 
+
+  THIS PROGRAM IS PROVIDED UNDER THE TERMS OF GPL VERSION 3 LICENSE OR
+  THIS OSMC PUBLIC LICENSE (OSMC-PL) VERSION 1.2.
   ANY USE, REPRODUCTION OR DISTRIBUTION OF THIS PROGRAM CONSTITUTES RECIPIENT'S ACCEPTANCE
-  OF THE OSMC PUBLIC LICENSE OR THE GPL VERSION 3, ACCORDING TO RECIPIENTS CHOICE. 
- 
+  OF THE OSMC PUBLIC LICENSE OR THE GPL VERSION 3, ACCORDING TO RECIPIENTS CHOICE.
+
   The OpenModelica software and the Open Source Modelica
   Consortium (OSMC) Public License (OSMC-PL) are obtained
   from OSMC, either from the above address,
-  from the URLs: http://www.ida.liu.se/projects/OpenModelica or  
-  http://www.openmodelica.org, and in the OpenModelica distribution. 
+  from the URLs: http://www.ida.liu.se/projects/OpenModelica or
+  http://www.openmodelica.org, and in the OpenModelica distribution.
   GNU version 3 is obtained from: http://www.gnu.org/copyleft/gpl.html.
- 
+
   This program is distributed WITHOUT ANY WARRANTY; without
   even the implied warranty of  MERCHANTABILITY or FITNESS
   FOR A PARTICULAR PURPOSE, EXCEPT AS EXPRESSLY SET FORTH
   IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE CONDITIONS OF OSMC-PL.
- 
+
   See the full OSMC Public License conditions for more details.
 
   Author : Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-19
   Version: 1.0
 """
- 
+
 import sys
 import os
 import time
 import inspect
 
-if sys.platform == 'win32':
+from subprocess import Popen, PIPE
+from datetime import datetime
+
+# import the parser module
+import OMParser
+
+# Randomize the IOR file name
+random_string = str(datetime.now())
+random_string = ''.join(e for e in random_string if e.isalnum())
+
+# Create a log file in the temp directory
+import tempfile
+temp = tempfile.gettempdir()
+omc_log_file = open(os.path.join(temp, "openmodelica.omc.output.OMPython"), 'w')
+
+# Look for the OMC
+try:
   omhome = os.environ['OPENMODELICAHOME']
   # add OPENMODELICAHOME\lib to PYTHONPATH so python can load omniORB libraries
   sys.path.append(os.path.join(omhome, 'lib'))
@@ -46,31 +62,25 @@ if sys.platform == 'win32':
   pathVar += ';'
   pathVar += os.path.join(omhome, 'bin')
   os.putenv('PATH', pathVar)
-else:
-  import OMConfig
-  omhome = OMConfig.DEFAULT_OPENMODELICAHOME
-
-from subprocess import Popen, PIPE
-from collections import OrderedDict
-from datetime import datetime
-from omniORB import CORBA
+  ompath = os.path.join(omhome, 'bin', 'omc') + " +d=interactiveCorba" + " +c=" + random_string
+  server = Popen(ompath, shell=True, stdout=omc_log_file, stderr=omc_log_file)
+except:
+  try:
+    import OMConfig
+    PREFIX = OMConfig.DEFAULT_OPENMODELICAHOME
+    omhome = os.path.join(PREFIX)
+    ompath = os.path.join(omhome, 'bin', 'omc') + " +d=interactiveCorba" + " +c=" + random_string
+    server = Popen(ompath, shell=True, stdout=omc_log_file, stderr=omc_log_file)
+  except:
+    try:
+      ompath = os.path.join('omc') + " +d=interactiveCorba" + " +c=" + random_string
+      server = Popen(ompath, shell=True, stdout=omc_log_file, stderr=omc_log_file)
+    except:
+      "The OpenModelica compiler is missing in the System path, please install it"
 
 # import the skeletons for the global module
+from omniORB import CORBA
 from OMPythonIDL import _OMCIDL
-
-# import the parser module
-import OMParser
-
-# Randomize the IOR file name
-random_string = str(datetime.now())
-random_string = ''.join(e for e in random_string if e.isalnum())
-
-# Run the server
-import tempfile
-temp = tempfile.gettempdir()
-omc_log_file = open(os.path.join(temp, "openmodelica.omc.output.OMPython"), 'w')
-ompath = os.path.join(omhome, 'bin', 'omc') + " +d=interactiveCorba" + " +c=" + random_string
-server = Popen(ompath, shell=True, stdout=omc_log_file, stderr=omc_log_file)
 
 # Locating and using the IOR
 if sys.platform == 'win32':
@@ -199,66 +209,66 @@ def typeCast(string):
   elif inspect.isclass(dotdictify):
     try:
       string = dict(string)
-      if string.__class__ == dict:  
+      if string.__class__ == dict:
         string = dict(string)
     except:
       try:
         string = list(string)
-        if string.__class__ == list:  
+        if string.__class__ == list:
           string = list(string)
       except:
         try:
           string = float(string)
-          if string.__class__ == float:  
+          if string.__class__ == float:
             string = float(string)
         except:
           try:
             string = long(string)
-            if string.__class__ == long:  
+            if string.__class__ == long:
               string = long(string)
           except:
             try:
               string = None(string)
-              if string.__class__ == None:  
+              if string.__class__ == None:
                 string = None(string)
             except:
               try:
                 string = tuple(string)
-                if string.__class__ == tuple:  
+                if string.__class__ == tuple:
                   string = tuple(string)
               except:
                 try:
                   string = complex(string)
-                  if string.__class__ == complex:  
+                  if string.__class__ == complex:
                     string = complex(string)
                 except:
                   try:
                     string = int(string)
-                    if string.__class__ == int:  
+                    if string.__class__ == int:
                       string = int(string)
                   except:
                     try:
                       string = file(string)
-                      if string.__class__ == file:  
+                      if string.__class__ == file:
                         string = file(string)
                     except:
                       try:
                         string = str(string)
-                        if string.__class__ == str:  
+                        if string.__class__ == str:
                           string = str(string)
                       except:
                         try:
                           string = bool(string)
-                          if string.__class__ == bool:  
+                          if string.__class__ == bool:
                             string = bool(string)
                         except:
                           print "Unknown datatype :: %s"% string
   return string
 
-def get(root,query):  
+def get(root,query):
   if isinstance(root,dict):
     root = dotdictify(root)
-      
+
   try:
     result = root[query]
     result = typeCast(result)
@@ -269,7 +279,7 @@ def get(root,query):
 def set(root,query,value):
   if isinstance(root,dict):
     root = dotdictify(root)
-      
+
   try:
     root[query]=value
     result = typeCast(root)
@@ -292,7 +302,7 @@ def execute(command):
       OMParser.result = {}
       return answer
 
-# Test commmands        
+# Test commmands
 def run():
   omc_running = True
   while omc_running:
