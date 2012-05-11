@@ -295,12 +295,9 @@ def execute(command):
     sys.exit(1)
   else:
     result = omc.sendExpression(command)
-    if result[0] == "\"":
-      return result
-    else:
-      answer = OMParser.check_for_values(result)
-      OMParser.result = {}
-      return answer
+    answer = OMParser.check_for_values(result)
+    OMParser.result = {}
+    return answer
 
 # Test commmands
 def run():
@@ -314,12 +311,9 @@ def run():
       sys.exit(1)
     else:
       result = omc.sendExpression(command)
-      if result[0] == "\"":
-        print result
-      else:
-        answer = OMParser.check_for_values(result)
-        OMParser.result = {}
-        print answer
+      answer = OMParser.check_for_values(result)
+      OMParser.result = {}
+      print answer
 
 if __name__ == "__main__":
         run()

@@ -52,9 +52,6 @@ def typeCheck(string):
     elif string == "false" or string == "False" or string == "FALSE":
         string = False
         return string
-    elif string == '\"\"':
-        string = None
-        return string
 
     try:
         string = int(string)
@@ -86,6 +83,7 @@ def make_values(strings, name):
             main_set_name = each_name
 
     if strings[0] == "\"" and strings[-1]=="\"":
+        strings = strings.replace("\\\"","\"")
         result[main_set_name]['Values']=[]
         result[main_set_name]['Values'].append(strings)
     else:
@@ -277,17 +275,23 @@ def make_subset_sets(strings, name):
         result[main_set_name]['Elements'][name]['Properties'][subset_name][set_name]= items
 
 def make_sets(strings, name):
+    if strings == "{}":
+        return
     index = 0
     anchor = 0
     main_set_name = "SET1"
     set_name = "Set1"
 
+    if strings[0]=="{" and strings[-1]=="}":
+        strings = strings[1:-1]
+
     set_list=strings.split(",")
     items = []
-
-    for each_item in set_list:
-        each_item = ''.join(c for c in each_item if c not in '}" "{')
+    
+    for each_item in set_list:        
         each_item = typeCheck(each_item)
+        if type(each_item)== str:
+            each_item = (each_item.lstrip()).rstrip()
         items.append(each_item)
 
     for each_name in result:
@@ -819,6 +823,17 @@ def check_for_values(string):
     main_set_name = "SET1"
     if len(string)==0:
         return result
+    
+    """changing untyped results to typed results"""
+    if string[0]=="(":
+        string = "{"+string[1:-2]+"}"
+
+
+    if string[0]== "\"":
+        string = string.replace("\\\"","\"")
+        string = string.replace("\\?","?")
+        string = string.replace("\\'","'")
+        return string
 
     if "record SimulationResult" in string:
         formatSimRes(string)
@@ -868,8 +883,13 @@ def check_for_values(string):
     if "{" in current_set:
         get_inner_sets(current_set,"Set", main_set_name)
 
-    check_for_next_iteration = ''.join(e for e in next_set if e.isalnum())
+    
+    check_for_next_iteration = ''.join(e for e in next_set if e not in {""})
     if len(check_for_next_iteration)>0:
         check_for_values(next_set)
+    else:
+        check_for_next_iteration = ''.join(e for e in next_set if e.isalnum())
+        if len(check_for_next_iteration)>0:
+            check_for_values(next_set)
 
     return result
