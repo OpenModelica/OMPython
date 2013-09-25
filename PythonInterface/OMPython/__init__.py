@@ -36,6 +36,8 @@ import os
 import time
 import inspect
 
+import atexit
+import uuid
 from subprocess import Popen, PIPE
 from datetime import datetime
 
@@ -43,13 +45,16 @@ from datetime import datetime
 import OMParser
 
 # Randomize the IOR file name
-random_string = str(datetime.now())
-random_string = ''.join(e for e in random_string if e.isalnum())
+random_string = uuid.uuid4().hex
+print "random_string",random_string
 
 # Create a log file in the temp directory
 import tempfile
 temp = tempfile.gettempdir()
 omc_log_file = open(os.path.join(temp, "openmodelica.omc.output.OMPython"), 'w')
+
+def OMPythonExit():
+  execute("quit();")
 
 # Look for the OMC
 try:
@@ -77,6 +82,7 @@ except:
       server = Popen(ompath, shell=True, stdout=omc_log_file, stderr=omc_log_file)
     except:
       "The OpenModelica compiler is missing in the System path, please install it"
+atexit.register(OMPythonExit)
 
 # import the skeletons for the global module
 from omniORB import CORBA
