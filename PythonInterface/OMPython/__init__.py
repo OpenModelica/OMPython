@@ -46,7 +46,6 @@ import OMParser
 
 # Randomize the IOR file name
 random_string = uuid.uuid4().hex
-print "random_string",random_string
 
 # Create a log file in the temp directory
 import tempfile
