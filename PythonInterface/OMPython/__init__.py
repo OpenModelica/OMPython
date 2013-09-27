@@ -53,7 +53,7 @@ temp = tempfile.gettempdir()
 omc_log_file = open(os.path.join(temp, "openmodelica.omc.output.OMPython"), 'w')
 
 def OMPythonExit():
-  execute("quit();")
+  omc.sendExpression("quit();")
 
 # Look for the OMC
 try:
@@ -295,7 +295,6 @@ def set(root,query,value):
 # Invoke the sendExpression method to send text commands to the server
 def execute(command):
   if command == "quit()":
-    omc.sendExpression("quit()")
     print "\nOMC has been Shutdown\n"
     sys.exit(1)
   else:
@@ -310,7 +309,6 @@ def run():
   while omc_running:
     command = raw_input("\n>>")
     if command == "quit()":
-      omc.sendExpression("quit()")
       print "\nOMC has been Shutdown\n"
       omc_running = False
       sys.exit(1)
