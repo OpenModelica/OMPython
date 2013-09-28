@@ -43,6 +43,7 @@ from datetime import datetime
 
 # import the parser module
 import OMParser
+import OMTypedParser
 
 # Randomize the IOR file name
 random_string = uuid.uuid4().hex
@@ -302,6 +303,21 @@ def execute(command):
     answer = OMParser.check_for_values(result)
     OMParser.result = {}
     return answer
+
+def sendExpression(command):
+  """
+  Sends an expression to the OpenModelica. The return type is parsed as if the
+  expression was part of the typed OpenModelica API (see ModelicaBuiltin.mo).
+  * Integer and Real are returned as Python numbers
+  * Strings, enumerations, and typenames are returned as Python strings
+  * Arrays, tuples, and MetaModelica lists are returned as tuples
+  * Records are returned as dicts (the name of the record is lost)
+  * Booleans are returned as True or False
+  * NONE() is returned as None
+  * SOME(value) is returned as value
+  """
+  result = omc.sendExpression(command)
+  return OMTypedParser.parseString(result)
 
 # Test commmands
 def run():
