@@ -45,7 +45,7 @@ def convertNumbers(s,l,toks):
     except ValueError, ve:
         return float(n)
 def convertString(s,s2):
-  return s2[0][1:-1].replace("\\\"",'"')
+  return s2[0].replace("\\\"",'"')
 def convertDict(d):
     return dict(d[0])
 def convertTuple(t):
@@ -59,7 +59,7 @@ FALSE = Keyword("false").setParseAction( replaceWith(False) )
 NONE = (Keyword("NONE") + Suppress("(") + Suppress(")") ).setParseAction( replaceWith(None) )
 SOME = (Suppress( Keyword("SOME") ) + Suppress("(") + omcValue + Suppress(")") )
 
-omcString = dblQuotedString.setParseAction( convertString )
+omcString = QuotedString(quoteChar='"',escChar='\\', multiline = True).setParseAction( convertString )
 omcNumber = Combine( Optional('-') + ( '0' | Word('123456789',nums) ) +
                     Optional( '.' + Word(nums) ) +
                     Optional( Word('eE',exact=1) + Word(nums+'+-',nums) ) )
@@ -83,12 +83,13 @@ def parseString(string):
     
 if __name__ == "__main__":
     testdata = """
-   (1.0,{{1,true,3},{"4\\"",5.9,6,NONE ( )},record ABC
+   (1.0,{{1,true,3},{"4\\"
+",5.9,6,NONE ( )},record ABC
   startTime = ErrorLevel.warning,
   'stop*Time' = SOME(1.0)
 end ABC;})
     """
-    expected = (1.0, ((1, True, 3), ('4"', 5.9, 6, None), {"'stop*Time'": 1.0, 'startTime': 'ErrorLevel.warning'}))
+    expected = (1.0, ((1, True, 3), ('4"\n', 5.9, 6, None), {"'stop*Time'": 1.0, 'startTime': 'ErrorLevel.warning'}))
     results = parseString(testdata)
     if results <> expected:
       print "Results:",results
