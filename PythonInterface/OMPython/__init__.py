@@ -54,7 +54,8 @@ temp = tempfile.gettempdir()
 omc_log_file = open(os.path.join(temp, "openmodelica.omc.output.OMPython"), 'w')
 
 def OMPythonExit():
-  omc.sendExpression("quit();")
+  if omc:
+    omc.sendExpression("quit();")
 
 # Look for the OMC
 try:
