@@ -226,6 +226,8 @@ def convertFromFmi(fmuFilename, fmi=None):
             if variability == 'parameter':
                 causality = 'parameter'
                 variability = 'fixed'
+            if causality in ['internal', 'none']:
+                causality = 'local'
 
             simpleTypeRow = rowIndex[fmiVariableName]
             variable[fmiVariableName] = pyMtsf.ScalarModelVariable(fmiVariable.description,
