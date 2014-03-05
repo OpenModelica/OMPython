@@ -7,6 +7,10 @@ builddir_share=$(top_builddir)/build/share
 
 IDLFILE=$(top_builddir)/Compiler/runtime/omc_communication.idl
 
+mkbuilddirs:
+	# create directories
+	mkdir -p $(builddir_lib)/python/omniORB
+	mkdir -p $(builddir_share)/omc/scripts/PythonInterface/OMPython/OMParser
+
 clean:
 	rm -rf build/ OMPythonIDL/ OMPython/_GlobalID* OMPython/omc_communication_idl.py
-
