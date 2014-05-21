@@ -61,7 +61,6 @@ def OMPythonExit():
 try:
   omhome = os.environ['OPENMODELICAHOME']
   # add OPENMODELICAHOME\lib to PYTHONPATH so python can load omniORB libraries
-  sys.path.append(os.path.join(omhome, 'lib'))
   sys.path.append(os.path.join(omhome, 'lib','python'))
   # add OPENMODELICAHOME\bin to path so python can find the omniORB binaries
   pathVar = os.getenv('PATH')
