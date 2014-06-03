@@ -8,7 +8,11 @@ setup(name='OMPython',
       maintainer='Adeel Asghar',
       maintainer_email='adeel.asghar@liu.se',
       url='http://openmodelica.org/',
-      packages=['OMPython', 'OMPython.OMParser','OMPythonIDL', 'OMPythonIDL._OMCIDL', 'OMPythonIDL._OMCIDL__POA']
-     )
-     
-     
+      packages=['OMPython', 'OMPython.OMParser','OMPythonIDL', 'OMPythonIDL._OMCIDL', 'OMPythonIDL._OMCIDL__POA'],
+      install_requires=[
+        # 'omniORB', # Required, but not part of pypi
+        'pyparsing'
+      ]
+)
+
+

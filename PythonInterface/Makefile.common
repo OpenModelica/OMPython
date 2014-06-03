@@ -7,10 +7,19 @@ builddir_share=$(top_builddir)/build/share
 
 IDLFILE=$(top_builddir)/Compiler/runtime/omc_communication.idl
 
+.PHONY: dist
+
 mkbuilddirs:
 	# create directories
 	mkdir -p $(builddir_lib)/python/omniORB
 	mkdir -p $(builddir_share)/omc/scripts/PythonInterface/OMPython/OMParser
+
+dist: OMPythonIDL/omc_communication_idl.py
+	echo 'DEFAULT_OPENMODELICAHOME = "/usr"' > OMPython/OMConfig.py
+	python setup.py sdist
+
+upload: dist
+	python setup.py sdist upload
 
 clean:
 	rm -rf build/ OMPythonIDL/ OMPython/_GlobalID* OMPython/omc_communication_idl.py
