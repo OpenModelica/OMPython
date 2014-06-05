@@ -54,8 +54,9 @@ temp = tempfile.gettempdir()
 omc_log_file = open(os.path.join(temp, "openmodelica.omc.output.OMPython"), 'w')
 
 def OMPythonExit():
+  global omc
   if omc:
-    omc.sendExpression("quit();")
+    omc.sendExpression("quit()")
 
 # Look for the OMC
 try:
@@ -316,8 +317,13 @@ def sendExpression(command):
   * NONE() is returned as None
   * SOME(value) is returned as value
   """
+  global omc
   result = omc.sendExpression(command)
-  return OMTypedParser.parseString(result)
+  if command != "quit()":
+    return OMTypedParser.parseString(result)
+  else:
+    omc = None
+    return result
 
 # Test commmands
 def run():
