@@ -1,5 +1,27 @@
 # -*- coding: cp1252 -*-
 """
+OMPython is a Python interface to OpenModelica.
+To get started, create an OMCSession object:
+from OMPython import OMCSession
+OMPython = OMCSession()
+OMPython.sendExpression(command)
+
+Note: Conversion from OMPython 1.0 to OMPython 2.0 is very simple
+1.0:
+import OMPython
+OMPython.execute(command)
+2.0:
+from OMPython import OMCSession
+OMPython = OMCSession()
+OMPython.execute(command)
+
+The difference between execute and sendExpression is the type of the
+returned expression. sendExpression maps Modelica types to Python types,
+while execute tries to map also output that is not valid Modelica.
+That format is harder to use.
+"""
+
+__license__ = """
  This file is part of OpenModelica.
 
  Copyright (c) 1998-CurrentYear, Open Source Modelica Consortium (OSMC),
@@ -13,7 +35,7 @@
  ANY USE, REPRODUCTION OR DISTRIBUTION OF THIS PROGRAM CONSTITUTES
  RECIPIENT'S ACCEPTANCE OF THE OSMC PUBLIC LICENSE OR THE GPL VERSION 3,
  ACCORDING TO RECIPIENTS CHOICE.
- 
+
  The OpenModelica software and the OSMC (Open Source Modelica Consortium)
  Public License (OSMC-PL) are obtained from OSMC, either from the above
  address, from the URLs: http://www.openmodelica.org or
@@ -27,318 +49,379 @@
  EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
  CONDITIONS OF OSMC-PL.
 
- Author : Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-19
- Version: 1.0
+ Version: 1.1
 """
 
-import sys
 import os
+import sys
 import time
-import inspect
-
-import atexit
+import logging
 import uuid
-from subprocess import Popen, PIPE
-from datetime import datetime
-
-# import the parser module
-import OMParser
-import OMTypedParser
-
-# Randomize the IOR file name
-random_string = uuid.uuid4().hex
-
-# Create a log file in the temp directory
+import subprocess
 import tempfile
-temp = tempfile.gettempdir()
-omc_log_file = open(os.path.join(temp, "openmodelica.omc.output.OMPython"), 'w')
+import pyparsing
 
-def OMPythonExit():
-  global omc
-  if omc:
-    omc.sendExpression("quit()")
+if sys.platform == 'darwin':
+    # On Mac let's assume omc is installed here and there might be a broken omniORB installed in a bad place
+    sys.path.append('/opt/local/lib/python2.7/site-packages/')
+    sys.path.append('/opt/openmodelica/lib/python2.7/site-packages/')
 
-# Look for the OMC
-try:
-  omhome = os.environ['OPENMODELICAHOME']
-  # add OPENMODELICAHOME\lib to PYTHONPATH so python can load omniORB libraries
-  sys.path.append(os.path.join(omhome, 'lib','python'))
-  # add OPENMODELICAHOME\bin to path so python can find the omniORB binaries
-  pathVar = os.getenv('PATH')
-  pathVar += ';'
-  pathVar += os.path.join(omhome, 'bin')
-  os.putenv('PATH', pathVar)
-  ompath = os.path.join(omhome, 'bin', 'omc') + " +d=interactiveCorba" + " +c=" + random_string
-  server = Popen(ompath, shell=True, stdout=omc_log_file, stderr=omc_log_file)
-except:
-  try:
-    import OMConfig
-    PREFIX = OMConfig.DEFAULT_OPENMODELICAHOME
-    omhome = os.path.join(PREFIX)
-    ompath = os.path.join(omhome, 'bin', 'omc') + " +d=interactiveCorba" + " +c=" + random_string
-    server = Popen(ompath, shell=True, stdout=omc_log_file, stderr=omc_log_file)
-  except:
-    try:
-      ompath = os.path.join('omc') + " +d=interactiveCorba" + " +c=" + random_string
-      server = Popen(ompath, shell=True, stdout=omc_log_file, stderr=omc_log_file)
-    except:
-      "The OpenModelica compiler is missing in the System path, please install it"
-atexit.register(OMPythonExit)
+# TODO: replace this with the new parser
+from OMPython import OMTypedParser, OMParser
 
-# import the skeletons for the global module
-from omniORB import CORBA
-from OMPythonIDL import _OMCIDL
+class OMCSession(object):
 
-# Locating and using the IOR
-if sys.platform == 'win32':
-  ior_file = "openmodelica.objid." + random_string
-else:
-  currentUser = os.environ['USER']
-  if currentUser == '':
-    currentUser = "nobody"
-  ior_file = "openmodelica." + currentUser + ".objid." + random_string
-ior_file = os.path.join(temp, ior_file)
-omc_corba_uri= "file:///" + ior_file
+    def _start_server(self):
+        self._server = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file,
+                                        stderr=self._omc_log_file)
+        return self._server
 
-# See if the omc server is running
-if os.path.isfile(ior_file):
-  print "OMC Server is up and running at " + omc_corba_uri + "\n"
-else:
-  attempts = 0
-  while True:
-    if not os.path.isfile(ior_file):
-      time.sleep(0.25)
-      attempts +=1
-      if attempts == 10:
-        print "OMC Server is down. Please start it! Exiting...\n"
-        sys.exit(2)
-    else:
-      print "OMC Server is up and running at " + omc_corba_uri + "\n"
-      break
+    def _set_omc_corba_command(self, omc_path='omc'):
+        self._omc_command = "{0} +d=interactiveCorba +c={1}".format(omc_path, self._random_string)
+        return self._omc_command
 
-#initialize the ORB with maximum size for the ORB set
-sys.argv.append("-ORBgiopMaxMsgSize")
-sys.argv.append("2147483647")
-orb = CORBA.ORB_init(sys.argv, CORBA.ORB_ID)
-
-# Read the IOR file
-objid_file=open(ior_file)
-ior = objid_file.readline()
-objid_file.close()
-
-# Find the root POA
-poa = orb.resolve_initial_references("RootPOA")
-
-# Convert the IOR into an object reference
-obj = orb.string_to_object(ior)
-
-# Narrow the reference to the OmcCommunication object
-omc = obj._narrow(_OMCIDL.OmcCommunication)
-
-# Check if we are using the right object
-if omc is None:
-        print "Object reference is not valid"
-        sys.exit(1)
-
-# Helper class to retrieve the results of (nested) dictionaries using dot separated queries
-class dotdictify(dict):
-  def __init__(self, value=None):
-      if value is None:
-          pass
-      elif isinstance(value, dict):
-          for key in value:
-              self.__setitem__(key, value[key])
-      else:
-          raise TypeError, 'expected a dictionary, re-try'
-
-  def __setitem__(self, key, value):
-      if '.' in key:
-          myKey, restOfKey = key.split('.', 1)
-          target = self.setdefault(myKey, dotdictify())
-          if not isinstance(target, dotdictify):
-              raise KeyError, 'cannot set "%s" in "%s" (%s)' % (restOfKey, myKey, repr(target))
-          target[restOfKey] = value
-      else:
-          if isinstance(value, dict) and not isinstance(value, dotdictify):
-              value = dotdictify(value)
-          dict.__setitem__(self, key, value)
-
-  def __getitem__(self, key):
-      if '.' not in key:
-          return dict.__getitem__(self, key)
-      myKey, restOfKey = key.split('.', 1)
-      target = dict.__getitem__(self, myKey)
-      if not isinstance(target, dotdictify):
-          raise KeyError, 'cannot get "%s" in "%s" (%s)' % (restOfKey, myKey, repr(target))
-      return target[restOfKey]
-
-  def __contains__(self, key):
-      if '.' not in key:
-          return dict.__contains__(self, key)
-      myKey, restOfKey = key.split('.', 1)
-      target = dict.__getitem__(self, myKey)
-      if not isinstance(target, dotdictify):
-          return False
-      return restOfKey in target
-
-  def setdefault(self, key, default):
-      if key not in self:
-          self[key] = default
-      return self[key]
-
-  __setattr__ = __setitem__
-  __getattr__ = __getitem__
-
-
-def typeCast(string):
-  if string.__class__ == dict:
-    string = dict(string)
-  elif string.__class__ == list:
-    string = list(string)
-  elif string.__class__ == float:
-    string = float(string)
-  elif string.__class__ == long:
-    string = long(string)
-  elif string.__class__ == bool:
-    string = bool(string)
-  elif string.__class__ == tuple:
-    string = tuple(string)
-  elif string.__class__ == complex:
-    string = complex(string)
-  elif string.__class__ == int:
-    string = int(string)
-  elif string.__class__ == file:
-    string = file(string)
-  elif string.__class__ == str:
-    string = str(string)
-  elif string.__class__ == None:
-    string = None
-  elif inspect.isclass(dotdictify):
-    try:
-      string = dict(string)
-      if string.__class__ == dict:
-        string = dict(string)
-    except:
-      try:
-        string = list(string)
-        if string.__class__ == list:
-          string = list(string)
-      except:
+    def _start_omc(self):
+        self._server = None
+        self._omc_command = None
         try:
-          string = float(string)
-          if string.__class__ == float:
-            string = float(string)
+            self.omhome = os.environ['OPENMODELICAHOME']
+            # add OPENMODELICAHOME\lib to PYTHONPATH so python can load omniORB libraries
+            sys.path.append(os.path.join(self.omhome, 'lib'))
+            sys.path.append(os.path.join(self.omhome, 'lib', 'python'))
+            # add OPENMODELICAHOME\bin to path so python can find the omniORB binaries
+            pathVar = os.getenv('PATH')
+            pathVar += ';'
+            pathVar += os.path.join(self.omhome, 'bin')
+            os.putenv('PATH', pathVar)
+            self._set_omc_corba_command(os.path.join(self.omhome, 'bin', 'omc'))
+            self._start_server()
         except:
-          try:
-            string = long(string)
-            if string.__class__ == long:
-              string = long(string)
-          except:
+            # FIXME: what is this case? are we looking at platform specifics? or different versions of OpenModelica?
             try:
-              string = None(string)
-              if string.__class__ == None:
-                string = None(string)
+                import OMConfig
+
+                PREFIX = OMConfig.DEFAULT_OPENMODELICAHOME
+                self.omhome = os.path.join(PREFIX)
+                self._set_omc_corba_command(os.path.join(self.omhome, 'bin', 'omc'))
+                self._start_server()
             except:
-              try:
-                string = tuple(string)
-                if string.__class__ == tuple:
-                  string = tuple(string)
-              except:
+                # FIXME: what is this case? are we looking at platform specifics? or different versions of OpenModelica?
                 try:
-                  string = complex(string)
-                  if string.__class__ == complex:
-                    string = complex(string)
-                except:
-                  try:
-                    string = int(string)
-                    if string.__class__ == int:
-                      string = int(string)
-                  except:
-                    try:
-                      string = file(string)
-                      if string.__class__ == file:
-                        string = file(string)
-                    except:
-                      try:
-                        string = str(string)
-                        if string.__class__ == str:
-                          string = str(string)
-                      except:
-                        try:
-                          string = bool(string)
-                          if string.__class__ == bool:
-                            string = bool(string)
-                        except:
-                          print "Unknown datatype :: %s"% string
-  return string
+                    self._set_omc_corba_command('/opt/local/bin/omc')
+                    self._start_server()
+                except Exception as ex:
+                    self.logger.error("The OpenModelica compiler is missing in the System path, please install it")
+                    raise ex
 
-def get(root,query):
-  if isinstance(root,dict):
-    root = dotdictify(root)
+    def _connect_to_omc(self):
+        # import the skeletons for the global module
+        from omniORB import CORBA
+        from OMPythonIDL import _OMCIDL
+        # Locating and using the IOR
+        if sys.platform == 'win32':
+            self._ior_file = "openmodelica.objid." + self._random_string
+        else:
+            self.currentUser = os.environ['USER']
+            if not self.currentUser:
+                self.currentUser = "nobody"
 
-  try:
-    result = root[query]
-    result = typeCast(result)
-    return result
-  except KeyError:
-    print "KeyError: Cannot GET the value, please check the syntax of your dotted notationed query"
+            self._ior_file = "openmodelica." + self.currentUser + ".objid." + self._random_string
+        self._ior_file = os.path.join(self._temp_dir, self._ior_file)
+        self._omc_corba_uri = "file:///" + self._ior_file
+        # See if the omc server is running
+        if os.path.isfile(self._ior_file):
+            self.logger.info("OMC Server is up and running at {0}".format(self._omc_corba_uri))
+        else:
+            attempts = 0
+            while True:
+                if not os.path.isfile(self._ior_file):
+                    time.sleep(0.25)
+                    attempts += 1
+                    if attempts == 10:
+                        self.logger.error("OMC Server is down. Please start it!")
+                        raise Exception
+                    else:
+                        self.logger.info("OMC Server is up and running at {0}".format(self._omc_corba_uri))
+                        break
 
-def set(root,query,value):
-  if isinstance(root,dict):
-    root = dotdictify(root)
+        #initialize the ORB with maximum size for the ORB set
+        sys.argv.append("-ORBgiopMaxMsgSize")
+        sys.argv.append("2147483647")
+        self._orb = CORBA.ORB_init(sys.argv, CORBA.ORB_ID)
+        # Read the IOR file
+        with open(self._ior_file, 'r') as f_p:
+            self._ior = f_p.readline()
 
-  try:
-    root[query]=value
-    result = typeCast(root)
-    return result
-  except KeyError:
-    print "KeyError: Cannot SET the value, please check your dotted notationed query"
+        # Find the root POA
+        self._poa = self._orb.resolve_initial_references("RootPOA")
+        # Convert the IOR into an object reference
+        self._obj_reference = self._orb.string_to_object(self._ior)
+        # Narrow the reference to the OmcCommunication object
+        self._omc = self._obj_reference._narrow(_OMCIDL.OmcCommunication)
+        # Check if we are using the right object
+        if self._omc is None:
+            self.logger.error("Object reference is not valid")
+            raise Exception
 
-# Invoke the sendExpression method to send text commands to the server
-def execute(command):
-  if command == "quit()":
-    print "\nOMC has been Shutdown\n"
-    sys.exit(1)
-  else:
-    result = omc.sendExpression(command)
-    answer = OMParser.check_for_values(result)
-    OMParser.result = {}
-    return answer
+    def __init__(self, readonly=False):
+        self.readonly = readonly
+        self.omc_cache = {}
 
-def sendExpression(command):
-  """
-  Sends an expression to the OpenModelica. The return type is parsed as if the
-  expression was part of the typed OpenModelica API (see ModelicaBuiltin.mo).
-  * Integer and Real are returned as Python numbers
-  * Strings, enumerations, and typenames are returned as Python strings
-  * Arrays, tuples, and MetaModelica lists are returned as tuples
-  * Records are returned as dicts (the name of the record is lost)
-  * Booleans are returned as True or False
-  * NONE() is returned as None
-  * SOME(value) is returned as value
-  """
-  global omc
-  result = omc.sendExpression(command)
-  if command != "quit()":
-    return OMTypedParser.parseString(result)
-  else:
-    omc = None
-    return result
+        self.logger = logging.getLogger('OMCSession')
+        self.logger.setLevel(logging.DEBUG)
+        # create console handler with a higher log level
+        self.logger_console_handler = logging.StreamHandler()
+        self.logger_console_handler.setLevel(logging.INFO)
 
-# Test commmands
-def run():
-  omc_running = True
-  while omc_running:
-    command = raw_input("\n>>")
-    if command == "quit()":
-      print "\nOMC has been Shutdown\n"
-      omc_running = False
-      sys.exit(1)
-    else:
-      result = omc.sendExpression(command)
-      answer = OMParser.check_for_values(result)
-      OMParser.result = {}
-      print answer
+        # create formatter and add it to the handlers
+        self.logger_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        self.logger_console_handler.setFormatter(self.logger_formatter)
 
-if __name__ == "__main__":
-        run()
+        # add the handlers to the logger
+        self.logger.addHandler(self.logger_console_handler)
+
+        # FIXME: this code is not well written... need to be refactored
+        self._temp_dir = tempfile.gettempdir()
+        # this file must be closed in the destructor
+        self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.omc.output.OMPython"), 'w')
+
+        # generate a random string for this session
+        self._random_string = uuid.uuid4().hex
+
+        # start up omc executable, which is waiting for the CORBA connection
+        self._start_omc()
+
+        # connect to the running omc instance using CORBA
+        self._connect_to_omc()
+
+    def __del__(self):
+        self._omc.sendExpression("quit();") # FIXME: does not work in a virtual python environment
+        self._omc_log_file.close()
+        # kill self._server process if it is still running/exists
+        if self._server.returncode is None:
+            self._server.kill()
+
+    def execute(self, command):
+        result = self._omc.sendExpression(command)
+        answer = OMParser.check_for_values(result)
+        return answer
+
+    def sendExpression(self, command):
+        """
+        Sends an expression to the OpenModelica. The return type is parsed as if the
+        expression was part of the typed OpenModelica API (see ModelicaBuiltin.mo).
+        * Integer and Real are returned as Python numbers
+        * Strings, enumerations, and typenames are returned as Python strings
+        * Arrays, tuples, and MetaModelica lists are returned as tuples
+        * Records are returned as dicts (the name of the record is lost)
+        * Booleans are returned as True or False
+        * NONE() is returned as None
+        * SOME(value) is returned as value
+        """
+        result = self._omc.sendExpression(str(command))
+        answer = OMTypedParser.parseString(result)
+        return answer
+    def ask(self, question, opt=None, parsed=True):
+        p = (question, opt, parsed)
+
+        if self.readonly and question != 'getErrorString':
+            # can use cache if readonly
+            if p in self.omc_cache:
+                return self.omc_cache[p]
+
+        if opt:
+            expression = '{0}({1})'.format(question, opt)
+        else:
+            expression = question
+
+        self.logger.debug('OMC ask: {0}  - parsed: {1}'.format(expression, parsed))
+
+        try:
+            if parsed:
+                res = self.execute(expression)
+            else:
+                res = self._omc.sendExpression(expression)
+        except Exception as e:
+            self.logger.error("OMC failed: {0}, {1}, parsed={2}".format(question, opt, parsed))
+            raise e
+
+        # save response
+        self.omc_cache[p] = res
+
+        return res
+
+    # TODO: Open Modelica Compiler API functions. Would be nice to generate these.
+    def loadFile(self, filename):
+        return self.ask('loadFile', '"{0}"'.format(filename))
+
+    def loadModel(self, className):
+        return self.ask('loadModel', className)
+
+    def isModel(self, className):
+        return self.ask('isModel', className)
+
+    def isPackage(self, className):
+        return self.ask('isPackage', className)
+
+    def isPrimitive(self, className):
+        return self.ask('isPrimitive', className)
+
+    def isConnector(self, className):
+        return self.ask('isConnector', className)
+
+    def isRecord(self, className):
+        return self.ask('isRecord', className)
+
+    def isBlock(self, className):
+        return self.ask('isBlock', className)
+
+    def isType(self, className):
+        return self.ask('isType', className)
+
+    def isFunction(self, className):
+        return self.ask('isFunction', className)
+
+    def isClass(self, className):
+        return self.ask('isClass', className)
+
+    def isParameter(self, className):
+        return self.ask('isParameter', className)
+
+    def isConstant(self, className):
+        return self.ask('isConstant', className)
+
+    def isProtected(self, className):
+        return self.ask('isProtected', className)
+
+    def getPackages(self):
+        return self.ask('getPackages')
+
+    def getPackages(self, className):
+        return self.ask('getPackages', className)
+
+    def getClassRestriction(self, className):
+        return self.ask('getClassRestriction', className)
+
+    def getDerivedClassModifierNames(self, className):
+        return self.ask('getDerivedClassModifierNames', className)
+
+    def getDerivedClassModifierValue(self, className, modifierName):
+        return self.ask('getDerivedClassModifierValue', '{0}, {1}'.format(className, modifierName))
+
+    def typeNameStrings(self, className):
+        return self.ask('typeNameStrings', className)
+
+    def getComponents(self, className):
+        return self.ask('getComponents', className)
+
+    def getClassComment(self, className):
+        try:
+            return self.ask('getClassComment', className)
+        except pyparsing.ParseException as ex:
+            self.logger.warning("Method 'getClassComment' failed for {0}".format(className))
+            self.logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            return 'No description available'
+
+    def getNthComponent(self, className, comp_id):
+        """ returns with (type, name, description) """
+        return self.ask('getNthComponent', '{0}, {1}'.format(className, comp_id))
+
+    def getNthComponentAnnotation(self, className, comp_id):
+        return self.ask('getNthComponentAnnotation', '{0}, {1}'.format(className, comp_id))
+
+    def getImportCount(self, className):
+        return self.ask('getImportCount', className)
+
+    def getNthImport(self, className, importNumber):
+        # [Path, id, kind]
+        return self.ask('getNthImport', '{0}, {1}'.format(className, importNumber))
+
+    def getInheritanceCount(self, className):
+        return self.ask('getInheritanceCount', className)
+
+    def getNthInheritedClass(self, className, inheritanceDepth):
+        return self.ask('getNthInheritedClass', '{0}, {1}'.format(className, inheritanceDepth))
+
+    def getParameterNames(self, className):
+        try:
+            return self.ask('getParameterNames', className)
+        except KeyError as ex:
+            self.logger.warning('OMPython error: {0}'.format(ex.message))
+            # FIXME: OMC returns with a different structure for empty parameter set
+            return []
+
+    def getParameterValue(self, className, parameterName):
+        try:
+            return self.ask('getParameterValue', '{0}, {1}'.format(className, parameterName))
+        except pyparsing.ParseException as ex:
+            self.logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            return ""
+
+    def getComponentModifierNames(self, className, componentName):
+        return self.ask('getComponentModifierNames', '{0}, {1}'.format(className, componentName))
+
+    def getComponentModifierValue(self, className, componentName):
+        try:
+            # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
+            return self.ask('getComponentModifierValue', '{0}, {1}'.format(className, componentName))
+        except pyparsing.ParseException as ex:
+            self.logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            result = self.ask('getComponentModifierValue', '{0}, {1}'.format(className, componentName), parsed=False)
+            try:
+                answer = OMParser.check_for_values(result)
+                OMParser.result = {}
+                return answer[2:]
+            except (TypeError, UnboundLocalError) as ex:
+                self.logger.warning('OMParser error: {0}'.format(ex.message))
+                return result
+
+    def getExtendsModifierNames(self, className, componentName):
+        return self.ask('getExtendsModifierNames', '{0}, {1}'.format(className, componentName))
+
+    def getExtendsModifierValue(self, className, extendsName, modifierName):
+        try:
+            # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
+            return self.ask('getExtendsModifierValue', '{0}, {1}, {2}'.format(className, extendsName, modifierName))
+        except pyparsing.ParseException as ex:
+            self.logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            result = self.ask('getExtendsModifierValue', '{0}, {1}, {2}'.format(className, extendsName, modifierName), parsed=False)
+            try:
+                answer = OMParser.check_for_values(result)
+                OMParser.result = {}
+                return answer[2:]
+            except (TypeError, UnboundLocalError) as ex:
+                self.logger.warning('OMParser error: {0}'.format(ex.message))
+                return result
+
+    def getNthComponentModification(self, className, comp_id):
+        # FIXME: OMPython exception Results KeyError exception
+
+        # get {$Code(....)} field
+        # \{\$Code\((\S*\s*)*\)\}
+        value = self.ask('getNthComponentModification', '{0}, {1}'.format(className, comp_id), parsed=False)
+        value = value.replace("{$Code(", "")
+        return value[:-3]
+        #return self.re_Code.findall(value)
+
+    # function getClassNames
+    #   input TypeName class_ = $Code(AllLoadedClasses);
+    #   input Boolean recursive = false;
+    #   input Boolean qualified = false;
+    #   input Boolean sort = false;
+    #   input Boolean builtin = false "List also builtin classes if true";
+    #   input Boolean showProtected = false "List also protected classes if true";
+    #   output TypeName classNames[:];
+    # end getClassNames;
+    def getClassNames(self, className=None, recursive=False, qualified=False, sort=False, builtin=False,
+                      showProtected=False):
+        if className:
+            value = self.ask('getClassNames',
+                             '{0}, recursive={1}, qualified={2}, sort={3}, builtin={4}, showProtected={5}'.format(
+                                 className, str(recursive).lower(), str(qualified).lower(), str(sort).lower(),
+                                 str(builtin).lower(), str(showProtected).lower()))
+        else:
+            value = self.ask('getClassNames',
+                             'recursive={1}, qualified={2}, sort={3}, builtin={4}, showProtected={5}'.format(
+                                 str(recursive).lower(), str(qualified).lower(), str(sort).lower(),
+                                 str(builtin).lower(), str(showProtected).lower()))
+        return value

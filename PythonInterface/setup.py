@@ -1,7 +1,10 @@
-from distutils.core import setup
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
 
 setup(name='OMPython',
-      version='1.0',
+      version='2.0',
       description='OpenModelica-Python API Interface',
       author='Anand Kalaiarasi Ganeson',
       author_email='ganan642@student.liu.se',
