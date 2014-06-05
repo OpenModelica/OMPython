@@ -114,6 +114,7 @@ class OMCSession(object):
                     raise ex
 
     def _connect_to_omc(self):
+        self._omc = None
         # import the skeletons for the global module
         from omniORB import CORBA
         from OMPythonIDL import _OMCIDL
@@ -195,17 +196,31 @@ class OMCSession(object):
         self._connect_to_omc()
 
     def __del__(self):
-        self._omc.sendExpression("quit();") # FIXME: does not work in a virtual python environment
+        if self._omc is not None:
+          self._omc.sendExpression("quit()")
         self._omc_log_file.close()
         # kill self._server process if it is still running/exists
         if self._server.returncode is None:
             self._server.kill()
 
+    # FIXME: we should have one function which interacts with OMC. Either execute OR sendExpression.
+    # Execute uses OMParser.check_for_values and sendExpression uses OMTypedParser.parseString.
+    # We should have one parser. Then we can get rid of one of these functions.
     def execute(self, command):
-        result = self._omc.sendExpression(command)
-        answer = OMParser.check_for_values(result)
-        return answer
+        if self._omc is not None:
+          result = self._omc.sendExpression(command)
+          if command == "quit()":
+            self._omc = None
+            return result
+          else:
+            answer = OMParser.check_for_values(result)
+            return answer
+        else:
+          return "No connection with OMC. Create an instance of OMCSession."
 
+    # FIXME: we should have one function which interacts with OMC. Either execute OR sendExpression.
+    # Execute uses OMParser.check_for_values and sendExpression uses OMTypedParser.parseString.
+    # We should have one parser. Then we can get rid of one of these functions.
     def sendExpression(self, command):
         """
         Sends an expression to the OpenModelica. The return type is parsed as if the
@@ -218,9 +233,17 @@ class OMCSession(object):
         * NONE() is returned as None
         * SOME(value) is returned as value
         """
-        result = self._omc.sendExpression(str(command))
-        answer = OMTypedParser.parseString(result)
-        return answer
+        if self._omc is not None:
+          result = self._omc.sendExpression(str(command))
+          if command == "quit()":
+            self._omc = None
+            return result
+          else:
+            answer = OMTypedParser.parseString(result)
+            return answer
+        else:
+          return "No connection with OMC. Create an instance of OMCSession."
+
     def ask(self, question, opt=None, parsed=True):
         p = (question, opt, parsed)
 
