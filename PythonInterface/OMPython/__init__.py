@@ -142,8 +142,10 @@ class OMCSession(object):
                         self.logger.error("OMC Server is down. Please start it!")
                         raise Exception
                     else:
-                        self.logger.info("OMC Server is up and running at {0}".format(self._omc_corba_uri))
-                        break
+                        continue
+                else:
+                    self.logger.info("OMC Server is up and running at {0}".format(self._omc_corba_uri))
+                    break
 
         #initialize the ORB with maximum size for the ORB set
         sys.argv.append("-ORBgiopMaxMsgSize")
