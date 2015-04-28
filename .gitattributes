@@ -1,0 +1,8 @@
+*.c text eol=native
+*.cpp text eol=native
+*.h text eol=native
+*.m4 text eol=native
+.gitattributes text eol=native
+.gitignore text eol=native
+*.py text eol=native
+LICENSE text eol=native
