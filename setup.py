@@ -9,20 +9,21 @@ import os
 # Python 3.3 offers shutil.which()
 from distutils import spawn
 
-try:
-  omhome = os.path.split(os.path.split(os.path.realpath(spawn.find_executable("omc")))[0])[0]
-except:
-  omhome = None
-omhome = omhome or os.environ.get('OPENMODELICAHOME')
-
-if omhome is None:
-  raise Exception("Failed to find OPENMODELICAHOME (searched for environment variable as well as the omc executable)")
-idl = os.path.join(omhome,"share","omc","omc_communication.idl")
-if not os.path.exists(idl):
-  raise Exception("Path not found: %s" % idl)
-
-if 0<>call(["omniidl","-bpython","-Wbglobal=_OMCIDL","-Wbpackage=OMPythonIDL",idl]):
-  raise Exception("omniidl command failed")
+if sys.platform <> 'win32':
+  try:
+    omhome = os.path.split(os.path.split(os.path.realpath(spawn.find_executable("omc")))[0])[0]
+  except:
+    omhome = None
+  omhome = omhome or os.environ.get('OPENMODELICAHOME')
+  
+  if omhome is None:
+    raise Exception("Failed to find OPENMODELICAHOME (searched for environment variable as well as the omc executable)")
+  idl = os.path.join(omhome,"share","omc","omc_communication.idl")
+  if not os.path.exists(idl):
+    raise Exception("Path not found: %s" % idl)
+  
+  if 0<>call(["omniidl","-bpython","-Wbglobal=_OMCIDL","-Wbpackage=OMPythonIDL",idl]):
+    raise Exception("omniidl command failed")
 
 setup(name='OMPython',
       version='2.0',
