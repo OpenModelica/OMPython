@@ -72,7 +72,7 @@ omcTuple = Group( Suppress('(') + Optional(omcValues) + Suppress(')') ).setParse
 omcArray = Group( Suppress('{') + Optional(omcValues) + Suppress('}') ).setParseAction(convertTuple)
 omcValue << ( omcString | omcNumber | omcRecord | omcArray | omcTuple | SOME | TRUE | FALSE | NONE | Combine(fqident) )
 recordMember = delimitedList( Group( ident + Suppress('=') + omcValue ) )
-omcRecord << Group( Suppress('record') + Suppress( ident ) +  Dict( recordMember ) + Suppress('end') + Suppress( ident ) + Suppress(';') ).setParseAction(convertDict)
+omcRecord << Group( Suppress('record') + Suppress( fqident ) +  Dict( recordMember ) + Suppress('end') + Suppress( fqident ) + Suppress(';') ).setParseAction(convertDict)
 
 omcGrammar = omcValue + StringEnd()
 

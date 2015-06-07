@@ -15,18 +15,18 @@ if sys.platform <> 'win32':
   except:
     omhome = None
   omhome = omhome or os.environ.get('OPENMODELICAHOME')
-  
+
   if omhome is None:
     raise Exception("Failed to find OPENMODELICAHOME (searched for environment variable as well as the omc executable)")
   idl = os.path.join(omhome,"share","omc","omc_communication.idl")
   if not os.path.exists(idl):
     raise Exception("Path not found: %s" % idl)
-  
+
   if 0<>call(["omniidl","-bpython","-Wbglobal=_OMCIDL","-Wbpackage=OMPythonIDL",idl]):
     raise Exception("omniidl command failed")
 
 setup(name='OMPython',
-      version='2.0',
+      version='2.0.1',
       description='OpenModelica-Python API Interface',
       author='Anand Kalaiarasi Ganeson',
       author_email='ganan642@student.liu.se',
