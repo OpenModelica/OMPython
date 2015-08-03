@@ -9,7 +9,7 @@ import os
 # Python 3.3 offers shutil.which()
 from distutils import spawn
 
-if sys.platform <> 'win32':
+if not os.path.exists(os.path.join(os.path.dirname(__file__), 'OMPythonIDL', '__init__.py')):
   try:
     omhome = os.path.split(os.path.split(os.path.realpath(spawn.find_executable("omc")))[0])[0]
   except:
@@ -26,7 +26,7 @@ if sys.platform <> 'win32':
     raise Exception("omniidl command failed")
 
 setup(name='OMPython',
-      version='2.0.1',
+      version='2.0.2',
       description='OpenModelica-Python API Interface',
       author='Anand Kalaiarasi Ganeson',
       author_email='ganan642@student.liu.se',
@@ -34,7 +34,7 @@ setup(name='OMPython',
       maintainer_email='adeel.asghar@liu.se',
       license="BSD, OSMC-PL 1.2, GPL (user's choice)",
       url='http://openmodelica.org/',
-      packages=['OMPython', 'OMPython.OMParser','OMPythonIDL', 'OMPythonIDL._OMCIDL', 'OMPythonIDL._OMCIDL__POA'],
+      packages=['OMPython', 'OMPython.OMParser', 'OMPythonIDL', 'OMPythonIDL._OMCIDL', 'OMPythonIDL._OMCIDL__POA'],
       install_requires=[
         # 'omniORB', # Required, but not part of pypi
         'pyparsing'

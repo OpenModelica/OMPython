@@ -60,6 +60,7 @@ import uuid
 import subprocess
 import tempfile
 import pyparsing
+from distutils import spawn
 
 if sys.platform == 'darwin':
     # On Mac let's assume omc is installed here and there might be a broken omniORB installed in a bad place
@@ -84,7 +85,11 @@ class OMCSession(object):
         self._server = None
         self._omc_command = None
         try:
-            self.omhome = os.environ['OPENMODELICAHOME']
+            self.omhome = os.environ.get('OPENMODELICAHOME')
+            if self.omhome is None:
+              self.omhome = os.path.split(os.path.split(os.path.realpath(spawn.find_executable("omc")))[0])[0]
+            elif os.path.exists('/opt/local/bin/omc'):
+              self.omhome = '/opt/local'
             # add OPENMODELICAHOME\lib to PYTHONPATH so python can load omniORB libraries
             sys.path.append(os.path.join(self.omhome, 'lib'))
             sys.path.append(os.path.join(self.omhome, 'lib', 'python'))
@@ -96,22 +101,8 @@ class OMCSession(object):
             self._set_omc_corba_command(os.path.join(self.omhome, 'bin', 'omc'))
             self._start_server()
         except:
-            # FIXME: what is this case? are we looking at platform specifics? or different versions of OpenModelica?
-            try:
-                import OMConfig
-
-                PREFIX = OMConfig.DEFAULT_OPENMODELICAHOME
-                self.omhome = os.path.join(PREFIX)
-                self._set_omc_corba_command(os.path.join(self.omhome, 'bin', 'omc'))
-                self._start_server()
-            except:
-                # FIXME: what is this case? are we looking at platform specifics? or different versions of OpenModelica?
-                try:
-                    self._set_omc_corba_command('/opt/local/bin/omc')
-                    self._start_server()
-                except Exception as ex:
-                    self.logger.error("The OpenModelica compiler is missing in the System path, please install it")
-                    raise ex
+          self.logger.error("The OpenModelica compiler is missing in the System path (%s), please install it" % os.path.join(self.omhome, 'bin', 'omc'))
+          raise
 
     def _connect_to_omc(self):
         self._omc = None
@@ -139,7 +130,9 @@ class OMCSession(object):
                     time.sleep(0.25)
                     attempts += 1
                     if attempts == 10:
-                        self.logger.error("OMC Server is down. Please start it!")
+                        name = self._omc_log_file.name
+                        self._omc_log_file.close()
+                        self.logger.error("OMC Server is down. Please start it! Log-file says:\n%s" % open(name).read())
                         raise Exception
                     else:
                         continue
