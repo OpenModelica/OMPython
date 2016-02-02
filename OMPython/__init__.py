@@ -179,7 +179,7 @@ class OMCSession(object):
         # FIXME: this code is not well written... need to be refactored
         self._temp_dir = tempfile.gettempdir()
         # this file must be closed in the destructor
-        self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.omc.output.OMPython"), 'w')
+        self._omc_log_file = open(os.path.join(self._temp_dir, self._ior_file+".log"), 'w')
 
         # generate a random string for this session
         self._random_string = uuid.uuid4().hex
