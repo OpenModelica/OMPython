@@ -113,11 +113,7 @@ class OMCSession(object):
         if sys.platform == 'win32':
             self._ior_file = "openmodelica.objid." + self._random_string
         else:
-            self.currentUser = os.environ['USER']
-            if not self.currentUser:
-                self.currentUser = "nobody"
-
-            self._ior_file = "openmodelica." + self.currentUser + ".objid." + self._random_string
+            self._ior_file = "openmodelica." + self._currentUser + ".objid." + self._random_string
         self._ior_file = os.path.join(self._temp_dir, self._ior_file)
         self._omc_corba_uri = "file:///" + self._ior_file
         # See if the omc server is running
@@ -178,11 +174,15 @@ class OMCSession(object):
 
         # FIXME: this code is not well written... need to be refactored
         self._temp_dir = tempfile.gettempdir()
-        # this file must be closed in the destructor
-        self._omc_log_file = open(os.path.join(self._temp_dir, self._ior_file+".log"), 'w')
 
         # generate a random string for this session
         self._random_string = uuid.uuid4().hex
+
+        self._currentUser = os.environ['USER']
+        if not self._currentUser:
+            self._currentUser = "nobody"
+        # this file must be closed in the destructor
+        self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica." + self._currentUser + ".objid." + self._random_string), 'w')
 
         # start up omc executable, which is waiting for the CORBA connection
         self._start_omc()
