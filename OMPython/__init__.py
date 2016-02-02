@@ -182,7 +182,7 @@ class OMCSession(object):
         if not self._currentUser:
             self._currentUser = "nobody"
         # this file must be closed in the destructor
-        self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica." + self._currentUser + ".objid." + self._random_string), 'w')
+        self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica." + self._currentUser + ".objid." + self._random_string+".log"), 'w')
 
         # start up omc executable, which is waiting for the CORBA connection
         self._start_omc()
