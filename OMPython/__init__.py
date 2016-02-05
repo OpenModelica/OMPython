@@ -170,7 +170,8 @@ class OMCSession(object):
         self.logger_console_handler.setFormatter(self.logger_formatter)
 
         # add the handlers to the logger
-        self.logger.addHandler(self.logger_console_handler)
+        if not self.logger.handlers:
+            self.logger.addHandler(self.logger_console_handler)
 
         # FIXME: this code is not well written... need to be refactored
         self._temp_dir = tempfile.gettempdir()
