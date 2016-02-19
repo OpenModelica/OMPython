@@ -70,6 +70,20 @@ if sys.platform == 'darwin':
 # TODO: replace this with the new parser
 from OMPython import OMTypedParser, OMParser
 
+# Logger Defined
+logger = logging.getLogger('OMCSession')
+logger.setLevel(logging.DEBUG)
+# create console handler with a higher log level
+logger_console_handler = logging.StreamHandler()
+logger_console_handler.setLevel(logging.INFO)
+
+# create formatter and add it to the handlers
+logger_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger_console_handler.setFormatter(logger_formatter)
+
+# add the handlers to the logger
+logger.addHandler(logger_console_handler)
+
 class OMCSession(object):
 
     def _start_server(self):
@@ -101,7 +115,7 @@ class OMCSession(object):
             self._set_omc_corba_command(os.path.join(self.omhome, 'bin', 'omc'))
             self._start_server()
         except:
-          self.logger.error("The OpenModelica compiler is missing in the System path (%s), please install it" % os.path.join(self.omhome, 'bin', 'omc'))
+          logger.error("The OpenModelica compiler is missing in the System path (%s), please install it" % os.path.join(self.omhome, 'bin', 'omc'))
           raise
 
     def _connect_to_omc(self):
@@ -118,7 +132,7 @@ class OMCSession(object):
         self._omc_corba_uri = "file:///" + self._ior_file
         # See if the omc server is running
         if os.path.isfile(self._ior_file):
-            self.logger.info("OMC Server is up and running at {0}".format(self._omc_corba_uri))
+            logger.info("OMC Server is up and running at {0}".format(self._omc_corba_uri))
         else:
             attempts = 0
             while True:
@@ -128,12 +142,12 @@ class OMCSession(object):
                     if attempts == 10:
                         name = self._omc_log_file.name
                         self._omc_log_file.close()
-                        self.logger.error("OMC Server is down. Please start it! Log-file says:\n%s" % open(name).read())
+                        logger.error("OMC Server is down. Please start it! Log-file says:\n%s" % open(name).read())
                         raise Exception
                     else:
                         continue
                 else:
-                    self.logger.info("OMC Server is up and running at {0}".format(self._omc_corba_uri))
+                    logger.info("OMC Server is up and running at {0}".format(self._omc_corba_uri))
                     break
 
         #initialize the ORB with maximum size for the ORB set
@@ -152,25 +166,12 @@ class OMCSession(object):
         self._omc = self._obj_reference._narrow(_OMCIDL.OmcCommunication)
         # Check if we are using the right object
         if self._omc is None:
-            self.logger.error("Object reference is not valid")
+            logger.error("Object reference is not valid")
             raise Exception
 
     def __init__(self, readonly=False):
         self.readonly = readonly
         self.omc_cache = {}
-
-        self.logger = logging.getLogger('OMCSession')
-        self.logger.setLevel(logging.DEBUG)
-        # create console handler with a higher log level
-        self.logger_console_handler = logging.StreamHandler()
-        self.logger_console_handler.setLevel(logging.INFO)
-
-        # create formatter and add it to the handlers
-        self.logger_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        self.logger_console_handler.setFormatter(self.logger_formatter)
-
-        # add the handlers to the logger
-        self.logger.addHandler(self.logger_console_handler)
 
         # FIXME: this code is not well written... need to be refactored
         self._temp_dir = tempfile.gettempdir()
@@ -252,7 +253,7 @@ class OMCSession(object):
         else:
             expression = question
 
-        self.logger.debug('OMC ask: {0}  - parsed: {1}'.format(expression, parsed))
+        logger.debug('OMC ask: {0}  - parsed: {1}'.format(expression, parsed))
 
         try:
             if parsed:
@@ -260,7 +261,7 @@ class OMCSession(object):
             else:
                 res = self._omc.sendExpression(expression)
         except Exception as e:
-            self.logger.error("OMC failed: {0}, {1}, parsed={2}".format(question, opt, parsed))
+            logger.error("OMC failed: {0}, {1}, parsed={2}".format(question, opt, parsed))
             raise e
 
         # save response
@@ -336,8 +337,8 @@ class OMCSession(object):
         try:
             return self.ask('getClassComment', className)
         except pyparsing.ParseException as ex:
-            self.logger.warning("Method 'getClassComment' failed for {0}".format(className))
-            self.logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            logger.warning("Method 'getClassComment' failed for {0}".format(className))
+            logger.warning('OMTypedParser error: {0}'.format(ex.message))
             return 'No description available'
 
     def getNthComponent(self, className, comp_id):
@@ -364,7 +365,7 @@ class OMCSession(object):
         try:
             return self.ask('getParameterNames', className)
         except KeyError as ex:
-            self.logger.warning('OMPython error: {0}'.format(ex.message))
+            logger.warning('OMPython error: {0}'.format(ex.message))
             # FIXME: OMC returns with a different structure for empty parameter set
             return []
 
@@ -372,7 +373,7 @@ class OMCSession(object):
         try:
             return self.ask('getParameterValue', '{0}, {1}'.format(className, parameterName))
         except pyparsing.ParseException as ex:
-            self.logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            logger.warning('OMTypedParser error: {0}'.format(ex.message))
             return ""
 
     def getComponentModifierNames(self, className, componentName):
@@ -383,14 +384,14 @@ class OMCSession(object):
             # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
             return self.ask('getComponentModifierValue', '{0}, {1}'.format(className, componentName))
         except pyparsing.ParseException as ex:
-            self.logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            logger.warning('OMTypedParser error: {0}'.format(ex.message))
             result = self.ask('getComponentModifierValue', '{0}, {1}'.format(className, componentName), parsed=False)
             try:
                 answer = OMParser.check_for_values(result)
                 OMParser.result = {}
                 return answer[2:]
             except (TypeError, UnboundLocalError) as ex:
-                self.logger.warning('OMParser error: {0}'.format(ex.message))
+                logger.warning('OMParser error: {0}'.format(ex.message))
                 return result
 
     def getExtendsModifierNames(self, className, componentName):
@@ -401,14 +402,14 @@ class OMCSession(object):
             # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
             return self.ask('getExtendsModifierValue', '{0}, {1}, {2}'.format(className, extendsName, modifierName))
         except pyparsing.ParseException as ex:
-            self.logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            logger.warning('OMTypedParser error: {0}'.format(ex.message))
             result = self.ask('getExtendsModifierValue', '{0}, {1}, {2}'.format(className, extendsName, modifierName), parsed=False)
             try:
                 answer = OMParser.check_for_values(result)
                 OMParser.result = {}
                 return answer[2:]
             except (TypeError, UnboundLocalError) as ex:
-                self.logger.warning('OMParser error: {0}'.format(ex.message))
+                logger.warning('OMParser error: {0}'.format(ex.message))
                 return result
 
     def getNthComponentModification(self, className, comp_id):
