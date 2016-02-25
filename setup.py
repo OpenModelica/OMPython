@@ -9,7 +9,14 @@ import os
 # Python 3.3 offers shutil.which()
 from distutils import spawn
 
-if not os.path.exists(os.path.join(os.path.dirname(__file__), 'OMPythonIDL', '__init__.py')):
+def warningOrError(errorOnFailure, msg):
+  if errorOnFailure:
+    raise Exception(msg)
+  else:
+    print(msg)
+
+def generateIDL():
+  errorOnFailure = not os.path.exists(os.path.join(os.path.dirname(__file__), 'OMPythonIDL', '__init__.py'))
   try:
     omhome = os.path.split(os.path.split(os.path.realpath(spawn.find_executable("omc")))[0])[0]
   except:
@@ -17,16 +24,21 @@ if not os.path.exists(os.path.join(os.path.dirname(__file__), 'OMPythonIDL', '__
   omhome = omhome or os.environ.get('OPENMODELICAHOME')
 
   if omhome is None:
-    raise Exception("Failed to find OPENMODELICAHOME (searched for environment variable as well as the omc executable)")
+    warningOrError(errorOnFailure, "Failed to find OPENMODELICAHOME (searched for environment variable as well as the omc executable)")
+    return
   idl = os.path.join(omhome,"share","omc","omc_communication.idl")
   if not os.path.exists(idl):
-    raise Exception("Path not found: %s" % idl)
+    warningOrError(errorOnFailure, "Path not found: %s" % idl)
+    return
 
   if 0<>call(["omniidl","-bpython","-Wbglobal=_OMCIDL","-Wbpackage=OMPythonIDL",idl]):
-    raise Exception("omniidl command failed")
+    warningOrError(errorOnFailure, "omniidl command failed")
+    return
+  print("Generated OMPythonIDL files")
+generateIDL()
 
 setup(name='OMPython',
-      version='2.0.6',
+      version='2.0.7',
       description='OpenModelica-Python API Interface',
       author='Anand Kalaiarasi Ganeson',
       author_email='ganan642@student.liu.se',
