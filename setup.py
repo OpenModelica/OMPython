@@ -26,7 +26,7 @@ if not os.path.exists(os.path.join(os.path.dirname(__file__), 'OMPythonIDL', '__
     raise Exception("omniidl command failed")
 
 setup(name='OMPython',
-      version='2.0.5',
+      version='2.0.6',
       description='OpenModelica-Python API Interface',
       author='Anand Kalaiarasi Ganeson',
       author_email='ganan642@student.liu.se',
