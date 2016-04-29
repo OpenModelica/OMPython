@@ -57,6 +57,7 @@ import sys
 import time
 import logging
 import uuid
+import getpass
 import subprocess
 import tempfile
 import pyparsing
@@ -182,7 +183,7 @@ class OMCSession(object):
         if sys.platform == 'win32':
           self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.objid." + self._random_string+".log"), 'w')
         else:
-          self._currentUser = os.environ['USER']
+          self._currentUser = getpass.getuser()
           if not self._currentUser:
               self._currentUser = "nobody"
           # this file must be closed in the destructor
@@ -220,7 +221,7 @@ class OMCSession(object):
     # FIXME: we should have one function which interacts with OMC. Either execute OR sendExpression.
     # Execute uses OMParser.check_for_values and sendExpression uses OMTypedParser.parseString.
     # We should have one parser. Then we can get rid of one of these functions.
-    def sendExpression(self, command):
+    def sendExpression(self, command, parsed=True):
         """
         Sends an expression to the OpenModelica. The return type is parsed as if the
         expression was part of the typed OpenModelica API (see ModelicaBuiltin.mo).
@@ -238,8 +239,11 @@ class OMCSession(object):
             self._omc = None
             return result
           else:
-            answer = OMTypedParser.parseString(result)
-            return answer
+            if (parsed==True):
+              answer = OMTypedParser.parseString(result)
+              return answer
+            else:
+              return result     
         else:
           return "No connection with OMC. Create an instance of OMCSession."
 
