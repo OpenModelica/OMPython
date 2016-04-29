@@ -221,7 +221,7 @@ class OMCSession(object):
     # FIXME: we should have one function which interacts with OMC. Either execute OR sendExpression.
     # Execute uses OMParser.check_for_values and sendExpression uses OMTypedParser.parseString.
     # We should have one parser. Then we can get rid of one of these functions.
-    def sendExpression(self, command, parsed=True):
+    def sendExpression(self, command):
         """
         Sends an expression to the OpenModelica. The return type is parsed as if the
         expression was part of the typed OpenModelica API (see ModelicaBuiltin.mo).
@@ -239,10 +239,10 @@ class OMCSession(object):
             self._omc = None
             return result
           else:
-            if (parsed==True):
+            try:
               answer = OMTypedParser.parseString(result)
               return answer
-            else:
+            except:
               return result     
         else:
           return "No connection with OMC. Create an instance of OMCSession."
