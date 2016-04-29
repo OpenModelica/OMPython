@@ -57,6 +57,7 @@ import sys
 import time
 import logging
 import uuid
+import getpass
 import subprocess
 import tempfile
 import pyparsing
@@ -182,7 +183,7 @@ class OMCSession(object):
         if sys.platform == 'win32':
           self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.objid." + self._random_string+".log"), 'w')
         else:
-          self._currentUser = os.environ['USER']
+          self._currentUser = getpass.getuser()
           if not self._currentUser:
               self._currentUser = "nobody"
           # this file must be closed in the destructor
@@ -238,8 +239,11 @@ class OMCSession(object):
             self._omc = None
             return result
           else:
-            answer = OMTypedParser.parseString(result)
-            return answer
+            try:
+              answer = OMTypedParser.parseString(result)
+              return answer
+            except:
+              return result     
         else:
           return "No connection with OMC. Create an instance of OMCSession."
 
