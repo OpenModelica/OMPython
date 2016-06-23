@@ -31,7 +31,7 @@ def generateIDL():
     warningOrError(errorOnFailure, "Path not found: %s" % idl)
     return
 
-  if 0<>call(["omniidl","-bpython","-Wbglobal=_OMCIDL","-Wbpackage=OMPythonIDL",idl]):
+  if 0!=call(["omniidl","-bpython","-Wbglobal=_OMCIDL","-Wbpackage=OMPythonIDL",idl]):
     warningOrError(errorOnFailure, "omniidl command failed")
     return
   print("Generated OMPythonIDL files")
