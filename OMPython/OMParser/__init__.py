@@ -14,7 +14,7 @@
  ANY USE, REPRODUCTION OR DISTRIBUTION OF THIS PROGRAM CONSTITUTES
  RECIPIENT'S ACCEPTANCE OF THE OSMC PUBLIC LICENSE OR THE GPL VERSION 3,
  ACCORDING TO RECIPIENTS CHOICE.
- 
+
  The OpenModelica software and the OSMC (Open Source Modelica Consortium)
  Public License (OSMC-PL) are obtained from OSMC, either from the above
  address, from the URLs: http://www.openmodelica.org or
@@ -69,7 +69,7 @@ def typeCheck(string):
                     try:
                         string = str(string)
                     except ValueError:
-                        print "String contains Un-handled datatype"
+                        print ("String contains Un-handled datatype")
     return string
 
 def make_values(strings, name):
@@ -288,8 +288,8 @@ def make_sets(strings, name):
 
     set_list=strings.split(",")
     items = []
-    
-    for each_item in set_list:        
+
+    for each_item in set_list:
         each_item = typeCheck(each_item)
         if type(each_item)== str:
             each_item = (each_item.lstrip()).rstrip()
@@ -568,7 +568,7 @@ def get_the_set(string):
                     break
             pos +=1
         if count !=0:
-            print "\nParser Error: Are you missing one or more '}'s? \n"
+            print ("\nParser Error: Are you missing one or more '}'s? \n")
             sys.exit(1)
 
         if max_count >= 2:
@@ -755,8 +755,8 @@ def get_the_set(string):
         else:
             return current_set, next_set[0]
     else:
-        print "\nThe following String has no {}s to proceed\n"
-        print string
+        print ("\nThe following String has no {}s to proceed\n")
+        print (string)
 
     """ End of get_the_string() """
 
@@ -824,7 +824,7 @@ def check_for_values(string):
     main_set_name = "SET1"
     if len(string)==0:
         return result
-    
+
     """changing untyped results to typed results"""
     if string[0]=="(":
         string = "{"+string[1:-2]+"}"
@@ -884,7 +884,7 @@ def check_for_values(string):
     if "{" in current_set:
         get_inner_sets(current_set,"Set", main_set_name)
 
-    
+
     check_for_next_iteration = ''.join(e for e in next_set if e not in {""})
     if len(check_for_next_iteration)>0:
         check_for_values(next_set)
