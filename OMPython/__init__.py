@@ -1,4 +1,4 @@
-# -*- coding: cp1252 -*-
+# -*- coding: utf-8 -*-
 """
 OMPython is a Python interface to OpenModelica.
 To get started, create an OMCSession object:
