@@ -42,7 +42,7 @@ def convertNumbers(s,l,toks):
     n = toks[0]
     try:
         return int(n)
-    except (ValueError, ve):
+    except ValueError:
         return float(n)
 def convertString(s,s2):
   return s2[0].replace("\\\"",'"')
