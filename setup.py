@@ -36,7 +36,7 @@ def generateIDL():
     return
   print("Generated OMPythonIDL files")
 
-if sys.platform <> 'win32':
+if sys.platform != 'win32':
   generateIDL()
 
 setup(name='OMPython',
