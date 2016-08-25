@@ -35,7 +35,9 @@ def generateIDL():
     warningOrError(errorOnFailure, "omniidl command failed")
     return
   print("Generated OMPythonIDL files")
-generateIDL()
+
+if sys.platform <> 'win32':
+  generateIDL()
 
 setup(name='OMPython',
       version='2.0.7',
