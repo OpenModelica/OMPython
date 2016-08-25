@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*- 
+# -*- coding: utf-8 -*-
 __author__ = "Martin Sjölund"
 __license__ = """
  This file is part of OpenModelica.
@@ -15,7 +15,7 @@ __license__ = """
  ANY USE, REPRODUCTION OR DISTRIBUTION OF THIS PROGRAM CONSTITUTES
  RECIPIENT'S ACCEPTANCE OF THE OSMC PUBLIC LICENSE OR THE GPL VERSION 3,
  ACCORDING TO RECIPIENTS CHOICE.
- 
+
  The OpenModelica software and the OSMC (Open Source Modelica Consortium)
  Public License (OSMC-PL) are obtained from OSMC, either from the above
  address, from the URLs: http://www.openmodelica.org or
@@ -42,7 +42,7 @@ def convertNumbers(s,l,toks):
     n = toks[0]
     try:
         return int(n)
-    except ValueError, ve:
+    except ValueError:
         return float(n)
 def convertString(s,s2):
   return s2[0].replace("\\\"",'"')
@@ -80,7 +80,7 @@ omcNumber.setParseAction( convertNumbers )
 
 def parseString(string):
   return omcGrammar.parseString(string)[0]
-    
+
 if __name__ == "__main__":
     testdata = """
    (1.0,{{1,true,3},{"4\\"
@@ -91,10 +91,10 @@ end ABC;})
     """
     expected = (1.0, ((1, True, 3), ('4"\n', 5.9, 6, None), {"'stop*Time'": 1.0, 'startTime': 'ErrorLevel.warning'}))
     results = parseString(testdata)
-    if results <> expected:
-      print "Results:",results
-      print "Expected:",expected
-      print "Failed"
+    if results != expected:
+      print ("Results:",results)
+      print ("Expected:",expected)
+      print ("Failed")
       sys.exit(1)
-    print "Matches expected output",
-    print type(results),repr(results)
+    print ("Matches expected output")
+    print (type(results),repr(results))
