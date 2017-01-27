@@ -105,14 +105,8 @@ class OMCSession(object):
               self.omhome = os.path.split(os.path.split(os.path.realpath(spawn.find_executable("omc")))[0])[0]
             elif os.path.exists('/opt/local/bin/omc'):
               self.omhome = '/opt/local'
-            # add OPENMODELICAHOME\lib to PYTHONPATH so python can load omniORB libraries
-            sys.path.append(os.path.join(self.omhome, 'lib'))
+            # add OPENMODELICAHOME\lib\python to PYTHONPATH so python can load omniORB imports
             sys.path.append(os.path.join(self.omhome, 'lib', 'python'))
-            # add OPENMODELICAHOME\bin to path so python can find the omniORB binaries
-            pathVar = os.getenv('PATH')
-            pathVar += ';'
-            pathVar += os.path.join(self.omhome, 'bin')
-            os.putenv('PATH', pathVar)
             self._set_omc_corba_command(os.path.join(self.omhome, 'bin', 'omc'))
             self._start_server()
         except:
