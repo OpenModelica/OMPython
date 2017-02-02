@@ -63,6 +63,14 @@ import tempfile
 import pyparsing
 from distutils import spawn
 
+# The following import are added by Sudeep
+import platform
+import numpy as np
+import csv
+from copy import deepcopy
+import xml.etree.ElementTree as ET
+
+
 if sys.platform == 'darwin':
     # On Mac let's assume omc is installed here and there might be a broken omniORB installed in a bad place
     sys.path.append('/opt/local/lib/python2.7/site-packages/')
@@ -445,3 +453,1153 @@ class OMCSession(object):
                                  str(recursive).lower(), str(qualified).lower(), str(sort).lower(),
                                  str(builtin).lower(), str(showProtected).lower()))
         return value
+
+
+#author = Sudeep Bajracharya
+#sudba156@student.liu.se
+#LIU(Department of Computer Science)
+
+class Quantity:
+    """
+    To represent quantities details
+    """
+    def __init__(self, name, start, changable, variability, description, causality):
+        self.name = name
+        self.start = start
+        self.changable = changable
+        self.description = description
+        self.variability = variability
+        self.causality = causality
+
+
+
+
+class ModelicaSystem(object):
+    def __init__(self, fileName = None, modelName = None, lmodel = None): #1
+        """
+        "constructor"
+        It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called : 
+            •without any arguments: In this case it neither loads a file nor build a model. This is useful when a FMU needed to convert to Modelica model
+            •with two arguments as file name with ".mo" extension and the model name respectively
+            •with three arguments, the first and second are file name and model name respectively and the third arguments is Modelica standard library to load a model, which is common in such models where the model is based on the standard library. For example, here is a model named "dcmotor.mo" below table 4-2, which is located in the directory of OpenModelica at "C:\OpenModelica1.9.4-dev.beta2\share\doc\omc\testmodels".
+        Note: If the model file is not in the current working directory, then the path where file is located must be included together with file name. Besides, if the Modelica model contains several different models within the same package, then in order to build the specific model, in second argument, user must put the package name with dot(.) followed by specific model name.
+        ex: myModel = ModelicaSystem("ModelicaModel.mo", "modelName")
+        """
+        
+        if fileName is None and modelName is None and lmodel is None: # all None 
+            self.getconn = OMCSession()
+            return
+			
+        if fileName is None:
+            return "File does not exist"			
+        self.tree = None
+        self.quantitiesList = [] #detail list of all Modelica quantity variables inc. name, changable, description, etc
+        self.qNamesList = [] #for all quantities name list
+        self.cNamesList = [] #for continuous quantities name list 
+        self.cValuesList = [] #for continuous quantities value list
+        self.iNamesList = [] #for input quantities name list
+        self.inputsVal = [] #for input quantities value list
+        self.specialNames = []
+        self.oNamesList = [] #for output quantities name list
+        self.pNamesList = [] #for parameter quantities name list
+        self.pValuesList = [] #for parameter quantities value list
+        self.oValuesList = [] #for output quantities value list
+        self.simNamesList = ['startTime', 'stopTime', 'stepSize', 'tolerance', 'solver'] #simulation options list
+        self.simValuesList = [] #for simulation values list
+        self.optimizeOptionsNamesList = ['startTime', 'stopTime', 'numberOfIntervals', 'stepSize', 'tolerance', 'simflags']
+        self.optimizeOptionsValuesList = [0.0, 1.0, 500, 0.002,1e-8,' ']
+        self.linearizeOptionsNamesList = ['startTime', 'stopTime', 'numberOfIntervals', 'stepSize', 'tolerance', 'simflags']
+        self.linearizeOptionsValuesList = [0.0, 1.0, 500, 0.002,1e-8,' ']
+        self.getconn = OMCSession()
+        self.xmlFile = None
+        self.lmodel = lmodel #may be needed if model is derived from other model
+        self.modelName = modelName #Model class name
+        self.fileName = fileName #Model file/package name
+        self.inputFlag = False #for model with input quantity
+        self.simulationFlag = False #if the model is simulated?
+        self.linearizationFlag = False
+        self.outputFlag = False
+        self.csvFile = '' #for storing inputs condition
+        if not os.path.exists(self.fileName): #if file does not eixt
+            print ("Error: File does not exist!!!")
+            return
+			
+        (head, tail) = os.path.split(self.fileName)#to store directory/path and file)
+        self.currDir = os.getcwd()
+        self.modelDir = head
+        self.fileName_ = tail
+
+        if not self.modelDir:
+            file_ = os.path.exists(self.fileName_)
+            if(file_):#execution from path where file is located 
+                self.__loadingModel(self.fileName_, self.modelName, self.lmodel)
+            else:
+                print ("Error: File does not exist!!!")
+
+        else:
+            os.chdir(self.modelDir)
+            file_ = os.path.exists(self.fileName_)
+            self.model = self.fileName_[:-3]
+            if(self.fileName_):#execution from different path
+                os.chdir(self.currDir)
+                self.__loadingModel(self.fileName, self.modelName, self.lmodel)
+            else:
+                print ("Error: File does not exist!!!")
+
+    def __del__(self):
+        if self.getconn is not None:
+            self.requestApi('quit')
+
+    #for loading file/package, loading model and building model        
+    def __loadingModel(self, fName, mName, lmodel):
+        #load file
+        loadfileError = ''
+        loadfileResult = self.requestApi("loadFile", fName)
+        loadfileError = self.requestApi("getErrorString")
+        if loadfileError:
+            specError = 'Parser error: Unexpected token near: optimization (IDENT)'
+            if specError in loadfileError:
+                self.requestApi("setCommandLineOptions", '"+g=Optimica"')
+                self.requestApi("loadFile", fName)
+            else:
+                print ('loadFile Error: ' + loadfileError)
+                return
+        
+        #load Modelica standard libraries if needed
+        if lmodel is not None:
+            loadmodelError = ''
+            loadModelResult = self.requestApi("loadModel", lmodel)		
+            loadmodelError = self.requestApi('getErrorString')
+            if loadmodelError:
+                print (loadmodelError)
+                return
+        
+        # build model 
+        buildModelError = ''
+        self.getconn.sendExpression("setCommandLineOptions(\"+d=initialization\")")
+        #buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
+        buildModelResult = self.requestApi("buildModel", mName)
+        buildModelError = self.requestApi("getErrorString")
+
+        if buildModelError:
+            print (buildModelError)
+            
+        self.xmlFile = buildModelResult[1]
+        self.tree = ET.parse(self.xmlFile)
+        self.root = self.tree.getroot()
+        self.__createQuantitiesList() #initialize quantitiesList
+        self.__getQuantitiesNames() #initialize qNamesList
+        self.__getContinuousNames() #initialize cNamesList
+        self.__getParameterNames() #initialize pNamesList
+        self.__getInputNames() #initialize iNamesList
+        self.__setInputSize() #defing input value list size
+        self.__getOutputNames() #initialize oNamesList
+        self.__getContinuousValues() #initialize cValuesList
+        self.__getParameterValues() #initialize pValuesList
+        self.__getInputValues() #initialize input value list
+        self.__getOutputValues() #initialize oValuesList
+        self.__getSimulationValues() #initialize simulation value list
+
+
+    #request to OMC
+    def requestApi(self, apiName, entity=None, properties=None ):#2
+        if (entity is not None and properties is not None):
+            exp = '{}({}, {})'.format(apiName, entity, properties)
+        elif entity is not None and properties is None:
+            if (apiName == "loadFile" or apiName == "importFMU"):
+                exp = '{}("{}")'.format(apiName, entity)
+            else:
+                exp = '{}({})'.format(apiName, entity)
+        else:
+            exp = '{}()'.format(apiName)
+        try:
+            res = self.getconn.sendExpression(exp)
+        except Exception as e:
+            print (e)
+            res = None
+        return res
+    
+    #create detail quantities list
+    def __createQuantitiesList(self):
+        rootCQ = self.root
+        if not self.quantitiesList:
+            for sv in rootCQ.iter('ScalarVariable'):
+                name = sv.get('name')
+                changable = sv.get('isValueChangeable')
+                description = sv.get('description')
+                variability = sv.get('variability')
+                causality = sv.get('causality')
+                ch = sv.getchildren()
+                start = None
+                for att in ch:
+                    start = att.get('start')
+                self.quantitiesList.append(Quantity(name, start, changable, variability, description, causality))
+        return self.quantitiesList
+    
+    #to get list of all quantities names
+    def __getQuantitiesNames(self):
+        if not self.qNamesList:
+            for q in self.quantitiesList:
+                self.qNamesList.append(q.name)
+        return self.qNamesList
+    
+    #check if names exist
+    def __checkAvailability(self, names, chkList, inputFlag = None):
+        try:
+            if isinstance(names, list):
+                nonExistingList = []
+                for n in names:
+                    if n not in chkList:
+                        nonExistingList.append(n)
+                if nonExistingList:
+                    print ('Error!!! ' + nonExistingList  + ' does not exist.')
+                    return False
+            elif isinstance(names, str):
+                if names not in chkList:
+                    print ('Error!!! ' + names  + ' does not exist.')
+                    return False
+            else:
+                print ('Error!!! Incorrect format')
+                return False
+            return True
+           
+        except Exception as e:
+            print (e)
+    
+    #to get details of quantities names
+    def getQuantities(self, names = None):#3
+        """
+        This method returns list of dictionaries. It displays details of quantities such as name, value, changeable, and description, where changeable means  if value for corresponding quantity name is changeable or not. It can be called :
+            •without argument: it returns list of dictionaries of all quantities
+            •with a single argument as list of quantities name in string format: it returns list of dictionaries of only particular quantities name
+            •a single argument as a single quantity name (or in list) in string format: it returns list of dictionaries of the particular quantity name
+        """
+        
+        try:
+            if names is not None:
+                checking = self.__checkAvailability(names, self.qNamesList)
+                if not checking:
+                    return
+                if isinstance(names, str):
+                    qlistnames = []
+                    for q in self.quantitiesList:	
+                        if names == q.name:
+                            qlistnames.append({'Name':q.name, 'Value':q.start,'Changeable' : q.changable, 'Variability': q.variability, 'Description':q.description})
+                            break
+                    return qlistnames
+                elif isinstance(names, list):
+                    qlist = []
+                    for n in names:                        
+                        for q in self.quantitiesList:
+                            if n == q.name:
+                                qlist.append({'Name':q.name, 'Value':q.start,'Changeable' : q.changable, 'Variability': q.variability, 'Description':q.description})
+                                break
+                    return qlist
+                else:
+                    print ('Error!!! Incorrect format')
+            else:
+                qlist = []       
+                for q in self.quantitiesList:
+                    qlist.append({'Name':q.name, 'Value':q.start,'Changeable' : q.changable, 'Variability': q.variability, 'Description':q.description})
+                return qlist
+        except Exception as e:
+            print (e)
+    
+    #to get list of quantities name that are continuous variability
+    def __getContinuousNames(self):
+        """
+        This method returns list of quantities name that are continuous. It can be called:
+            •only without any arguments: returns the list of quantities (continuous) names
+        """
+        if not self.cNamesList:
+            for l in self.quantitiesList:
+                if(l.variability == "continuous"):
+                    self.cNamesList.append(l.name)
+        return self.cNamesList
+    
+    def __checkTuple(self, names, chkList, inputFlag=None):
+        if isinstance(names, tuple) and (len(n) == 1 for n in names):
+            nonExistingList = []
+            for n in names:
+                if n not in chkList:
+                    nonExistingList.append(n)
+            if nonExistingList:
+                print ('Error!!!' + nonExistingList + ' does not exist.')
+                return False
+            return True
+        else:
+            print ('Error!!! Incorrect format')
+            return False
+        
+    def getContinuous(self, *names):#4
+        """
+        This method returns dict. The key is continuous names and value is corresponding continuous value.
+        If *name is None then the function will return dict which contain all continuous names as key and value as corresponding values. eg., getContinuous()
+        Otherwise variable number of arguments can be passed as continuous name in string format separated by commas. eg., getContinuous('cName1', 'cName2')
+        """
+        
+        try:
+            if not self.simulationFlag:
+                return self.__getXXXs(names, self.__getContinuousNames(), self.__getContinuousValues())
+            else:
+                if len(names) == 0:
+                    cQuantities = self.__getContinuousNames()
+                    cTuple = tuple(cQuantities)
+                    cSol = self.getSolutions(cTuple)
+                    cDict = dict()
+                    for name, val in zip(cQuantities, cSol):
+                        cDict[name] = val[-1]
+                    return cDict
+                else:
+                    checking = self.__checkTuple(names, self.__getContinuousNames())
+                    if not checking:
+                        return
+                    cSol = self.getSolutions(names)
+                    cList = list()
+                    for val in cSol:
+                        cList.append(val[-1])
+                        tupVal = tuple(cList)
+                        if len(tupVal) == 1:
+                            tupVal, = tupVal
+                    return tupVal
+
+        except Exception:
+            if pyparsing.ParseException:
+                print ('Error!!! Name does not exist or incorrect format ')
+            else:
+                raise 
+                
+    def getParameters(self, *names):#5
+        """
+        This method returns dict. The key is parameter names and value is corresponding parameter value.
+        If *name is None then the function will return dict which contain all parameter names as key and value as corresponding values. eg., getParameters()
+        Otherwise variable number of arguments can be passed as parameter name in string format separated by commas. eg., getParameters('paraName1', 'paraName2')
+        """
+        return self.__getXXXs(names, self.__getParameterNames(), self.__getParameterValues())
+        
+    def getInputs(self, *names):#6
+        """
+        This method returns dict. The key is input names and value is corresponding input value.
+        If *name is None then the function will return dict which contain all input names as key and value as corresponding values. eg., getInputs()
+        Otherwise variable number of arguments can be passed as input name in string format separated by commas. eg., getInputs('iName1', 'iName2')
+        """
+        return self.__getXXXs(names, self.__getInputNames(), self.__getInputValues())
+    
+    def getOutputs(self, *names):#7
+        """
+        This method returns dict. The key is output names and value is corresponding output value.
+        If *name is None then the function will return dict which contain all output names as key and value as corresponding values. eg., getOutputs()
+        Otherwise variable number of arguments can be passed as output name in string format separated by commas. eg., getOutputs(opName1', 'opName2')
+        """
+        
+        try:
+            if self.simulationFlag:
+                if len(names) == 0:
+                    op = self.__getOutputNames()
+                    opTuple = tuple(op)
+                    opSol = self.getSolutions(opTuple)
+                    opDict = dict()
+                    for name, val in zip(op, opSol):
+                        opDict[name] = val[-1]
+                    return opDict
+                else:
+                    checking = self.__checkTuple(names, self.__getOutputNames())
+                    if not checking:
+                        return
+                    opSol = self.getSolutions(names)
+                    opList = list()
+                    
+                    for val in opSol:
+                        opList.append(val[-1])
+                        tupVal = tuple(opList)
+                        if len(tupVal) == 1:
+                            tupVal, = tupVal
+                    return tupVal
+            else:
+                print ('The model is not simulated yet!!!')
+
+        except Exception:
+            if pyparsing.ParseException:
+                print ('Error!!! Name does not exist or incorrect format ')
+            else:
+                raise
+               
+    def __getParameterNames(self):
+        """
+        This method returns list of quantities name that are parameters. It can be called:
+            •only without any arguments: returns list of quantities (parameter) name
+        """
+        
+        if not self.pNamesList:
+            for l in self.quantitiesList:
+                if(l.variability == "parameter"):
+                    self.pNamesList.append(l.name)
+        return self.pNamesList
+    
+    #to get list of quantities name that are input
+    def __getInputNames(self):
+        """
+        This method returns list of quantities name that are inputs. It can be called:
+            •only without any arguments: returns the list of quantities (input) name
+        """
+        
+        if not self.iNamesList:
+            for l in self.quantitiesList:
+                if(l.causality == "input"):
+                    self.iNamesList.append(l.name)
+        return self.iNamesList
+
+    #set input value list size
+    def __setInputSize(self):
+        size = len(self.__getInputNames())
+        self.inputsVal = [None]*size		
+    
+    #to get list of quantities name that are output
+    #Todo: has not been tested yet due to lack of the model that contains output.
+    
+    def __getOutputNames(self):
+        """
+        This method returns list of quantities name that are outputs. It can be called:
+            •only without any arguments: returns the list of all quantities (output) name
+        Note: Test has not been carried out for Output quantities due to the lack of model that contains output
+        """
+        
+        if not self.oNamesList:
+            for l in self.quantitiesList:
+                if(l.causality == "output"):
+                    self.oNamesList.append(l.name)
+        return self.oNamesList
+    
+    #to get values of continuous quantities name
+    def __getContinuousValues(self, contiName=None):
+        """
+        This method returns list of values of the quantities name that are continuous. It can be called:
+            •without any arguments: returns list of values of all quantities name that are continuous
+            •with a single argument as continuous name in string format: returns value of the corresponding name
+            •with a single argument as list of continuous names in string format: return list of values of the corresponding names.
+                1.If the list of names is more than one and it is being assigned by single variable then it returns the list of values of the corresponding names.
+                2.If the list of names is more than one and it is being assigned by same number of variable as the number of element in the list then it will return the value to the variables correspondingly (python unpacking)
+        """
+        
+        if contiName is None:
+            if not self.cValuesList:
+                for l in self.quantitiesList:
+                    if(l.variability == "continuous"):
+                        str_ = l.start
+                        if str_ is None:
+                            self.cValuesList.append(str_)
+                        else:
+                            self.cValuesList.append(float(str_))
+            return self.cValuesList
+        else:
+            try:
+                #if isinstance(contiName, list):
+                checking = self.__checkAvailability(contiName, self.__getContinuousNames())
+                #if checking is False:
+                if not checking:
+                    return
+                if isinstance (contiName, str):
+                    index_ = self.cNamesList.index(contiName)
+                    return (self.cValuesList[index_])
+                valList = []
+                for n in contiName:
+                    index_ = self.cNamesList.index(n)
+                    valList.append(self.cValuesList[index_])
+                return valList
+            except Exception as e:
+                print (e)
+    
+    #to get values of parameter quantities name    
+    def __getParameterValues(self, paraName = None):
+        """
+        This method returns list of values of the quantities name that are parameters. It can be called:
+            •without any arguments: return list of values of all quantities (parameter) name
+            •with a single argument as parameter name in string format: returns value of the corresponding name
+            •with a single argument as list of parameter names in string format: return list of values of the corresponding names.
+                1.If the list of names is more than one and it is being assigned by single variable then it returns the list of values of the corresponding names
+                2.If the list of names is more than one and it is being assigned by same number of variable as the number of element in the list then it will return the value to the variables correspondingly (python unpacking)
+        """
+        
+        if paraName is None:					
+            if not self.pValuesList:
+                for l in self.quantitiesList:
+                    if(l.variability == "parameter"):
+                        str_ = l.start
+                        if ((str_ is None) or (str_ == 'true' or str_ == 'false')):
+                            if (str_ == 'ture'):
+                                str_ = True
+                            elif str_ == 'false':
+                                str_ = False
+                            self.pValuesList.append(str_)
+                        else:
+                            self.pValuesList.append(float(str_))
+            return self.pValuesList
+        else:
+            try:
+                checking = self.__checkAvailability(paraName, self.__getParameterNames())
+                if not checking:
+                    return
+                if isinstance(paraName, str):
+                    index_ = self.pNamesList.index(paraName)
+                    return (self.pValuesList[index_])
+                valList = []
+                for n in paraName:
+                    index_ = self.pNamesList.index(n)
+                    valList.append(self.pValuesList[index_])
+                return valList
+            except Exception as e:
+                print (e)
+    
+    #to get values of input names
+    def __getInputValues(self, iName=None):
+        """
+        This method returns list of values of the quantities name that are inputs. It can be called:
+            •without any arguments: returns list of values of all quantities (input) name
+            •with a single argument as input name in string format: returns list of values of the corresponding name
+        """
+        
+        try:
+            if iName is None:
+                return self.inputsVal
+            elif isinstance(iName, str):
+                checking = self.__checkAvailability(iName,self.__getInputNames())
+                if not checking:
+                    return
+                index_ = self.iNamesList.index(iName)
+                return self.inputsVal[index_]
+            else:
+                print ('Error!!! Incorrect format')
+        except Exception as e:
+            print (e)
+
+    #to get values of output quantities name
+    #Todo: has not been tested yet due to lack of the model that contains output.
+    def __getOutputValues(self):
+        """
+        This method returns list of values of the quantities name that are outputs. It can be called:
+            •only without any arguments: returns the list of values of all output name
+        Note: Test has not been carried out for Output quantities due to the lack of model that contains output
+        """
+        
+        if not self.oValuesList:
+            for l in self.quantitiesList:
+                if(l.causality == "output"):
+                    self.oValuesList.append(l.start)
+        return self.oValuesList
+        
+    #to get simulation options values
+    def __getSimulationValues(self):
+        if not self.simValuesList:
+            root = self.tree.getroot()
+            rootGSV = self.root
+            for attr in rootGSV.iter('DefaultExperiment'):
+                startTime = attr.get('startTime')
+                self.simValuesList.append(float(startTime))
+                stopTime = attr.get('stopTime')
+                self.simValuesList.append(float(stopTime))
+                stepSize = attr.get('stepSize')
+                self.simValuesList.append(float(stepSize))
+                tolerance = attr.get('tolerance')
+                self.simValuesList.append(float(tolerance))
+                solver = attr.get('solver')
+                self.simValuesList.append(solver)
+        return self.simValuesList
+        
+    def getSimulationOptions(self, *names):#8
+        """
+        This method returns dict. The key is simulation option names and value is corresponding simulation option value.
+        If *name is None then the function will return dict which contain all simulation option names as key and value as corresponding values. eg., getSimulationOptions()
+        Otherwise variable number of arguments can be passed as simulation option name in string format separated by commas. eg., getSimulationOptions('simName1', 'simName2')
+        """
+        return self.__getXXXs(names, self.simNamesList, self.simValuesList)
+            
+    def getLinearizationOptions(self, *names):#9
+        """
+        This method returns dict. The key is linearize option names and value is corresponding linearize option value.
+        If *name is None then the function will return dict which contain all linearize option names as key and value as corresponding values. eg., getLinearizationOptions()
+        Otherwise variable number of arguments can be passed as simulation option name in string format separated by commas. eg., getLinearizationOptions('linName1', 'linName2')
+        """
+        return self.__getXXXs(names, self.linearizeOptionsNamesList, self.linearizeOptionsValuesList)
+    
+    def __getXXXs(self, names, namesList, valList):
+        #todo: check_Tuple is not working for tuple format
+        if not self.linearizationFlag:
+            checking = self.__checkTuple(names, namesList)
+            if not checking:
+                return
+        try:
+            if len(names) == 0:
+                xxxDict = dict()
+                for name, val in zip(namesList, valList):
+                    try:
+                        if float(val) or float(val) == 0.0:
+                            xxxDict[name] = float(val)
+                    except Exception:
+                        if ValueError:
+                            xxxDict[name] = val
+                return xxxDict
+            elif len(names) > 1:
+                val = []
+                for n in names:
+                    index_ = namesList.index(n)
+                    val.append(valList[index_])
+                tupVal = tuple(val)
+                return tupVal
+            elif len(names) == 1:
+                n, = names
+                if (hasattr(n,'__iter__')):
+                    val = []
+                    for i in n:
+                        index_ = namesList.index(i)
+                        val.append(valList[index_])
+                    tupVal = tuple(val)
+                    return tupVal
+                else:
+                    index_ = namesList.index(n)
+                    return valList[index_]
+        except ValueError as e:
+            print (e)
+    
+    def getOptimizationOptions(self, *names):#10
+        return self.__getXXXs(names, self.optimizeOptionsNamesList, self.optimizeOptionsValuesList)       
+
+    #to simulate or re-simulate model
+    def simulate(self):#11
+        """
+        This method simulates model according to the simulation options. It can be called:
+            •only without any arguments: simulate the model
+        """
+        #if (self.inputFlag == True):
+        if (self.inputFlag):#if model has input quantities
+            inpVal = self.__getInputValues()
+            ind = 0
+            for i in inpVal:
+                if self.simValuesList[0] != i[0][0] or self.simValuesList[1] != i[-1][0]:
+                    inpName = self.iNamesList[ind]
+                    print ('!!! startTime / stopTime not defined for Input ' + inpName)
+                    return
+                ind += 1
+            nameVal = self.getInputs()
+            for n in nameVal:
+                tupleList = nameVal.get(n)
+                for l in tupleList:
+                    if l[0] < float(self.simValuesList[0]):
+                        print ('Input time value is less than simulation startTime')
+                        return
+            self.__simInput()#create csv file
+            
+            if (platform.system()=="Windows"):
+               getExeFile=os.path.join(os.getcwd(),'{}.{}'.format(self.modelName, "exe")).replace("\\","/")
+            else:
+               getExeFile=os.path.join(os.getcwd(),self.modelName).replace("\\","/")
+            
+            #getExeFile = '{}.{}'.format(self.modelName)
+
+            check_exeFile_ = os.path.exists(getExeFile)
+            if(check_exeFile_):
+                cmd = getExeFile + " -csvInput=" + self.csvFile
+                os.system(cmd)
+                #subprocess.call(cmd, shell = False)
+                self.simulationFlag = True
+                resultfilename=self.modelName+'_res.mat'
+                print ("Simulation success Result file generated at: " +os.path.join(os.getcwd(),resultfilename))
+                return
+            else:
+                print ("Error: application file not generated yet")
+                return
+        else:
+            if (platform.system()=="Windows"):
+               getExeFile=os.path.join(os.getcwd(),'{}.{}'.format(self.modelName, "exe")).replace("\\","/")
+            else:
+               getExeFile=os.path.join(os.getcwd(),self.modelName).replace("\\","/")
+               #getExeFile = '{}.{}'.format(self.modelName, "exe")
+
+            check_exeFile_ = os.path.exists(getExeFile)
+            if(check_exeFile_):
+                cmd = getExeFile
+                subprocess.call(cmd, shell = False)
+                self.simulationFlag = True
+                #self.outputFlag = True
+                resultfilename=self.modelName+'_res.mat'
+                print ("Simulation success Result file generated at: " +os.path.join(os.getcwd(),resultfilename))
+                return
+            else:
+                print ("Error: application file not generated yet")
+    
+    #to extract simulation results
+    def getSolutions(self, *varList):#12
+        """
+        This method returns tuple of numpy arrays. It can be called:
+            •with a list of quantities name in string format as argument: it returns the simulation results of the corresponding names in the same order. Here it supports Python unpacking depending upon the number of variables assigned.
+        """
+        if len(varList) == 0:
+            validSolution = ['time'] + self.__getInputNames() + self.__getContinuousNames() + self.__getParameterNames()
+            return validSolution
+        
+        #if isinstance(varList, tuple) and all(len(a)==1 for a in varList):
+        elif isinstance(varList, tuple) and all(isinstance(a, str) for a in varList):
+            for v in varList:
+                if v == 'time':
+                    continue
+                if v not in [l.name for l in self.quantitiesList]:
+                    print ('!!! ', v, ' does not exist\n')
+                    return 
+            res_mat = '_res.mat'
+            resFile = "".join([self.modelName, res_mat])
+            check_resFile_ = os.path.exists(resFile)
+            variables = ",".join(varList)
+            if(check_resFile_):
+                exp = "readSimulationResult(\"" + resFile + '",{' + variables + "})"
+                res = self.getconn.sendExpression(exp)
+                npRes = np.array(res)
+                exp2 = "closeSimulationResultFile()"
+                self.getconn.sendExpression(exp2)
+                if len(npRes) == 1:
+                    tup=(npRes.ravel())
+                    return tup
+                else:
+                    tup = tuple(npRes)
+                    return tup
+            else:
+                print ("Error: mat file does not exist")
+        elif isinstance(varList, tuple) and len(varList) == 1:
+            varList, = varList
+            res_mat = '_res.mat'
+            resFile = "".join([self.modelName, res_mat])
+            check_resFile_ = os.path.exists(resFile)
+            variables = ",".join(varList)
+            if(check_resFile_):
+                exp = "readSimulationResult(\"" + resFile + '",{' + variables + "})"
+                res = self.getconn.sendExpression(exp)
+                npRes = np.array(res)
+                exp2 = "closeSimulationResultFile()"
+                self.getconn.sendExpression(exp2)
+                return npRes
+        else:
+            print ('Error! should be tuple of Model variables')
+    
+    #to set continuous quantities values
+    def setContinuous(self, **cvals):#13
+        """
+        This method is used to set continuous values. It can be called:
+            •with a sequence of continuous name and assigning corresponding values as arguments as show in the example below:
+            setContinuousValues(cName1 = 10.9, cName2 = 0.066)
+        """
+        self.__setValue(cvals, self.__getContinuousNames(), self.cValuesList, 'continuous', 0)
+
+    #to set parameter quantities values
+    def setParameters(self, **pvals):#14
+        """
+        This method is used to set parameter values. It can be called:
+            •with a sequence of parameter name and assigning corresponding value as arguments as show in the example below:
+            setParameterValues(pName1 = 10.9, pName2 = 0.066)
+        """
+        self.__setValue(pvals, self.__getParameterNames(), self.__getParameterValues(), 'parameter', 0)
+    
+    #to set input quantities value
+    def setInputs(self, **nameVal):#15
+        """
+        This method is used to set input values. It can be called:
+            •with a sequence of input name and assigning corresponding values as arguments as show in the example below:
+            setParameterValues(iName = [(t0, v0), (t1, v0), (t1, v2), (t3, v2)...]), where tj<=tj+1
+        """
+        
+        try:
+            for n in nameVal:
+                tupleList = nameVal.get(n)
+                if isinstance(tupleList, list):
+                    if tupleList != sorted(tupleList, key=lambda x:x[0]):
+                        print ('Time value should be in increasing order')
+                        return
+                    for l in tupleList:
+                        if isinstance(l, tuple):
+                            if l[0] < float(self.simValuesList[0]):
+                                print ('Input time value is less than simulation startTime')
+                                return
+                            if len(l)!=2:
+                                print ('Value for ' + n + ' is in incorrect format!')
+                                return   
+                        else:
+                            print ('Error!!! Value must be in tuple format')
+                            return
+                elif isinstance(tupleList, int) or isinstance(tupleList, float):
+                    continue
+                else:
+                    print ('Error!!! Input values should be tuple list for ' + n)
+                    return
+            lst2 = []
+            lstInd = []
+            for n in nameVal:
+                if not self.specialNames:
+                    index = self.iNamesList.index(n)
+                    if isinstance(nameVal.get(n), int) or isinstance(nameVal.get(n), float):
+                        self.specialNames.append((n, nameVal.get(n), True))
+                        self.inputsVal[index] = [(float(self.simValuesList[0]), nameVal.get(n)), (float(self.simValuesList[1]), nameVal.get(n)) ]
+                    else:
+                        self.inputsVal[index] = nameVal.get(n)
+                else:
+                    if n in [s[0] for s in self.specialNames]:
+                        s_, = tuple([item for item in self.specialNames if n in item])
+                        
+                        index = self.iNamesList.index(n)
+                        if isinstance(nameVal.get(n),int) or isinstance(nameVal.get(n), float):
+                            self.inputsVal[index] = [(float(self.simValuesList[0]), nameVal.get(n)), (float(self.simValuesList[1]), nameVal.get(n)) ]
+                        else:
+                            ind = self.specialNames.index(s_)
+                            self.specialNames.pop(ind)
+                           
+                            index = self.iNamesList.index(n)
+                            self.inputsVal[index] = nameVal.get(n)
+                    else:
+                        index = self.iNamesList.index(n)
+                        if isinstance(nameVal.get(n), int) or isinstance(nameVal.get(n), float):
+                            self.specialNames.append((n, nameVal.get(n), True))
+                            self.inputsVal[index] = [(float(self.simValuesList[0]), nameVal.get(n)), (float(self.simValuesList[1]), nameVal.get(n)) ]
+                        else:
+                            self.inputsVal[index] = nameVal.get(n)
+                self.inputFlag = True
+                
+        except Exception:
+            raise
+    
+    #To create csv file for inputs       
+    def __simInput(self):
+        sl=list() #Actual timestamps   
+        skip = False
+        inp = list()
+        inp = deepcopy(self.__getInputValues())
+        for i in inp:
+            cl=list()
+            el=list()
+            for (t,x) in i:
+                cl.append(t)
+            for i in cl:
+                if skip == True:
+                    skip = False
+                    continue
+                if i not in sl:
+                    el.append(i)
+                else:
+                    elem_no = cl.count(i)
+                    sl_no = sl.count(i)
+                    if elem_no == 2 and sl_no == 1:
+                        el.append(i)
+                        skip = True
+            sl = sl + el
+            
+        sl.sort()
+        for t in sl:
+            for i in inp:
+                for ttt in [tt[0] for tt in i]:
+                    if t not in [tt[0] for tt in i]:
+                        i.append((t, '?'))
+        inpSortedList = list()
+        sortedList = list()
+        for i in inp:
+            sortedList = sorted(i, key = lambda x:x[0])
+            inpSortedList.append(sortedList)
+        for i in inpSortedList:
+            ind = 0
+            for (t, x ) in i:
+                if x == '?':
+                    t1=i[ind-1][0]
+                    u1 = i[ind-1][1]
+                    t2=i[ind+1][0]
+                    u2 = i[ind+1][1]
+                    nex = 2
+                    while (u2 == '?'):
+                        u2 = i[ind + nex][1]
+                        t2 = i[ind + nex ][0]
+                        nex += 1
+                    x = float(u1 + (u2-u1)*(t-t1)/(t2-t1))
+                    i[ind] = (t,x)
+                ind+=1
+        slSet = list()
+        slSet = set(sl)
+        for i in inpSortedList:
+            tempTime = list()
+            for (t,x) in i:
+                tempTime.append(t)
+            inSl = None
+            inI = None
+            for s in slSet:
+                inSl = sl.count(s) 
+                inI = tempTime.count(s)
+                if inSl != inI:
+                    test = list()
+                    test = [(x,y) for x, y in i if x  == s]
+                    i.append(test[0])
+        newInpList = list()
+        tempSorting = list()
+        for i in inpSortedList:
+            #i.sort() => just sorting might not work so need to sort according to 1st element of a tuple
+            tempSorting = sorted(i, key = lambda x:x[0])
+            newInpList.append(tempSorting)
+            
+        interpolated_inputs_all = list()
+        for i in newInpList:
+            templist = list()
+            for (t,x) in i:
+                templist.append(x)
+            interpolated_inputs_all.append(templist)
+            
+        name_ ='time'
+        name = ','.join(self.__getInputNames())
+        name = '{},{},{}'.format(name_,name,'end')
+                
+        a=''
+        l=[]
+        l.append(name)
+        for i in range(0,len(sl)):
+            a =("%s,%s" % (str(float(sl[i])),",".join(list(str(float(inppp[i]))  for inppp in interpolated_inputs_all))))+',0'
+            l.append(a)
+
+        self.csvFile = '{}.csv'.format(self.modelName)
+        with open (self.csvFile, "w") as f:
+            writer=csv.writer(f, delimiter='\n')
+            writer.writerow(l)
+            
+    #to set values for continuous and parameter quantities
+    def __setValue(self, nameVal, namesList, valuesList, quantity, index):
+        try:
+            for n in nameVal:
+                if n in namesList:
+                    for l in self.quantitiesList:
+                        if(l.name == n):
+                            if l.changable == 'false':
+                                print ("!!! value cannot be set for " + n)
+                            else:
+                                l.start = float(nameVal.get(n))
+                                index_ = namesList.index(n)
+                                valuesList[index_] = l.start
+                                
+                                rootSet = self.root
+                                for paramVar in rootSet.iter('ScalarVariable'):
+                                    if paramVar.get('name') == str(n):
+                                        c=paramVar.getchildren()
+                                        for attr in c:
+                                            val = float(nameVal.get(n))
+                                            attr.set('start', str(val))
+                                            self.tree.write(self.xmlFile,  encoding='UTF-8', xml_declaration=True)
+                                index = index + 1
+                else:
+                    print ('Error: ' + n + ' is not ' + quantity)
+                    
+        except Exception as e:
+            print (e)
+    
+    #to set simulation options values
+    def setSimulationOptions(self, **simOptions):#16
+        """
+        This method is used to set simulation options. It can be called:
+            •with a sequence of simulation options name and assigning corresponding values as arguments as show in the example below:
+            setSimulationOptions(stopTime = 100, solver = 'euler')
+        """
+        return self.__setOptions(simOptions, self.simNamesList, self.simValuesList,0)
+    
+    #to set optimization options values
+    def setOptimizationOptions(self, **optimizationOptions):#17
+        """
+        This method is used to set optimization options. It can be called:
+            •with a sequence of optimization options name and assigning corresponding values as arguments as show in the example below:
+            setOptimizationOptions(stopTime = 10,simflags = '-lv LOG_IPOPT -optimizerNP 1')
+        """
+        return self.__setOptions(optimizationOptions, self.optimizeOptionsNamesList, self.optimizeOptionsValuesList)
+    
+    #to set linearization options values
+    def setLinearizationOptions(self, **linearizationOptions):#18
+        """
+        This method is used to set linearization options. It can be called:
+            •with a sequence of linearization options name and assigning corresponding value as arguments as show in the example below
+            setLinearizationOptions(stopTime=0, stepSize = 10)
+        """
+        return self.__setOptions(linearizationOptions, self.linearizeOptionsNamesList, self.linearizeOptionsValuesList)
+    
+    #to set options for simulation, optimization and linearization
+    def __setOptions(self, options, namesList, valuesList, index = None):
+        try:
+            for opt in options: 
+                if opt in namesList: 
+                    if opt == 'stopTime':
+                        if float(options.get(opt))<=float(valuesList[0]):
+                            print ('!!! stoptTime should be greater than startTime')
+                            return
+                    if opt == 'startTime':
+                        if float(options.get(opt))>=float(valuesList[1]):
+                            print ('!!! startTime should be less than stopTime')
+                            return
+                    index_ = namesList.index(opt)
+                    valuesList[index_] = options.get(opt)
+                else:
+                    print ('!!!' + opt + ' is not an option')
+                    continue
+                if index is not None:
+                    rootSSC = self.root
+                    for sim in rootSSC.iter('DefaultExperiment'):
+                        sim.set(opt, str(options.get(opt)))
+                        self.tree.write(self.xmlFile,  encoding='UTF-8', xml_declaration=True)
+                    index = index + 1
+            if index is not None and self.specialNames:
+                for n in self.specialNames:
+                    if n[2]:
+                        index = self.iNamesList.index(n[0])
+                        self.inputsVal[index] = [(float(self.simValuesList[0]), n[1]), (float(self.simValuesList[1]), n[1])]
+                        
+        except Exception as e:
+            print (e)
+     
+    #to convert Modelica model to FMU
+    def convertMo2Fmu(self):#19
+        """
+        This method is used to generate FMU from the given Modelica model. It creates "modelName.fmu" in the current working directory. It can be called:
+            •only without any arguments        
+        """
+        
+        convertMo2FmuError = ''
+        translateModelFMUResult = self.requestApi('translateModelFMU', self.modelName)
+        if convertMo2FmuError:
+            print (convertMo2FmuError)
+    
+        return translateModelFMUResult
+    
+    #to convert FMU to Modelica model
+    def convertFmu2Mo(self, fmuName):#20
+        """
+        In order to load FMU, at first it needs to be translated into Modelica model. This method is used to generate Modelica model from the given FMU. It generates "fmuName_me_FMU.mo". It can be called:
+            •only without any arguments
+        Currently, it only supports Model Exchange conversion.
+        
+        - Input arguments: s1
+            * s1: name of FMU file, including extension .fmu 
+        """
+        
+        convertFmu2MoError = ''
+        importResult = self.requestApi('importFMU', fmuName)
+        convertFmu2MoError = self.requestApi('getErrorString')
+        if convertFmu2MoError:
+            print (convertFmu2MoError)
+
+        return importResult
+    
+    #to optimize model
+    def optimize(self):#21
+        """
+        This method optimizes model according to the optimized options. It can be called:
+            •only without any arguments
+        """
+        
+        cName = self.modelName
+        properties = '{}={}, {}={}, {}={}, {}={}, {}={}, {}="{}"'.format(self.optimizeOptionsNamesList[0],self.optimizeOptionsValuesList[0],self.optimizeOptionsNamesList[1],self.optimizeOptionsValuesList[1],self.optimizeOptionsNamesList[2],self.optimizeOptionsValuesList[2],self.optimizeOptionsNamesList[3],self.optimizeOptionsValuesList[3],self.optimizeOptionsNamesList[4],self.optimizeOptionsValuesList[4],self.optimizeOptionsNamesList[5],self.optimizeOptionsValuesList[5])
+        
+        optimizeError = ''
+        optimizeResult = self.requestApi('optimize', cName, properties)
+        optimizeError = self.requestApi('getErrorString')
+        if optimizeError:
+            print (optimizeError)
+
+        return optimizeResult
+    
+    #to linearize model
+    def linearize(self):#22
+        """ 
+        This method linearizes model according to the linearized options. This will generate a linear model that consists of matrices A, B, C and D.  It can be called:
+            •only without any arguments
+        """
+        
+        try:
+            cName = self.modelName
+            self.requestApi("setCommandLineOptions", "+generateSymbolicLinearization")
+            properties = "{}={}, {}={}, {}={}, {}={}, {}={}, {}='{}'".format(self.linearizeOptionsNamesList[0],self.linearizeOptionsValuesList[0],self.linearizeOptionsNamesList[1],self.linearizeOptionsValuesList[1],self.linearizeOptionsNamesList[2],self.linearizeOptionsValuesList[2],self.linearizeOptionsNamesList[3],self.linearizeOptionsValuesList[3],self.linearizeOptionsNamesList[4],self.linearizeOptionsValuesList[4],self.linearizeOptionsNamesList[5],self.linearizeOptionsValuesList[5])
+            
+            if self.inputFlag:
+                nameVal = self.getInputs()
+                for n in nameVal:
+                    tupleList = nameVal.get(n)
+                    for l in tupleList:
+                        if l[0] < float(self.simValuesList[0]):
+                            print ('Input time value is less than simulation startTime')
+                            return
+                self.__simInput()
+                self.getconn.sendExpression("linearize(" + self.modelName + ", simFlgs = \"-csvInput = "+ self.csvFile +"\")")
+                
+                linearizeError = ''
+                linearizeError = self.requestApi('getErrorString')
+                if linearizeError:
+                    print (linearizeError)
+            else:
+                linearizeError = ''
+                linearizeResult = self.requestApi('linearize', cName, properties)
+                linearizeError = self.requestApi('getErrorString')
+                if linearizeError:
+                    print (linearizeError)
+            getLinFile = '{}_{}.{}'.format('linear', self.modelName, 'mo')
+            checkLinFile = os.path.exists(getLinFile)
+            if checkLinFile:
+                self.requestApi('loadFile', getLinFile)
+                cNames = self.requestApi('getClassNames')
+                linModelName = cNames[0]
+                self.requestApi('buildModel', linModelName)
+                lin = ModelicaSystem(getLinFile, linModelName)
+                lin.linearizationFlag = True
+                
+                A = []
+                B = []
+                C = []
+                D = []
+                matrices = []
+                A = lin.__getMatrixA()
+                B = lin.__getMatrixB()
+                C = lin.__getMatrixC()
+                D = lin.__getMatrixD()
+                
+                matrices.append(A)
+                matrices.append(B)
+                matrices.append(C)
+                matrices.append(D)
+                
+                lin.linearizationFlag = False
+                del lin
+                self.linearizationFlag = False
+                return matrices
+            
+        except Exception as e:
+            raise e
+    
+    def __getMatrix(self, xParameter, sizeParameter):
+        paraKeys = self.__getParameterNames()
+        xElemNames = []
+        for k in paraKeys:
+            if xParameter in k:
+                xElemNames.append(k)
+        xElemNames.sort()
+        xElemNames.sort(key=len)
+        sortedX=xElemNames
+        size_ = int(self.getParameters(sizeParameter))
+        matX = []
+        matX = [[] for i in range(size_)]
+        for i in range(size_):
+            for a in sortedX:
+                if float(a.partition('[')[-1].rpartition(',')[0]) == float(i+1):
+                    matX[i].append(a)        
+        a_ = []
+        for i in matX:
+            a_.append(i)
+        xValues = []
+        for i in matX:
+            tup = tuple(i)
+            xValues.append(self.getParameters(tup)) 
+        xValues=np.array(xValues)     
+        return xValues
+    
+    def __getMatrixA(self):
+        return self.__getMatrix('A[', 'n')
+        
+    def __getMatrixB(self):
+        return self.__getMatrix('B[', 'n')
+        
+    def __getMatrixC(self):
+        return self.__getMatrix('C[', 'l')
+        
+    def __getMatrixD(self):
+        return self.__getMatrix('D[', 'l')
+
