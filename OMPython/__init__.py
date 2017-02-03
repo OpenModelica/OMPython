@@ -926,7 +926,7 @@ class ModelicaSystem(object):
                     if(l.variability == "parameter"):
                         str_ = l.start
                         if ((str_ is None) or (str_ == 'true' or str_ == 'false')):
-                            if (str_ == 'ture'):
+                            if (str_ == 'true'):
                                 str_ = True
                             elif str_ == 'false':
                                 str_ = False
@@ -1098,7 +1098,15 @@ class ModelicaSystem(object):
             check_exeFile_ = os.path.exists(getExeFile)
             if(check_exeFile_):
                 cmd = getExeFile + " -csvInput=" + self.csvFile
-                os.system(cmd)
+                if(platform.system()=="Windows"):
+                   omhome=os.path.join(os.environ.get("OPENMODELICAHOME"),'bin').replace("\\","/")
+                   my_env = os.environ.copy()
+                   my_env["PATH"] += os.pathsep + omhome 
+                   p=subprocess.Popen(cmd, env=my_env)
+                   p.wait()
+                   p.terminate()  
+                else:
+                   os.system(cmd)
                 #subprocess.call(cmd, shell = False)
                 self.simulationFlag = True
                 resultfilename=self.modelName+'_res.mat'
@@ -1115,9 +1123,18 @@ class ModelicaSystem(object):
                #getExeFile = '{}.{}'.format(self.modelName, "exe")
 
             check_exeFile_ = os.path.exists(getExeFile)
+
             if(check_exeFile_):
                 cmd = getExeFile
-                subprocess.call(cmd, shell = False)
+                if(platform.system()=="Windows"):
+                   omhome=os.path.join(os.environ.get("OPENMODELICAHOME"),'bin').replace("\\","/")
+                   my_env = os.environ.copy()
+                   my_env["PATH"] += os.pathsep + omhome 
+                   p=subprocess.Popen(cmd, env=my_env)
+                   p.wait()
+                   p.terminate()
+                else:
+                   os.system(cmd)
                 self.simulationFlag = True
                 #self.outputFlag = True
                 resultfilename=self.modelName+'_res.mat'

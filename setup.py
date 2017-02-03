@@ -51,6 +51,7 @@ setup(name='OMPython',
       packages=['OMPython', 'OMPython.OMParser', 'OMPythonIDL', 'OMPythonIDL._OMCIDL', 'OMPythonIDL._OMCIDL__POA'],
       install_requires=[
         # 'omniORB', # Required, but not part of pypi
-        'pyparsing'
+        'pyparsing',
+        'numpy'
       ]
 )
