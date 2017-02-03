@@ -41,36 +41,28 @@ next_set_list = []
 next_set = []
 next_set.append('')
 
+def bool_from_string(string):
+    if string in {'true', 'True', 'TRUE'}:
+        return True
+    elif string in {'false', 'False', 'FALSE'}:
+        return False
+    else:
+        raise ValueError
+
 def typeCheck(string):
-    if "\n" in string:
-        new_line_char = string[-1]
-        if new_line_char == "\n":
-            string = string.replace(string[-1],'').strip()
+    """Attempt conversion of string to a usable value"""
+    types = [bool_from_string, int, float, long, dict, str]
 
-    if string == "true" or string == "True" or string == "TRUE":
-        string = True
-        return string
-    elif string == "false" or string == "False" or string == "FALSE":
-        string = False
-        return string
+    string = string.strip()
 
-    try:
-        string = int(string)
-    except ValueError:
+    for t in types:
         try:
-            string = float(string)
+            return t(string)
         except ValueError:
-            try:
-                string = long(string)
-            except ValueError:
-                try:
-                    string = dict(string)
-                except ValueError:
-                    try:
-                        string = str(string)
-                    except ValueError:
-                        print ("String contains Un-handled datatype")
-    return string
+            continue
+    else:
+        print("String contains un-handled datatype")
+        return string
 
 def make_values(strings, name):
     if strings[0] == "(" and strings[-1]==")":
