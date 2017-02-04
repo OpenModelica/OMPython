@@ -1101,7 +1101,7 @@ class ModelicaSystem(object):
                 if(platform.system()=="Windows"):
                    omhome=os.path.join(os.environ.get("OPENMODELICAHOME"),'bin').replace("\\","/")
                    my_env = os.environ.copy()
-                   my_env["PATH"] += os.pathsep + omhome 
+                   my_env["PATH"] = omhome + os.pathsep + my_env["PATH"]
                    p=subprocess.Popen(cmd, env=my_env)
                    p.wait()
                    p.terminate()  
@@ -1129,7 +1129,7 @@ class ModelicaSystem(object):
                 if(platform.system()=="Windows"):
                    omhome=os.path.join(os.environ.get("OPENMODELICAHOME"),'bin').replace("\\","/")
                    my_env = os.environ.copy()
-                   my_env["PATH"] += os.pathsep + omhome 
+                   my_env["PATH"] = omhome + os.pathsep + my_env["PATH"]                   
                    p=subprocess.Popen(cmd, env=my_env)
                    p.wait()
                    p.terminate()
