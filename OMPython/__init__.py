@@ -131,7 +131,7 @@ class OMCSession(object):
             self._ior_file = "openmodelica.objid." + self._random_string
         else:
             self._ior_file = "openmodelica." + self._currentUser + ".objid." + self._random_string
-        self._ior_file = os.path.join(self._temp_dir, self._ior_file)
+        self._ior_file = os.path.join(self._temp_dir, self._ior_file).replace("\\","/")
         self._omc_corba_uri = "file:///" + self._ior_file
         # See if the omc server is running
         if os.path.isfile(self._ior_file):
