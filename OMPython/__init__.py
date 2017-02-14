@@ -463,14 +463,15 @@ class Quantity:
     """
     To represent quantities details
     """
-    def __init__(self, name, start, changable, variability, description, causality):
+    def __init__(self, name, start, changable, variability, description, causality, alias, aliasvariable):
         self.name = name
         self.start = start
         self.changable = changable
         self.description = description
         self.variability = variability
         self.causality = causality
-
+        self.alias = alias
+        self.aliasvariable = aliasvariable
 
 
 
@@ -493,6 +494,11 @@ class ModelicaSystem(object):
         if fileName is None:
             return "File does not exist"			
         self.tree = None
+        
+        self.linearquantitiesList=[] #linearization  quantity list
+        self.linearinputs=[] #linearization input list
+        self.linearoutputs=[] #linearization output list
+        self.linearstates=[] #linearization  states list
         self.quantitiesList = [] #detail list of all Modelica quantity variables inc. name, changable, description, etc
         self.qNamesList = [] #for all quantities name list
         self.cNamesList = [] #for continuous quantities name list 
@@ -521,7 +527,7 @@ class ModelicaSystem(object):
         self.outputFlag = False
         self.csvFile = '' #for storing inputs condition
         if not os.path.exists(self.fileName): #if file does not eixt
-            print ("Error: File does not exist!!!")
+            print ("File Error:"+os.path.abspath(self.fileName)+ " does not exist!!!")
             return
 			
         (head, tail) = os.path.split(self.fileName)#to store directory/path and file)
@@ -575,14 +581,15 @@ class ModelicaSystem(object):
                 return
         
         # build model 
-        buildModelError = ''
+        #buildModelError = ''
         self.getconn.sendExpression("setCommandLineOptions(\"+d=initialization\")")
         #buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
         buildModelResult = self.requestApi("buildModel", mName)
         buildModelError = self.requestApi("getErrorString")
-
-        if buildModelError:
+        
+        if ('' in buildModelResult):
             print (buildModelError)
+            return
             
         self.xmlFile = buildModelResult[1]
         self.tree = ET.parse(self.xmlFile)
@@ -629,11 +636,13 @@ class ModelicaSystem(object):
                 description = sv.get('description')
                 variability = sv.get('variability')
                 causality = sv.get('causality')
+                alias = sv.get('alias')
+                aliasvariable = sv.get('aliasVariable')
                 ch = sv.getchildren()
                 start = None
                 for att in ch:
                     start = att.get('start')
-                self.quantitiesList.append(Quantity(name, start, changable, variability, description, causality))
+                self.quantitiesList.append(Quantity(name, start, changable, variability, description, causality,alias,aliasvariable))
         return self.quantitiesList
     
     #to get list of all quantities names
@@ -684,7 +693,7 @@ class ModelicaSystem(object):
                     qlistnames = []
                     for q in self.quantitiesList:	
                         if names == q.name:
-                            qlistnames.append({'Name':q.name, 'Value':q.start,'Changeable' : q.changable, 'Variability': q.variability, 'Description':q.description})
+                            qlistnames.append({'Name':q.name, 'Value':q.start,'Changeable' : q.changable, 'Variability': q.variability, 'alias':q.alias,'aliasvariable':q.aliasvariable, 'Description':q.description})
                             break
                     return qlistnames
                 elif isinstance(names, list):
@@ -692,7 +701,7 @@ class ModelicaSystem(object):
                     for n in names:                        
                         for q in self.quantitiesList:
                             if n == q.name:
-                                qlist.append({'Name':q.name, 'Value':q.start,'Changeable' : q.changable, 'Variability': q.variability, 'Description':q.description})
+                                qlist.append({'Name':q.name, 'Value':q.start,'Changeable' : q.changable, 'Variability': q.variability,'alias':q.alias,'aliasvariable':q.aliasvariable, 'Description':q.description})
                                 break
                     return qlist
                 else:
@@ -700,7 +709,7 @@ class ModelicaSystem(object):
             else:
                 qlist = []       
                 for q in self.quantitiesList:
-                    qlist.append({'Name':q.name, 'Value':q.start,'Changeable' : q.changable, 'Variability': q.variability, 'Description':q.description})
+                    qlist.append({'Name':q.name, 'Value':q.start,'Changeable' : q.changable, 'Variability': q.variability, 'alias':q.alias,'aliasvariable':q.aliasvariable,'Description':q.description})
                 return qlist
         except Exception as e:
             print (e)
@@ -793,7 +802,10 @@ class ModelicaSystem(object):
         """
         
         try:
-            if self.simulationFlag:
+            if not self.simulationFlag:
+                return self.__getXXXs(names, self.__getOutputNames(), self.__getOutputValues())
+           
+            else:
                 if len(names) == 0:
                     op = self.__getOutputNames()
                     opTuple = tuple(op)
@@ -815,8 +827,8 @@ class ModelicaSystem(object):
                         if len(tupVal) == 1:
                             tupVal, = tupVal
                     return tupVal
-            else:
-                print ('The model is not simulated yet!!!')
+            # else:
+                # print ('The model is not simulated yet!!!')
 
         except Exception:
             if pyparsing.ParseException:
@@ -1110,7 +1122,6 @@ class ModelicaSystem(object):
                 #subprocess.call(cmd, shell = False)
                 self.simulationFlag = True
                 resultfilename=self.modelName+'_res.mat'
-                print ("Simulation success Result file generated at: " +os.path.join(os.getcwd(),resultfilename))
                 return
             else:
                 print ("Error: application file not generated yet")
@@ -1138,7 +1149,6 @@ class ModelicaSystem(object):
                 self.simulationFlag = True
                 #self.outputFlag = True
                 resultfilename=self.modelName+'_res.mat'
-                print ("Simulation success Result file generated at: " +os.path.join(os.getcwd(),resultfilename))
                 return
             else:
                 print ("Error: application file not generated yet")
@@ -1525,9 +1535,9 @@ class ModelicaSystem(object):
         
         try:
             cName = self.modelName
-            self.requestApi("setCommandLineOptions", "+generateSymbolicLinearization")
+            #self.requestApi("setCommandLineOptions", "+generateSymbolicLinearization")
+            self.getconn.sendExpression("setCommandLineOptions(\"+generateSymbolicLinearization\")")
             properties = "{}={}, {}={}, {}={}, {}={}, {}={}, {}='{}'".format(self.linearizeOptionsNamesList[0],self.linearizeOptionsValuesList[0],self.linearizeOptionsNamesList[1],self.linearizeOptionsValuesList[1],self.linearizeOptionsNamesList[2],self.linearizeOptionsValuesList[2],self.linearizeOptionsNamesList[3],self.linearizeOptionsValuesList[3],self.linearizeOptionsNamesList[4],self.linearizeOptionsValuesList[4],self.linearizeOptionsNamesList[5],self.linearizeOptionsValuesList[5])
-            
             if self.inputFlag:
                 nameVal = self.getInputs()
                 for n in nameVal:
@@ -1549,6 +1559,8 @@ class ModelicaSystem(object):
                 linearizeError = self.requestApi('getErrorString')
                 if linearizeError:
                     print (linearizeError)
+            
+            ## code to get the matrix and linear inputs, outputs and states
             getLinFile = '{}_{}.{}'.format('linear', self.modelName, 'mo')
             checkLinFile = os.path.exists(getLinFile)
             if checkLinFile:
@@ -1558,7 +1570,8 @@ class ModelicaSystem(object):
                 self.requestApi('buildModel', linModelName)
                 lin = ModelicaSystem(getLinFile, linModelName)
                 lin.linearizationFlag = True
-                
+                self.linearquantitiesList=lin.getQuantities()
+                self.getLinearQuantityInformation()
                 A = []
                 B = []
                 C = []
@@ -1582,6 +1595,27 @@ class ModelicaSystem(object):
         except Exception as e:
             raise e
     
+    def getLinearQuantityInformation(self):
+        ## function which extracts linearised states, inputs and outputs
+        for i in xrange(len(self.linearquantitiesList)):
+            if (self.linearquantitiesList[i]['alias']=='alias'):
+                name=self.linearquantitiesList[i]['Name']
+                if(name[1]=='x'):
+                    self.linearstates.append(name[3:-1])
+                if(name[1]=='u'):
+                    self.linearinputs.append(name[3:-1])
+                if(name[1]=='y'):
+                    self.linearoutputs.append(name[3:-1])
+    
+    def getLinearInputs(self):
+        return self.linearinputs
+    
+    def getLinearOutputs(self):
+        return self.linearoutputs
+        
+    def getLinearStates(self):
+        return self.linearstates        
+        
     def __getMatrix(self, xParameter, sizeParameter):
         paraKeys = self.__getParameterNames()
         xElemNames = []
