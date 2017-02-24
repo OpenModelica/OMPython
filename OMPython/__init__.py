@@ -661,7 +661,7 @@ class ModelicaSystem(object):
                     if n not in chkList:
                         nonExistingList.append(n)
                 if nonExistingList:
-                    print ('Error!!! ' + nonExistingList  + ' does not exist.')
+                    print ('Error!!! ' + str(nonExistingList)  + ' does not exist.')
                     return False
             elif isinstance(names, str):
                 if names not in chkList:
@@ -733,7 +733,7 @@ class ModelicaSystem(object):
                 if n not in chkList:
                     nonExistingList.append(n)
             if nonExistingList:
-                print ('Error!!!' + nonExistingList + ' does not exist.')
+                print ('Error!!!' + str(nonExistingList) + ' does not exist.')
                 return False
             return True
         else:
@@ -1287,7 +1287,8 @@ class ModelicaSystem(object):
                 self.inputFlag = True
                 
         except Exception:
-            raise
+            print ( "Error:!!! " + n + " is not an input")
+            return
     
     #To create csv file for inputs       
     def __simInput(self):
