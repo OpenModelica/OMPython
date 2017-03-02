@@ -512,10 +512,10 @@ class ModelicaSystem(object):
         self.oValuesList = [] #for output quantities value list
         self.simNamesList = ['startTime', 'stopTime', 'stepSize', 'tolerance', 'solver'] #simulation options list
         self.simValuesList = [] #for simulation values list
-        self.optimizeOptionsNamesList = ['startTime', 'stopTime', 'numberOfIntervals', 'stepSize', 'tolerance', 'simflags']
-        self.optimizeOptionsValuesList = [0.0, 1.0, 500, 0.002,1e-8,' ']
-        self.linearizeOptionsNamesList = ['startTime', 'stopTime', 'numberOfIntervals', 'stepSize', 'tolerance', 'simflags']
-        self.linearizeOptionsValuesList = [0.0, 1.0, 500, 0.002,1e-8,' ']
+        self.optimizeOptionsNamesList = ['startTime', 'stopTime', 'numberOfIntervals', 'stepSize', 'tolerance']
+        self.optimizeOptionsValuesList = [0.0, 1.0, 500, 0.002,1e-8]
+        self.linearizeOptionsNamesList = ['startTime', 'stopTime', 'numberOfIntervals', 'stepSize', 'tolerance']
+        self.linearizeOptionsValuesList = [0.0, 1.0, 500, 0.002,1e-8]
         self.getconn = OMCSession()
         self.xmlFile = None
         self.lmodel = lmodel #may be needed if model is derived from other model
@@ -1517,9 +1517,10 @@ class ModelicaSystem(object):
         """
         
         cName = self.modelName
-        properties = '{}={}, {}={}, {}={}, {}={}, {}={}, {}="{}"'.format(self.optimizeOptionsNamesList[0],self.optimizeOptionsValuesList[0],self.optimizeOptionsNamesList[1],self.optimizeOptionsValuesList[1],self.optimizeOptionsNamesList[2],self.optimizeOptionsValuesList[2],self.optimizeOptionsNamesList[3],self.optimizeOptionsValuesList[3],self.optimizeOptionsNamesList[4],self.optimizeOptionsValuesList[4],self.optimizeOptionsNamesList[5],self.optimizeOptionsValuesList[5])
+        properties = '{}={}, {}={}, {}={}, {}={}, {}={}'.format(self.optimizeOptionsNamesList[0],self.optimizeOptionsValuesList[0],self.optimizeOptionsNamesList[1],self.optimizeOptionsValuesList[1],self.optimizeOptionsNamesList[2],self.optimizeOptionsValuesList[2],self.optimizeOptionsNamesList[3],self.optimizeOptionsValuesList[3],self.optimizeOptionsNamesList[4],self.optimizeOptionsValuesList[4])
         
         optimizeError = ''
+        self.getconn.sendExpression("setCommandLineOptions(\"-g=Optimica\")")
         optimizeResult = self.requestApi('optimize', cName, properties)
         optimizeError = self.requestApi('getErrorString')
         if optimizeError:
@@ -1538,7 +1539,7 @@ class ModelicaSystem(object):
             cName = self.modelName
             #self.requestApi("setCommandLineOptions", "+generateSymbolicLinearization")
             self.getconn.sendExpression("setCommandLineOptions(\"+generateSymbolicLinearization\")")
-            properties = "{}={}, {}={}, {}={}, {}={}, {}={}, {}='{}'".format(self.linearizeOptionsNamesList[0],self.linearizeOptionsValuesList[0],self.linearizeOptionsNamesList[1],self.linearizeOptionsValuesList[1],self.linearizeOptionsNamesList[2],self.linearizeOptionsValuesList[2],self.linearizeOptionsNamesList[3],self.linearizeOptionsValuesList[3],self.linearizeOptionsNamesList[4],self.linearizeOptionsValuesList[4],self.linearizeOptionsNamesList[5],self.linearizeOptionsValuesList[5])
+            properties = "{}={}, {}={}, {}={}, {}={}, {}={}".format(self.linearizeOptionsNamesList[0],self.linearizeOptionsValuesList[0],self.linearizeOptionsNamesList[1],self.linearizeOptionsValuesList[1],self.linearizeOptionsNamesList[2],self.linearizeOptionsValuesList[2],self.linearizeOptionsNamesList[3],self.linearizeOptionsValuesList[3],self.linearizeOptionsNamesList[4],self.linearizeOptionsValuesList[4])
             if self.inputFlag:
                 nameVal = self.getInputs()
                 for n in nameVal:
@@ -1548,8 +1549,7 @@ class ModelicaSystem(object):
                             print ('Input time value is less than simulation startTime')
                             return
                 self.__simInput()
-                self.getconn.sendExpression("linearize(" + self.modelName + ", simFlgs = \"-csvInput = "+ self.csvFile +"\")")
-                
+                self.getconn.sendExpression("linearize(" + self.modelName + ","+ properties +", simflags=\"-csvInput="+self.csvFile+"\")")
                 linearizeError = ''
                 linearizeError = self.requestApi('getErrorString')
                 if linearizeError:
