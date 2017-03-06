@@ -1540,6 +1540,9 @@ class ModelicaSystem(object):
             #self.requestApi("setCommandLineOptions", "+generateSymbolicLinearization")
             self.getconn.sendExpression("setCommandLineOptions(\"+generateSymbolicLinearization\")")
             properties = "{}={}, {}={}, {}={}, {}={}, {}={}".format(self.linearizeOptionsNamesList[0],self.linearizeOptionsValuesList[0],self.linearizeOptionsNamesList[1],self.linearizeOptionsValuesList[1],self.linearizeOptionsNamesList[2],self.linearizeOptionsValuesList[2],self.linearizeOptionsNamesList[3],self.linearizeOptionsValuesList[3],self.linearizeOptionsNamesList[4],self.linearizeOptionsValuesList[4])
+            x=self.getParameters()
+            getparamvalues=','.join("%s=%r" % (key,val) for (key,val) in x.iteritems())
+            override="-override="+getparamvalues
             if self.inputFlag:
                 nameVal = self.getInputs()
                 for n in nameVal:
@@ -1549,14 +1552,16 @@ class ModelicaSystem(object):
                             print ('Input time value is less than simulation startTime')
                             return
                 self.__simInput()
-                self.getconn.sendExpression("linearize(" + self.modelName + ","+ properties +", simflags=\"-csvInput="+self.csvFile+"\")")
+                flags="-csvInput="+self.csvFile+" "+override
+                self.getconn.sendExpression("linearize(" + self.modelName + ","+ properties +", simflags=\" "+ flags +" \")")
                 linearizeError = ''
                 linearizeError = self.requestApi('getErrorString')
                 if linearizeError:
                     print (linearizeError)
             else:
                 linearizeError = ''
-                linearizeResult = self.requestApi('linearize', cName, properties)
+                self.getconn.sendExpression("linearize(" + self.modelName + ","+ properties +", simflags=\" "+ override +" \")")
+                #linearizeResult = self.requestApi('linearize', cName, properties, simflags)
                 linearizeError = self.requestApi('getErrorString')
                 if linearizeError:
                     print (linearizeError)
