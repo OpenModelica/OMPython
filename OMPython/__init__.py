@@ -1159,23 +1159,27 @@ class ModelicaSystem(object):
         This method returns tuple of numpy arrays. It can be called:
             •with a list of quantities name in string format as argument: it returns the simulation results of the corresponding names in the same order. Here it supports Python unpacking depending upon the number of variables assigned.
         """
-        if len(varList) == 0:
-            validSolution = ['time'] + self.__getInputNames() + self.__getContinuousNames() + self.__getParameterNames()
-            return validSolution
-        
-        #if isinstance(varList, tuple) and all(len(a)==1 for a in varList):
-        elif isinstance(varList, tuple) and all(isinstance(a, str) for a in varList):
-            for v in varList:
-                if v == 'time':
-                    continue
-                if v not in [l.name for l in self.quantitiesList]:
-                    print ('!!! ', v, ' does not exist\n')
-                    return 
-            res_mat = '_res.mat'
-            resFile = "".join([self.modelName, res_mat])
-            check_resFile_ = os.path.exists(resFile)
-            variables = ",".join(varList)
-            if(check_resFile_):
+        ## check for result file exits
+        res_mat = '_res.mat'
+        resFile = "".join([self.modelName, res_mat])
+        if (not os.path.exists(resFile)):
+            print ("Error: Result file does not exist")
+            exit()
+        else:
+            if len(varList) == 0:
+                #validSolution = ['time'] + self.__getInputNames() + self.__getContinuousNames() + self.__getParameterNames()
+                validSolution = self.getconn.sendExpression("readSimulationResultVars(\"" +resFile+ "\")")
+                return validSolution
+            
+            #if isinstance(varList, tuple) and all(len(a)==1 for a in varList):
+            elif isinstance(varList, tuple) and all(isinstance(a, str) for a in varList):
+                for v in varList:
+                    if v == 'time':
+                        continue
+                    if v not in [l.name for l in self.quantitiesList]:
+                        print ('!!! ', v, ' does not exist\n')
+                        return 
+                variables = ",".join(varList)
                 exp = "readSimulationResult(\"" + resFile + '",{' + variables + "})"
                 res = self.getconn.sendExpression(exp)
                 npRes = np.array(res)
@@ -1187,23 +1191,16 @@ class ModelicaSystem(object):
                 else:
                     tup = tuple(npRes)
                     return tup
-            else:
-                print ("Error: mat file does not exist")
-        elif isinstance(varList, tuple) and len(varList) == 1:
-            varList, = varList
-            res_mat = '_res.mat'
-            resFile = "".join([self.modelName, res_mat])
-            check_resFile_ = os.path.exists(resFile)
-            variables = ",".join(varList)
-            if(check_resFile_):
+                    
+            elif isinstance(varList, tuple) and len(varList) == 1:
+                varList, = varList
+                variables = ",".join(varList)
                 exp = "readSimulationResult(\"" + resFile + '",{' + variables + "})"
                 res = self.getconn.sendExpression(exp)
                 npRes = np.array(res)
                 exp2 = "closeSimulationResultFile()"
                 self.getconn.sendExpression(exp2)
                 return npRes
-        else:
-            print ('Error! should be tuple of Model variables')
     
     #to set continuous quantities values
     def setContinuous(self, **cvals):#13
