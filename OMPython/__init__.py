@@ -1167,7 +1167,7 @@ class ModelicaSystem(object):
         resFile = "".join([self.modelName, res_mat])
         if (not os.path.exists(resFile)):
             print ("Error: Result file does not exist")
-            exit()
+            sys.exit()
         else:
             if len(varList) == 0:
                 #validSolution = ['time'] + self.__getInputNames() + self.__getContinuousNames() + self.__getParameterNames()
