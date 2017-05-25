@@ -944,7 +944,10 @@ class ModelicaSystem(object):
                                 str_ = False
                             self.pValuesList.append(str_)
                         else:
-                            self.pValuesList.append(float(str_))
+                            try:
+                                self.pValuesList.append(float(str_))
+                            except ValueError:
+                                self.pValuesList.append(str_)
             return self.pValuesList
         else:
             try:
