@@ -1396,7 +1396,8 @@ class ModelicaSystem(object):
                             if l.changable == 'false':
                                 print ("!!! value cannot be set for " + n)
                             else:
-                                l.start = float(nameVal.get(n))
+                                # l.start = float(nameVal.get(n))
+                                l.start = nameVal.get(n)
                                 index_ = namesList.index(n)
                                 valuesList[index_] = l.start
                                 
@@ -1405,7 +1406,8 @@ class ModelicaSystem(object):
                                     if paramVar.get('name') == str(n):
                                         c=paramVar.getchildren()
                                         for attr in c:
-                                            val = float(nameVal.get(n))
+                                            # val = float(nameVal.get(n))
+                                            val = nameVal.get(n)
                                             attr.set('start', str(val))
                                             self.tree.write(self.xmlFile,  encoding='UTF-8', xml_declaration=True)
                                 index = index + 1
