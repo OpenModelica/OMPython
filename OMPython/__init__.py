@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 OMPython is a Python interface to OpenModelica.
-To get started, create an OMCSession object:
-from OMPython import OMCSession
-OMPython = OMCSession()
-OMPython.sendExpression(command)
+To get started, create an OMCSession/OMCSessionZMQ object:
+from OMPython import OMCSession/OMCSessionZMQ
+omc = OMCSession()/OMCSessionZMQ()
+omc.sendExpression(command)
 
 Note: Conversion from OMPython 1.0 to OMPython 2.0 is very simple
 1.0:
@@ -14,6 +14,12 @@ OMPython.execute(command)
 from OMPython import OMCSession
 OMPython = OMCSession()
 OMPython.execute(command)
+
+OMPython 3.0 includes a new class OMCSessionZMQ uses PyZMQ to communicate
+with OpenModelica. A new argument `useCorba=False` is added to ModelicaSystem
+class which means it will use OMCSessionZMQ by default. If you want to use
+OMCSession then create ModelicaSystem object like this,
+obj = ModelicaSystem(useCorba=True)
 
 The difference between execute and sendExpression is the type of the
 returned expression. sendExpression maps Modelica types to Python types,
