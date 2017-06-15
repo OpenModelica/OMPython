@@ -40,7 +40,7 @@ if sys.platform != 'win32':
   generateIDL()
 
 setup(name='OMPython',
-      version='2.0.7',
+      version='3.0',
       description='OpenModelica-Python API Interface',
       author='Anand Kalaiarasi Ganeson',
       author_email='ganan642@student.liu.se',
@@ -52,6 +52,7 @@ setup(name='OMPython',
       install_requires=[
         # 'omniORB', # Required, but not part of pypi
         'pyparsing',
-        'numpy'
+        'numpy',
+        'pyzmq'
       ]
 )
