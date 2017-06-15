@@ -80,7 +80,7 @@ if sys.platform == 'darwin':
 from OMPython import OMTypedParser, OMParser
 
 # Logger Defined
-logger = logging.getLogger('OMCSession')
+logger = logging.getLogger('OMPython')
 logger.setLevel(logging.DEBUG)
 # create console handler with a higher log level
 logger_console_handler = logging.StreamHandler()
@@ -93,136 +93,75 @@ logger_console_handler.setFormatter(logger_formatter)
 # add the handlers to the logger
 logger.addHandler(logger_console_handler)
 
-class OMCSession(object):
+import abc
+class OMCSessionBase(object):
+    __metaclass__ = abc.ABCMeta
 
-    def _start_server(self):
-        self._server = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file,
-                                        stderr=self._omc_log_file)
-        return self._server
+    def __init__(self, readonly=False):
+        self.readonly = readonly
+        self.omc_cache = {}
+        self._omc_process = None
+        self._omc_command = None
+        self._omc = None
+        # FIXME: this code is not well written... need to be refactored
+        self._temp_dir = tempfile.gettempdir()
+        # generate a random string for this session
+        self._random_string = uuid.uuid4().hex
+        # omc log file
+        self._omc_log_file = None
 
-    def _set_omc_corba_command(self, omc_path='omc'):
-        self._omc_command = "{0} +d=interactiveCorba +c={1}".format(omc_path, self._random_string)
+    def __del__(self):
+        self.sendExpression("quit()")
+        self._omc_log_file.close()
+        # kill self._omc_process process if it is still running/exists
+        if self._omc_process.returncode is None:
+            self._omc_process.kill()
+
+    def _create_omc_log_file(self, suffix):
+        if sys.platform == 'win32':
+          self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.{0}.{1}.log".format(suffix, self._random_string)), 'w')
+        else:
+          self._currentUser = getpass.getuser()
+          if not self._currentUser:
+              self._currentUser = "nobody"
+          # this file must be closed in the destructor
+          self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.{0}.{1}.{2}.log".format(self._currentUser, suffix, self._random_string)), 'w')
+
+    def _start_omc_process(self):
+        self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file)
+        return self._omc_process
+
+    def _set_omc_command(self, omc_path, args):
+        self._omc_command = "{0} {1}".format(omc_path, args)
         return self._omc_command
 
-    def _start_omc(self):
-        self._server = None
-        self._omc_command = None
+    def _get_omc_path(self):
         try:
             self.omhome = os.environ.get('OPENMODELICAHOME')
             if self.omhome is None:
               self.omhome = os.path.split(os.path.split(os.path.realpath(spawn.find_executable("omc")))[0])[0]
             elif os.path.exists('/opt/local/bin/omc'):
               self.omhome = '/opt/local'
-            # add OPENMODELICAHOME\lib\python to PYTHONPATH so python can load omniORB imports
-            sys.path.append(os.path.join(self.omhome, 'lib', 'python'))
-            self._set_omc_corba_command(os.path.join(self.omhome, 'bin', 'omc'))
-            self._start_server()
+            return os.path.join(self.omhome, 'bin', 'omc')
         except:
           logger.error("The OpenModelica compiler is missing in the System path (%s), please install it" % os.path.join(self.omhome, 'bin', 'omc'))
           raise
 
+    @abc.abstractmethod
     def _connect_to_omc(self):
-        self._omc = None
-        # import the skeletons for the global module
-        from omniORB import CORBA
-        from OMPythonIDL import _OMCIDL
-        # Locating and using the IOR
-        if sys.platform == 'win32':
-            self._ior_file = "openmodelica.objid." + self._random_string
-        else:
-            self._ior_file = "openmodelica." + self._currentUser + ".objid." + self._random_string
-        self._ior_file = os.path.join(self._temp_dir, self._ior_file).replace("\\","/")
-        self._omc_corba_uri = "file:///" + self._ior_file
-        # See if the omc server is running
-        if os.path.isfile(self._ior_file):
-            logger.info("OMC Server is up and running at {0}".format(self._omc_corba_uri))
-        else:
-            attempts = 0
-            while True:
-                if not os.path.isfile(self._ior_file):
-                    time.sleep(0.25)
-                    attempts += 1
-                    if attempts == 10:
-                        name = self._omc_log_file.name
-                        self._omc_log_file.close()
-                        logger.error("OMC Server is down. Please start it! Log-file says:\n%s" % open(name).read())
-                        raise Exception
-                    else:
-                        continue
-                else:
-                    logger.info("OMC Server is up and running at {0}".format(self._omc_corba_uri))
-                    break
-
-        #initialize the ORB with maximum size for the ORB set
-        sys.argv.append("-ORBgiopMaxMsgSize")
-        sys.argv.append("2147483647")
-        self._orb = CORBA.ORB_init(sys.argv, CORBA.ORB_ID)
-        # Read the IOR file
-        with open(self._ior_file, 'r') as f_p:
-            self._ior = f_p.readline()
-
-        # Find the root POA
-        self._poa = self._orb.resolve_initial_references("RootPOA")
-        # Convert the IOR into an object reference
-        self._obj_reference = self._orb.string_to_object(self._ior)
-        # Narrow the reference to the OmcCommunication object
-        self._omc = self._obj_reference._narrow(_OMCIDL.OmcCommunication)
-        # Check if we are using the right object
-        if self._omc is None:
-            logger.error("Object reference is not valid")
-            raise Exception
-
-    def __init__(self, readonly=False):
-        self.readonly = readonly
-        self.omc_cache = {}
-
-        # FIXME: this code is not well written... need to be refactored
-        self._temp_dir = tempfile.gettempdir()
-
-        # generate a random string for this session
-        self._random_string = uuid.uuid4().hex
-
-        if sys.platform == 'win32':
-          self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.objid." + self._random_string+".log"), 'w')
-        else:
-          self._currentUser = getpass.getuser()
-          if not self._currentUser:
-              self._currentUser = "nobody"
-          # this file must be closed in the destructor
-          self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica." + self._currentUser + ".objid." + self._random_string+".log"), 'w')
-
-        # start up omc executable, which is waiting for the CORBA connection
-        self._start_omc()
-
-        # connect to the running omc instance using CORBA
-        self._connect_to_omc()
-
-    def __del__(self):
-        if self._omc is not None:
-          self._omc.sendExpression("quit()")
-        self._omc_log_file.close()
-        # kill self._server process if it is still running/exists
-        if self._server.returncode is None:
-            self._server.kill()
+        pass
 
     # FIXME: we should have one function which interacts with OMC. Either execute OR sendExpression.
     # Execute uses OMParser.check_for_values and sendExpression uses OMTypedParser.parseString.
     # We should have one parser. Then we can get rid of one of these functions.
+    @abc.abstractmethod
     def execute(self, command):
-        if self._omc is not None:
-          result = self._omc.sendExpression(command)
-          if command == "quit()":
-            self._omc = None
-            return result
-          else:
-            answer = OMParser.check_for_values(result)
-            return answer
-        else:
-          return "No connection with OMC. Create an instance of OMCSession."
+        pass
 
     # FIXME: we should have one function which interacts with OMC. Either execute OR sendExpression.
     # Execute uses OMParser.check_for_values and sendExpression uses OMTypedParser.parseString.
     # We should have one parser. Then we can get rid of one of these functions.
+    @abc.abstractmethod
     def sendExpression(self, command, parsed=True):
         """
         Sends an expression to the OpenModelica. The return type is parsed as if the
@@ -235,19 +174,7 @@ class OMCSession(object):
         * NONE() is returned as None
         * SOME(value) is returned as value
         """
-        if self._omc is not None:
-          result = self._omc.sendExpression(str(command))
-          if command == "quit()":
-            self._omc = None
-            return result
-          else:
-            if (parsed==True):
-               answer = OMTypedParser.parseString(result)
-               return answer
-            else:
-               return result     
-        else:
-          return "No connection with OMC. Create an instance of OMCSession."
+        pass
 
     def ask(self, question, opt=None, parsed=True):
         p = (question, opt, parsed)
@@ -454,6 +381,182 @@ class OMCSession(object):
                                  str(builtin).lower(), str(showProtected).lower()))
         return value
 
+class OMCSession(OMCSessionBase):
+
+    def __init__(self, readonly=False):
+        OMCSessionBase.__init__(self, readonly)
+        self._create_omc_log_file("objid")
+        # set omc executable path and args
+        self._set_omc_command(self._get_omc_path(), "+d=interactiveCorba +c={0}".format(self._random_string))
+        # start up omc executable, which is waiting for the CORBA connection
+        self._start_omc_process()
+        # connect to the running omc instance using CORBA
+        self._connect_to_omc()
+
+    def __del__(self):
+        OMCSessionBase.__del__(self)
+
+    def _connect_to_omc(self):
+        # add OPENMODELICAHOME\lib\python to PYTHONPATH so python can load omniORB imports
+        sys.path.append(os.path.join(self.omhome, 'lib', 'python'))
+        # import the skeletons for the global module
+        from omniORB import CORBA
+        from OMPythonIDL import _OMCIDL
+        # Locating and using the IOR
+        if sys.platform == 'win32':
+            self._ior_file = "openmodelica.objid." + self._random_string
+        else:
+            self._ior_file = "openmodelica." + self._currentUser + ".objid." + self._random_string
+        self._ior_file = os.path.join(self._temp_dir, self._ior_file).replace("\\","/")
+        self._omc_corba_uri = "file:///" + self._ior_file
+        # See if the omc server is running
+        if os.path.isfile(self._ior_file):
+            logger.info("OMC Server is up and running at {0}".format(self._omc_corba_uri))
+        else:
+            attempts = 0
+            while True:
+                if not os.path.isfile(self._ior_file):
+                    time.sleep(0.25)
+                    attempts += 1
+                    if attempts == 10:
+                        name = self._omc_log_file.name
+                        self._omc_log_file.close()
+                        logger.error("OMC Server is down. Please start it! Log-file says:\n%s" % open(name).read())
+                        raise Exception
+                    else:
+                        continue
+                else:
+                    logger.info("OMC Server is up and running at {0}".format(self._omc_corba_uri))
+                    break
+
+        #initialize the ORB with maximum size for the ORB set
+        sys.argv.append("-ORBgiopMaxMsgSize")
+        sys.argv.append("2147483647")
+        self._orb = CORBA.ORB_init(sys.argv, CORBA.ORB_ID)
+        # Read the IOR file
+        with open(self._ior_file, 'r') as f_p:
+            self._ior = f_p.readline()
+
+        # Find the root POA
+        self._poa = self._orb.resolve_initial_references("RootPOA")
+        # Convert the IOR into an object reference
+        self._obj_reference = self._orb.string_to_object(self._ior)
+        # Narrow the reference to the OmcCommunication object
+        self._omc = self._obj_reference._narrow(_OMCIDL.OmcCommunication)
+        # Check if we are using the right object
+        if self._omc is None:
+            logger.error("Object reference is not valid")
+            raise Exception
+
+    def execute(self, command):
+        if self._omc is not None:
+          result = self._omc.sendExpression(command)
+          if command == "quit()":
+            self._omc = None
+            return result
+          else:
+            answer = OMParser.check_for_values(result)
+            return answer
+        else:
+          return "No connection with OMC. Create an instance of OMCSession."
+
+    def sendExpression(self, command, parsed=True):
+        if self._omc is not None:
+          result = self._omc.sendExpression(str(command))
+          if command == "quit()":
+            self._omc = None
+            return result
+          else:
+            if (parsed==True):
+               answer = OMTypedParser.parseString(result)
+               return answer
+            else:
+               return result
+        else:
+          return "No connection with OMC. Create an instance of OMCSession."
+
+class OMCSessionZMQ(OMCSessionBase):
+
+    def __init__(self, readonly=False):
+        OMCSessionBase.__init__(self, readonly)
+        self._create_omc_log_file("port")
+        # set omc executable path and args
+        self._set_omc_command(self._get_omc_path(), "+d=interactiveZMQ +z={0}".format(self._random_string))
+        # start up omc executable, which is waiting for the CORBA connection
+        self._start_omc_process()
+        # connect to the running omc instance using CORBA
+        self._connect_to_omc()
+
+    def __del__(self):
+        OMCSessionBase.__del__(self)
+
+    def _connect_to_omc(self):
+        # Locating and using the IOR
+        if sys.platform == 'win32':
+            self._port_file = "openmodelica.port." + self._random_string
+        else:
+            self._port_file = "openmodelica." + self._currentUser + ".port." + self._random_string
+        self._port_file = os.path.join(self._temp_dir, self._port_file).replace("\\","/")
+        self._omc_zeromq_uri = "file:///" + self._port_file
+        # See if the omc server is running
+        if os.path.isfile(self._port_file):
+            logger.info("OMC Server is up and running at {0}".format(self._omc_zeromq_uri))
+        else:
+            attempts = 0
+            while True:
+                if not os.path.isfile(self._port_file):
+                    time.sleep(0.25)
+                    attempts += 1
+                    if attempts == 10:
+                        name = self._omc_log_file.name
+                        self._omc_log_file.close()
+                        logger.error("OMC Server is down. Please start it! Log-file says:\n%s" % open(name).read())
+                        raise Exception
+                    else:
+                        continue
+                else:
+                    logger.info("OMC Server is up and running at {0}".format(self._omc_zeromq_uri))
+                    break
+
+        # Read the port file
+        with open(self._port_file, 'r') as f_p:
+            self._port = f_p.readline()
+
+        # Create the ZeroMQ socket and connect to OMC server
+        import zmq
+        context = zmq.Context.instance()
+        self._omc = context.socket(zmq.REQ)
+        self._omc.connect(self._port)
+
+    def execute(self, command):
+        if self._omc is not None:
+          self._omc.send(command)
+          result = self._omc.recv()
+          if command == "quit()":
+            self._omc = None
+            return result
+          else:
+            answer = OMParser.check_for_values(result)
+            return answer
+        else:
+          return "No connection with OMC. Create an instance of OMCSessionZMQ."
+
+    def sendExpression(self, command, parsed=True):
+        if self._omc is not None:
+          self._omc.send(str(command))
+          result = self._omc.recv()
+          if command == "quit()":
+            self._omc.close()
+            self._omc = None
+            return result
+          else:
+            if (parsed==True):
+               answer = OMTypedParser.parseString(result)
+               return answer
+            else:
+               return result
+        else:
+          return "No connection with OMC. Create an instance of OMCSessionZMQ."
 
 #author = Sudeep Bajracharya
 #sudba156@student.liu.se
@@ -476,32 +579,35 @@ class Quantity:
 
 
 class ModelicaSystem(object):
-    def __init__(self, fileName = None, modelName = None, lmodel = None): #1
+    def __init__(self, fileName = None, modelName = None, lmodel = None, useCorba = False): #1
         """
         "constructor"
-        It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called : 
+        It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called :
             •without any arguments: In this case it neither loads a file nor build a model. This is useful when a FMU needed to convert to Modelica model
             •with two arguments as file name with ".mo" extension and the model name respectively
             •with three arguments, the first and second are file name and model name respectively and the third arguments is Modelica standard library to load a model, which is common in such models where the model is based on the standard library. For example, here is a model named "dcmotor.mo" below table 4-2, which is located in the directory of OpenModelica at "C:\OpenModelica1.9.4-dev.beta2\share\doc\omc\testmodels".
         Note: If the model file is not in the current working directory, then the path where file is located must be included together with file name. Besides, if the Modelica model contains several different models within the same package, then in order to build the specific model, in second argument, user must put the package name with dot(.) followed by specific model name.
         ex: myModel = ModelicaSystem("ModelicaModel.mo", "modelName")
         """
-        
-        if fileName is None and modelName is None and lmodel is None: # all None 
-            self.getconn = OMCSession()
+
+        if fileName is None and modelName is None and lmodel is None: # all None
+            if useCorba:
+                self.getconn = OMCSession()
+            else:
+                self.getconn = OMCSessionZMQ()
             return
-			
+
         if fileName is None:
-            return "File does not exist"			
+            return "File does not exist"
         self.tree = None
-        
+
         self.linearquantitiesList=[] #linearization  quantity list
         self.linearinputs=[] #linearization input list
         self.linearoutputs=[] #linearization output list
         self.linearstates=[] #linearization  states list
         self.quantitiesList = [] #detail list of all Modelica quantity variables inc. name, changable, description, etc
         self.qNamesList = [] #for all quantities name list
-        self.cNamesList = [] #for continuous quantities name list 
+        self.cNamesList = [] #for continuous quantities name list
         self.cValuesList = [] #for continuous quantities value list
         self.iNamesList = [] #for input quantities name list
         self.inputsVal = [] #for input quantities value list
@@ -516,7 +622,10 @@ class ModelicaSystem(object):
         self.optimizeOptionsValuesList = [0.0, 1.0, 500, 0.002,1e-8]
         self.linearizeOptionsNamesList = ['startTime', 'stopTime', 'numberOfIntervals', 'stepSize', 'tolerance']
         self.linearizeOptionsValuesList = [0.0, 1.0, 500, 0.002,1e-8]
-        self.getconn = OMCSession()
+        if useCorba:
+            self.getconn = OMCSession()
+        else:
+            self.getconn = OMCSessionZMQ()
         self.xmlFile = None
         self.lmodel = lmodel #may be needed if model is derived from other model
         self.modelName = modelName #Model class name
@@ -529,7 +638,7 @@ class ModelicaSystem(object):
         if not os.path.exists(self.fileName): #if file does not eixt
             print ("File Error:"+os.path.abspath(self.fileName)+ " does not exist!!!")
             return
-			
+
         (head, tail) = os.path.split(self.fileName)#to store directory/path and file)
         self.currDir = os.getcwd()
         self.modelDir = head
@@ -537,7 +646,7 @@ class ModelicaSystem(object):
 
         if not self.modelDir:
             file_ = os.path.exists(self.fileName_)
-            if(file_):#execution from path where file is located 
+            if(file_):#execution from path where file is located
                 self.__loadingModel(self.fileName_, self.modelName, self.lmodel)
             else:
                 print ("Error: File does not exist!!!")
@@ -556,7 +665,7 @@ class ModelicaSystem(object):
         if self.getconn is not None:
             self.requestApi('quit')
 
-    #for loading file/package, loading model and building model        
+    #for loading file/package, loading model and building model
     def __loadingModel(self, fName, mName, lmodel):
         #load file
         loadfileError = ''
@@ -570,27 +679,27 @@ class ModelicaSystem(object):
             else:
                 print ('loadFile Error: ' + loadfileError)
                 return
-        
+
         #load Modelica standard libraries if needed
         if lmodel is not None:
             loadmodelError = ''
-            loadModelResult = self.requestApi("loadModel", lmodel)		
+            loadModelResult = self.requestApi("loadModel", lmodel)
             loadmodelError = self.requestApi('getErrorString')
             if loadmodelError:
                 print (loadmodelError)
                 return
-        
-        # build model 
+
+        # build model
         #buildModelError = ''
         self.getconn.sendExpression("setCommandLineOptions(\"+d=initialization\")")
         #buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
         buildModelResult = self.requestApi("buildModel", mName)
         buildModelError = self.requestApi("getErrorString")
-        
+
         if ('' in buildModelResult):
             print (buildModelError)
             return
-            
+
         self.xmlFile = buildModelResult[1]
         self.tree = ET.parse(self.xmlFile)
         self.root = self.tree.getroot()
@@ -625,7 +734,7 @@ class ModelicaSystem(object):
             print (e)
             res = None
         return res
-    
+
     #create detail quantities list
     def __createQuantitiesList(self):
         rootCQ = self.root
@@ -644,14 +753,14 @@ class ModelicaSystem(object):
                     start = att.get('start')
                 self.quantitiesList.append(Quantity(name, start, changable, variability, description, causality,alias,aliasvariable))
         return self.quantitiesList
-    
+
     #to get list of all quantities names
     def __getQuantitiesNames(self):
         if not self.qNamesList:
             for q in self.quantitiesList:
                 self.qNamesList.append(q.name)
         return self.qNamesList
-    
+
     #check if names exist
     def __checkAvailability(self, names, chkList, inputFlag = None):
         try:
@@ -671,10 +780,10 @@ class ModelicaSystem(object):
                 print ('Error!!! Incorrect format')
                 return False
             return True
-           
+
         except Exception as e:
             print (e)
-    
+
     #to get details of quantities names
     def getQuantities(self, names = None):#3
         """
@@ -683,7 +792,7 @@ class ModelicaSystem(object):
             •with a single argument as list of quantities name in string format: it returns list of dictionaries of only particular quantities name
             •a single argument as a single quantity name (or in list) in string format: it returns list of dictionaries of the particular quantity name
         """
-        
+
         try:
             if names is not None:
                 checking = self.__checkAvailability(names, self.qNamesList)
@@ -691,14 +800,14 @@ class ModelicaSystem(object):
                     return
                 if isinstance(names, str):
                     qlistnames = []
-                    for q in self.quantitiesList:	
+                    for q in self.quantitiesList:
                         if names == q.name:
                             qlistnames.append({'Name':q.name, 'Value':q.start,'Changeable' : q.changable, 'Variability': q.variability, 'alias':q.alias,'aliasvariable':q.aliasvariable, 'Description':q.description})
                             break
                     return qlistnames
                 elif isinstance(names, list):
                     qlist = []
-                    for n in names:                        
+                    for n in names:
                         for q in self.quantitiesList:
                             if n == q.name:
                                 qlist.append({'Name':q.name, 'Value':q.start,'Changeable' : q.changable, 'Variability': q.variability,'alias':q.alias,'aliasvariable':q.aliasvariable, 'Description':q.description})
@@ -707,13 +816,13 @@ class ModelicaSystem(object):
                 else:
                     print ('Error!!! Incorrect format')
             else:
-                qlist = []       
+                qlist = []
                 for q in self.quantitiesList:
                     qlist.append({'Name':q.name, 'Value':q.start,'Changeable' : q.changable, 'Variability': q.variability, 'alias':q.alias,'aliasvariable':q.aliasvariable,'Description':q.description})
                 return qlist
         except Exception as e:
             print (e)
-    
+
     #to get list of quantities name that are continuous variability
     def __getContinuousNames(self):
         """
@@ -725,7 +834,7 @@ class ModelicaSystem(object):
                 if(l.variability == "continuous"):
                     self.cNamesList.append(l.name)
         return self.cNamesList
-    
+
     def __checkTuple(self, names, chkList, inputFlag=None):
         if isinstance(names, tuple) and (len(n) == 1 for n in names):
             nonExistingList = []
@@ -739,14 +848,14 @@ class ModelicaSystem(object):
         else:
             print ('Error!!! Incorrect format')
             return False
-        
+
     def getContinuous(self, *names):#4
         """
         This method returns dict. The key is continuous names and value is corresponding continuous value.
         If *name is None then the function will return dict which contain all continuous names as key and value as corresponding values. eg., getContinuous()
         Otherwise variable number of arguments can be passed as continuous name in string format separated by commas. eg., getContinuous('cName1', 'cName2')
         """
-        
+
         try:
             if not self.simulationFlag:
                 return self.__getXXXs(names, self.__getContinuousNames(), self.__getContinuousValues())
@@ -776,8 +885,8 @@ class ModelicaSystem(object):
             if pyparsing.ParseException:
                 print ('Error!!! Name does not exist or incorrect format ')
             else:
-                raise 
-                
+                raise
+
     def getParameters(self, *names):#5
         """
         This method returns dict. The key is parameter names and value is corresponding parameter value.
@@ -785,7 +894,7 @@ class ModelicaSystem(object):
         Otherwise variable number of arguments can be passed as parameter name in string format separated by commas. eg., getParameters('paraName1', 'paraName2')
         """
         return self.__getXXXs(names, self.__getParameterNames(), self.__getParameterValues())
-        
+
     def getInputs(self, *names):#6
         """
         This method returns dict. The key is input names and value is corresponding input value.
@@ -793,18 +902,18 @@ class ModelicaSystem(object):
         Otherwise variable number of arguments can be passed as input name in string format separated by commas. eg., getInputs('iName1', 'iName2')
         """
         return self.__getXXXs(names, self.__getInputNames(), self.__getInputValues())
-    
+
     def getOutputs(self, *names):#7
         """
         This method returns dict. The key is output names and value is corresponding output value.
         If *name is None then the function will return dict which contain all output names as key and value as corresponding values. eg., getOutputs()
         Otherwise variable number of arguments can be passed as output name in string format separated by commas. eg., getOutputs(opName1', 'opName2')
         """
-        
+
         try:
             if not self.simulationFlag:
                 return self.__getXXXs(names, self.__getOutputNames(), self.__getOutputValues())
-           
+
             else:
                 if len(names) == 0:
                     op = self.__getOutputNames()
@@ -820,7 +929,7 @@ class ModelicaSystem(object):
                         return
                     opSol = self.getSolutions(names)
                     opList = list()
-                    
+
                     for val in opSol:
                         opList.append(val[-1])
                         tupVal = tuple(opList)
@@ -835,26 +944,26 @@ class ModelicaSystem(object):
                 print ('Error!!! Name does not exist or incorrect format ')
             else:
                 raise
-               
+
     def __getParameterNames(self):
         """
         This method returns list of quantities name that are parameters. It can be called:
             •only without any arguments: returns list of quantities (parameter) name
         """
-        
+
         if not self.pNamesList:
             for l in self.quantitiesList:
                 if(l.variability == "parameter"):
                     self.pNamesList.append(l.name)
         return self.pNamesList
-    
+
     #to get list of quantities name that are input
     def __getInputNames(self):
         """
         This method returns list of quantities name that are inputs. It can be called:
             •only without any arguments: returns the list of quantities (input) name
         """
-        
+
         if not self.iNamesList:
             for l in self.quantitiesList:
                 if(l.causality == "input"):
@@ -864,24 +973,24 @@ class ModelicaSystem(object):
     #set input value list size
     def __setInputSize(self):
         size = len(self.__getInputNames())
-        self.inputsVal = [None]*size		
-    
+        self.inputsVal = [None]*size
+
     #to get list of quantities name that are output
     #Todo: has not been tested yet due to lack of the model that contains output.
-    
+
     def __getOutputNames(self):
         """
         This method returns list of quantities name that are outputs. It can be called:
             •only without any arguments: returns the list of all quantities (output) name
         Note: Test has not been carried out for Output quantities due to the lack of model that contains output
         """
-        
+
         if not self.oNamesList:
             for l in self.quantitiesList:
                 if(l.causality == "output"):
                     self.oNamesList.append(l.name)
         return self.oNamesList
-    
+
     #to get values of continuous quantities name
     def __getContinuousValues(self, contiName=None):
         """
@@ -892,7 +1001,7 @@ class ModelicaSystem(object):
                 1.If the list of names is more than one and it is being assigned by single variable then it returns the list of values of the corresponding names.
                 2.If the list of names is more than one and it is being assigned by same number of variable as the number of element in the list then it will return the value to the variables correspondingly (python unpacking)
         """
-        
+
         if contiName is None:
             if not self.cValuesList:
                 for l in self.quantitiesList:
@@ -920,8 +1029,8 @@ class ModelicaSystem(object):
                 return valList
             except Exception as e:
                 print (e)
-    
-    #to get values of parameter quantities name    
+
+    #to get values of parameter quantities name
     def __getParameterValues(self, paraName = None):
         """
         This method returns list of values of the quantities name that are parameters. It can be called:
@@ -931,8 +1040,8 @@ class ModelicaSystem(object):
                 1.If the list of names is more than one and it is being assigned by single variable then it returns the list of values of the corresponding names
                 2.If the list of names is more than one and it is being assigned by same number of variable as the number of element in the list then it will return the value to the variables correspondingly (python unpacking)
         """
-        
-        if paraName is None:					
+
+        if paraName is None:
             if not self.pValuesList:
                 for l in self.quantitiesList:
                     if(l.variability == "parameter"):
@@ -961,7 +1070,7 @@ class ModelicaSystem(object):
                 return valList
             except Exception as e:
                 print (e)
-    
+
     #to get values of input names
     def __getInputValues(self, iName=None):
         """
@@ -969,7 +1078,7 @@ class ModelicaSystem(object):
             •without any arguments: returns list of values of all quantities (input) name
             •with a single argument as input name in string format: returns list of values of the corresponding name
         """
-        
+
         try:
             if iName is None:
                 return self.inputsVal
@@ -992,13 +1101,13 @@ class ModelicaSystem(object):
             •only without any arguments: returns the list of values of all output name
         Note: Test has not been carried out for Output quantities due to the lack of model that contains output
         """
-        
+
         if not self.oValuesList:
             for l in self.quantitiesList:
                 if(l.causality == "output"):
                     self.oValuesList.append(l.start)
         return self.oValuesList
-        
+
     #to get simulation options values
     def __getSimulationValues(self):
         if not self.simValuesList:
@@ -1016,7 +1125,7 @@ class ModelicaSystem(object):
                 solver = attr.get('solver')
                 self.simValuesList.append(solver)
         return self.simValuesList
-        
+
     def getSimulationOptions(self, *names):#8
         """
         This method returns dict. The key is simulation option names and value is corresponding simulation option value.
@@ -1024,7 +1133,7 @@ class ModelicaSystem(object):
         Otherwise variable number of arguments can be passed as simulation option name in string format separated by commas. eg., getSimulationOptions('simName1', 'simName2')
         """
         return self.__getXXXs(names, self.simNamesList, self.simValuesList)
-            
+
     def getLinearizationOptions(self, *names):#9
         """
         This method returns dict. The key is linearize option names and value is corresponding linearize option value.
@@ -1032,7 +1141,7 @@ class ModelicaSystem(object):
         Otherwise variable number of arguments can be passed as simulation option name in string format separated by commas. eg., getLinearizationOptions('linName1', 'linName2')
         """
         return self.__getXXXs(names, self.linearizeOptionsNamesList, self.linearizeOptionsValuesList)
-    
+
     def __getXXXs(self, names, namesList, valList):
         #todo: check_Tuple is not working for tuple format
         if not self.linearizationFlag:
@@ -1071,9 +1180,9 @@ class ModelicaSystem(object):
                     return valList[index_]
         except ValueError as e:
             print (e)
-    
+
     def getOptimizationOptions(self, *names):#10
-        return self.__getXXXs(names, self.optimizeOptionsNamesList, self.optimizeOptionsValuesList)       
+        return self.__getXXXs(names, self.optimizeOptionsNamesList, self.optimizeOptionsValuesList)
 
     #to simulate or re-simulate model
     def simulate(self):#11
@@ -1099,12 +1208,12 @@ class ModelicaSystem(object):
                         print ('Input time value is less than simulation startTime')
                         return
             self.__simInput()#create csv file
-            
+
             if (platform.system()=="Windows"):
                getExeFile=os.path.join(os.getcwd(),'{}.{}'.format(self.modelName, "exe")).replace("\\","/")
             else:
                getExeFile=os.path.join(os.getcwd(),self.modelName).replace("\\","/")
-            
+
             #getExeFile = '{}.{}'.format(self.modelName)
 
             check_exeFile_ = os.path.exists(getExeFile)
@@ -1116,7 +1225,7 @@ class ModelicaSystem(object):
                    my_env["PATH"] = omhome + os.pathsep + my_env["PATH"]
                    p=subprocess.Popen(cmd, env=my_env)
                    p.wait()
-                   p.terminate()  
+                   p.terminate()
                 else:
                    os.system(cmd)
                 #subprocess.call(cmd, shell = False)
@@ -1140,7 +1249,7 @@ class ModelicaSystem(object):
                 if(platform.system()=="Windows"):
                    omhome=os.path.join(os.environ.get("OPENMODELICAHOME"),'bin').replace("\\","/")
                    my_env = os.environ.copy()
-                   my_env["PATH"] = omhome + os.pathsep + my_env["PATH"]                   
+                   my_env["PATH"] = omhome + os.pathsep + my_env["PATH"]
                    p=subprocess.Popen(cmd, env=my_env)
                    p.wait()
                    p.terminate()
@@ -1152,7 +1261,7 @@ class ModelicaSystem(object):
                 return
             else:
                 print ("Error: application file not generated yet")
-    
+
     #to extract simulation results
     def getSolutions(self, *varList):#12
         """
@@ -1170,7 +1279,7 @@ class ModelicaSystem(object):
                 #validSolution = ['time'] + self.__getInputNames() + self.__getContinuousNames() + self.__getParameterNames()
                 validSolution = self.getconn.sendExpression("readSimulationResultVars(\"" +resFile+ "\")")
                 return validSolution
-            
+
             #if isinstance(varList, tuple) and all(len(a)==1 for a in varList):
             elif isinstance(varList, tuple) and all(isinstance(a, str) for a in varList):
                 for v in varList:
@@ -1178,7 +1287,7 @@ class ModelicaSystem(object):
                         continue
                     if v not in [l.name for l in self.quantitiesList]:
                         print ('!!! ', v, ' does not exist\n')
-                        return 
+                        return
                 variables = ",".join(varList)
                 exp = "readSimulationResult(\"" + resFile + '",{' + variables + "})"
                 res = self.getconn.sendExpression(exp)
@@ -1191,7 +1300,7 @@ class ModelicaSystem(object):
                 else:
                     tup = tuple(npRes)
                     return tup
-                    
+
             elif isinstance(varList, tuple) and len(varList) == 1:
                 varList, = varList
                 variables = ",".join(varList)
@@ -1201,7 +1310,7 @@ class ModelicaSystem(object):
                 exp2 = "closeSimulationResultFile()"
                 self.getconn.sendExpression(exp2)
                 return npRes
-    
+
     #to set continuous quantities values
     def setContinuous(self, **cvals):#13
         """
@@ -1219,7 +1328,7 @@ class ModelicaSystem(object):
             setParameterValues(pName1 = 10.9, pName2 = 0.066)
         """
         self.__setValue(pvals, self.__getParameterNames(), self.__getParameterValues(), 'parameter', 0)
-    
+
     #to set input quantities value
     def setInputs(self, **nameVal):#15
         """
@@ -1227,7 +1336,7 @@ class ModelicaSystem(object):
             •with a sequence of input name and assigning corresponding values as arguments as show in the example below:
             setParameterValues(iName = [(t0, v0), (t1, v0), (t1, v2), (t3, v2)...]), where tj<=tj+1
         """
-        
+
         try:
             for n in nameVal:
                 tupleList = nameVal.get(n)
@@ -1242,7 +1351,7 @@ class ModelicaSystem(object):
                                 return
                             if len(l)!=2:
                                 print ('Value for ' + n + ' is in incorrect format!')
-                                return   
+                                return
                         else:
                             print ('Error!!! Value must be in tuple format')
                             return
@@ -1264,14 +1373,14 @@ class ModelicaSystem(object):
                 else:
                     if n in [s[0] for s in self.specialNames]:
                         s_, = tuple([item for item in self.specialNames if n in item])
-                        
+
                         index = self.iNamesList.index(n)
                         if isinstance(nameVal.get(n),int) or isinstance(nameVal.get(n), float):
                             self.inputsVal[index] = [(float(self.simValuesList[0]), nameVal.get(n)), (float(self.simValuesList[1]), nameVal.get(n)) ]
                         else:
                             ind = self.specialNames.index(s_)
                             self.specialNames.pop(ind)
-                           
+
                             index = self.iNamesList.index(n)
                             self.inputsVal[index] = nameVal.get(n)
                     else:
@@ -1282,14 +1391,14 @@ class ModelicaSystem(object):
                         else:
                             self.inputsVal[index] = nameVal.get(n)
                 self.inputFlag = True
-                
+
         except Exception:
             print ( "Error:!!! " + n + " is not an input")
             return
-    
-    #To create csv file for inputs       
+
+    #To create csv file for inputs
     def __simInput(self):
-        sl=list() #Actual timestamps   
+        sl=list() #Actual timestamps
         skip = False
         inp = list()
         inp = deepcopy(self.__getInputValues())
@@ -1311,7 +1420,7 @@ class ModelicaSystem(object):
                         el.append(i)
                         skip = True
             sl = sl + el
-            
+
         sl.sort()
         for t in sl:
             for i in inp:
@@ -1348,7 +1457,7 @@ class ModelicaSystem(object):
             inSl = None
             inI = None
             for s in slSet:
-                inSl = sl.count(s) 
+                inSl = sl.count(s)
                 inI = tempTime.count(s)
                 if inSl != inI:
                     test = list()
@@ -1360,18 +1469,18 @@ class ModelicaSystem(object):
             #i.sort() => just sorting might not work so need to sort according to 1st element of a tuple
             tempSorting = sorted(i, key = lambda x:x[0])
             newInpList.append(tempSorting)
-            
+
         interpolated_inputs_all = list()
         for i in newInpList:
             templist = list()
             for (t,x) in i:
                 templist.append(x)
             interpolated_inputs_all.append(templist)
-            
+
         name_ ='time'
         name = ','.join(self.__getInputNames())
         name = '{},{},{}'.format(name_,name,'end')
-                
+
         a=''
         l=[]
         l.append(name)
@@ -1383,7 +1492,7 @@ class ModelicaSystem(object):
         with open (self.csvFile, "w") as f:
             writer=csv.writer(f, delimiter='\n')
             writer.writerow(l)
-            
+
     #to set values for continuous and parameter quantities
     def __setValue(self, nameVal, namesList, valuesList, quantity, index):
         try:
@@ -1397,7 +1506,7 @@ class ModelicaSystem(object):
                                 l.start = float(nameVal.get(n))
                                 index_ = namesList.index(n)
                                 valuesList[index_] = l.start
-                                
+
                                 rootSet = self.root
                                 for paramVar in rootSet.iter('ScalarVariable'):
                                     if paramVar.get('name') == str(n):
@@ -1409,10 +1518,10 @@ class ModelicaSystem(object):
                                 index = index + 1
                 else:
                     print ('Error: ' + n + ' is not ' + quantity)
-                    
+
         except Exception as e:
             print (e)
-    
+
     #to set simulation options values
     def setSimulationOptions(self, **simOptions):#16
         """
@@ -1421,7 +1530,7 @@ class ModelicaSystem(object):
             setSimulationOptions(stopTime = 100, solver = 'euler')
         """
         return self.__setOptions(simOptions, self.simNamesList, self.simValuesList,0)
-    
+
     #to set optimization options values
     def setOptimizationOptions(self, **optimizationOptions):#17
         """
@@ -1430,7 +1539,7 @@ class ModelicaSystem(object):
             setOptimizationOptions(stopTime = 10,simflags = '-lv LOG_IPOPT -optimizerNP 1')
         """
         return self.__setOptions(optimizationOptions, self.optimizeOptionsNamesList, self.optimizeOptionsValuesList)
-    
+
     #to set linearization options values
     def setLinearizationOptions(self, **linearizationOptions):#18
         """
@@ -1439,12 +1548,12 @@ class ModelicaSystem(object):
             setLinearizationOptions(stopTime=0, stepSize = 10)
         """
         return self.__setOptions(linearizationOptions, self.linearizeOptionsNamesList, self.linearizeOptionsValuesList)
-    
+
     #to set options for simulation, optimization and linearization
     def __setOptions(self, options, namesList, valuesList, index = None):
         try:
-            for opt in options: 
-                if opt in namesList: 
+            for opt in options:
+                if opt in namesList:
                     if opt == 'stopTime':
                         if float(options.get(opt))<=float(valuesList[0]):
                             print ('!!! stoptTime should be greater than startTime')
@@ -1469,35 +1578,35 @@ class ModelicaSystem(object):
                     if n[2]:
                         index = self.iNamesList.index(n[0])
                         self.inputsVal[index] = [(float(self.simValuesList[0]), n[1]), (float(self.simValuesList[1]), n[1])]
-                        
+
         except Exception as e:
             print (e)
-     
+
     #to convert Modelica model to FMU
     def convertMo2Fmu(self):#19
         """
         This method is used to generate FMU from the given Modelica model. It creates "modelName.fmu" in the current working directory. It can be called:
-            •only without any arguments        
+            •only without any arguments
         """
-        
+
         convertMo2FmuError = ''
         translateModelFMUResult = self.requestApi('translateModelFMU', self.modelName)
         if convertMo2FmuError:
             print (convertMo2FmuError)
-    
+
         return translateModelFMUResult
-    
+
     #to convert FMU to Modelica model
     def convertFmu2Mo(self, fmuName):#20
         """
         In order to load FMU, at first it needs to be translated into Modelica model. This method is used to generate Modelica model from the given FMU. It generates "fmuName_me_FMU.mo". It can be called:
             •only without any arguments
         Currently, it only supports Model Exchange conversion.
-        
+
         - Input arguments: s1
-            * s1: name of FMU file, including extension .fmu 
+            * s1: name of FMU file, including extension .fmu
         """
-        
+
         convertFmu2MoError = ''
         importResult = self.requestApi('importFMU', fmuName)
         convertFmu2MoError = self.requestApi('getErrorString')
@@ -1505,17 +1614,17 @@ class ModelicaSystem(object):
             print (convertFmu2MoError)
 
         return importResult
-    
+
     #to optimize model
     def optimize(self):#21
         """
         This method optimizes model according to the optimized options. It can be called:
             •only without any arguments
         """
-        
+
         cName = self.modelName
         properties = '{}={}, {}={}, {}={}, {}={}, {}={}'.format(self.optimizeOptionsNamesList[0],self.optimizeOptionsValuesList[0],self.optimizeOptionsNamesList[1],self.optimizeOptionsValuesList[1],self.optimizeOptionsNamesList[2],self.optimizeOptionsValuesList[2],self.optimizeOptionsNamesList[3],self.optimizeOptionsValuesList[3],self.optimizeOptionsNamesList[4],self.optimizeOptionsValuesList[4])
-        
+
         optimizeError = ''
         self.getconn.sendExpression("setCommandLineOptions(\"-g=Optimica\")")
         optimizeResult = self.requestApi('optimize', cName, properties)
@@ -1524,14 +1633,14 @@ class ModelicaSystem(object):
             print (optimizeError)
 
         return optimizeResult
-    
+
     #to linearize model
     def linearize(self):#22
-        """ 
+        """
         This method linearizes model according to the linearized options. This will generate a linear model that consists of matrices A, B, C and D.  It can be called:
             •only without any arguments
         """
-        
+
         try:
             cName = self.modelName
             #self.requestApi("setCommandLineOptions", "+generateSymbolicLinearization")
@@ -1562,7 +1671,7 @@ class ModelicaSystem(object):
                 linearizeError = self.requestApi('getErrorString')
                 if linearizeError:
                     print (linearizeError)
-            
+
             ## code to get the matrix and linear inputs, outputs and states
             getLinFile = '{}_{}.{}'.format('linear', self.modelName, 'mo')
             checkLinFile = os.path.exists(getLinFile)
@@ -1584,20 +1693,20 @@ class ModelicaSystem(object):
                 B = lin.__getMatrixB()
                 C = lin.__getMatrixC()
                 D = lin.__getMatrixD()
-                
+
                 matrices.append(A)
                 matrices.append(B)
                 matrices.append(C)
                 matrices.append(D)
-                
+
                 lin.linearizationFlag = False
                 del lin
                 self.linearizationFlag = False
                 return matrices
-            
+
         except Exception as e:
             raise e
-    
+
     def getLinearQuantityInformation(self):
         ## function which extracts linearised states, inputs and outputs
         for i in xrange(len(self.linearquantitiesList)):
@@ -1609,16 +1718,16 @@ class ModelicaSystem(object):
                     self.linearinputs.append(name[3:-1])
                 if(name[1]=='y'):
                     self.linearoutputs.append(name[3:-1])
-    
+
     def getLinearInputs(self):
         return self.linearinputs
-    
+
     def getLinearOutputs(self):
         return self.linearoutputs
-        
+
     def getLinearStates(self):
-        return self.linearstates        
-        
+        return self.linearstates
+
     def __getMatrix(self, xParameter, sizeParameter):
         paraKeys = self.__getParameterNames()
         xElemNames = []
@@ -1634,26 +1743,25 @@ class ModelicaSystem(object):
         for i in range(size_):
             for a in sortedX:
                 if float(a.partition('[')[-1].rpartition(',')[0]) == float(i+1):
-                    matX[i].append(a)        
+                    matX[i].append(a)
         a_ = []
         for i in matX:
             a_.append(i)
         xValues = []
         for i in matX:
             tup = tuple(i)
-            xValues.append(self.getParameters(tup)) 
-        xValues=np.array(xValues)     
+            xValues.append(self.getParameters(tup))
+        xValues=np.array(xValues)
         return xValues
-    
+
     def __getMatrixA(self):
         return self.__getMatrix('A[', 'n')
-        
+
     def __getMatrixB(self):
         return self.__getMatrix('B[', 'n')
-        
+
     def __getMatrixC(self):
         return self.__getMatrix('C[', 'l')
-        
+
     def __getMatrixD(self):
         return self.__getMatrix('D[', 'l')
-
