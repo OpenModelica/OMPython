@@ -40,9 +40,16 @@ if sys.platform != 'win32':
   try:
     # if we don't have omniidl then don't try to generate OMPythonIDL files.
     import omniidl
+    hasomniidl = True
     generateIDL()
   except ImportError:
-    pass # module doesn't exist, deal with it.
+    hasomniidl = False
+else:
+    hasomniidl = True
+
+OMPython_packages = ['OMPython', 'OMPython.OMParser']
+if hasomniidl:
+  OMPython_packages.extend(['OMPythonIDL', 'OMPythonIDL._OMCIDL', 'OMPythonIDL._OMCIDL__POA'])
 
 setup(name='OMPython',
       version='3.0.0',
@@ -53,7 +60,7 @@ setup(name='OMPython',
       maintainer_email='adeel.asghar@liu.se',
       license="BSD, OSMC-PL 1.2, GPL (user's choice)",
       url='http://openmodelica.org/',
-      packages=['OMPython', 'OMPython.OMParser', 'OMPythonIDL', 'OMPythonIDL._OMCIDL', 'OMPythonIDL._OMCIDL__POA'],
+      packages=OMPython_packages,
       install_requires=[
         # 'omniORB', # Required, but not part of pypi
         'pyparsing',
