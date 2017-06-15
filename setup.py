@@ -37,10 +37,15 @@ def generateIDL():
   print("Generated OMPythonIDL files")
 
 if sys.platform != 'win32':
-  generateIDL()
+  try:
+    # if we don't have omniidl then don't try to generate OMPythonIDL files.
+    import omniidl
+    generateIDL()
+  except ImportError:
+    pass # module doesn't exist, deal with it.
 
 setup(name='OMPython',
-      version='3.0',
+      version='3.0.0',
       description='OpenModelica-Python API Interface',
       author='Anand Kalaiarasi Ganeson',
       author_email='ganan642@student.liu.se',
