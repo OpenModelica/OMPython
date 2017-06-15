@@ -52,6 +52,7 @@ setup(name='OMPython',
       install_requires=[
         # 'omniORB', # Required, but not part of pypi
         'pyparsing',
-        'numpy'
+        'numpy',
+        'pyzmq'
       ]
 )
