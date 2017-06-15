@@ -17,7 +17,12 @@ Fast way (using pip):
 
 Manual installation:
 - Add python to your PATH.
-- Start command prompt/terminal and execute command `python setup.py install`. This will add OMPython to the python 3rd party libraries.
+- Start command prompt/terminal and execute commands,
+```bash
+$ cd /pathtoOpenModelica/share/omc/scripts/PythonInterface
+$ python setup.py install
+```
+- This will add OMPython to the python 3rd party libraries.
 
 ## Usage
 
