@@ -12,10 +12,12 @@ OMPython is a Python interface that uses CORBA (omniORB) or ZeroMQ to communicat
 
 ## Installation
 
-Fast way (using pip):
-- `pip install git+git://github.com/OpenModelica/OMPython.git`
+### Unix
+```bash
+$ pip install https://github.com/OpenModelica/OMPython/archive/master.zip
+```
 
-Manual installation:
+### Windows
 - Add python to your PATH.
 - Start command prompt/terminal and execute commands,
 ```bash
