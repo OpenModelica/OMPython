@@ -138,7 +138,6 @@ class OMCSessionBase(object):
            omhome_bin = os.path.join(self.omhome, 'bin').replace("\\","/")
            my_env = os.environ.copy()
            my_env["PATH"] = omhome_bin + os.pathsep + my_env["PATH"]
-           print my_env
            self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file, env=my_env)
         else:
            self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file)
