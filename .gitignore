@@ -3,3 +3,5 @@
 /build/
 /dist/
 /tmp/
+*.py[cod]
+*.bak
