@@ -542,9 +542,10 @@ class OMCSessionZMQ(OMCSessionBase):
 
     def execute(self, command):
         if self._omc is not None:
-          self._omc.send(command)
+          self._omc.send_string(command)
           result = self._omc.recv_string()
           if command == "quit()":
+            self._omc.close()
             self._omc = None
             return result
           else:
@@ -556,7 +557,7 @@ class OMCSessionZMQ(OMCSessionBase):
     def sendExpression(self, command, parsed=True):
         if self._omc is not None:
           self._omc.send_string(str(command))
-          result = self._omc.recv()
+          result = self._omc.recv_string()
           if command == "quit()":
             self._omc.close()
             self._omc = None
