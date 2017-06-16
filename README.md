@@ -14,7 +14,7 @@ OMPython is a Python interface that uses CORBA (omniORB) or ZeroMQ to communicat
 
 ### Unix
 ```bash
-$ pip install https://github.com/OpenModelica/OMPython/archive/master.zip
+$ python -m pip install --upgrade https://github.com/OpenModelica/OMPython/archive/master.zip
 ```
 
 ### Windows
@@ -22,7 +22,7 @@ $ pip install https://github.com/OpenModelica/OMPython/archive/master.zip
 - Start command prompt/terminal and execute commands,
 ```bash
 $ cd /pathtoOpenModelica/share/omc/scripts/PythonInterface
-$ python setup.py install
+$ python -m pip install --upgrade .
 ```
 - This will add OMPython to the python 3rd party libraries.
 
