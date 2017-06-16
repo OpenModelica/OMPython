@@ -134,7 +134,14 @@ class OMCSessionBase(object):
           self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.{0}.{1}.{2}.log".format(self._currentUser, suffix, self._random_string)), 'w')
 
     def _start_omc_process(self):
-        self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file)
+        if sys.platform == 'win32':
+           omhome_bin = os.path.join(self.omhome, 'bin').replace("\\","/")
+           my_env = os.environ.copy()
+           my_env["PATH"] = omhome_bin + os.pathsep + my_env["PATH"]
+           print my_env
+           self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file, env=my_env)
+        else:
+           self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file)
         return self._omc_process
 
     def _set_omc_command(self, omc_path, args):
