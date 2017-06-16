@@ -1299,7 +1299,7 @@ class ModelicaSystem(object):
                     if v == 'time':
                         continue
                     if v not in [l.name for l in self.quantitiesList]:
-                        print ('!!! ', v, ' does not exist\n')
+                        print('!!! ', v, ' does not exist\n')
                         return
                 variables = ",".join(varList)
                 exp = "readSimulationResult(\"" + resFile + '",{' + variables + "})"
