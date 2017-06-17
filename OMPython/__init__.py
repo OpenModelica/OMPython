@@ -399,7 +399,7 @@ class OMCSession(OMCSessionBase):
         OMCSessionBase.__init__(self, readonly)
         self._create_omc_log_file("objid")
         # set omc executable path and args
-        self._set_omc_command(self._get_omc_path(), "+d=interactiveCorba +c={0}".format(self._random_string))
+        self._set_omc_command(self._get_omc_path(), "--interactive=corba +c={0}".format(self._random_string))
         # start up omc executable, which is waiting for the CORBA connection
         self._start_omc_process()
         # connect to the running omc instance using CORBA
@@ -493,7 +493,7 @@ class OMCSessionZMQ(OMCSessionBase):
         OMCSessionBase.__init__(self, readonly)
         self._create_omc_log_file("port")
         # set omc executable path and args
-        self._set_omc_command(self._get_omc_path(), "+d=interactiveZMQ +z={0}".format(self._random_string))
+        self._set_omc_command(self._get_omc_path(), "--interactive=zmq +z={0}".format(self._random_string))
         # start up omc executable, which is waiting for the CORBA connection
         self._start_omc_process()
         # connect to the running omc instance using CORBA
