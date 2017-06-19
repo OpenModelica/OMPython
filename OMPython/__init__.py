@@ -1066,7 +1066,10 @@ class ModelicaSystem(object):
                                 str_ = False
                             self.pValuesList.append(str_)
                         else:
-                            self.pValuesList.append(float(str_))
+                            try:
+                                self.pValuesList.append(float(str_))
+                            except ValueError:
+                                self.pValuesList.append(str_)
             return self.pValuesList
         else:
             try:
@@ -1285,8 +1288,7 @@ class ModelicaSystem(object):
         res_mat = '_res.mat'
         resFile = "".join([self.modelName, res_mat])
         if (not os.path.exists(resFile)):
-            print ("Error: Result file does not exist")
-            exit()
+            raise IOError("Result file does not exist")
         else:
             if len(varList) == 0:
                 #validSolution = ['time'] + self.__getInputNames() + self.__getContinuousNames() + self.__getParameterNames()
