@@ -38,48 +38,58 @@ __maintainer__ = "https://openmodelica.org"
 from pyparsing import *
 import sys
 
-def convertNumbers(s,l,toks):
+
+def convertNumbers(s, l, toks):
     n = toks[0]
     try:
         return int(n)
     except ValueError:
         return float(n)
-def convertString(s,s2):
-  return s2[0].replace("\\\"",'"')
+
+
+def convertString(s, s2):
+    return s2[0].replace("\\\"", '"')
+
+
 def convertDict(d):
     return dict(d[0])
+
+
 def convertTuple(t):
     return tuple(t[0])
+
 
 omcRecord = Forward()
 omcValue = Forward()
 
-TRUE = Keyword("true").setParseAction( replaceWith(True) )
-FALSE = Keyword("false").setParseAction( replaceWith(False) )
-NONE = (Keyword("NONE") + Suppress("(") + Suppress(")") ).setParseAction( replaceWith(None) )
-SOME = (Suppress( Keyword("SOME") ) + Suppress("(") + omcValue + Suppress(")") )
+TRUE = Keyword("true").setParseAction(replaceWith(True))
+FALSE = Keyword("false").setParseAction(replaceWith(False))
+NONE = (Keyword("NONE") + Suppress("(") + Suppress(")")).setParseAction(replaceWith(None))
+SOME = (Suppress(Keyword("SOME")) + Suppress("(") + omcValue + Suppress(")"))
 
-omcString = QuotedString(quoteChar='"',escChar='\\', multiline = True).setParseAction( convertString )
-omcNumber = Combine( Optional('-') + ( '0' | Word('123456789',nums) ) +
-                    Optional( '.' + Word(nums) ) +
-                    Optional( Word('eE',exact=1) + Word(nums+'+-',nums) ) )
+omcString = QuotedString(quoteChar='"', escChar='\\', multiline=True).setParseAction(convertString)
+omcNumber = Combine(Optional('-') + ('0' | Word('123456789', nums)) +
+                    Optional('.' + Word(nums)) +
+                    Optional(Word('eE', exact=1) + Word(nums + '+-', nums)))
 
-ident = Word(alphas+"_",alphanums+"_") | Combine( "'" + Word(alphanums+"!#$%&()*+,-./:;<>=?@[]^{}|~ ") + "'" )
+ident = Word(alphas + "_", alphanums + "_") | Combine("'" + Word(alphanums + "!#$%&()*+,-./:;<>=?@[]^{}|~ ") + "'")
 fqident = Forward()
-fqident << ( (ident + "." + fqident) | ident )
-omcValues = delimitedList( omcValue )
-omcTuple = Group( Suppress('(') + Optional(omcValues) + Suppress(')') ).setParseAction(convertTuple)
-omcArray = Group( Suppress('{') + Optional(omcValues) + Suppress('}') ).setParseAction(convertTuple)
-omcValue << ( omcString | omcNumber | omcRecord | omcArray | omcTuple | SOME | TRUE | FALSE | NONE | Combine(fqident) )
-recordMember = delimitedList( Group( ident + Suppress('=') + omcValue ) )
-omcRecord << Group( Suppress('record') + Suppress( fqident ) +  Dict( recordMember ) + Suppress('end') + Suppress( fqident ) + Suppress(';') ).setParseAction(convertDict)
+fqident << ((ident + "." + fqident) | ident)
+omcValues = delimitedList(omcValue)
+omcTuple = Group(Suppress('(') + Optional(omcValues) + Suppress(')')).setParseAction(convertTuple)
+omcArray = Group(Suppress('{') + Optional(omcValues) + Suppress('}')).setParseAction(convertTuple)
+omcValue << (omcString | omcNumber | omcRecord | omcArray | omcTuple | SOME | TRUE | FALSE | NONE | Combine(fqident))
+recordMember = delimitedList(Group(ident + Suppress('=') + omcValue))
+omcRecord << Group(Suppress('record') + Suppress(fqident) + Dict(recordMember) + Suppress('end') + Suppress(fqident) + Suppress(';')).setParseAction(convertDict)
 
 omcGrammar = omcValue + StringEnd()
 
-omcNumber.setParseAction( convertNumbers )
+omcNumber.setParseAction(convertNumbers)
+
 
 def parseString(string):
-  return omcGrammar.parseString(string)[0]
+    return omcGrammar.parseString(string)[0]
+
 
 if __name__ == "__main__":
     testdata = """
@@ -92,9 +102,9 @@ end ABC;})
     expected = (1.0, ((1, True, 3), ('4"\n', 5.9, 6, None), {"'stop*Time'": 1.0, 'startTime': 'ErrorLevel.warning'}))
     results = parseString(testdata)
     if results != expected:
-      print("Results:",results)
-      print("Expected:",expected)
-      print("Failed")
-      sys.exit(1)
+        print("Results:", results)
+        print("Expected:", expected)
+        print("Failed")
+        sys.exit(1)
     print("Matches expected output")
-    print(type(results),repr(results))
+    print(type(results), repr(results))
