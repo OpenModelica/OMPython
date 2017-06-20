@@ -6,7 +6,7 @@ OMPython is a Python interface that uses CORBA (omniORB) or ZeroMQ to communicat
 
 ### Using omniORB (Python 2 only)
 - Python 2.7 is required (omniORB restriction). Download Python from http://www.python.org/download/
-- omniORB is required 
+- omniORB is required
   - Windows: included in the installer of OpenModelica
   - Linux: Install omniORB including Python 2 support (the omniidl command needs to be on the PATH)  
       On Ubuntu, this is done by running `sudo apt-get install omniorb python-omniorb omniidl omniidl-python`
@@ -40,6 +40,11 @@ import OMPython
 help(OMPython)
 ```
 
+## Bug Reports
+
+- Submit bugs through the [OpenModelica trac](https://trac.openmodelica.org/OpenModelica/newticket).
+- [Pull requests](../../pulls) are welcome.
+
 ## Contact
-Adeel, adeel.asghar@liu.se
-Anand, ganan642@student.liu.se
+Adeel Asghar, adeel.asghar@liu.se
+Arunkumar Palanisamy, arunkumar.palanisamy@liu.se
