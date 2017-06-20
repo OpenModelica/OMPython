@@ -4,6 +4,7 @@ from OMPython import OMParser
 
 typeCheck = OMParser.typeCheck
 
+
 class TypeCheckTester(unittest.TestCase):
     def testNewlineBehaviour(self):
         pass
@@ -34,6 +35,7 @@ class TypeCheckTester(unittest.TestCase):
 
     def testUnStringable(self):
         pass
+
 
 if __name__ == '__main__':
     unittest.main()
