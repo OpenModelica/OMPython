@@ -47,6 +47,5 @@ help(OMPython)
 
 ## Contact
 
-Adeel Asghar, adeel.asghar@liu.se
-
+Adeel Asghar, adeel.asghar@liu.se<br />
 Arunkumar Palanisamy, arunkumar.palanisamy@liu.se
