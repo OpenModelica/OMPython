@@ -46,5 +46,7 @@ help(OMPython)
 - [Pull requests](../../pulls) are welcome.
 
 ## Contact
+
 Adeel Asghar, adeel.asghar@liu.se
+
 Arunkumar Palanisamy, arunkumar.palanisamy@liu.se
