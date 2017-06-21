@@ -21,7 +21,7 @@ def generateIDL():
     errorOnFailure = not os.path.exists(os.path.join(os.path.dirname(__file__), 'OMPythonIDL', '__init__.py'))
     try:
         omhome = os.path.split(os.path.split(os.path.realpath(spawn.find_executable("omc")))[0])[0]
-    except:
+    except BaseException:
         omhome = None
     omhome = omhome or os.environ.get('OPENMODELICAHOME')
 

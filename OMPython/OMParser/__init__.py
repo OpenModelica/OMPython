@@ -289,7 +289,7 @@ def make_sets(strings, name):
 
     for each_item in set_list:
         each_item = typeCheck(each_item)
-        if type(each_item) == str:
+        if isinstance(each_item, str):
             each_item = (each_item.lstrip()).rstrip()
         items.append(each_item)
 
@@ -539,7 +539,7 @@ def check_for_next_string(next_string):
             positionn = -1
         positionn += 1
 
-        if type(next_string) is str:
+        if isinstance(next_string, str):
             if len(next_string) == 0:
                 next_set = ""
                 return next_set
@@ -852,7 +852,7 @@ def check_for_values(string):
 
     string = typeCheck(string)
 
-    if type(string) is not str:
+    if not isinstance(string, str):
         return string
     elif string.find("{") == -1:
         return string

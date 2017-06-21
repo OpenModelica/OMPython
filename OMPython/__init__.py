@@ -157,7 +157,7 @@ class OMCSessionBase(object):
             elif os.path.exists('/opt/local/bin/omc'):
                 self.omhome = '/opt/local'
             return os.path.join(self.omhome, 'bin', 'omc')
-        except:
+        except BaseException:
             logger.error("The OpenModelica compiler is missing in the System path (%s), please install it" % os.path.join(self.omhome, 'bin', 'omc'))
             raise
 
@@ -482,7 +482,7 @@ class OMCSession(OMCSessionBase):
                 self._omc = None
                 return result
             else:
-                if (parsed == True):
+                if parsed is True:
                     answer = OMTypedParser.parseString(result)
                     return answer
                 else:
@@ -567,7 +567,7 @@ class OMCSessionZMQ(OMCSessionBase):
                 self._omc = None
                 return result
             else:
-                if (parsed == True):
+                if parsed is True:
                     answer = OMTypedParser.parseString(result)
                     return answer
                 else:
@@ -664,7 +664,7 @@ class ModelicaSystem(object):
 
         if not self.modelDir:
             file_ = os.path.exists(self.fileName_)
-            if(file_):  # execution from path where file is located
+            if (file_):  # execution from path where file is located
                 self.__loadingModel(self.fileName_, self.modelName, self.lmodel)
             else:
                 print("Error: File does not exist!!!")
@@ -673,7 +673,7 @@ class ModelicaSystem(object):
             os.chdir(self.modelDir)
             file_ = os.path.exists(self.fileName_)
             self.model = self.fileName_[:-3]
-            if(self.fileName_):  # execution from different path
+            if (self.fileName_):  # execution from different path
                 os.chdir(self.currDir)
                 self.__loadingModel(self.fileName, self.modelName, self.lmodel)
             else:
@@ -848,7 +848,7 @@ class ModelicaSystem(object):
         """
         if not self.cNamesList:
             for l in self.quantitiesList:
-                if(l.variability == "continuous"):
+                if (l.variability == "continuous"):
                     self.cNamesList.append(l.name)
         return self.cNamesList
 
@@ -970,7 +970,7 @@ class ModelicaSystem(object):
 
         if not self.pNamesList:
             for l in self.quantitiesList:
-                if(l.variability == "parameter"):
+                if (l.variability == "parameter"):
                     self.pNamesList.append(l.name)
         return self.pNamesList
 
@@ -983,7 +983,7 @@ class ModelicaSystem(object):
 
         if not self.iNamesList:
             for l in self.quantitiesList:
-                if(l.causality == "input"):
+                if (l.causality == "input"):
                     self.iNamesList.append(l.name)
         return self.iNamesList
 
@@ -1004,7 +1004,7 @@ class ModelicaSystem(object):
 
         if not self.oNamesList:
             for l in self.quantitiesList:
-                if(l.causality == "output"):
+                if (l.causality == "output"):
                     self.oNamesList.append(l.name)
         return self.oNamesList
 
@@ -1022,7 +1022,7 @@ class ModelicaSystem(object):
         if contiName is None:
             if not self.cValuesList:
                 for l in self.quantitiesList:
-                    if(l.variability == "continuous"):
+                    if (l.variability == "continuous"):
                         str_ = l.start
                         if str_ is None:
                             self.cValuesList.append(str_)
@@ -1061,7 +1061,7 @@ class ModelicaSystem(object):
         if paraName is None:
             if not self.pValuesList:
                 for l in self.quantitiesList:
-                    if(l.variability == "parameter"):
+                    if (l.variability == "parameter"):
                         str_ = l.start
                         if ((str_ is None) or (str_ == 'true' or str_ == 'false')):
                             if (str_ == 'true'):
@@ -1121,7 +1121,7 @@ class ModelicaSystem(object):
 
         if not self.oValuesList:
             for l in self.quantitiesList:
-                if(l.causality == "output"):
+                if (l.causality == "output"):
                     self.oValuesList.append(l.start)
         return self.oValuesList
 
@@ -1234,9 +1234,9 @@ class ModelicaSystem(object):
             #getExeFile = '{}.{}'.format(self.modelName)
 
             check_exeFile_ = os.path.exists(getExeFile)
-            if(check_exeFile_):
+            if (check_exeFile_):
                 cmd = getExeFile + " -csvInput=" + self.csvFile
-                if(platform.system() == "Windows"):
+                if (platform.system() == "Windows"):
                     omhome = os.path.join(os.environ.get("OPENMODELICAHOME"), 'bin').replace("\\", "/")
                     my_env = os.environ.copy()
                     my_env["PATH"] = omhome + os.pathsep + my_env["PATH"]
@@ -1261,9 +1261,9 @@ class ModelicaSystem(object):
 
             check_exeFile_ = os.path.exists(getExeFile)
 
-            if(check_exeFile_):
+            if (check_exeFile_):
                 cmd = getExeFile
-                if(platform.system() == "Windows"):
+                if (platform.system() == "Windows"):
                     omhome = os.path.join(os.environ.get("OPENMODELICAHOME"), 'bin').replace("\\", "/")
                     my_env = os.environ.copy()
                     my_env["PATH"] = omhome + os.pathsep + my_env["PATH"]
@@ -1425,7 +1425,7 @@ class ModelicaSystem(object):
             for (t, x) in i:
                 cl.append(t)
             for i in cl:
-                if skip == True:
+                if skip is True:
                     skip = False
                     continue
                 if i not in sl:
@@ -1516,7 +1516,7 @@ class ModelicaSystem(object):
             for n in nameVal:
                 if n in namesList:
                     for l in self.quantitiesList:
-                        if(l.name == n):
+                        if (l.name == n):
                             if l.changable == 'false':
                                 print("!!! value cannot be set for " + n)
                             else:
@@ -1531,7 +1531,7 @@ class ModelicaSystem(object):
                                         for attr in c:
                                             val = float(nameVal.get(n))
                                             attr.set('start', str(val))
-                                            self.tree.write(self.xmlFile,  encoding='UTF-8', xml_declaration=True)
+                                            self.tree.write(self.xmlFile, encoding='UTF-8', xml_declaration=True)
                                 index = index + 1
                 else:
                     print('Error: ' + n + ' is not ' + quantity)
@@ -1588,7 +1588,7 @@ class ModelicaSystem(object):
                     rootSSC = self.root
                     for sim in rootSSC.iter('DefaultExperiment'):
                         sim.set(opt, str(options.get(opt)))
-                        self.tree.write(self.xmlFile,  encoding='UTF-8', xml_declaration=True)
+                        self.tree.write(self.xmlFile, encoding='UTF-8', xml_declaration=True)
                     index = index + 1
             if index is not None and self.specialNames:
                 for n in self.specialNames:
@@ -1729,11 +1729,11 @@ class ModelicaSystem(object):
         for i in xrange(len(self.linearquantitiesList)):
             if (self.linearquantitiesList[i]['alias'] == 'alias'):
                 name = self.linearquantitiesList[i]['Name']
-                if(name[1] == 'x'):
+                if (name[1] == 'x'):
                     self.linearstates.append(name[3:-1])
-                if(name[1] == 'u'):
+                if (name[1] == 'u'):
                     self.linearinputs.append(name[3:-1])
-                if(name[1] == 'y'):
+                if (name[1] == 'y'):
                     self.linearoutputs.append(name[3:-1])
 
     def getLinearInputs(self):
