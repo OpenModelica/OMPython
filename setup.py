@@ -39,16 +39,13 @@ def generateIDL():
     print("Generated OMPythonIDL files")
 
 
-if sys.platform != 'win32':
-    try:
-        # if we don't have omniidl then don't try to generate OMPythonIDL files.
-        import omniidl
-        hasomniidl = True
-        generateIDL()
-    except ImportError:
-        hasomniidl = False
-else:
+try:
+    # if we don't have omniidl then don't try to generate OMPythonIDL files.
+    import omniidl
     hasomniidl = True
+    generateIDL()
+except ImportError:
+    hasomniidl = False
 
 OMPython_packages = ['OMPython', 'OMPython.OMParser']
 if hasomniidl:
