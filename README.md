@@ -42,7 +42,7 @@ help(OMPython)
 
 ## Bug Reports
 
-- Submit bugs through the [OpenModelica trac](https://trac.openmodelica.org/OpenModelica/newticket).
+- See OMPython bugs on the [OpenModelica trac](https://trac.openmodelica.org/OpenModelica/query?component=OMPython) or submit a [new ticket](https://trac.openmodelica.org/OpenModelica/newticket).
 - [Pull requests](../../pulls) are welcome.
 
 ## Contact
