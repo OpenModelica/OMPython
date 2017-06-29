@@ -58,23 +58,24 @@ __license__ = """
  Version: 1.1
 """
 
-import os
-import sys
-import time
-import logging
-import uuid
+import abc
+import csv
 import getpass
+import logging
+import os
+import platform
 import subprocess
+import sys
 import tempfile
-import pyparsing
+import time
+import uuid
+import xml.etree.ElementTree as ET
+
+from copy import deepcopy
 from distutils import spawn
 
-# The following import are added by Sudeep
-import platform
 import numpy as np
-import csv
-from copy import deepcopy
-import xml.etree.ElementTree as ET
+import pyparsing
 
 
 if sys.platform == 'darwin':
@@ -98,9 +99,6 @@ logger_console_handler.setFormatter(logger_formatter)
 
 # add the handlers to the logger
 logger.addHandler(logger_console_handler)
-
-import abc
-
 
 class OMCSessionBase(object):
     __metaclass__ = abc.ABCMeta
