@@ -43,6 +43,7 @@ next_set.append('')
 
 
 def bool_from_string(string):
+    """Attempt conversion of string to a boolean """
     if string in {'true', 'True', 'TRUE'}:
         return True
     elif string in {'false', 'False', 'FALSE'}:
@@ -73,7 +74,7 @@ def make_values(strings, name):
     if strings[0] == "{" and strings[-1] == "}":
         strings = strings[1:-1]
 
-    """ find the highest Set number of SET """
+    # find the highest Set number of SET
     for each_name in result:
         if each_name.find("SET") != -1:
             main_set_name = each_name
@@ -89,7 +90,7 @@ def make_values(strings, name):
         prop_str = strings
         main_set_name = "SET1"
 
-        """ remove braces & keep only the SET's values. """
+        # remove braces & keep only the SET's values
         while position < len(prop_str):
             check = prop_str[position]
             if check == "{":
@@ -175,7 +176,7 @@ def delete_elements(strings):
     index = 0
     while index < len(strings):
         character = strings[index]
-        """ handle data within the parenthesis () """
+        # handle data within the parenthesis ()
         if character == "(":
             pos = index
             while pos > 0:
@@ -207,25 +208,25 @@ def make_subset_sets(strings, name):
     set_list = strings.split(",")
     items = []
 
-    """ make the values list, first. """
+    # make the values list, first
     for each_item in set_list:
         each_item = ''.join(c for c in each_item if c not in '{}')
         each_item = typeCheck(each_item)
         items.append(each_item)
 
     if "SET" in name:
-        """ find the highest SET number """
+        # find the highest SET number
         for each_name in result:
             if each_name.find("SET") != -1:
                 main_set_name = each_name
 
-        """ find the highest Subset number """
+        # find the highest Subset number
         for each_name in result[main_set_name]:
             if each_name.find("Subset") != -1:
                 subset_name = each_name
 
         highest_count = 1
-        """ find the highest Set number & make the next Set in Subset """
+        # find the highest Set number & make the next Set in Subset
         for each_name in result[main_set_name][subset_name]:
             if each_name.find("Set") != -1:
                 the_num = each_name.replace('Set', '')
@@ -527,7 +528,7 @@ def check_for_next_string(next_string):
     positionn = 0
     stopp = 0
 
-    """ remove braces & keep only the SET's values. """
+    # remove braces & keep only the SET's values
     while positionn < len(next_string):
         check_str = next_string[positionn]
         if check_str == "{":
@@ -704,7 +705,7 @@ def get_the_set(string):
         else:
             return (len(string) - 1)
 
-    """ Main entry of get_the_string() """
+    # Main entry of get_the_string()
     index = 0
     count = 0
     next_set[0] = ''
@@ -737,7 +738,7 @@ def get_the_set(string):
                 current_set = current_set.replace(each_next, '').strip()
 
             pos = 0
-            """ remove unwanted commas from CS """
+            # remove unwanted commas from CS
             while pos < len(current_set):
                 char = current_set[pos]
                 if char == ",":
@@ -759,7 +760,7 @@ def get_the_set(string):
         print("\nThe following String has no {}s to proceed\n")
         print(string)
 
-    """ End of get_the_string() """
+    # End of get_the_string()
 
 # String parsing function for SimulationResults
 
@@ -825,7 +826,7 @@ def formatRecords(strings):
     result['RecordResults']['RecordName'] = recordName
 
 
-""" Main entry to the OMParser module """
+# Main entry to the OMParser module
 
 
 def check_for_values(string):
@@ -833,7 +834,7 @@ def check_for_values(string):
     if len(string) == 0:
         return result
 
-    """changing untyped results to typed results"""
+    # changing untyped results to typed results
     if string[0] == "(":
         string = "{" + string[1:-2] + "}"
 
