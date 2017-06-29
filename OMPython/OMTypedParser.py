@@ -37,7 +37,23 @@ __maintainer__ = "https://openmodelica.org"
 
 import sys
 
-from pyparsing import Forward, Keyword, Suppress, replaceWith, QuotedString, Combine, Optional, Word, nums, alphas, alphanums, delimitedList, Group, StringEnd, Dict
+from pyparsing import (
+    Combine,
+    Dict,
+    Forward,
+    Group,
+    Keyword,
+    Optional,
+    QuotedString,
+    StringEnd,
+    Suppress,
+    Word,
+    alphanums,
+    alphas,
+    delimitedList,
+    nums,
+    replaceWith,
+)
 
 
 def convertNumbers(s, l, toks):
