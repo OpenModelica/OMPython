@@ -35,8 +35,8 @@ __license__ = """
 __status__ = "Prototype"
 __maintainer__ = "https://openmodelica.org"
 
-from pyparsing import *
 import sys
+from pyparsing import *
 
 
 def convertNumbers(s, l, toks):
