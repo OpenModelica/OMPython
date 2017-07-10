@@ -4,7 +4,6 @@ except ImportError:
     from distutils.core import setup
 
 from subprocess import call
-import sys
 import os
 # Python 3.3 offers shutil.which()
 from distutils import spawn
