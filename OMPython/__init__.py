@@ -100,6 +100,7 @@ logger_console_handler.setFormatter(logger_formatter)
 # add the handlers to the logger
 logger.addHandler(logger_console_handler)
 
+
 class OMCSessionBase(object):
     __metaclass__ = abc.ABCMeta
 
@@ -706,9 +707,9 @@ class ModelicaSystem(object):
                 return
 
         # build model
-        #buildModelError = ''
+        # buildModelError = ''
         self.getconn.sendExpression("setCommandLineOptions(\"+d=initialization\")")
-        #buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
+        # buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
         buildModelResult = self.requestApi("buildModel", mName)
         buildModelError = self.requestApi("getErrorString")
 
@@ -1229,7 +1230,7 @@ class ModelicaSystem(object):
             else:
                 getExeFile = os.path.join(os.getcwd(), self.modelName).replace("\\", "/")
 
-            #getExeFile = '{}.{}'.format(self.modelName)
+            # getExeFile = '{}.{}'.format(self.modelName)
 
             check_exeFile_ = os.path.exists(getExeFile)
             if (check_exeFile_):
@@ -1243,7 +1244,7 @@ class ModelicaSystem(object):
                     p.terminate()
                 else:
                     os.system(cmd)
-                #subprocess.call(cmd, shell = False)
+                # subprocess.call(cmd, shell = False)
                 self.simulationFlag = True
                 resultfilename = self.modelName + '_res.mat'
                 return
@@ -1255,7 +1256,7 @@ class ModelicaSystem(object):
                 getExeFile = os.path.join(os.getcwd(), '{}.{}'.format(self.modelName, "exe")).replace("\\", "/")
             else:
                 getExeFile = os.path.join(os.getcwd(), self.modelName).replace("\\", "/")
-                #getExeFile = '{}.{}'.format(self.modelName, "exe")
+                # getExeFile = '{}.{}'.format(self.modelName, "exe")
 
             check_exeFile_ = os.path.exists(getExeFile)
 
@@ -1271,7 +1272,7 @@ class ModelicaSystem(object):
                 else:
                     os.system(cmd)
                 self.simulationFlag = True
-                #self.outputFlag = True
+                # self.outputFlag = True
                 resultfilename = self.modelName + '_res.mat'
                 return
             else:
@@ -1291,7 +1292,7 @@ class ModelicaSystem(object):
             exit()
         else:
             if len(varList) == 0:
-                #validSolution = ['time'] + self.__getInputNames() + self.__getContinuousNames() + self.__getParameterNames()
+                # validSolution = ['time'] + self.__getInputNames() + self.__getContinuousNames() + self.__getParameterNames()
                 validSolution = self.getconn.sendExpression("readSimulationResultVars(\"" + resFile + "\")")
                 return validSolution
 
@@ -1658,7 +1659,7 @@ class ModelicaSystem(object):
 
         try:
             cName = self.modelName
-            #self.requestApi("setCommandLineOptions", "+generateSymbolicLinearization")
+            # self.requestApi("setCommandLineOptions", "+generateSymbolicLinearization")
             self.getconn.sendExpression("setCommandLineOptions(\"+generateSymbolicLinearization\")")
             properties = "{}={}, {}={}, {}={}, {}={}, {}={}".format(self.linearizeOptionsNamesList[0], self.linearizeOptionsValuesList[0], self.linearizeOptionsNamesList[1], self.linearizeOptionsValuesList[1], self.linearizeOptionsNamesList[2], self.linearizeOptionsValuesList[2], self.linearizeOptionsNamesList[3], self.linearizeOptionsValuesList[3], self.linearizeOptionsNamesList[4], self.linearizeOptionsValuesList[4])
             x = self.getParameters()
@@ -1682,7 +1683,7 @@ class ModelicaSystem(object):
             else:
                 linearizeError = ''
                 self.getconn.sendExpression("linearize(" + self.modelName + "," + properties + ", simflags=\" " + override + " \")")
-                #linearizeResult = self.requestApi('linearize', cName, properties, simflags)
+                # linearizeResult = self.requestApi('linearize', cName, properties, simflags)
                 linearizeError = self.requestApi('getErrorString')
                 if linearizeError:
                     print(linearizeError)
