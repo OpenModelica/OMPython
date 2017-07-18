@@ -261,10 +261,7 @@ class OMCSessionBase(object):
     def isProtected(self, className):
         return self.ask('isProtected', className)
 
-    def getPackages(self):
-        return self.ask('getPackages')
-
-    def getPackages(self, className):
+    def getPackages(self, className="AllLoadedClasses"):
         return self.ask('getPackages', className)
 
     def getClassRestriction(self, className):
