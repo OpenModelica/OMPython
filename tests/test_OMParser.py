@@ -1,5 +1,7 @@
 import unittest
 
+from builtins import int
+
 from OMPython import OMParser
 
 typeCheck = OMParser.typeCheck
@@ -20,12 +22,11 @@ class TypeCheckTester(unittest.TestCase):
     def testInt(self):
         self.assertEqual(typeCheck('2'), 2)
         self.assertEqual(type(typeCheck('1')), int)
+        self.assertEqual(type(typeCheck('123123123123123123232323')), int)
+        self.assertEqual(type(typeCheck('9223372036854775808')), int)
 
     def testFloat(self):
         self.assertEqual(type(typeCheck('1.2e3')), float)
-
-    def testLong(self):
-        self.assertEqual(type(typeCheck('123123123123123123232323')), long)
 
     # def testDict(self):
     #     self.assertEqual(type(typeCheck('{"a": "b"}')), dict)

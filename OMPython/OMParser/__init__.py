@@ -34,6 +34,8 @@
 
 import sys
 
+from builtins import int
+
 result = dict()
 
 inner_sets = []
@@ -54,7 +56,7 @@ def bool_from_string(string):
 
 def typeCheck(string):
     """Attempt conversion of string to a usable value"""
-    types = [bool_from_string, int, float, long, dict, str]
+    types = [bool_from_string, int, float, dict, str]
 
     string = string.strip()
 
