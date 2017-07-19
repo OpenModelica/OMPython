@@ -58,6 +58,10 @@ __license__ = """
  Version: 1.1
 """
 
+from builtins import int, range
+from copy import deepcopy
+from distutils import spawn
+
 import abc
 import csv
 import getpass
@@ -70,9 +74,6 @@ import tempfile
 import time
 import uuid
 import xml.etree.ElementTree as ET
-
-from copy import deepcopy
-from distutils import spawn
 
 import numpy as np
 import pyparsing
@@ -1660,7 +1661,7 @@ class ModelicaSystem(object):
             self.getconn.sendExpression("setCommandLineOptions(\"+generateSymbolicLinearization\")")
             properties = "{}={}, {}={}, {}={}, {}={}, {}={}".format(self.linearizeOptionsNamesList[0], self.linearizeOptionsValuesList[0], self.linearizeOptionsNamesList[1], self.linearizeOptionsValuesList[1], self.linearizeOptionsNamesList[2], self.linearizeOptionsValuesList[2], self.linearizeOptionsNamesList[3], self.linearizeOptionsValuesList[3], self.linearizeOptionsNamesList[4], self.linearizeOptionsValuesList[4])
             x = self.getParameters()
-            getparamvalues = ','.join("%s=%r" % (key, val) for (key, val) in x.iteritems())
+            getparamvalues = ','.join("%s=%r" % (key, val) for (key, val) in list(x.items()))
             override = "-override=" + getparamvalues
             if self.inputFlag:
                 nameVal = self.getInputs()
@@ -1722,7 +1723,7 @@ class ModelicaSystem(object):
 
     def getLinearQuantityInformation(self):
         # function which extracts linearised states, inputs and outputs
-        for i in xrange(len(self.linearquantitiesList)):
+        for i in range(len(self.linearquantitiesList)):
             if (self.linearquantitiesList[i]['alias'] == 'alias'):
                 name = self.linearquantitiesList[i]['Name']
                 if (name[1] == 'x'):
