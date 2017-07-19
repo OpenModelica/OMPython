@@ -35,7 +35,10 @@ __license__ = """
 __status__ = "Prototype"
 __maintainer__ = "https://openmodelica.org"
 
-import sys
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from builtins import int, range
 
 from pyparsing import (
     Combine,
@@ -55,6 +58,7 @@ from pyparsing import (
     replaceWith,
 )
 
+import sys
 
 def convertNumbers(s, l, toks):
     n = toks[0]
