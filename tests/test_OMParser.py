@@ -1,8 +1,11 @@
-import unittest
-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 from builtins import int
 
 from OMPython import OMParser
+
+import unittest
 
 typeCheck = OMParser.typeCheck
 

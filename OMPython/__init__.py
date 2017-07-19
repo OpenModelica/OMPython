@@ -27,6 +27,38 @@ while execute tries to map also output that is not valid Modelica.
 That format is harder to use.
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from builtins import int, range
+from copy import deepcopy
+from distutils import spawn
+
+import abc
+import csv
+import getpass
+import logging
+import os
+import platform
+import subprocess
+import sys
+import tempfile
+import time
+import uuid
+import xml.etree.ElementTree as ET
+
+import numpy as np
+import pyparsing
+
+
+if sys.platform == 'darwin':
+    # On Mac let's assume omc is installed here and there might be a broken omniORB installed in a bad place
+    sys.path.append('/opt/local/lib/python2.7/site-packages/')
+    sys.path.append('/opt/openmodelica/lib/python2.7/site-packages/')
+
+# TODO: replace this with the new parser
+from OMPython import OMTypedParser, OMParser
+
 __license__ = """
  This file is part of OpenModelica.
 
@@ -57,35 +89,6 @@ __license__ = """
 
  Version: 1.1
 """
-
-from builtins import int, range
-from copy import deepcopy
-from distutils import spawn
-
-import abc
-import csv
-import getpass
-import logging
-import os
-import platform
-import subprocess
-import sys
-import tempfile
-import time
-import uuid
-import xml.etree.ElementTree as ET
-
-import numpy as np
-import pyparsing
-
-
-if sys.platform == 'darwin':
-    # On Mac let's assume omc is installed here and there might be a broken omniORB installed in a bad place
-    sys.path.append('/opt/local/lib/python2.7/site-packages/')
-    sys.path.append('/opt/openmodelica/lib/python2.7/site-packages/')
-
-# TODO: replace this with the new parser
-from OMPython import OMTypedParser, OMParser
 
 # Logger Defined
 logger = logging.getLogger('OMPython')
