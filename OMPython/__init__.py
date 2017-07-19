@@ -30,6 +30,7 @@ That format is harder to use.
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+from future.utils import with_metaclass
 from builtins import int, range
 from copy import deepcopy
 from distutils import spawn
@@ -105,8 +106,7 @@ logger_console_handler.setFormatter(logger_formatter)
 logger.addHandler(logger_console_handler)
 
 
-class OMCSessionBase(object):
-    __metaclass__ = abc.ABCMeta
+class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
 
     def __init__(self, readonly=False):
         self.readonly = readonly
@@ -580,7 +580,7 @@ class OMCSessionZMQ(OMCSessionBase):
 # LIU(Department of Computer Science)
 
 
-class Quantity:
+class Quantity(object):
     """
     To represent quantities details
     """
