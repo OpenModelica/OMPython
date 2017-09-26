@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from builtins import int, range
+
 __author__ = "Martin Sjölund"
 __license__ = """
  This file is part of OpenModelica.
@@ -34,11 +39,6 @@ __license__ = """
 """
 __status__ = "Prototype"
 __maintainer__ = "https://openmodelica.org"
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from builtins import int, range
 
 from pyparsing import (
     Combine,
