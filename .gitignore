@@ -5,3 +5,10 @@
 /tmp/
 *.py[cod]
 *.bak
+.ipynb_checkpoints/
+
+# IDE settings and preferences
+*.pyproj
+*.sln
+.idea/
+.vs/
