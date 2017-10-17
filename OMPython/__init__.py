@@ -315,7 +315,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
         try:
             return self.ask('getParameterNames', className)
         except KeyError as ex:
-            logger.warning('OMPython error: {0}'.format(ex.message))
+            logger.warning('OMPython error: {0}'.format(ex))
             # FIXME: OMC returns with a different structure for empty parameter set
             return []
 
@@ -341,7 +341,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
                 OMParser.result = {}
                 return answer[2:]
             except (TypeError, UnboundLocalError) as ex:
-                logger.warning('OMParser error: {0}'.format(ex.message))
+                logger.warning('OMParser error: {0}'.format(ex))
                 return result
 
     def getExtendsModifierNames(self, className, componentName):
@@ -359,7 +359,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
                 OMParser.result = {}
                 return answer[2:]
             except (TypeError, UnboundLocalError) as ex:
-                logger.warning('OMParser error: {0}'.format(ex.message))
+                logger.warning('OMParser error: {0}'.format(ex))
                 return result
 
     def getNthComponentModification(self, className, comp_id):
