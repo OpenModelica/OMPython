@@ -5,7 +5,7 @@ from __future__ import division
 from __future__ import print_function
 from builtins import int, range
 
-__author__ = "Martin Sjölund"
+__author__ = "Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-19, and Martin Sjölund"
 __license__ = """
  This file is part of OpenModelica.
 
@@ -33,9 +33,6 @@ __license__ = """
  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, EXCEPT AS
  EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
  CONDITIONS OF OSMC-PL.
-
- Author : Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-19
- Version: 1.0
 """
 __status__ = "Prototype"
 __maintainer__ = "https://openmodelica.org"
