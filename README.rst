@@ -16,6 +16,7 @@ Using omniORB
 -------------
 - Currently, only Python 2.7 is supported
 - omniORB is required:
+
   - Windows: included in the OpenModelica installation
   - Linux: Install omniORB including Python 2 support (the omniidl command needs to be on the PATH).
     On Ubuntu, this is done by running ``sudo apt-get install omniorb python-omniorb omniidl omniidl-python``
