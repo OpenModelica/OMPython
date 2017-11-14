@@ -210,7 +210,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
             if parsed:
                 res = self.execute(expression)
             else:
-                res = self._omc.sendExpression(expression)
+                res = self.sendExpression(expression, parsed=False)
         except Exception as e:
             logger.error("OMC failed: {0}, {1}, parsed={2}".format(question, opt, parsed))
             raise e
