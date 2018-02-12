@@ -10,7 +10,10 @@ Dependencies
 Using ZeroMQ
 ------------
 - Python 2.7 and 3.x supported
-- PyZMQ is required
+
+.. code-block:: bash
+
+  python -m pip install PyZMQ
 
 Using omniORB
 -------------
@@ -21,6 +24,12 @@ Using omniORB
   - Linux: Install omniORB including Python 2 support (the omniidl command needs to be on the PATH).
     On Ubuntu, this is done by running ``sudo apt-get install omniorb python-omniorb omniidl omniidl-python``
 
+Other dependencies
+------------------
+
+.. code-block:: bash
+
+  python -m pip install future numpy pyparsing
 
 Installation
 ============
@@ -28,13 +37,17 @@ Installation using ``pip`` is recommended.
 
 Linux
 -----
-Install the latest OMPython master by running::
+Install the latest OMPython master by running:
+
+.. code-block:: bash
 
   python -m pip install -U https://github.com/OpenModelica/OMPython/archive/master.zip
 
 Windows
 -------
-Install the version as packaged with your OpenModelica installation by running::
+Install the version as packaged with your OpenModelica installation by running:
+
+.. code-block:: bash
 
   cd %OPENMODELICAHOME%\share\omc\scripts\PythonInterface
   python -m pip install .
