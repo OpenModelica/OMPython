@@ -163,7 +163,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
             raise
 
     @abc.abstractmethod
-    def _connect_to_omc(self):
+    def _connect_to_omc(self, timeout):
         pass
 
     # FIXME: we should have one function which interacts with OMC. Either execute OR sendExpression.
@@ -396,7 +396,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
 
 class OMCSession(OMCSessionBase):
 
-    def __init__(self, readonly=False):
+    def __init__(self, readonly=False, timeout = 0.25):
         OMCSessionBase.__init__(self, readonly)
         self._create_omc_log_file("objid")
         # set omc executable path and args
@@ -404,12 +404,12 @@ class OMCSession(OMCSessionBase):
         # start up omc executable, which is waiting for the CORBA connection
         self._start_omc_process()
         # connect to the running omc instance using CORBA
-        self._connect_to_omc()
+        self._connect_to_omc(timeout)
 
     def __del__(self):
         OMCSessionBase.__del__(self)
 
-    def _connect_to_omc(self):
+    def _connect_to_omc(self, timeout):
         # add OPENMODELICAHOME\lib\python to PYTHONPATH so python can load omniORB imports
         sys.path.append(os.path.join(self.omhome, 'lib', 'python'))
         # import the skeletons for the global module
@@ -429,7 +429,7 @@ class OMCSession(OMCSessionBase):
             attempts = 0
             while True:
                 if not os.path.isfile(self._ior_file):
-                    time.sleep(0.25)
+                    time.sleep(timeout)
                     attempts += 1
                     if attempts == 10:
                         name = self._omc_log_file.name
@@ -491,7 +491,7 @@ class OMCSession(OMCSessionBase):
 
 class OMCSessionZMQ(OMCSessionBase):
 
-    def __init__(self, readonly=False):
+    def __init__(self, readonly=False, timeout = 0.25):
         OMCSessionBase.__init__(self, readonly)
         self._create_omc_log_file("port")
         # set omc executable path and args
@@ -499,12 +499,12 @@ class OMCSessionZMQ(OMCSessionBase):
         # start up omc executable, which is waiting for the CORBA connection
         self._start_omc_process()
         # connect to the running omc instance using CORBA
-        self._connect_to_omc()
+        self._connect_to_omc(timeout)
 
     def __del__(self):
         OMCSessionBase.__del__(self)
 
-    def _connect_to_omc(self):
+    def _connect_to_omc(self, timeout):
         # Locating and using the IOR
         if sys.platform == 'win32':
             self._port_file = "openmodelica.port." + self._random_string
@@ -519,7 +519,7 @@ class OMCSessionZMQ(OMCSessionBase):
             attempts = 0
             while True:
                 if not os.path.isfile(self._port_file):
-                    time.sleep(0.25)
+                    time.sleep(timeout)
                     attempts += 1
                     if attempts == 10:
                         name = self._omc_log_file.name
