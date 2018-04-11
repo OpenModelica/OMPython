@@ -540,6 +540,7 @@ class OMCSessionZMQ(OMCSessionBase):
         import zmq
         context = zmq.Context.instance()
         self._omc = context.socket(zmq.REQ)
+        self._omc.setsockopt(zmp.LINGER, 0) # Dismisses pending messages if closed
         self._omc.connect(self._port)
 
     def execute(self, command):
@@ -559,12 +560,12 @@ class OMCSessionZMQ(OMCSessionBase):
     def sendExpression(self, command, parsed=True):
         if self._omc is not None:
             self._omc.send_string(str(command))
-            result = self._omc.recv_string()
             if command == "quit()":
                 self._omc.close()
                 self._omc = None
-                return result
+                return "Force quit"
             else:
+                result = self._omc.recv_string()
                 if parsed is True:
                     answer = OMTypedParser.parseString(result)
                     return answer
