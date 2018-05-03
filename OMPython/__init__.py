@@ -595,7 +595,7 @@ class Quantity(object):
 
 
 class ModelicaSystem(object):
-    def __init__(self, fileName=None, modelName=None, lmodel=None, useCorba=False):  # 1
+    def __init__(self, fileName=None, modelName=None, lmodel=[], useCorba=False):  # 1
         """
         "constructor"
         It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called :
@@ -606,7 +606,7 @@ class ModelicaSystem(object):
         ex: myModel = ModelicaSystem("ModelicaModel.mo", "modelName")
         """
 
-        if fileName is None and modelName is None and lmodel is None:  # all None
+        if fileName is None and modelName is None and not lmodel:  # all None
             if useCorba:
                 self.getconn = OMCSession()
             else:
@@ -697,13 +697,13 @@ class ModelicaSystem(object):
                 return
 
         # load Modelica standard libraries if needed
-        if lmodel is not None:
-            loadmodelError = ''
-            loadModelResult = self.requestApi("loadModel", lmodel)
-            loadmodelError = self.requestApi('getErrorString')
-            if loadmodelError:
-                print(loadmodelError)
-                return
+        for element in lmodel:
+            if element is not None:
+                loadmodelError = ''
+                loadModelResult = self.requestApi("loadModel", element)
+                loadmodelError = self.requestApi('getErrorString')
+                if loadmodelError:
+                    print(loadmodelError)
 
         # build model
         # buildModelError = ''
