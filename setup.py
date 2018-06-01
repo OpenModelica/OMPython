@@ -39,8 +39,11 @@ def generateIDL():
 
 
 try:
-    # if we don't have omniidl then don't try to generate OMPythonIDL files.
-    import omniidl
+    # if we don't have omniidl or omniORB then don't try to generate OMPythonIDL files.
+    try:
+      import omniidl
+    except ImportError:
+      import omniORB
     hasomniidl = True
     generateIDL()
 except ImportError:
@@ -51,7 +54,7 @@ if hasomniidl:
     OMPython_packages.extend(['OMPythonIDL', 'OMPythonIDL._OMCIDL', 'OMPythonIDL._OMCIDL__POA'])
 
 setup(name='OMPython',
-      version='3.0.0',
+      version='3.0.2',
       description='OpenModelica-Python API Interface',
       author='Anand Kalaiarasi Ganeson',
       author_email='ganan642@student.liu.se',
