@@ -41,6 +41,7 @@ import getpass
 import logging
 import os
 import platform
+import signal
 import subprocess
 import sys
 import tempfile
@@ -120,11 +121,28 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
         self._omc_log_file = None
 
     def __del__(self):
-        self.sendExpression("quit()")
+        try:
+          self.sendExpression("quit()")
+        except:
+          pass
         self._omc_log_file.close()
+        if sys.version_info.major >= 3:
+          self._omc_process.wait(timeout=1.0)
+        else:
+          for i in range(0,100):
+            time.sleep(0.01)
+            if self._omc_process.poll() is not None:
+              break
         # kill self._omc_process process if it is still running/exists
         if self._omc_process.returncode is None:
-            self._omc_process.kill()
+            print("OMC did not exit after being sent the quit() command; killing the process with pid=%s" % str(self._omc_process.pid))
+            if sys.platform=="win32":
+                self._omc_process.kill()
+                self._omc_process.wait()
+            else:
+                os.killpg(os.getpgid(self._omc_process.pid), signal.SIGTERM)
+                self._omc_process.kill()
+                self._omc_process.wait()
 
     def _create_omc_log_file(self, suffix):
         if sys.platform == 'win32':
@@ -143,7 +161,8 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
             my_env["PATH"] = omhome_bin + os.pathsep + my_env["PATH"]
             self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file, env=my_env)
         else:
-            self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file)
+            # Because we spawned a shell, and we need to be able to kill OMC, create a new process group for this
+            self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file, preexec_fn=os.setsid)
         return self._omc_process
 
     def _set_omc_command(self, omc_path, args):
@@ -513,24 +532,21 @@ class OMCSessionZMQ(OMCSessionBase):
         self._port_file = os.path.join(self._temp_dir, self._port_file).replace("\\", "/")
         self._omc_zeromq_uri = "file:///" + self._port_file
         # See if the omc server is running
-        if os.path.isfile(self._port_file):
-            logger.info("OMC Server is up and running at {0}".format(self._omc_zeromq_uri))
-        else:
-            attempts = 0
-            while True:
-                if not os.path.isfile(self._port_file):
-                    time.sleep(timeout)
-                    attempts += 1
-                    if attempts == 10:
-                        name = self._omc_log_file.name
-                        self._omc_log_file.close()
-                        logger.error("OMC Server is down. Please start it! Log-file says:\n%s" % open(name).read())
-                        raise Exception
-                    else:
-                        continue
+        attempts = 0
+        while True:
+            if not os.path.isfile(self._port_file):
+                time.sleep(timeout)
+                attempts += 1
+                if attempts == 10:
+                    name = self._omc_log_file.name
+                    self._omc_log_file.close()
+                    logger.error("OMC Server is down. Please start it! Log-file says:\n%s" % open(name).read())
+                    raise Exception("OMC Server is down. Could not open file %s" % self._port_file)
                 else:
-                    logger.info("OMC Server is up and running at {0}".format(self._omc_zeromq_uri))
-                    break
+                    continue
+            else:
+                logger.info("OMC Server is up and running at {0} pid={1}".format(self._omc_zeromq_uri, self._omc_process.pid))
+                break
 
         # Read the port file
         with open(self._port_file, 'r') as f_p:
