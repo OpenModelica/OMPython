@@ -26,9 +26,11 @@ apt-get install -qy --no-install-recommends omc
             timeout(1) {
               // OpenModelica does not like running as root
               sh 'chown -R nobody .'
+              sh 'pip2 install pytest'
               sh 'sudo -u nobody python2 setup.py build'
-              sh 'sudo -u nobody python2 setup.py test'
+              sh 'sudo -u nobody py.test -v --junitxml py2.xml tests/*.py'
               sh 'python2 setup.py install'
+              junit 'py2.xml'
             }
           }
         }
@@ -37,9 +39,11 @@ apt-get install -qy --no-install-recommends omc
             timeout(1) {
               // OpenModelica does not like running as root
               sh 'chown -R nobody .'
+              sh 'pip3 install pytest'
               sh 'sudo -u nobody python3 setup.py build'
-              sh 'sudo -u nobody python3 setup.py test'
+              sh 'sudo -u nobody py.test -v --junitxml py3.xml tests/*.py'
               sh 'python3 setup.py install'
+              junit 'py3.xml'
             }
           }
         }
