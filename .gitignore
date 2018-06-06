@@ -12,3 +12,4 @@
 *.sln
 .idea/
 .vs/
+.DS_Store
