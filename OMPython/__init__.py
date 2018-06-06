@@ -428,6 +428,7 @@ class OMCSession(OMCSessionBase):
         else:
             attempts = 0
             while True:
+                logger.info('Searching for:' + self._port_file)
                 if not os.path.isfile(self._ior_file):
                     time.sleep(timeout)
                     attempts += 1
@@ -518,6 +519,7 @@ class OMCSessionZMQ(OMCSessionBase):
         else:
             attempts = 0
             while True:
+                logger.info('Searching for:' + self._port_file)
                 if not os.path.isfile(self._port_file):
                     time.sleep(timeout)
                     attempts += 1
