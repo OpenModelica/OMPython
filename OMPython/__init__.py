@@ -1265,8 +1265,7 @@ class ModelicaSystem(object):
                 resultfilename = self.modelName + '_res.mat'
                 return
             else:
-                print("Error: application file not generated yet")
-                return
+                raise Exception("Error: application file not generated yet")
         else:
             if (platform.system() == "Windows"):
                 getExeFile = os.path.join(os.getcwd(), '{}.{}'.format(self.modelName, "exe")).replace("\\", "/")
@@ -1292,7 +1291,7 @@ class ModelicaSystem(object):
                 resultfilename = self.modelName + '_res.mat'
                 return
             else:
-                print("Error: application file not generated yet")
+                raise Exception("Error: application file not generated yet")
 
     # to extract simulation results
     def getSolutions(self, *varList):  # 12
