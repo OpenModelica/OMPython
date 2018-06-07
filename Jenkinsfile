@@ -23,28 +23,28 @@ apt-get install -qy --no-install-recommends omc
       parallel {
         stage('python2') {
           steps {
-            timeout(1) {
-              // OpenModelica does not like running as root
-              sh 'chown -R nobody .'
-              sh 'pip2 install pytest'
-              sh 'sudo -u nobody python2 setup.py build'
+            // OpenModelica does not like running as root
+            sh 'chown -R nobody .'
+            sh 'pip2 install pytest'
+            sh 'sudo -u nobody python2 setup.py build'
+            timeout(3) {
               sh 'sudo -u nobody py.test -v --junitxml py2.xml tests/*.py'
-              sh 'python2 setup.py install'
-              junit 'py2.xml'
             }
+            sh 'python2 setup.py install'
+            junit 'py2.xml'
           }
         }
         stage('python3') {
           steps {
-            timeout(1) {
-              // OpenModelica does not like running as root
-              sh 'chown -R nobody .'
-              sh 'pip3 install pytest'
-              sh 'sudo -u nobody python3 setup.py build'
+            // OpenModelica does not like running as root
+            sh 'chown -R nobody .'
+            sh 'pip3 install pytest'
+            sh 'sudo -u nobody python3 setup.py build'
+            timeout(3) {
               sh 'sudo -u nobody py.test -v --junitxml py3.xml tests/*.py'
-              sh 'python3 setup.py install'
-              junit 'py3.xml'
             }
+            sh 'python3 setup.py install'
+            junit 'py3.xml'
           }
         }
       }
