@@ -5,6 +5,9 @@ pipeline {
       image 'openmodelica/build-deps'
     }
   }
+  options {
+    disableConcurrentBuilds()
+  }
   stages {
     stage('setup') {
       steps {
