@@ -562,16 +562,16 @@ class OMCSessionZMQ(OMCSessionBase):
     def execute(self, command):
         if self._omc is not None:
             self._omc.send_string(command)
-            result = self._omc.recv_string()
             if command == "quit()":
                 self._omc.close()
                 self._omc = None
-                return result
+                return None
             else:
+                result = self._omc.recv_string()
                 answer = OMParser.check_for_values(result)
                 return answer
         else:
-            return "No connection with OMC. Create an instance of OMCSessionZMQ."
+            raise Exception("No connection with OMC. Create an instance of OMCSessionZMQ.")
 
     def sendExpression(self, command, parsed=True):
         if self._omc is not None:
@@ -579,7 +579,7 @@ class OMCSessionZMQ(OMCSessionBase):
             if command == "quit()":
                 self._omc.close()
                 self._omc = None
-                return "Force quit"
+                return None
             else:
                 result = self._omc.recv_string()
                 if parsed is True:
@@ -588,7 +588,7 @@ class OMCSessionZMQ(OMCSessionBase):
                 else:
                     return result
         else:
-            return "No connection with OMC. Create an instance of OMCSessionZMQ."
+            raise Exception("No connection with OMC. Create an instance of OMCSessionZMQ.")
 
 # author = Sudeep Bajracharya
 # sudba156@student.liu.se
