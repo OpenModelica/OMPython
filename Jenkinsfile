@@ -3,6 +3,7 @@ pipeline {
     docker {
       // Large image with full OpenModelica build dependencies; lacks omc and OMPython
       image 'openmodelica/build-deps'
+      label 'linux'
     }
   }
   options {
