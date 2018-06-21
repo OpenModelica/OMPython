@@ -41,6 +41,7 @@ import getpass
 import logging
 import os
 import platform
+import re
 import signal
 import subprocess
 import sys
@@ -104,6 +105,16 @@ logger_console_handler.setFormatter(logger_formatter)
 # add the handlers to the logger
 logger.addHandler(logger_console_handler)
 
+class OMCSessionHelper():
+  def __init__(self):
+    self.omhome = os.environ.get('OPENMODELICAHOME') or os.path.split(os.path.split(os.path.realpath(spawn.find_executable("omc")))[0])[0]
+
+  def _get_omc_path(self):
+    try:
+      return os.path.join(self.omhome, 'bin', 'omc')
+    except BaseException:
+      logger.error("The OpenModelica compiler is missing in the System path (%s), please install it" % os.path.join(self.omhome, 'bin', 'omc'))
+      raise
 
 class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
 
@@ -148,9 +159,13 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
         if sys.platform == 'win32':
             self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.{0}.{1}.log".format(suffix, self._random_string)), 'w')
         else:
-            self._currentUser = getpass.getuser()
-            if not self._currentUser:
-                self._currentUser = "nobody"
+            try:
+              self._currentUser = getpass.getuser()
+              if not self._currentUser:
+                  self._currentUser = "nobody"
+            except KeyError:
+              # We are running as a uid not existing in the password database... Pretend we are nobody
+              self._currentUser = "nobody"
             # this file must be closed in the destructor
             self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.{0}.{1}.{2}.log".format(self._currentUser, suffix, self._random_string)), 'w')
 
@@ -168,18 +183,6 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
     def _set_omc_command(self, omc_path, args):
         self._omc_command = "{0} {1}".format(omc_path, args)
         return self._omc_command
-
-    def _get_omc_path(self):
-        try:
-            self.omhome = os.environ.get('OPENMODELICAHOME')
-            if self.omhome is None:
-                self.omhome = os.path.split(os.path.split(os.path.realpath(spawn.find_executable("omc")))[0])[0]
-            elif os.path.exists('/opt/local/bin/omc'):
-                self.omhome = '/opt/local'
-            return os.path.join(self.omhome, 'bin', 'omc')
-        except BaseException:
-            logger.error("The OpenModelica compiler is missing in the System path (%s), please install it" % os.path.join(self.omhome, 'bin', 'omc'))
-            raise
 
     @abc.abstractmethod
     def _connect_to_omc(self, timeout):
@@ -413,13 +416,14 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
         return value
 
 
-class OMCSession(OMCSessionBase):
+class OMCSession(OMCSessionHelper, OMCSessionBase):
 
-    def __init__(self, readonly=False, timeout = 0.25):
+    def __init__(self, readonly=False, serverFlag='--interactive=corba', timeout = 0.25):
+        OMCSessionHelper.__init__(self)
         OMCSessionBase.__init__(self, readonly)
         self._create_omc_log_file("objid")
         # set omc executable path and args
-        self._set_omc_command(self._get_omc_path(), "--interactive=corba +c={0}".format(self._random_string))
+        self._set_omc_command(self._get_omc_path(), "{0} +c={1}".format(serverFlag, self._random_string))
         # start up omc executable, which is waiting for the CORBA connection
         self._start_omc_process()
         # connect to the running omc instance using CORBA
@@ -432,8 +436,13 @@ class OMCSession(OMCSessionBase):
         # add OPENMODELICAHOME\lib\python to PYTHONPATH so python can load omniORB imports
         sys.path.append(os.path.join(self.omhome, 'lib', 'python'))
         # import the skeletons for the global module
-        from omniORB import CORBA
-        from OMPythonIDL import _OMCIDL
+        try:
+          from omniORB import CORBA
+          from OMPythonIDL import _OMCIDL
+        except ImportError:
+          self._omc_process.kill()
+          self._omc_process.wait()
+          raise
         # Locating and using the IOR
         if sys.platform == 'win32':
             self._ior_file = "openmodelica.objid." + self._random_string
@@ -453,7 +462,10 @@ class OMCSession(OMCSessionBase):
                     if attempts == 10:
                         name = self._omc_log_file.name
                         self._omc_log_file.close()
-                        logger.error("OMC Server is down. Please start it! Log-file says:\n%s" % open(name).read())
+                        with open(name) as fin:
+                          contents = fin.read()
+                        logger.error("OMC Server is down. Please start it! If the OMC version is old, try OMCSession(..., serverFlag='-d=interactiveCorba') or +d=interactiveCorba Log-file says:\n%s" % contents)
+                        self._omc_process.kill()
                         raise Exception
                     else:
                         continue
@@ -508,9 +520,10 @@ class OMCSession(OMCSessionBase):
             return "No connection with OMC. Create an instance of OMCSession."
 
 
-class OMCSessionZMQ(OMCSessionBase):
+class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
     def __init__(self, readonly=False, timeout = 0.25):
+        OMCSessionHelper.__init__(self)
         OMCSessionBase.__init__(self, readonly)
         self._create_omc_log_file("port")
         # set omc executable path and args
@@ -1796,3 +1809,40 @@ class ModelicaSystem(object):
 
     def __getMatrixD(self):
         return self.__getMatrix('D[', 'l')
+
+def FindBestOMCSession(*args, **kwargs):
+  """
+  Analyzes the OMC executable version string to find a suitable selection
+  of CORBA or ZMQ, as well as older flags to launch the executable (such
+  as +d=interactiveCorba for RML-based OMC).
+
+  This is mainly useful if you are testing old OpenModelica versions using
+  the latest OMPython.
+  """
+  base = OMCSessionHelper()
+  omc = base._get_omc_path()
+  versionOK = False
+  for cmd in ["--version", "+version"]:
+    try:
+      v = str(subprocess.check_output([omc, cmd], stderr=subprocess.STDOUT))
+      versionOK = True
+      break
+    except subprocess.CalledProcessError:
+      pass
+  if not versionOK:
+    raise Exception("Failed to use omc --version or omc +version. Is omc on the PATH?")
+  zmq = False
+  v = v.strip().split("-")[0].split("~")[0].strip()
+  a = re.search(r"v?([0-9]+)[.]([0-9]+)[.][0-9]+", v)
+  try:
+    major = int(a.group(1))
+    minor = int(a.group(2))
+    if major > 1 or (major==1 and minor >= 12):
+      zmq = True
+  except:
+    pass
+  if zmq:
+    return OMCSessionZMQ(*args, **kwargs)
+  if cmd == "+version":
+    return OMCSession(*args, serverFlag="+d=interactiveCorba", **kwargs)
+  return OMCSession(*args, serverFlag="-d=interactiveCorba", **kwargs)
