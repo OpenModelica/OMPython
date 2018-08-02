@@ -107,11 +107,12 @@ logger.addHandler(logger_console_handler)
 
 class OMCSessionHelper():
   def __init__(self):
+    # Get the path to the OMC executable, if not installed this will be None
     path_to_omc = spawn.find_executable("omc")
-    if path_to_omc == '':
-      raise ValueError("Cannot find OpenModelica executable, please install from openmodelica.org")
-    else:
+    if path_to_omc:
       self.omhome = os.environ.get('OPENMODELICAHOME') or os.path.split(os.path.split(os.path.realpath(path_to_omc))[0])[0]
+    else:
+      raise ValueError("Cannot find OpenModelica executable, please install from openmodelica.org")
 
   def _get_omc_path(self):
     try:
