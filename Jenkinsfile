@@ -14,7 +14,7 @@ pipeline {
           steps {
             sh 'python2 setup.py build'
             timeout(3) {
-              sh 'python2 /usr/local/bin/py.test -v --junitxml py2.xml tests/*.py'
+              sh 'python2 /usr/local/bin/py.test -v --junitxml py2.xml tests'
             }
             sh 'HOME="$PWD" python2 setup.py install --user'
             junit 'py2.xml'
@@ -24,7 +24,7 @@ pipeline {
           steps {
             sh 'python3 setup.py build'
             timeout(3) {
-              sh 'python3 /usr/local/bin/py.test -v --junitxml py3.xml tests/*.py'
+              sh 'python3 /usr/local/bin/py.test -v --junitxml py3.xml tests'
             }
             sh 'HOME="$PWD" python3 setup.py install --user'
             junit 'py3.xml'
