@@ -61,6 +61,9 @@ def typeCheck(string):
     """Attempt conversion of string to a usable value"""
     types = [bool_from_string, int, float, dict, str]
 
+    if type(string) in {int, float}:
+        return string
+
     string = string.strip()
 
     for t in types:
