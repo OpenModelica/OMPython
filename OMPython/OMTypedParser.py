@@ -65,6 +65,16 @@ def convertNumbers(s, l, toks):
         return float(n)
 
 
+def convertString2(s, s2):
+    tmp = s2[0].replace("\\\"", "\"")
+    tmp = tmp.replace("\"", "\\\"")
+    tmp = tmp.replace("\'", "\\'")
+    tmp = tmp.replace("\f", "\\f")
+    tmp = tmp.replace("\n", "\\n")
+    tmp = tmp.replace("\r", "\\r")
+    tmp = tmp.replace("\t", "\\t")
+    return "'"+tmp+"'";
+
 def convertString(s, s2):
     return s2[0].replace("\\\"", '"')
 
@@ -90,7 +100,8 @@ omcNumber = Combine(Optional('-') + ('0' | Word('123456789', nums)) +
                     Optional('.' + Word(nums)) +
                     Optional(Word('eE', exact=1) + Word(nums + '+-', nums)))
 
-ident = Word(alphas + "_", alphanums + "_") | Combine("'" + Word(alphanums + "!#$%&()*+,-./:;<>=?@[]^{}|~ ") + "'")
+#ident = Word(alphas + "_", alphanums + "_") | Combine("'" + Word(alphanums + "!#$%&()*+,-./:;<>=?@[]^{}|~ ") + "'")
+ident = Word(alphas + "_", alphanums + "_") | QuotedString(quoteChar='\'', escChar='\\').setParseAction(convertString2)
 fqident = Forward()
 fqident << ((ident + "." + fqident) | ident)
 omcValues = delimitedList(omcValue)
