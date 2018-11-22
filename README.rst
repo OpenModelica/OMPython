@@ -37,7 +37,7 @@ Windows
 Install the version as packaged with your OpenModelica installation by running::
 
   cd %OPENMODELICAHOME%\share\omc\scripts\PythonInterface
-  python -m pip install .
+  python -m pip install -U .
 
 Usage
 =====
