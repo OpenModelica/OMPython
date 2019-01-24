@@ -733,12 +733,16 @@ class ModelicaSystem(object):
                 print('loadFile Error: ' + loadfileError)
                 return
 
-        # load Modelica standard libraries if needed
+        # load Modelica standard libraries or Modelica files if needed
         for element in lmodel:
             if element is not None:
                 loadmodelError = ''
-                loadModelResult = self.requestApi("loadModel", element)
-                loadmodelError = self.requestApi('getErrorString')
+                if element.endswith(".mo"):
+                    loadModelResult = self.requestApi("loadFile", element)
+                    loadmodelError = self.requestApi('getErrorString')
+                else:
+                    loadModelResult = self.requestApi("loadModel", element)
+                    loadmodelError = self.requestApi('getErrorString')
                 if loadmodelError:
                     print(loadmodelError)
 
