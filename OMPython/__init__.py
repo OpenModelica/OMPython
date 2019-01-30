@@ -724,7 +724,12 @@ class ModelicaSystem(object):
         loadfileError = ''
         loadfileResult = self.requestApi("loadFile", fName)
         loadfileError = self.requestApi("getErrorString")
-        if loadfileError:
+        
+        # print the notification to users 
+        if(loadfileResult==True and loadfileError):
+            print(loadfileError)
+        
+        if (loadfileResult==False):
             specError = 'Parser error: Unexpected token near: optimization (IDENT)'
             if specError in loadfileError:
                 self.requestApi("setCommandLineOptions", '"+g=Optimica"')
