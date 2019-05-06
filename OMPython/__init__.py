@@ -724,11 +724,11 @@ class ModelicaSystem(object):
         loadfileError = ''
         loadfileResult = self.requestApi("loadFile", fName)
         loadfileError = self.requestApi("getErrorString")
-        
-        # print the notification to users 
+
+        # print the notification to users
         if(loadfileResult==True and loadfileError):
             print(loadfileError)
-        
+
         if (loadfileResult==False):
             specError = 'Parser error: Unexpected token near: optimization (IDENT)'
             if specError in loadfileError:
@@ -1117,7 +1117,7 @@ class ModelicaSystem(object):
                             try:
                                 self.pValuesList.append(float(str_))
                             except:
-                                self.pValuesList.append(str_)                                
+                                self.pValuesList.append(str_)
             return self.pValuesList
         else:
             try:
@@ -1800,7 +1800,7 @@ class ModelicaSystem(object):
         xElemNames.sort()
         xElemNames.sort(key=len)
         sortedX = xElemNames
-        size_ = int(self.getParameters(sizeParameter))
+        size_ = int(self.getParameters(sizeParameter)[0])
         matX = []
         matX = [[] for i in range(size_)]
         for i in range(size_):
@@ -1824,10 +1824,10 @@ class ModelicaSystem(object):
         return self.__getMatrix('B[', 'n')
 
     def __getMatrixC(self):
-        return self.__getMatrix('C[', 'l')
+        return self.__getMatrix('C[', 'q')
 
     def __getMatrixD(self):
-        return self.__getMatrix('D[', 'l')
+        return self.__getMatrix('D[', 'q')
 
 def FindBestOMCSession(*args, **kwargs):
   """
