@@ -18,8 +18,11 @@ def warningOrError(errorOnFailure, msg):
 
 def generateIDL():
     errorOnFailure = not os.path.exists(os.path.join(os.path.dirname(__file__), 'OMPythonIDL', '__init__.py'))
+    omhome = None
     try:
-        omhome = os.path.split(os.path.split(os.path.realpath(spawn.find_executable("omc")))[0])[0]
+        omc_path = spawn.find_executable("omc")
+        if omc_path:
+            omhome = os.path.split(os.path.split(os.path.realpath(omc_path))[0])[0]
     except BaseException:
         omhome = None
     omhome = omhome or os.environ.get('OPENMODELICAHOME')
@@ -32,7 +35,7 @@ def generateIDL():
         warningOrError(errorOnFailure, "Path not found: %s" % idl)
         return
 
-    if 0 != call(["omniidl", "-bpython", "-Wbglobal=_OMCIDL", "-Wbpackage=OMPythonIDL", idl]):
+    if spawn.find_executable('omniidl') is None or 0 != call(["omniidl", "-bpython", "-Wbglobal=_OMCIDL", "-Wbpackage=OMPythonIDL", idl], shell=True):
         warningOrError(errorOnFailure, "omniidl command failed")
         return
     print("Generated OMPythonIDL files")
