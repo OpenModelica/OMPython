@@ -684,6 +684,7 @@ class ModelicaSystem(object):
         self.linearizationFlag = False
         self.outputFlag = False
         self.csvFile = ''  # for storing inputs condition
+        self.resultfile="" # for storing result file
         if not os.path.exists(self.fileName):  # if file does not eixt
             print("File Error:" + os.path.abspath(self.fileName) + " does not exist!!!")
             return
@@ -1024,11 +1025,18 @@ class ModelicaSystem(object):
             return ([self.optimizeOptions.get(x,"NotExist") for x in names])
 
     # to simulate or re-simulate model
-    def simulate(self):  # 11
+    def simulate(self,resultfile=None):  # 11
         """
         This method simulates model according to the simulation options. It can be called:
             •only without any arguments: simulate the model
         """
+        if(resultfile is None):
+            r=""
+            self.resultfile = "".join([self.modelName, "_res.mat"])
+        else:
+            r=" -r=" + resultfile
+            self.resultfile = resultfile
+                
         if (self.overridevariables or self.simoptionsoverride):
             tmpdict=self.overridevariables.copy()
             tmpdict.update(self.simoptionsoverride)
@@ -1063,7 +1071,7 @@ class ModelicaSystem(object):
             getExeFile = os.path.join(os.getcwd(), self.modelName).replace("\\", "/")
         
         if (os.path.exists(getExeFile)):
-            cmd = getExeFile + override + csvinput
+            cmd = getExeFile + override + csvinput + r
             #print(cmd)
             if (platform.system() == "Windows"):
                 omhome = os.path.join(os.environ.get("OPENMODELICAHOME"), 'bin').replace("\\", "/")
@@ -1075,19 +1083,23 @@ class ModelicaSystem(object):
             else:
                 os.system(cmd)  
             self.simulationFlag = True
+            
         else:
             raise Exception("Error: application file not generated yet")
 
 
     # to extract simulation results
-    def getSolutions(self, *varList):  # 12
+    def getSolutions(self, *varList, **resultfile):  # 12
         """
         This method returns tuple of numpy arrays. It can be called:
             •with a list of quantities name in string format as argument: it returns the simulation results of the corresponding names in the same order. Here it supports Python unpacking depending upon the number of variables assigned.
         """
+        if (not resultfile):
+            resFile = self.resultfile
+        else:
+            resFile = list(resultfile.values())[0]
+        
         # check for result file exits
-        res_mat = '_res.mat'
-        resFile = "".join([self.modelName, res_mat])
         if (not os.path.exists(resFile)):
             print("Error: Result file does not exist")
             return
