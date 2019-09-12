@@ -1108,6 +1108,7 @@ class ModelicaSystem(object):
             if len(varList) == 0:
                 # validSolution = ['time'] + self.__getInputNames() + self.__getContinuousNames() + self.__getParameterNames()
                 validSolution = self.getconn.sendExpression("readSimulationResultVars(\"" + resFile + "\")")
+                self.getconn.sendExpression("closeSimulationResultFile()")
                 return validSolution
 
             # if isinstance(varList, tuple) and all(len(a)==1 for a in varList):
