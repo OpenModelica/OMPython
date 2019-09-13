@@ -500,7 +500,9 @@ class OMCSession(OMCSessionHelper, OMCSessionBase):
             raise Exception
 
     def execute(self, command):
-        if self._omc is not None:
+        ## check for process is running        
+        p=self._omc_process.poll()
+        if (p == None):
             result = self._omc.sendExpression(command)
             if command == "quit()":
                 self._omc = None
@@ -509,10 +511,12 @@ class OMCSession(OMCSessionHelper, OMCSessionBase):
                 answer = OMParser.check_for_values(result)
                 return answer
         else:
-            return "No connection with OMC. Create an instance of OMCSession."
+            return "Process Exited, No connection with OMC. Create a new instance of OMCSession"
 
     def sendExpression(self, command, parsed=True):
-        if self._omc is not None:
+        ## check for process is running        
+        p=self._omc_process.poll()
+        if (p== None):
             result = self._omc.sendExpression(str(command))
             if command == "quit()":
                 self._omc = None
@@ -524,7 +528,7 @@ class OMCSession(OMCSessionHelper, OMCSessionBase):
                 else:
                     return result
         else:
-            return "No connection with OMC. Create an instance of OMCSession."
+            return "Process Exited, No connection with OMC. Create a new instance of OMCSession"
 
 
 class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
@@ -580,7 +584,9 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
         self._omc.connect(self._port)
 
     def execute(self, command):
-        if self._omc is not None:
+        ## check for process is running        
+        p=self._omc_process.poll()
+        if (p == None):
             self._omc.send_string(command)
             if command == "quit()":
                 self._omc.close()
@@ -591,10 +597,12 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
                 answer = OMParser.check_for_values(result)
                 return answer
         else:
-            raise Exception("No connection with OMC. Create an instance of OMCSessionZMQ.")
+            return "Process Exited, No connection with OMC. Create a new instance of OMCSession"
 
     def sendExpression(self, command, parsed=True):
-        if self._omc is not None:
+        ## check for process is running        
+        p=self._omc_process.poll()
+        if (p == None):
             self._omc.send_string(str(command))
             if command == "quit()":
                 self._omc.close()
@@ -608,27 +616,7 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
                 else:
                     return result
         else:
-            raise Exception("No connection with OMC. Create an instance of OMCSessionZMQ.")
-
-# author = Sudeep Bajracharya
-# sudba156@student.liu.se
-# LIU(Department of Computer Science)
-
-
-class Quantity(object):
-    """
-    To represent quantities details
-    """
-
-    def __init__(self, name, start, changable, variability, description, causality, alias, aliasvariable):
-        self.name = name
-        self.start = start
-        self.changable = changable
-        self.description = description
-        self.variability = variability
-        self.causality = causality
-        self.alias = alias
-        self.aliasvariable = aliasvariable
+            return "Process Exited, No connection with OMC. Create a new instance of OMCSession"
 
 
 class ModelicaSystem(object):
