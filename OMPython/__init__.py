@@ -825,36 +825,13 @@ class ModelicaSystem(object):
             return
 
 
-    # check if names exist
-#    def __checkAvailability(self, names, chkList, inputFlag=None):
-#        try:
-#            if isinstance(names, list):
-#                nonExistingList = []
-#                for n in names:
-#                    if n not in chkList:
-#                        nonExistingList.append(n)
-#                if nonExistingList:
-#                    print('Error!!! ' + str(nonExistingList) + ' does not exist.')
-#                    return False
-#            elif isinstance(names, str):
-#                if names not in chkList:
-#                    print('Error!!! ' + names + ' does not exist.')
-#                    return False
-#            else:
-#                print('Error!!! Incorrect format')
-#                return False
-#            return True
-#
-#        except Exception as e:
-#            print(e)
-
-    # to get details of quantities names
     def getQuantities(self, names=None):  # 3
         """
-        This method returns list of dictionaries. It displays details of quantities such as name, value, changeable, and description, where changeable means  if value for corresponding quantity name is changeable or not. It can be called :
-            •without argument: it returns list of dictionaries of all quantities
-            •with a single argument as list of quantities name in string format: it returns list of dictionaries of only particular quantities name
-            •a single argument as a single quantity name (or in list) in string format: it returns list of dictionaries of the particular quantity name
+        This method returns list of dictionaries. It displays details of quantities such as name, value, changeable, and description, where changeable means  if value for corresponding quantity name is changeable or not. It can be called :       
+        usage:
+        >>> getQuantities()
+        >>> getQuantities("Name1")
+        >>> getQuantities(["Name1","Name2"])
         """
         if(names==None):
             return self.quantitiesList
@@ -862,161 +839,187 @@ class ModelicaSystem(object):
             return [x for x in self.quantitiesList if x["name"] == names]
         elif isinstance(names, list):
             return [x for y in names for x in self.quantitiesList if x["name"]==y]
-        
+    
 
-    def __checkTuple(self, names, chkList, inputFlag=None):
-        if isinstance(names, tuple) and (len(n) == 1 for n in names):
-            nonExistingList = []
-            for n in names:
-                if n not in chkList:
-                    nonExistingList.append(n)
-            if nonExistingList:
-                print('Error!!!' + str(nonExistingList) + ' does not exist.')
-                return False
-            return True
-        else:
-            print('Error!!! Incorrect format')
-            return False
-
-    def getContinuous(self, *names):  # 4
+    def getContinuous(self, names=None):  # 4
         """
         This method returns dict. The key is continuous names and value is corresponding continuous value.
-        If *name is None then the function will return dict which contain all continuous names as key and value as corresponding values. eg., getContinuous()
-        Otherwise variable number of arguments can be passed as continuous name in string format separated by commas. eg., getContinuous('cName1', 'cName2')
+        usage:
+        >>> getContinuous()
+        >>> getContinuous("Name1")
+        >>> getContinuous(["Name1","Name2"])
         """
-        try:
-            if not self.simulationFlag:
-                if(len(names)==0):
-                    return self.continuouslist
+        if not self.simulationFlag:
+            if(names==None):
+                return self.continuouslist
+            elif(isinstance(names, str)):
+                return [self.continuouslist.get(names ,"NotExist")]
+            elif(isinstance(names, list)):
+                return ([self.continuouslist.get(x ,"NotExist") for x in names])
+        else:
+            if(names==None):                   
+                for i in self.continuouslist:
+                    try:                           
+                        value = self.getSolutions(i)
+                        self.continuouslist[i]=value[0][-1]
+                    except Exception:
+                        print(i,"could not be computed")
+                return self.continuouslist
+            
+            elif(isinstance(names, str)):
+                if names in self.continuouslist:
+                    value = self.getSolutions(names)
+                    self.continuouslist[names]=value[0][-1]
+                    return [self.continuouslist.get(names)]
                 else:
-                    return ([self.continuouslist.get(x ,"NotExist") for x in names])
-            else:
-                if len(names) == 0:                   
-                    for i in self.continuouslist:
-                        try:                           
-                            value = self.getSolutions(i)
-                            self.continuouslist[i]=value[-1]
-                        except Exception:
-                            print(i,"could not be computed")
-                    return self.continuouslist                
-                else:
-                    checking = self.__checkTuple(names, list(self.continuouslist.keys()))
-                    if not checking:
-                        return
-                    valuelist=[]
-                    for i in names:
+                    return (names, "  is not continuous")
+                        
+            elif(isinstance(names, list)):
+                valuelist=[]
+                for i in names:
+                    if i in self.continuouslist:
                         value=self.getSolutions(i)
-                        self.continuouslist[i]=value[-1]
-                        valuelist.append(value[-1])                       
-                    return valuelist
-        except Exception:
-            if pyparsing.ParseException:
-                print('Error!!! Name does not exist or incorrect format ')
-            else:
-                raise
-
-    def getParameters(self, *names):  # 5
+                        self.continuouslist[i]=value[0][-1]
+                        valuelist.append(value[0][-1])
+                    else:
+                        return (i,"  is not continuous")
+                return valuelist
+        
+    def getParameters(self, names=None):  # 5
         """
         This method returns dict. The key is parameter names and value is corresponding parameter value.
-        If *name is None then the function will return dict which contain all parameter names as key and value as corresponding values. eg., getParameters()
-        Otherwise variable number of arguments can be passed as parameter name in string format separated by commas. eg., getParameters('paraName1', 'paraName2')
+        If name is None then the function will return dict which contain all parameter names as key and value as corresponding values.
+        usage:
+        >>> getParameters()
+        >>> getParameters("Name1")
+        >>> getParameters(["Name1","Name2"])
         """
-        if(len(names)==0):
+        if(names==None):
             return self.paramlist
-        else:
+        elif(isinstance(names, str)):
+            return [self.paramlist.get(names,"NotExist")]
+        elif(isinstance(names, list)):
             return ([self.paramlist.get(x,"NotExist") for x in names])
         
-    def getlinearParameters(self, *names):  # 5
+    def getlinearParameters(self, names=None):  # 5
         """
         This method returns dict. The key is parameter names and value is corresponding parameter value.
         If *name is None then the function will return dict which contain all parameter names as key and value as corresponding values. eg., getParameters()
         Otherwise variable number of arguments can be passed as parameter name in string format separated by commas. eg., getParameters('paraName1', 'paraName2')
         """
-        if(len(names)==0):
+        if(names==0):
             return self.linearparameters
+        elif(isinstance(names, str)):
+            return [self.linearparameters.get(names,"NotExist")]
         else:
             return ([self.linearparameters.get(x,"NotExist") for x in names])
     
-    def getInputs(self, *names):  # 6
+    def getInputs(self, names=None):  # 6
         """
         This method returns dict. The key is input names and value is corresponding input value.
         If *name is None then the function will return dict which contain all input names as key and value as corresponding values. eg., getInputs()
         Otherwise variable number of arguments can be passed as input name in string format separated by commas. eg., getInputs('iName1', 'iName2')
         """
-        if(len(names)==0):
+        if(names==None):
             return self.inputlist
-        else:
+        elif(isinstance(names, str)):
+            return [self.inputlist.get(names,"NotExist")]
+        elif(isinstance(names, list)):
             return ([self.inputlist.get(x,"NotExist") for x in names])
         
-    def getOutputs(self, *names):  # 7
+    def getOutputs(self, names=None):  # 7
         """
         This method returns dict. The key is output names and value is corresponding output value.
-        If *name is None then the function will return dict which contain all output names as key and value as corresponding values. eg., getOutputs()
-        Otherwise variable number of arguments can be passed as output name in string format separated by commas. eg., getOutputs(opName1', 'opName2')
+        If name is None then the function will return dict which contain all output names as key and value as corresponding values. eg., getOutputs()
+        usage:
+        >>> getOutputs()
+        >>> getOutputs("Name1")
+        >>> getOutputs(["Name1","Name2"])
         """
-
-        try:
-            if not self.simulationFlag:
-                if(len(names)==0):
-                    return self.outputlist
-                else:
-                    return ([self.outputlist.get(x,"NotExist") for x in names])
+        if not self.simulationFlag:
+            if(names==None):
+                return self.outputlist
+            elif(isinstance(names, str)):
+                return [self.outputlist.get(names,"NotExist")]
             else:
-                if len(names) == 0:
-                    for i in self.outputlist:
-                        value = self.getSolutions(i)
-                        self.outputlist[i]=value[-1]
-                    return self.outputlist                
-                else:
-                    checking = self.__checkTuple(names, list(self.outputlist.keys()))
-                    if not checking:
-                        return
-                    valuelist=[]
-                    for i in names:
+                return ([self.outputlist.get(x,"NotExist") for x in names])
+        else:
+            if (names== None):
+                for i in self.outputlist:
+                    value = self.getSolutions(i)
+                    self.outputlist[i]=value[0][-1]
+                return self.outputlist    
+            elif(isinstance(names, str)):
+                 if names in self.outputlist:                      
+                     value = self.getSolutions(names)
+                     self.outputlist[names]=value[0][-1]
+                     return [self.outputlist.get(names)]
+                 else:
+                     return (names, " is not Output")
+            elif(isinstance(names, list)):
+                valuelist=[]
+                for i in names:
+                    if i in self.outputlist:
                         value=self.getSolutions(i)
-                        self.outputlist[i]=value[-1]
-                        valuelist.append(value[-1])                       
-                    return valuelist
-        except Exception:
-            if pyparsing.ParseException:
-                print('Error!!! Name does not exist or incorrect format ')
-            else:
-                raise
-    
-    def getSimulationOptions(self, *names):  # 8
+                        self.outputlist[i]=value[0][-1]
+                        valuelist.append(value[0][-1])   
+                    else:
+                        return (i, "is not Output")
+                return valuelist
+        
+    def getSimulationOptions(self, names=None):  # 8
         """
         This method returns dict. The key is simulation option names and value is corresponding simulation option value.
-        If *name is None then the function will return dict which contain all simulation option names as key and value as corresponding values. eg., getSimulationOptions()
-        Otherwise variable number of arguments can be passed as simulation option name in string format separated by commas. eg., getSimulationOptions('simName1', 'simName2')
+        If name is None then the function will return dict which contain all simulation option names as key and value as corresponding values. eg., getSimulationOptions()
+        usage:
+        >>> getSimulationOptions()
+        >>> getSimulationOptions("Name1")
+        >>> getSimulationOptions(["Name1","Name2"])
         """
-        if(len(names)==0):
+        if(names==None):
             return self.simulateOptions
-        else:
+        elif(isinstance(names, str)):
+            return [self.simulateOptions.get(names,"NotExist")]
+        elif(isinstance(names, list)):
             return ([self.simulateOptions.get(x,"NotExist") for x in names])
                 
-    def getLinearizationOptions(self, *names):  # 9
+    def getLinearizationOptions(self, names=None):  # 9
         """
         This method returns dict. The key is linearize option names and value is corresponding linearize option value.
-        If *name is None then the function will return dict which contain all linearize option names as key and value as corresponding values. eg., getLinearizationOptions()
-        Otherwise variable number of arguments can be passed as simulation option name in string format separated by commas. eg., getLinearizationOptions('linName1', 'linName2')
+        If name is None then the function will return dict which contain all linearize option names as key and value as corresponding values. eg., getLinearizationOptions()
+        usage:
+        >>> getLinearizationOptions()
+        >>> getLinearizationOptions("Name1")
+        >>> getLinearizationOptions(["Name1","Name2"])
         """
-        if(len(names)==0):
+        if(names==None):
             return self.linearOptions
-        else:
+        elif(isinstance(names, str)):
+            return [self.linearOptions.get(names,"NotExist")]
+        elif(isinstance(names, list)):
             return ([self.linearOptions.get(x,"NotExist") for x in names])
            
-    def getOptimizationOptions(self, *names):  # 10
-        
-        if(len(names)==0):
+    def getOptimizationOptions(self, names=None):  # 10
+        """
+        usage:
+        >>> getOptimizationOptions()
+        >>> getOptimizationOptions("Name1")
+        >>> getOptimizationOptions(["Name1","Name2"])
+        """
+        if(names==None):
             return self.optimizeOptions
-        else:
+        elif(isinstance(names, str)):
+            return [self.optimizeOptions.get(names,"NotExist")]
+        elif(isinstance(names, list)):
             return ([self.optimizeOptions.get(x,"NotExist") for x in names])
 
     # to simulate or re-simulate model
     def simulate(self,resultfile=None):  # 11
         """
-        This method simulates model according to the simulation options. It can be called:
-            •only without any arguments: simulate the model
+        This method simulates model according to the simulation options.
+        usage
+        >>> simulate()
+        >>> simulate(resultfile="a.mat")
         """
         if(resultfile is None):
             r=""
@@ -1028,11 +1031,11 @@ class ModelicaSystem(object):
         if (self.overridevariables or self.simoptionsoverride):
             tmpdict=self.overridevariables.copy()
             tmpdict.update(self.simoptionsoverride)
-            values1 = ','.join("%s=%r" % (key, val) for (key, val) in list(tmpdict.items()))
+            values1 = ','.join("%s=%s" % (key, val) for (key, val) in list(tmpdict.items()))
             override =" -override=" + values1              
         else:                    
             override =""
-        
+            
         if (self.inputFlag):  # if model has input quantities
             for i in self.inputlist:
                 val=self.inputlist[i]
@@ -1077,32 +1080,48 @@ class ModelicaSystem(object):
 
 
     # to extract simulation results
-    def getSolutions(self, *varList, **resultfile):  # 12
+    def getSolutions(self, varList=None, resultfile=None):  # 12
         """
         This method returns tuple of numpy arrays. It can be called:
             •with a list of quantities name in string format as argument: it returns the simulation results of the corresponding names in the same order. Here it supports Python unpacking depending upon the number of variables assigned.
+        usage:
+        >>> getSolutions()
+        >>> getSolutions("Name1")
+        >>> getSolutions(["Name1","Name2"])
+        >>> getSolutions(resultfile="c:/a.mat")
+        >>> getSolutions("Name1",resultfile=""c:/a.mat"")
+        >>> getSolutions(["Name1","Name2"],resultfile=""c:/a.mat"")
         """
-        if (not resultfile):
+        if (resultfile == None):
             resFile = self.resultfile
         else:
-            resFile = list(resultfile.values())[0]
-        
+            resFile = resultfile   
+            
         # check for result file exits
         if (not os.path.exists(resFile)):
             print("Error: Result file does not exist")
             return
             #exit()
         else:
-            if len(varList) == 0:
+            if (varList == None):
                 # validSolution = ['time'] + self.__getInputNames() + self.__getContinuousNames() + self.__getParameterNames()
                 validSolution = self.getconn.sendExpression("readSimulationResultVars(\"" + resFile + "\")")
                 self.getconn.sendExpression("closeSimulationResultFile()")
                 return validSolution
-
-            # if isinstance(varList, tuple) and all(len(a)==1 for a in varList):
-            elif isinstance(varList, tuple) and all(isinstance(a, str) for a in varList):
+            elif (isinstance(varList,str)):
+                if (varList not in [l["name"] for l in self.quantitiesList] and varList!="time"):
+                    print('!!! ', varList, ' does not exist\n')
+                    return
+                exp = "readSimulationResult(\"" + resFile + '",{' + varList + "})"
+                res = self.getconn.sendExpression(exp)
+                npRes = np.array(res)
+                exp2 = "closeSimulationResultFile()"
+                self.getconn.sendExpression(exp2)
+                return npRes               
+            elif (isinstance(varList, list)):
+                #varList, = varList
                 for v in varList:
-                    if v == 'time':
+                    if v == "time":
                         continue
                     if v not in [l["name"] for l in self.quantitiesList]:
                         print('!!! ', v, ' does not exist\n')
@@ -1113,100 +1132,147 @@ class ModelicaSystem(object):
                 npRes = np.array(res)
                 exp2 = "closeSimulationResultFile()"
                 self.getconn.sendExpression(exp2)
-                if len(npRes) == 1:
-                    tup = (npRes.ravel())
-                    return tup
-                else:
-                    tup = tuple(npRes)
-                    return tup
-
-            elif isinstance(varList, tuple) and len(varList) == 1:
-                varList, = varList
-                variables = ",".join(varList)
-                exp = "readSimulationResult(\"" + resFile + '",{' + variables + "})"
-                res = self.getconn.sendExpression(exp)
-                npRes = np.array(res)
-                exp2 = "closeSimulationResultFile()"
-                self.getconn.sendExpression(exp2)
                 return npRes
-
-    # to set continuous quantities values
-    def setContinuous(self, **cvals):  # 13
+    
+    def strip_space(self,name):
+        if(isinstance(name,str)):
+            return name.replace(" ","")
+        elif(isinstance(name,list)):
+            return [x.replace(" ","") for x in name]
+    
+    def setMethodHelper(self,args1,args2,args3,args4=None):
+        """
+        Helper function for setParameter(),setContinuous(),setSimulationOptions(),setLinearizationOption(),setOptimizationOption()
+        args1 - string or list of string given by user
+        args2 - dict() containing the values of different variables(eg:, parameter,continuous,simulation parameters)
+        args3 - function name (eg; continuous, parameter, simulation, linearization,optimization)
+        args4 - dict() which stores the new override variables list,
+        """
+        if(isinstance(args1,str)):
+            args1=self.strip_space(args1)
+            value=args1.split("=")
+            if value[0] in args2:
+                args2[value[0]]=value[1]
+                if(args4!=None):                  
+                    args4[value[0]]=value[1]
+            else:
+                print(value[0], "!is not a", args3 , "variable")
+                return
+        elif(isinstance(args1,list)):
+            args1=self.strip_space(args1)
+            for var in args1:
+                value=var.split("=")
+                if value[0] in args2:
+                    args2[value[0]]=value[1]
+                    if(args4!=None):                  
+                        args4[value[0]]=value[1]
+                else:
+                    print(value[0], "!is not a", args3 ,"variable")
+                    return
+                
+    def setContinuous(self, cvals):  # 13
         """
         This method is used to set continuous values. It can be called:
-            •with a sequence of continuous name and assigning corresponding values as arguments as show in the example below:
-            setContinuousValues(cName1 = 10.9, cName2 = 0.066)
+        with a sequence of continuous name and assigning corresponding values as arguments as show in the example below:
+        usage
+        >>> setContinuous("Name=value")
+        >>> setContinuous(["Name1=value1","Name2=value2"])
         """
-        for i in cvals:
-            if i in self.continuouslist:
-                self.continuouslist[i]=cvals[i]
-                self.overridevariables[i]=cvals[i]
-            else:
-                print(i, "!is not a continuous variable")
-                return
+        return self.setMethodHelper(cvals,self.continuouslist,"continuous",self.overridevariables)
 
-    # to set parameter quantities values
-    def setParameters(self, **pvals):  # 14
+    def setParameters(self, pvals):  # 14
         """
         This method is used to set parameter values. It can be called:
-            •with a sequence of parameter name and assigning corresponding value as arguments as show in the example below:
-            setParameterValues(pName1 = 10.9, pName2 = 0.066)
+        with a sequence of parameter name and assigning corresponding value as arguments as show in the example below:
+        usage
+        >>> setParameters("Name=value")
+        >>> setParameters(["Name1=value1","Name2=value2"])
         """
-        for i in pvals:
-            if i in self.paramlist:
-                self.paramlist[i]=pvals[i]
-                self.overridevariables[i]=pvals[i]
-            else:
-                print(i, "!is not a parameter")
-                return
+        return self.setMethodHelper(pvals,self.paramlist,"parameter",self.overridevariables)
     
-    # to set input quantities value
-    def setInputs(self, **nameVal):  # 15
+    def setSimulationOptions(self, simOptions):  # 16
+        """
+        This method is used to set simulation options. It can be called:
+        with a sequence of simulation options name and assigning corresponding values as arguments as show in the example below:
+        usage
+        >>> setSimulationOptions("Name=value")
+        >>> setSimulationOptions(["Name1=value1","Name2=value2"])
+        """  
+        return self.setMethodHelper(simOptions,self.simulateOptions,"simulation-option",self.simoptionsoverride)
+    
+    def setLinearizationOptions(self, linearizationOptions):  # 18
+        """
+        This method is used to set linearization options. It can be called:
+        with a sequence of linearization options name and assigning corresponding value as arguments as show in the example below
+        usage
+        >>> setLinearizationOptions("Name=value")
+        >>> setLinearizationOptions(["Name1=value1","Name2=value2"])      
+        """
+        return self.setMethodHelper(linearizationOptions,self.linearOptions,"Linearization-option",None)
+                    
+    def setOptimizationOptions(self, optimizationOptions):  # 17
+        """
+        This method is used to set optimization options. It can be called:
+        with a sequence of optimization options name and assigning corresponding values as arguments as show in the example below:
+        usage
+        >>> setOptimizationOptions("Name=value")
+        >>> setOptimizationOptions(["Name1=value1","Name2=value2"])
+        """
+        return self.setMethodHelper(optimizationOptions,self.optimizeOptions,"optimization-option",None)
+    
+    def setInputs(self, name):  # 15
         """
         This method is used to set input values. It can be called:
-            •with a sequence of input name and assigning corresponding values as arguments as show in the example below:
-            setParameterValues(iName = [(t0, v0), (t1, v0), (t1, v2), (t3, v2)...]), where tj<=tj+1
+        with a sequence of input name and assigning corresponding values as arguments as show in the example below:
+        usage
+        >>> setInputs("Name=value")
+        >>> setInputs(["Name1=value1","Name2=value2"]) 
         """
-
-        try:
-            for n in nameVal:
-                tupleList = nameVal.get(n)
-                if isinstance(tupleList, list):
-                    if tupleList != sorted(tupleList, key=lambda x: x[0]):
-                        print('Time value should be in increasing order')
-                        return
-                    for l in tupleList:
-                        if isinstance(l, tuple):
-                            #if l[0] < float(self.simValuesList[0]):
-                            if l[0] < float(self.simulateOptions["startTime"]):
-                                print('Input time value is less than simulation startTime')
-                                return
-                            if len(l) != 2:
-                                print('Value for ' + n + ' is in incorrect format!')
-                                return
-                        else:
-                            print('Error!!! Value must be in tuple format')
-                            return
-                    if n in self.inputlist:
-                        self.inputlist[n]=tupleList
-                        return
-                    else:
-                        print(n, "is not an Input")
-                        return
-                elif isinstance(tupleList, int) or isinstance(tupleList, float):
-                    if n in self.inputlist:
-                        self.inputlist[n]=[(float(self.simulateOptions["startTime"]), nameVal[n]), (float(self.simulateOptions["stopTime"]), nameVal[n])]
-                    else:
-                        print(n, "is not an Input")
-                        return
+        if (isinstance(name,str)):
+            name=self.strip_space(name)
+            value=name.split("=")
+            if value[0] in self.inputlist:
+                tmpvalue=eval(value[1])
+                if(isinstance(tmpvalue,int) or  isinstance(tmpvalue, float)):
+                    self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])), (float(self.simulateOptions["stopTime"]), float(value[1]))]
+                elif(isinstance(tmpvalue,list)):
+                    self.checkValidInputs(tmpvalue)
+                    self.inputlist[value[0]] = tmpvalue
+                self.inputFlag=True
+            else:
+                print(value[0], "!is not an input")
+        elif (isinstance(name,list)):
+            name=self.strip_space(name)
+            for var in name:
+                value=var.split("=")
+                if value[0] in self.inputlist:
+                    tmpvalue=eval(value[1])
+                    if(isinstance(tmpvalue,int) or  isinstance(tmpvalue, float)):
+                        self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])), (float(self.simulateOptions["stopTime"]), float(value[1]))]
+                    elif(isinstance(tmpvalue,list)):
+                        self.checkValidInputs(tmpvalue)
+                        self.inputlist[value[0]] = tmpvalue
+                    self.inputFlag=True
                 else:
-                    print('Error!!! Input values should be tuple list for ' + n)
-                    return
-            self.inputFlag=True
-        except Exception:
-            print("Error:!!! " + n + " is not an input")
+                    print(value[0], "!is not an input")
+                        
+    def checkValidInputs(self,name):        
+        if name != sorted(name, key=lambda x: x[0]):           
+            print('Time value should be in increasing order')
             return
-
+        for l in name:
+            if isinstance(l, tuple):
+                #if l[0] < float(self.simValuesList[0]):
+                if l[0] < float(self.simulateOptions["startTime"]):
+                    print('Input time value is less than simulation startTime')
+                    return
+                if len(l) != 2:
+                    print('Value for ' + l + ' is in incorrect format!')
+                    return
+            else:
+                print('Error!!! Value must be in tuple format')
+                return
+        
     # To create csv file for inputs
     def __simInput(self):
         sl = list()  # Actual timestamps
@@ -1305,59 +1371,15 @@ class ModelicaSystem(object):
         with open(self.csvFile, "w") as f:
             writer = csv.writer(f, delimiter='\n')
             writer.writerow(l)
-
-    # to set simulation options values
-    def setSimulationOptions(self, **simOptions):  # 16
-        """
-        This method is used to set simulation options. It can be called:
-            •with a sequence of simulation options name and assigning corresponding values as arguments as show in the example below:
-            setSimulationOptions(stopTime = 100, solver = 'euler')
-        """
-        for i in simOptions:
-            if i in self.simulateOptions:
-                self.simulateOptions[i]=simOptions[i]
-                self.simoptionsoverride[i]=simOptions[i]
-            else:
-                print(i, "!is not a simulation parameter")
-                return
-
-    # to set optimization options values
-    def setOptimizationOptions(self, **optimizationOptions):  # 17
-        """
-        This method is used to set optimization options. It can be called:
-            •with a sequence of optimization options name and assigning corresponding values as arguments as show in the example below:
-            setOptimizationOptions(stopTime = 10,simflags = '-lv LOG_IPOPT -optimizerNP 1')
-        """
-        for i in optimizationOptions:
-            if i in self.optimizeOptions:
-                self.optimizeOptions[i]=optimizationOptions[i]
-                #self.overridevariables[i]=optimizationOptions[i]
-            else:
-                print(i, "!is not a Optimization option")
-                return
-
-    # to set linearization options values
-    def setLinearizationOptions(self, **linearizationOptions):  # 18
-        """
-        This method is used to set linearization options. It can be called:
-            •with a sequence of linearization options name and assigning corresponding value as arguments as show in the example below
-            setLinearizationOptions(stopTime=0, stepSize = 10)
-        """
-        for i in linearizationOptions:
-            if i in self.linearOptions:
-                self.linearOptions[i]=linearizationOptions[i]
-                #self.overridevariables[i]=linearizationOptions[i]
-            else:
-                print(i, "!is not a Linearization option")
-                return
-
+               
     # to convert Modelica model to FMU
     def convertMo2Fmu(self):  # 19
         """
         This method is used to generate FMU from the given Modelica model. It creates "modelName.fmu" in the current working directory. It can be called:
-            •only without any arguments
+        only without any arguments
+        usage
+        >>> convertMo2Fmu()
         """
-
         convertMo2FmuError = ''
         translateModelFMUResult = self.requestApi('translateModelFMU', self.modelName)
         if convertMo2FmuError:
@@ -1368,14 +1390,11 @@ class ModelicaSystem(object):
     # to convert FMU to Modelica model
     def convertFmu2Mo(self, fmuName):  # 20
         """
-        In order to load FMU, at first it needs to be translated into Modelica model. This method is used to generate Modelica model from the given FMU. It generates "fmuName_me_FMU.mo". It can be called:
-            •only without any arguments
+        In order to load FMU, at first it needs to be translated into Modelica model. This method is used to generate Modelica model from the given FMU. It generates "fmuName_me_FMU.mo".
         Currently, it only supports Model Exchange conversion.
-
-        - Input arguments: s1
-            * s1: name of FMU file, including extension .fmu
+        usage
+        >>> convertFmu2Mo("c:/BouncingBall.Fmu")
         """
-
         convertFmu2MoError = ''
         importResult = self.requestApi('importFMU', fmuName)
         convertFmu2MoError = self.requestApi('getErrorString')
@@ -1388,11 +1407,12 @@ class ModelicaSystem(object):
     def optimize(self):  # 21
         """
         This method optimizes model according to the optimized options. It can be called:
-            •only without any arguments
+        only without any arguments
+        usage
+        >>> optimize()
         """
-
         cName = self.modelName
-        properties = ','.join("%s=%r" % (key, val) for (key, val) in list(self.optimizeOptions.items()))
+        properties = ','.join("%s=%s" % (key, val) for (key, val) in list(self.optimizeOptions.items()))
         optimizeError = ''
         self.getconn.sendExpression("setCommandLineOptions(\"-g=Optimica\")")
         optimizeResult = self.requestApi('optimize', cName, properties)
@@ -1406,14 +1426,15 @@ class ModelicaSystem(object):
     def linearize(self):  # 22
         """
         This method linearizes model according to the linearized options. This will generate a linear model that consists of matrices A, B, C and D.  It can be called:
-            •only without any arguments
+        only without any arguments
+        usage
+        >>> linearize()
         """
-
         try:
             self.getconn.sendExpression("setCommandLineOptions(\"+generateSymbolicLinearization\")")
-            properties = ','.join("%s=%r" % (key, val) for (key, val) in list(self.linearOptions.items()))
+            properties = ','.join("%s=%s" % (key, val) for (key, val) in list(self.linearOptions.items()))
             if (self.overridevariables):
-                values = ','.join("%s=%r" % (key, val) for (key, val) in list(self.overridevariables.items()))
+                values = ','.join("%s=%s" % (key, val) for (key, val) in list(self.overridevariables.items()))
                 override ="-override=" + values                
             else:                    
                 override =""
@@ -1461,30 +1482,36 @@ class ModelicaSystem(object):
                 else:
                     return self.requestApi('getErrorString')
         except Exception as e:
-            raise e
-
-#    def getLinearQuantityInformation(self):
-#        # function which extracts linearised states, inputs and outputs
-#        for i in range(len(self.linearquantitiesList)):
-#            if (self.linearquantitiesList[i]['alias'] == 'alias'):
-#                name = self.linearquantitiesList[i]['Name']
-#                if (name[1] == 'x'):
-#                    self.linearstates.append(name[3:-1])
-#                if (name[1] == 'u'):
-#                    self.linearinputs.append(name[3:-1])
-#                if (name[1] == 'y'):
-#                    self.linearoutputs.append(name[3:-1])           
+            raise e           
             
     def getLinearInputs(self):
+        """
+        function which returns the LinearInputs after Linearization is performed
+        usage
+        >>> getLinearInputs()
+        """
         return self.linearinputs
 
     def getLinearOutputs(self):
+        """
+        function which returns the LinearInputs after Linearization is performed
+        usage
+        >>> getLinearOutputs()
+        """
         return self.linearoutputs
 
     def getLinearStates(self):
+        """
+        function which returns the LinearInputs after Linearization is performed
+        usage
+        >>> getLinearStates()
+        """
         return self.linearstates
     
     def getlinearMatrix(self):
+        """
+        Helper Function which generates the Linear Matrix A,B,C,D
+        """
         matrix_A=OrderedDict()
         matrix_B=OrderedDict()
         matrix_C=OrderedDict()
@@ -1508,6 +1535,9 @@ class ModelicaSystem(object):
         return [tmpmatrix_A,tmpmatrix_B,tmpmatrix_C,tmpmatrix_D]
                 
     def getLinearMatrixValues(self,matrix):
+        """
+        Helper Function which generates the Linear Matrix A,B,C,D
+        """
         if (matrix):
             x=list(matrix.keys())
             name=x[-1]
