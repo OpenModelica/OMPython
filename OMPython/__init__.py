@@ -1014,12 +1014,13 @@ class ModelicaSystem(object):
             return ([self.optimizeOptions.get(x,"NotExist") for x in names])
 
     # to simulate or re-simulate model
-    def simulate(self,resultfile=None):  # 11
+    def simulate(self,resultfile=None,simflags=None):  # 11
         """
         This method simulates model according to the simulation options.
         usage
         >>> simulate()
         >>> simulate(resultfile="a.mat")
+        >>> simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10) set runtime simulation flags 
         """
         if(resultfile is None):
             r=""
@@ -1027,7 +1028,13 @@ class ModelicaSystem(object):
         else:
             r=" -r=" + resultfile
             self.resultfile = resultfile
-                
+        
+        # allow runtime simulation flags from user input
+        if(simflags is None):
+            simflags=""
+        else:
+            simflags=" " + simflags;
+        
         if (self.overridevariables or self.simoptionsoverride):
             tmpdict=self.overridevariables.copy()
             tmpdict.update(self.simoptionsoverride)
@@ -1062,7 +1069,7 @@ class ModelicaSystem(object):
             getExeFile = os.path.join(os.getcwd(), self.modelName).replace("\\", "/")
         
         if (os.path.exists(getExeFile)):
-            cmd = getExeFile + override + csvinput + r
+            cmd = getExeFile + override + csvinput + r + simflags
             #print(cmd)
             if (platform.system() == "Windows"):
                 omhome = os.path.join(os.environ.get("OPENMODELICAHOME"), 'bin').replace("\\", "/")
