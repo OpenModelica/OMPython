@@ -187,8 +187,13 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
             self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file, preexec_fn=os.setsid)
         return self._omc_process
 
-    def _set_omc_command(self, omc_path, args):
-        self._omc_command = "{0} {1}".format(omc_path, args)
+    def _set_omc_command(self, omc_path_and_args_list):
+        """Define the command that will be called by the subprocess module.
+
+        Use the list input style of the subprocess module to avoid problems
+        resulting from spaces in the path string.
+        """
+        self._omc_command = omc_path_and_args_list
         return self._omc_command
 
     @abc.abstractmethod
@@ -538,7 +543,9 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
         OMCSessionBase.__init__(self, readonly)
         self._create_omc_log_file("port")
         # set omc executable path and args
-        self._set_omc_command(self._get_omc_path(), "--interactive=zmq +z={0}".format(self._random_string))
+        self._set_omc_command([self._get_omc_path(),
+                               "--interactive=zmq",
+                               "+z={0}".format(self._random_string)])
         # start up omc executable, which is waiting for the CORBA connection
         self._start_omc_process()
         # connect to the running omc instance using CORBA
