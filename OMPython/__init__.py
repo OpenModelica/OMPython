@@ -181,7 +181,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
             omhome_bin = os.path.join(self.omhome, 'bin').replace("\\", "/")
             my_env = os.environ.copy()
             my_env["PATH"] = omhome_bin + os.pathsep + my_env["PATH"]
-            self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file, env=my_env)
+            self._omc_process = subprocess.Popen(self._omc_command, stdout=self._omc_log_file, stderr=self._omc_log_file, env=my_env)
         else:
             # Because we spawned a shell, and we need to be able to kill OMC, create a new process group for this
             self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file, preexec_fn=os.setsid)
@@ -190,10 +190,15 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
     def _set_omc_command(self, omc_path_and_args_list):
         """Define the command that will be called by the subprocess module.
 
-        Use the list input style of the subprocess module to avoid problems
-        resulting from spaces in the path string.
+        On Windows, use the list input style of the subprocess module to
+        avoid problems resulting from spaces in the path string.
+        Linux, however, only works with the string version.
         """
-        self._omc_command = omc_path_and_args_list
+        if sys.platform == 'win32':
+            self._omc_command = omc_path_and_args_list
+        else:
+            self._omc_command = ' '.join(omc_path_and_args_list)
+
         return self._omc_command
 
     @abc.abstractmethod
@@ -435,7 +440,9 @@ class OMCSession(OMCSessionHelper, OMCSessionBase):
         OMCSessionBase.__init__(self, readonly)
         self._create_omc_log_file("objid")
         # set omc executable path and args
-        self._set_omc_command(self._get_omc_path(), "{0} +c={1}".format(serverFlag, self._random_string))
+        self._set_omc_command([self._get_omc_path(),
+                               serverFlag,
+                               "+c={0}".format(self._random_string)])
         # start up omc executable, which is waiting for the CORBA connection
         self._start_omc_process()
         # connect to the running omc instance using CORBA
