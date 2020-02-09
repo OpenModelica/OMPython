@@ -634,7 +634,7 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
 
 class ModelicaSystem(object):
-    def __init__(self, fileName=None, modelName=None, lmodel=[], useCorba=False):  # 1
+    def __init__(self, fileName=None, modelName=None, lmodel=[], useCorba=False, commandLineOptions=None):  # 1
         """
         "constructor"
         It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called :
@@ -676,7 +676,12 @@ class ModelicaSystem(object):
             self.getconn = OMCSession()
         else:
             self.getconn = OMCSessionZMQ()
-        
+            
+        ## set commandLineOptions if provided by users
+        if commandLineOptions is not None:
+            exp="".join(["setCommandLineOptions(","\"",commandLineOptions,"\"",")"])
+            self.getconn.sendExpression(exp)
+    
         self.xmlFile = None
         self.lmodel = lmodel  # may be needed if model is derived from other model
         self.modelName = modelName  # Model class name
