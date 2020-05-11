@@ -39,6 +39,11 @@ Install the version as packaged with your OpenModelica installation by running::
   cd %OPENMODELICAHOME%\share\omc\scripts\PythonInterface
   python -m pip install -U .
 
+Instead, to Install the latest version of the OMPython master tree only, previously cloned into <OMPythonPath>, run::
+
+  cd <OMPythonPath>
+  python -m pip install -U .
+
 Usage
 =====
 Running the following commads should get you started
