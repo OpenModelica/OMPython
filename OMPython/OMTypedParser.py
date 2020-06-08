@@ -111,13 +111,16 @@ omcValue << (omcString | omcNumber | omcRecord | omcArray | omcTuple | SOME | TR
 recordMember = delimitedList(Group(ident + Suppress('=') + omcValue))
 omcRecord << Group(Suppress('record') + Suppress(fqident) + Dict(recordMember) + Suppress('end') + Suppress(fqident) + Suppress(';')).setParseAction(convertDict)
 
-omcGrammar = omcValue + StringEnd()
+omcGrammar = Optional(omcValue) + StringEnd()
 
 omcNumber.setParseAction(convertNumbers)
 
 
 def parseString(string):
-    return omcGrammar.parseString(string)[0]
+    res = omcGrammar.parseString(string)
+    if len(res) == 0:
+      return
+    return res[0]
 
 
 if __name__ == "__main__":

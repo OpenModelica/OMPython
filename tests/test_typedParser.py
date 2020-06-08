@@ -3,11 +3,11 @@ from __future__ import division
 from __future__ import print_function
 from builtins import int
 
-from OMPython import OMParser
+from OMPython import OMTypedParser
 
 import unittest
 
-typeCheck = OMParser.typeCheck
+typeCheck = OMTypedParser.parseString
 
 
 class TypeCheckTester(unittest.TestCase):
@@ -15,11 +15,7 @@ class TypeCheckTester(unittest.TestCase):
         pass
 
     def testBoolean(self):
-        self.assertEqual(typeCheck('TRUE'), True)
-        self.assertEqual(typeCheck('True'), True)
         self.assertEqual(typeCheck('true'), True)
-        self.assertEqual(typeCheck('FALSE'), False)
-        self.assertEqual(typeCheck('False'), False)
         self.assertEqual(typeCheck('false'), False)
 
     def testInt(self):
@@ -31,11 +27,12 @@ class TypeCheckTester(unittest.TestCase):
     def testFloat(self):
         self.assertEqual(type(typeCheck('1.2e3')), float)
 
-    # def testDict(self):
-    #     self.assertEqual(type(typeCheck('{"a": "b"}')), dict)
-
     def testIdent(self):
         self.assertEqual(typeCheck('blabla2'), "blabla2")
+        pass
+
+    def testEmpty(self):
+        self.assertEqual(typeCheck(''), None)
         pass
 
     def testStr(self):
