@@ -212,6 +212,9 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
     def execute(self, command):
         pass
 
+    def clearOMParserResult(self):
+        OMParser.result = {}
+
     # FIXME: we should have one function which interacts with OMC. Either execute OR sendExpression.
     # Execute uses OMParser.check_for_values and sendExpression uses OMTypedParser.parseString.
     # We should have one parser. Then we can get rid of one of these functions.
