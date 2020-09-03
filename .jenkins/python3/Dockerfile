@@ -6,6 +6,5 @@ RUN apt-get update \
   && wget https://build.openmodelica.org/apt/openmodelica.asc -O- | apt-key add - \
   && apt-get update \
   && apt-get install -qy --no-install-recommends omc \
-  && pip2 install pytest \
-  && pip3 install pytest \
   && rm -rf /var/lib/apt/lists/*
+RUN pip3 install --no-cache pytest
