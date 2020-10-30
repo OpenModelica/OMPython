@@ -8,7 +8,10 @@ class ModelicaSystemTester(unittest.TestCase):
     self.tmp = tempfile.mkdtemp(prefix='tmpOMPython.tests')
     with open("%s/M.mo" % self.tmp, "w") as fout:
       fout.write("""model M
-  Real r = time;
+  Real x(start = 1);
+  parameter Real a = -1;
+equation
+  der(x) = x*a;
 end M;
 """)
   def __del__(self):
@@ -20,6 +23,7 @@ end M;
       os.chdir(self.tmp)
       m = OMPython.ModelicaSystem("M.mo", "M")
       m.simulate()
+      m.convertMo2Fmu(fmuType="me")
       os.chdir(origDir)
     for _ in range(10):
       worker()
