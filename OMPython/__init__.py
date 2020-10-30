@@ -1402,15 +1402,24 @@ class ModelicaSystem(object):
             writer.writerow(l)
                
     # to convert Modelica model to FMU
-    def convertMo2Fmu(self):  # 19
+    def convertMo2Fmu(self, version="2.0", fmuType="me_cs", fileNamePrefix="<default>", includeResources=True):  # 19
         """
         This method is used to generate FMU from the given Modelica model. It creates "modelName.fmu" in the current working directory. It can be called:
-        only without any arguments
+        with no arguments
+        with arguments of https://build.openmodelica.org/Documentation/OpenModelica.Scripting.translateModelFMU.html
         usage
         >>> convertMo2Fmu()
+        >>> convertMo2Fmu(version="2.0", fmuType="me|cs|me_cs", fileNamePrefix="<default>", includeResources=true)
         """
         convertMo2FmuError = ''
-        translateModelFMUResult = self.requestApi('translateModelFMU', self.modelName)
+        if fileNamePrefix == "<default":
+          fileNamePrefix = self.modelName
+        if includeResources:
+          includeResourcesStr = "true"
+        else:
+          includeResourcesStr = "false"
+        properties = 'version="{}", fmuType="{}", fileNamePrefix="{}", includeResources={}'.format(version, fmuType, fileNamePrefix,includeResourcesStr)
+        translateModelFMUResult = self.requestApi('translateModelFMU', self.modelName, properties)
         if convertMo2FmuError:
             print(convertMo2FmuError)
 
