@@ -170,7 +170,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
         else:
           for i in range(0,100):
             time.sleep(0.02)
-            if self._omc_process.poll() is not None:
+            if self._omc_process and (self._omc_process.poll() is not None):
               break
         # kill self._omc_process process if it is still running/exists
         if self._omc_process is not None and self._omc_process.returncode is None:
