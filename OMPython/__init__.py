@@ -227,6 +227,8 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
           if self._dockerNetwork == "separate":
             self._serverIPAddress = json.loads(subprocess.check_output(["docker", "inspect", self._dockerCid]).decode().strip())[0]["NetworkSettings"]["IPAddress"]
           for i in range(0,40):
+            if sys.platform == 'win32':
+              break
             dockerTop = subprocess.check_output(["docker", "top", self._dockerCid]).decode().strip()
             self._omc_process = None
             for line in dockerTop.split("\n"):
