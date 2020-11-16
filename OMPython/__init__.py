@@ -154,6 +154,13 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
         self._random_string = uuid.uuid4().hex
         # omc log file
         self._omc_log_file = None
+        try:
+            self._currentUser = getpass.getuser()
+            if not self._currentUser:
+                self._currentUser = "nobody"
+        except KeyError:
+            # We are running as a uid not existing in the password database... Pretend we are nobody
+            self._currentUser = "nobody"
 
     def __del__(self):
         try:
@@ -187,13 +194,6 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
         if sys.platform == 'win32':
             self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.{0}.{1}.log".format(suffix, self._random_string)), 'w')
         else:
-            try:
-              self._currentUser = getpass.getuser()
-              if not self._currentUser:
-                  self._currentUser = "nobody"
-            except KeyError:
-              # We are running as a uid not existing in the password database... Pretend we are nobody
-              self._currentUser = "nobody"
             # this file must be closed in the destructor
             self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.{0}.{1}.{2}.log".format(self._currentUser, suffix, self._random_string)), 'w')
 
@@ -244,6 +244,14 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
             raise Exception("Docker top did not contain omc process %s:\n%s\nLog-file says:\n%s" % (self._random_string, dockerTop, open(self._omc_log_file.name).read()))
         return self._omc_process
 
+    def _getuid(self):
+      """
+      The uid to give to docker.
+      On Windows, volumes are mapped with all files are chmod ugo+rwx,
+      so uid does not matter as long as it is not the root user.
+      """
+      return 1000 if sys.platform == 'win32' else os.getuid()
+
     def _set_omc_command(self, omc_path_and_args_list):
         """Define the command that will be called by the subprocess module.
 
@@ -260,9 +268,9 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
           else:
             raise Exception('dockerNetwork was set to %s, but only \"host\" or \"separate\" is allowed')
           self._dockerCidFile = self._port_file + ".docker.cid"
-          omcCommand = ["docker", "run", "--cidfile", self._dockerCidFile, "--rm", "--env", "USER=%s" % self._currentUser, "--user", str(os.getuid())] + self._dockerExtraArgs + dockerNetworkStr + [self._docker, self._dockerOpenModelicaPath]
+          omcCommand = ["docker", "run", "--cidfile", self._dockerCidFile, "--rm", "--env", "USER=%s" % self._currentUser, "--user", str(_getuid())] + self._dockerExtraArgs + dockerNetworkStr + [self._docker, self._dockerOpenModelicaPath]
         elif self._dockerContainer:
-          omcCommand = ["docker", "exec", "--env", "USER=%s" % self._currentUser, "--user", str(os.getuid())] + self._dockerExtraArgs + [self._dockerContainer, self._dockerOpenModelicaPath]
+          omcCommand = ["docker", "exec", "--env", "USER=%s" % self._currentUser, "--user", str(_getuid())] + self._dockerExtraArgs + [self._dockerContainer, self._dockerOpenModelicaPath]
           self._dockerCid = self._dockerContainer
         else:
           omcCommand = [self._get_omc_path()]
@@ -518,10 +526,10 @@ class OMCSession(OMCSessionHelper, OMCSessionBase):
         OMCSessionBase.__init__(self, readonly)
         self._create_omc_log_file("objid")
         # Locating and using the IOR
-        if sys.platform == 'win32':
-            self._port_file = "openmodelica.objid." + self._random_string
-        else:
+        if sys.platform != 'win32' or docker or dockerContainer:
             self._port_file = "openmodelica." + self._currentUser + ".objid." + self._random_string
+        else:
+            self._port_file = "openmodelica.objid." + self._random_string
         self._port_file = os.path.join("/tmp" if (docker or dockerContainer) else self._temp_dir, self._port_file).replace("\\", "/")
         # set omc executable path and args
         self._docker = docker
@@ -658,6 +666,11 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
     def __init__(self, readonly=False, timeout = 3.00, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = "host"):
         OMCSessionHelper.__init__(self)
         OMCSessionBase.__init__(self, readonly)
+        # Locating and using the IOR
+        if sys.platform != 'win32' or docker or dockerContainer:
+            self._port_file = "openmodelica." + self._currentUser + ".port." + self._random_string
+        else:
+            self._port_file = "openmodelica.port." + self._random_string
         self._docker = docker
         self._dockerContainer = dockerContainer
         self._dockerExtraArgs = dockerExtraArgs
@@ -665,11 +678,6 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
         self._dockerNetwork = dockerNetwork
         self._create_omc_log_file("port")
         self._timeout = timeout
-        # Locating and using the IOR
-        if sys.platform == 'win32':
-            self._port_file = "openmodelica.port." + self._random_string
-        else:
-            self._port_file = "openmodelica." + self._currentUser + ".port." + self._random_string
         self._port_file = os.path.join("/tmp" if docker else self._temp_dir, self._port_file).replace("\\", "/")
         # set omc executable path and args
         self._set_omc_command([
