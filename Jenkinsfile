@@ -15,7 +15,7 @@ pipeline {
               deps.inside("-v /var/run/docker.sock:/var/run/docker.sock --network=host --pid=host --group-add '${dockergid}'") {
                 sh 'python2 setup.py build'
                 timeout(3) {
-                  sh 'python2 /usr/local/bin/py.test -v --junitxml py3.xml tests'
+                  sh 'python2 /usr/local/bin/py.test -v --junitxml py2.xml tests'
                 }
                 sh 'HOME="$PWD" python2 setup.py install --user'
               }
