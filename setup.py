@@ -68,6 +68,7 @@ setup(name='OMPython',
           'future',
           'pyparsing',
           'numpy',
+          'psutil',
           'pyzmq'
       ]
       )
