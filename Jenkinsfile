@@ -10,6 +10,7 @@ pipeline {
               label 'linux'
               dir '.jenkins/python2'
               additionalBuildArgs '--pull'
+              args '-v /var/run/docker.sock:/var/run/docker.sock'
             }
           }
           steps {
@@ -28,6 +29,7 @@ pipeline {
               label 'linux'
               dir '.jenkins/python3'
               additionalBuildArgs '--pull'
+              args '-v /var/run/docker.sock:/var/run/docker.sock'
             }
           }
           steps {
