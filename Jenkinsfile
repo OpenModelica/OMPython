@@ -11,7 +11,7 @@ pipeline {
             script {
               def deps = docker.build('ompython-jenkins-python2', '--pull .jenkins/python2')
               def dockergid = sh (script: 'stat -c %g /var/run/docker.sock', returnStdout: true).trim()
-              docker.pull("openmodelica/openmodelica:v1.16.0-minimal") // Avoid timeout
+              sh "docker pull openmodelica/openmodelica:v1.16.0-minimal" // Avoid timeout
               deps.inside("-v /var/run/docker.sock:/var/run/docker.sock --group-add '${dockergid}'") {
                 sh 'python2 setup.py build'
                 timeout(3) {
@@ -31,7 +31,7 @@ pipeline {
             script {
               def deps = docker.build('ompython-jenkins-python3', '--pull .jenkins/python3')
               def dockergid = sh (script: 'stat -c %g /var/run/docker.sock', returnStdout: true).trim()
-              docker.pull("openmodelica/openmodelica:v1.16.0-minimal") // Avoid timeout
+              sh "docker pull openmodelica/openmodelica:v1.16.0-minimal" // Avoid timeout
               deps.inside("-v /var/run/docker.sock:/var/run/docker.sock --group-add '${dockergid}'") {
                 sh 'python3 setup.py build'
                 timeout(3) {
