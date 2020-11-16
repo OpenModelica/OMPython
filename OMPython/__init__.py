@@ -235,7 +235,8 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
                 try:
                   self._omc_process = DummyPopen(int(columns[1]))
                 except:
-                  logger.error(dockerTop)
+                  logger.error("docker top %s:\n" + dockerTop)
+                  logger.error("===\nProcess IDs available:\n" + " ".join(psutil.pids()))
                   raise
                 break
             if self._omc_process is not None:
