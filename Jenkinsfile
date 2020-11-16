@@ -7,7 +7,7 @@ pipeline {
           agent {
             label 'linux'
           }
-          steps {
+          script {
             def deps = docker.build('ompython-jenkins-python2', '--pull .jenkins/python2')
             def dockergid = sh (script: 'stat -c %g /var/run/docker.sock', returnStdout: true).trim()
             deps.inside("-v /var/run/docker.sock:/var/run/docker.sock --group-add '${dockergid}'") {
@@ -24,7 +24,7 @@ pipeline {
           agent {
             label 'linux'
           }
-          steps {
+          script {
             def deps = docker.build('ompython-jenkins-python3', '--pull .jenkins/python3')
             def dockergid = sh (script: 'stat -c %g /var/run/docker.sock', returnStdout: true).trim()
             deps.inside("-v /var/run/docker.sock:/var/run/docker.sock --group-add '${dockergid}'") {
