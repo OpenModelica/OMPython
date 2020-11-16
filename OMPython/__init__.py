@@ -267,7 +267,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
             dockerNetworkStr = []
           else:
             raise Exception('dockerNetwork was set to %s, but only \"host\" or \"separate\" is allowed')
-          self._dockerCidFile = self._port_file + ".docker.cid"
+          self._dockerCidFile = self._omc_log_file + ".docker.cid"
           omcCommand = ["docker", "run", "--cidfile", self._dockerCidFile, "--rm", "--env", "USER=%s" % self._currentUser, "--user", str(self._getuid())] + self._dockerExtraArgs + dockerNetworkStr + [self._docker, self._dockerOpenModelicaPath]
         elif self._dockerContainer:
           omcCommand = ["docker", "exec", "--env", "USER=%s" % self._currentUser, "--user", str(self._getuid())] + self._dockerExtraArgs + [self._dockerContainer, self._dockerOpenModelicaPath]
