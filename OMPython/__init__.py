@@ -232,7 +232,11 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
             for line in dockerTop.split("\n"):
               columns = line.split()
               if self._random_string in line:
-                self._omc_process = DummyPopen(int(columns[1]))
+                try:
+                  self._omc_process = DummyPopen(int(columns[1]))
+                except:
+                  logger.error(dockerTop)
+                  raise
                 break
             if self._omc_process is not None:
               break
@@ -763,7 +767,7 @@ class ModelicaSystem(object):
         It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called :
             •without any arguments: In this case it neither loads a file nor build a model. This is useful when a FMU needed to convert to Modelica model
             •with two arguments as file name with ".mo" extension and the model name respectively
-            •with three arguments, the first and second are file name and model name respectively and the third arguments is Modelica standard library to load a model, which is common in such models where the model is based on the standard library. For example, here is a model named "dcmotor.mo" below table 4-2, which is located in the directory of OpenModelica at "C:\OpenModelica1.9.4-dev.beta2\share\doc\omc\testmodels".
+            •with three arguments, the first and second are file name and model name respectively and the third arguments is Modelica standard library to load a model, which is common in such models where the model is based on the standard library. For example, here is a model named "dcmotor.mo" below table 4-2, which is located in the directory of OpenModelica at "C:\\OpenModelica1.9.4-dev.beta2\\share\\doc\\omc\\testmodels".
         Note: If the model file is not in the current working directory, then the path where file is located must be included together with file name. Besides, if the Modelica model contains several different models within the same package, then in order to build the specific model, in second argument, user must put the package name with dot(.) followed by specific model name.
         ex: myModel = ModelicaSystem("ModelicaModel.mo", "modelName")
         """
