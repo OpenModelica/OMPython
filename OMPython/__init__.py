@@ -234,11 +234,8 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
               if self._random_string in line:
                 try:
                   self._omc_process = DummyPopen(int(columns[1]))
-                except:
-                  logger.error("docker top %s:\n" + dockerTop)
-                  logger.error("\n===\nProcess IDs available:\n===\n" + " ".join([str(pid) for pid in psutil.pids()]))
-                  logger.error("\n===\nLog-file:\n===\n" + open(self._omc_log_file.name).read())
-                  raise
+                except psutil.NoSuchProcess:
+                  raise Exception("Could not find PID %d - is this a docker instance spawned without --pid=host?\nLog-file says:\n%s" % (self._random_string, dockerTop, open(self._omc_log_file.name).read()))
                 break
             if self._omc_process is not None:
               break
@@ -263,7 +260,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
           else:
             raise Exception('dockerNetwork was set to %s, but only \"host\" or \"separate\" is allowed')
           self._dockerCidFile = self._port_file + ".docker.cid"
-          omcCommand = ["docker", "run", "--pid=host", "--cidfile", self._dockerCidFile, "--rm", "--env", "USER=%s" % self._currentUser, "--user", str(os.getuid())] + self._dockerExtraArgs + dockerNetworkStr + [self._docker, self._dockerOpenModelicaPath]
+          omcCommand = ["docker", "--cidfile", self._dockerCidFile, "--rm", "--env", "USER=%s" % self._currentUser, "--user", str(os.getuid())] + self._dockerExtraArgs + dockerNetworkStr + [self._docker, self._dockerOpenModelicaPath]
         elif self._dockerContainer:
           omcCommand = ["docker", "exec", "--env", "USER=%s" % self._currentUser, "--user", str(os.getuid())] + self._dockerExtraArgs + [self._dockerContainer, self._dockerOpenModelicaPath]
           self._dockerCid = self._dockerContainer
