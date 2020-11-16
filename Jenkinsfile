@@ -18,8 +18,8 @@ pipeline {
                   sh 'python2 /usr/local/bin/py.test -v --junitxml py3.xml tests'
                 }
                 sh 'HOME="$PWD" python2 setup.py install --user'
-                junit 'py2.xml'
               }
+              junit 'py2.xml'
             }
           }
         }
@@ -38,8 +38,8 @@ pipeline {
                   sh 'python3 /usr/local/bin/py.test -v --junitxml py3.xml tests'
                 }
                 sh 'HOME="$PWD" python3 setup.py install --user'
-                junit 'py3.xml'
               }
+              junit 'py3.xml'
             }
           }
         }
