@@ -149,6 +149,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
         self._omc = None
         self._dockerCid = None
         self._serverIPAddress = "127.0.0.1"
+        self._interactivePort = None
         # FIXME: this code is not well written... need to be refactored
         self._temp_dir = tempfile.gettempdir()
         # generate a random string for this session
@@ -268,6 +269,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
             dockerNetworkStr = ["--network=host"]
           elif self._dockerNetwork == "separate":
             dockerNetworkStr = []
+            extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
           else:
             raise Exception('dockerNetwork was set to %s, but only \"host\" or \"separate\" is allowed')
           self._dockerCidFile = self._omc_log_file.name + ".docker.cid"
@@ -277,6 +279,8 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
           self._dockerCid = self._dockerContainer
         else:
           omcCommand = [self._get_omc_path()]
+        if self._interactivePort:
+          extraFlags = extraFlags + ["--interactivePort=%d" % int(self._interactivePort)]
 
         omc_path_and_args_list = omcCommand + omc_path_and_args_list + extraFlags
 
@@ -666,7 +670,7 @@ except ImportError:
 
 class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
-    def __init__(self, readonly=False, timeout = 3.00, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = "host"):
+    def __init__(self, readonly=False, timeout = 3.00, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = "host", port = None):
         OMCSessionHelper.__init__(self)
         OMCSessionBase.__init__(self, readonly)
         # Locating and using the IOR
@@ -682,6 +686,7 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
         self._create_omc_log_file("port")
         self._timeout = timeout
         self._port_file = os.path.join("/tmp" if docker else self._temp_dir, self._port_file).replace("\\", "/")
+        self._interactivePort = port
         # set omc executable path and args
         self._set_omc_command([
                                "--interactive=zmq",
