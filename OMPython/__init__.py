@@ -237,7 +237,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
                 except:
                   logger.error("docker top %s:\n" + dockerTop)
                   logger.error("===\nProcess IDs available:\n===\n" + " ".join(psutil.pids()))
-                  logger.error("===\nLog-file:\n===\n"open(self._omc_log_file.name).read())
+                  logger.error("===\nLog-file:\n===\n" + open(self._omc_log_file.name).read())
                   raise
                 break
             if self._omc_process is not None:
