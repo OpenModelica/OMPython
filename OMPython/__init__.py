@@ -536,7 +536,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
 
 class OMCSession(OMCSessionHelper, OMCSessionBase):
 
-    def __init__(self, readonly=False, serverFlag='--interactive=corba', timeout = 3.00, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = None):
+    def __init__(self, readonly=False, serverFlag='--interactive=corba', timeout = 10.0, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = None):
         OMCSessionHelper.__init__(self)
         OMCSessionBase.__init__(self, readonly)
         self._create_omc_log_file("objid")
@@ -678,7 +678,7 @@ except ImportError:
 
 class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
-    def __init__(self, readonly=False, timeout = 3.00, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = None, port = None):
+    def __init__(self, readonly=False, timeout = 10.00, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = None, port = None):
         OMCSessionHelper.__init__(self)
         OMCSessionBase.__init__(self, readonly)
         # Locating and using the IOR
