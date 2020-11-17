@@ -263,24 +263,32 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
         avoid problems resulting from spaces in the path string.
         Linux, however, only works with the string version.
         """
-        extraFlags = []
-        if self._docker:
-          if self._dockerNetwork == "host":
-            dockerNetworkStr = ["--network=host"]
-          elif self._dockerNetwork == "separate":
-            dockerNetworkStr = []
+        if (docker or dockerContainer) and sys.platform == "win32":
             extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
-          else:
-            raise Exception('dockerNetwork was set to %s, but only \"host\" or \"separate\" is allowed')
-          self._dockerCidFile = self._omc_log_file.name + ".docker.cid"
-          omcCommand = ["docker", "run", "--cidfile", self._dockerCidFile, "--rm", "--env", "USER=%s" % self._currentUser, "--user", str(self._getuid())] + self._dockerExtraArgs + dockerNetworkStr + [self._docker, self._dockerOpenModelicaPath]
-        elif self._dockerContainer:
-          omcCommand = ["docker", "exec", "--env", "USER=%s" % self._currentUser, "--user", str(self._getuid())] + self._dockerExtraArgs + [self._dockerContainer, self._dockerOpenModelicaPath]
-          self._dockerCid = self._dockerContainer
+            if not self._interactivePort:
+                raise Exception("docker on Windows requires knowing which port to connect to. For dockerContainer=..., the container needs to have already manually exposed this port when it was started (-p 127.0.0.1:n:n) or you get an error later.")
         else:
-          omcCommand = [self._get_omc_path()]
+            extraFlags = []
+        if self._docker:
+            if sys.platform == "win32":
+                p = int(self._interactivePort)
+                dockerNetworkStr = ["-p", "127.0.0.1:%d:%d" % (p,p)]
+            elif self._dockerNetwork == "host" or self._dockerNetwork is None:
+                dockerNetworkStr = ["--network=host"]
+            elif self._dockerNetwork == "separate":
+                dockerNetworkStr = []
+                extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
+            else:
+                raise Exception('dockerNetwork was set to %s, but only \"host\" or \"separate\" is allowed')
+            self._dockerCidFile = self._omc_log_file.name + ".docker.cid"
+            omcCommand = ["docker", "run", "--cidfile", self._dockerCidFile, "--rm", "--env", "USER=%s" % self._currentUser, "--user", str(self._getuid())] + self._dockerExtraArgs + dockerNetworkStr + [self._docker, self._dockerOpenModelicaPath]
+        elif self._dockerContainer:
+            omcCommand = ["docker", "exec", "--env", "USER=%s" % self._currentUser, "--user", str(self._getuid())] + self._dockerExtraArgs + [self._dockerContainer, self._dockerOpenModelicaPath]
+            self._dockerCid = self._dockerContainer
+        else:
+            omcCommand = [self._get_omc_path()]
         if self._interactivePort:
-          extraFlags = extraFlags + ["--interactivePort=%d" % int(self._interactivePort)]
+            extraFlags = extraFlags + ["--interactivePort=%d" % int(self._interactivePort)]
 
         omc_path_and_args_list = omcCommand + omc_path_and_args_list + extraFlags
 
@@ -528,7 +536,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
 
 class OMCSession(OMCSessionHelper, OMCSessionBase):
 
-    def __init__(self, readonly=False, serverFlag='--interactive=corba', timeout = 3.00, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = "host"):
+    def __init__(self, readonly=False, serverFlag='--interactive=corba', timeout = 3.00, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = None):
         OMCSessionHelper.__init__(self)
         OMCSessionBase.__init__(self, readonly)
         self._create_omc_log_file("objid")
@@ -670,7 +678,7 @@ except ImportError:
 
 class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
-    def __init__(self, readonly=False, timeout = 3.00, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = "host", port = None):
+    def __init__(self, readonly=False, timeout = 3.00, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = None, port = None):
         OMCSessionHelper.__init__(self)
         OMCSessionBase.__init__(self, readonly)
         # Locating and using the IOR
