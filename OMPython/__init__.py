@@ -223,8 +223,8 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
           except:
             pass
           if self._dockerCid is None:
-            logger.error("Docker did not start (timeout=%f might be too short especially if you did not docker pull the image before this command). Log-file says:\n%s" % (timeout, open(self._omc_log_file.name).read()))
-            raise Exception("Docker did not start.")
+            logger.error("Docker did not start. Log-file says:\n%s" % (open(self._omc_log_file.name).read()))
+            raise Exception("Docker did not start (timeout=%f might be too short especially if you did not docker pull the image before this command)." % timeout)
         if self._docker or self._dockerContainer:
           if self._dockerNetwork == "separate":
             self._serverIPAddress = json.loads(subprocess.check_output(["docker", "inspect", self._dockerCid]).decode().strip())[0]["NetworkSettings"]["IPAddress"]
