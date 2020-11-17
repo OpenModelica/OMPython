@@ -597,7 +597,7 @@ class OMCSession(OMCSessionHelper, OMCSessionBase):
                 with open(name) as fin:
                   contents = fin.read()
                 self._omc_process.kill()
-                raise Exception("OMC Server is down. Please start it! If the OMC version is old, try OMCSession(..., serverFlag='-d=interactiveCorba') or +d=interactiveCorba Log-file says:\n%s" % contents)
+                raise Exception("OMC Server is down (timeout=%f). Please start it! If the OMC version is old, try OMCSession(..., serverFlag='-d=interactiveCorba') or +d=interactiveCorba. Log-file says:\n%s" % (timeout, contents))
             time.sleep(timeout / 80.0)
 
         while True:
@@ -619,8 +619,8 @@ class OMCSession(OMCSessionHelper, OMCSessionBase):
             if attempts == 80.0:
                 name = self._omc_log_file.name
                 self._omc_log_file.close()
-                logger.error("OMC Server is down. Please start it! Log-file says:\n%s" % open(name).read())
-                raise Exception("OMC Server is down. Could not open file %s" % self._port_file)
+                logger.error("OMC Server is down (timeout=%f). Please start it! Log-file says:\n%s" % open(name).read())
+                raise Exception("OMC Server is down. Could not open file %s" % (timeout,self._port_file))
             time.sleep(timeout / 80.0)
 
         logger.info("OMC Server is up and running at {0}".format(self._omc_corba_uri))
@@ -732,8 +732,8 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
             if attempts == 80.0:
                 name = self._omc_log_file.name
                 self._omc_log_file.close()
-                logger.error("OMC Server is down. Please start it! Log-file says:\n%s" % open(name).read())
-                raise Exception("OMC Server is down. Could not open file %s" % self._port_file)
+                logger.error("OMC Server is down (timeout=%f). Please start it! Log-file says:\n%s" % open(name).read())
+                raise Exception("OMC Server is down. Could not open file %s" % (timeout,self._port_file))
             time.sleep(timeout / 80.0)
 
         self._port = self._port.replace("0.0.0.0", self._serverIPAddress)
@@ -766,7 +766,7 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
                 if attempts == 50.0:
                     name = self._omc_log_file.name
                     self._omc_log_file.close()
-                    raise Exception("No connection with OMC. Log-file says: \n%s" % open(name).read())
+                    raise Exception("No connection with OMC (timeout=%f). Log-file says: \n%s" % (self._timeout, open(name).read()))
                 time.sleep(self._timeout / 50.0)
             if command == "quit()":
                 self._omc.close()
