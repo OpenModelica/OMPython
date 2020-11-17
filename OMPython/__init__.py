@@ -223,7 +223,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
           except:
             pass
           if self._dockerCid is None:
-            logger.error("Docker did not start. Log-file says:\n%s" % open(self._omc_log_file.name).read())
+            logger.error("Docker did not start (timeout=%f might be too short especially if you did not docker pull the image before this command). Log-file says:\n%s" % (timeout, open(self._omc_log_file.name).read()))
             raise Exception("Docker did not start.")
         if self._docker or self._dockerContainer:
           if self._dockerNetwork == "separate":
@@ -732,8 +732,8 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
             if attempts == 80.0:
                 name = self._omc_log_file.name
                 self._omc_log_file.close()
-                logger.error("OMC Server is down (timeout=%f). Please start it! Log-file says:\n%s" % open(name).read())
-                raise Exception("OMC Server is down. Could not open file %s" % (timeout,self._port_file))
+                logger.error("OMC Server did not start. Please start it! Log-file says:\n%s" % open(name).read())
+                raise Exception("OMC Server did not start (timeout=%f). Could not open file %s" % (timeout,self._port_file))
             time.sleep(timeout / 80.0)
 
         self._port = self._port.replace("0.0.0.0", self._serverIPAddress)
