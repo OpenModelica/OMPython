@@ -263,7 +263,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
         avoid problems resulting from spaces in the path string.
         Linux, however, only works with the string version.
         """
-        if (docker or dockerContainer) and sys.platform == "win32":
+        if (self._docker or self._dockerContainer) and sys.platform == "win32":
             extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
             if not self._interactivePort:
                 raise Exception("docker on Windows requires knowing which port to connect to. For dockerContainer=..., the container needs to have already manually exposed this port when it was started (-p 127.0.0.1:n:n) or you get an error later.")
