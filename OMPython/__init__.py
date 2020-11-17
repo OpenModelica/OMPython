@@ -222,7 +222,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
             os.remove(self._dockerCidFile)
           except:
             pass
-          if not self._dockerCid:
+          if self._dockerCid is None:
             logger.error("Docker did not start. Log-file says:\n%s" % open(self._omc_log_file.name).read())
             raise Exception("Docker did not start.")
         if self._docker or self._dockerContainer:
