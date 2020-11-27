@@ -555,7 +555,7 @@ class OMCSession(OMCSessionHelper, OMCSessionBase):
         self._timeout = timeout
         self._create_omc_log_file("port")
 
-        self._set_omc_command([serverFlag, "--locale=C", "+c={0}".format(self._random_string)])
+        self._set_omc_command([serverFlag, "+c={0}".format(self._random_string)])
 
         # start up omc executable, which is waiting for the CORBA connection
         self._start_omc_process(timeout)
