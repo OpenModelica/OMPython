@@ -959,7 +959,7 @@ class ModelicaSystem(object):
                 scalar["causality"] = sv.get('causality')
                 scalar["alias"] = sv.get('alias')
                 scalar["aliasvariable"] = sv.get('aliasVariable')
-                ch = sv.getchildren()
+                ch = list(sv)
                 start = None
                 for att in ch:
                     start = att.get('start')
