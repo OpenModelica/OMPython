@@ -698,6 +698,7 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
         # set omc executable path and args
         self._set_omc_command([
                                "--interactive=zmq",
+                               "--locale=C",
                                "-z={0}".format(self._random_string)
                                ])
         # start up omc executable, which is waiting for the ZMQ connection
