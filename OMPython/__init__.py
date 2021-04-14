@@ -1242,9 +1242,10 @@ class ModelicaSystem(object):
             cmd = getExeFile + override + csvinput + r + simflags
             #print(cmd)
             if (platform.system() == "Windows"):
-                omhome = os.path.join(os.environ.get("OPENMODELICAHOME"), 'bin').replace("\\", "/")
+                omhome = os.path.join(os.environ.get("OPENMODELICAHOME"))
+                dllPath = os.path.join(omhome, "bin").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc/cpp").replace("\\", "/") +  os.pathsep + os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
                 my_env = os.environ.copy()
-                my_env["PATH"] = omhome + os.pathsep + my_env["PATH"]
+                my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
                 p = subprocess.Popen(cmd, env=my_env)
                 p.wait()
                 p.terminate()
