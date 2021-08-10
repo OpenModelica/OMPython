@@ -1648,10 +1648,14 @@ class ModelicaSystem(object):
                 return
 
             # code to get the matrix and linear inputs, outputs and states
-            getLinFile = '{}_{}.{}'.format('linear', self.modelName, 'mo')
-            checkLinFile = os.path.exists(getLinFile)
-            if checkLinFile:
-                self.requestApi('loadFile', getLinFile)
+            linearFile = "linearized_model.mo"
+
+            # support older openmodelica versions before OpenModelica v1.16.2 where linearize() generates "linear_modelname.mo" file
+            if not os.path.exists(linearFile):
+                linearFile = '{}_{}.{}'.format('linear', self.modelName, 'mo')
+
+            if os.path.exists(linearFile):
+                self.requestApi('loadFile', linearFile)
                 cNames = self.requestApi('getClassNames')
                 linModelName = cNames[0]
                 buildModelmsg=self.requestApi('buildModel', linModelName)
@@ -1668,6 +1672,9 @@ class ModelicaSystem(object):
                     return matrices
                 else:
                     return self.requestApi('getErrorString')
+            else:
+                errormsg = self.sendExpression("getErrorString()")
+                return print("Linearization failed: " + "\"" + linearFile + "\"" + " not found \n" + errormsg)
         except Exception as e:
             raise e
 
