@@ -954,7 +954,7 @@ class ModelicaSystem(object):
             for sv in rootCQ.iter('ScalarVariable'):
                 scalar={}
                 scalar["name"] = sv.get('name')
-                scalar["changable"] = sv.get('isValueChangeable')
+                scalar["changeable"] = sv.get('isValueChangeable')
                 scalar["description"] = sv.get('description')
                 scalar["variability"] = sv.get('variability')
                 scalar["causality"] = sv.get('causality')
@@ -1318,7 +1318,7 @@ class ModelicaSystem(object):
         elif(isinstance(name,list)):
             return [x.replace(" ","") for x in name]
 
-    def setMethodHelper(self,args1,args2,args3,args4=None):
+    def setMethodHelper(self,args1,args2,args3,args4=None,verbose=None):
         """
         Helper function for setParameter(),setContinuous(),setSimulationOptions(),setLinearizationOption(),setOptimizationOption()
         args1 - string or list of string given by user
@@ -1330,23 +1330,32 @@ class ModelicaSystem(object):
             args1=self.strip_space(args1)
             value=args1.split("=")
             if value[0] in args2:
-                args2[value[0]]=value[1]
-                if(args4!=None):
-                    args4[value[0]]=value[1]
+                if (args3 == "parameter" and self.isParameterChangeable(value[0], value[1], verbose)):
+                    args2[value[0]]=value[1]
+                    if(args4!=None):
+                        args4[value[0]]=value[1]
+                elif (args3 != "parameter"):
+                    args2[value[0]]=value[1]
+                    if(args4!=None):
+                        args4[value[0]]=value[1]
             else:
-                print(value[0], "!is not a", args3 , "variable")
+                print("\"" + value[0] + "\"" + " is not a" +  args3 + " variable")
                 return
         elif(isinstance(args1,list)):
             args1=self.strip_space(args1)
             for var in args1:
                 value=var.split("=")
                 if value[0] in args2:
-                    args2[value[0]]=value[1]
-                    if(args4!=None):
-                        args4[value[0]]=value[1]
+                    if (args3 == "parameter" and self.isParameterChangeable(value[0], value[1], verbose)):
+                        args2[value[0]]=value[1]
+                        if(args4!=None):
+                            args4[value[0]]=value[1]
+                    elif (args3 != "parameter"):
+                        args2[value[0]]=value[1]
+                        if(args4!=None):
+                            args4[value[0]]=value[1]
                 else:
-                    print(value[0], "!is not a", args3 ,"variable")
-                    return
+                    print("\"" + value[0] + "\"" + " is not a "+ args3 + " variable")
 
     def setContinuous(self, cvals):  # 13
         """
@@ -1358,7 +1367,7 @@ class ModelicaSystem(object):
         """
         return self.setMethodHelper(cvals,self.continuouslist,"continuous",self.overridevariables)
 
-    def setParameters(self, pvals):  # 14
+    def setParameters(self, pvals, verbose=True):  # 14
         """
         This method is used to set parameter values. It can be called:
         with a sequence of parameter name and assigning corresponding value as arguments as show in the example below:
@@ -1366,7 +1375,15 @@ class ModelicaSystem(object):
         >>> setParameters("Name=value")
         >>> setParameters(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(pvals,self.paramlist,"parameter",self.overridevariables)
+        return self.setMethodHelper(pvals,self.paramlist,"parameter",self.overridevariables, verbose)
+
+    def isParameterChangeable(self, name, value, verbose):
+        q = self.getQuantities(name)
+        if (q[0]["changeable"] == "false"):
+            if verbose:
+                print("| info |  setParameters() failed : It is not possible to set the following signal " + "\"" + name + "\"" + ", It seems to be structural, final, protected or evaluated or has a non-constant binding, use sendExpression(setParameterValue("+ self.modelName + ", " + name + ", " + value + "), parsed=false)" + " and rebuild the model using buildModel() API")
+            return False
+        return True
 
     def setSimulationOptions(self, simOptions):  # 16
         """
