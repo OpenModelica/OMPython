@@ -897,12 +897,22 @@ class ModelicaSystem(object):
         for element in self.lmodel:
             if element is not None:
                 loadmodelError = ''
-                if element.endswith(".mo"):
-                    loadModelResult = self.requestApi("loadFile", element)
-                    loadmodelError = self.requestApi('getErrorString')
+                if isinstance(element, str):
+                    if element.endswith(".mo"):
+                        loadModelResult = self.requestApi("loadFile", element)
+                        loadmodelError = self.requestApi('getErrorString')
+                    else:
+                        loadModelResult = self.requestApi("loadModel", element)
+                        loadmodelError = self.requestApi('getErrorString')
+                elif isinstance(element, tuple):
+                    if not element[1]:
+                        libname = "".join(["loadModel(", element[0], ")"])
+                    else:
+                        libname = "".join(["loadModel(", element[0], ", ", "{", "\"", element[1], "\"", "}", ")"])
+                    loadmodelError = self.sendExpression(libname)
+                    loadmodelError = self.sendExpression("getErrorString()")
                 else:
-                    loadModelResult = self.requestApi("loadModel", element)
-                    loadmodelError = self.requestApi('getErrorString')
+                    print("| info | loadLibrary() failed, Unknown type detected: ", element , " is of type ",  type(element), ", The following patterns are supported\n1)[\"Modelica\"]\n2)[(\"Modelica\",\"3.2.3\"), \"PowerSystems\"]\n")
                 if loadmodelError:
                     print(loadmodelError)
         self.buildModel()
