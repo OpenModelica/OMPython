@@ -968,7 +968,10 @@ class ModelicaSystem(object):
 
                 if(self.linearizationFlag==False):
                     if(scalar["variability"]=="parameter"):
-                        self.paramlist[scalar["name"]]=scalar["start"]
+                        if scalar["name"] in self.overridevariables:
+                            self.paramlist[scalar["name"]] = self.overridevariables[scalar["name"]]
+                        else:
+                            self.paramlist[scalar["name"]] = scalar["start"]
                     if(scalar["variability"]=="continuous"):
                         self.continuouslist[scalar["name"]]=scalar["start"]
                     if(scalar["causality"]=="input"):
