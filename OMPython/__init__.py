@@ -935,7 +935,7 @@ class ModelicaSystem(object):
         if (entity is not None and properties is not None):
             exp = '{}({}, {})'.format(apiName, entity, properties)
         elif entity is not None and properties is None:
-            if (apiName == "loadFile" or apiName == "importFMU"):
+            if (apiName == "loadFile" or apiName == "importFMU" or apiName == "cd"):
                 exp = '{}("{}")'.format(apiName, entity)
             else:
                 exp = '{}({})'.format(apiName, entity)
@@ -1773,6 +1773,19 @@ class ModelicaSystem(object):
             return tmpmatrix
         else:
             return np.zeros((0,0))
+        
+    def setCurrDir(mo, newPath: str) -> str:
+        path = newPath.replace('\\', '/')
+
+        if path[-1] == '/':
+            path = path[:-1]
+
+        if not os.path.exists(path):
+            raise Exception("Error: path does not exist")
+
+        mo.currDir = path
+        mo.requestApi('cd', entity=path)
+        return print(mo.getconn.sendExpression('cd()'))
 
 
 def FindBestOMCSession(*args, **kwargs):
