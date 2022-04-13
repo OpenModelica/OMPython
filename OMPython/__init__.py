@@ -1774,7 +1774,7 @@ class ModelicaSystem(object):
         else:
             return np.zeros((0,0))
         
-    def setCurrDir(mo, newPath: str) -> str:
+    def setCurrDir(mo, newPath):
         path = newPath.replace('\\', '/')
 
         if path[-1] == '/':
