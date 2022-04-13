@@ -528,7 +528,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
                                  str(builtin).lower(), str(showProtected).lower()))
         else:
             value = self.ask('getClassNames',
-                             'recursive={1}, qualified={2}, sort={3}, builtin={4}, showProtected={5}'.format(
+                             'recursive={0}, qualified={1}, sort={2}, builtin={3}, showProtected={4}'.format(
                                  str(recursive).lower(), str(qualified).lower(), str(sort).lower(),
                                  str(builtin).lower(), str(showProtected).lower()))
         return value
