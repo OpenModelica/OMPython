@@ -1773,8 +1773,8 @@ class ModelicaSystem(object):
             return tmpmatrix
         else:
             return np.zeros((0,0))
-
-    def setCurrDir(self, newPath):
+        
+    def setCurrDir(mo, newPath):
         path = newPath.replace('\\', '/')
 
         if path[-1] == '/':
@@ -1783,9 +1783,9 @@ class ModelicaSystem(object):
         if not os.path.exists(path):
             raise Exception("Error: path does not exist")
 
-        self.requestApi('cd', entity=path)
-        if self.requestApi('cd') == path:
-            self.currDir = path
+        mo.currDir = path
+        mo.requestApi('cd', entity=path)
+        return print(mo.getconn.sendExpression('cd()'))
 
 
 def FindBestOMCSession(*args, **kwargs):
