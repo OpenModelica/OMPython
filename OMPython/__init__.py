@@ -921,8 +921,10 @@ class ModelicaSystem(object):
         # buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
         buildModelResult = self.requestApi("buildModel", self.modelName)
         buildModelError = self.requestApi("getErrorString")
-        if ('' in buildModelResult):
+        # Issue #145. Always print the getErrorString since it might contains build warnings.
+        if buildModelError:
             print(buildModelError)
+        if ('' in buildModelResult):
             return
         self.xmlFile=os.path.join(os.path.dirname(buildModelResult[0]),buildModelResult[1]).replace("\\","/")
         self.xmlparse()
