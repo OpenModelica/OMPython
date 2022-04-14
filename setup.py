@@ -54,7 +54,7 @@ if hasomniidl:
     OMPython_packages.extend(['OMPythonIDL', 'OMPythonIDL._OMCIDL', 'OMPythonIDL._OMCIDL__POA'])
 
 setup(name='OMPython',
-      version='3.3.0',
+      version='3.4.0',
       description='OpenModelica-Python API Interface',
       author='Anand Kalaiarasi Ganeson',
       author_email='ganan642@student.liu.se',
