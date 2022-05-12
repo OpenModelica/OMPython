@@ -206,8 +206,11 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
             my_env["PATH"] = omhome_bin + os.pathsep + my_env["PATH"]
             self._omc_process = subprocess.Popen(self._omc_command, stdout=self._omc_log_file, stderr=self._omc_log_file, env=my_env)
         else:
+            # set the user environment variable so omc running from wsgi has the same user as OMPython
+            my_env = os.environ.copy()
+            my_env["USER"] = self._currentUser
             # Because we spawned a shell, and we need to be able to kill OMC, create a new process group for this
-            self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file, preexec_fn=os.setsid)
+            self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file, env=my_env, preexec_fn=os.setsid)
         if self._docker:
           for i in range(0,40):
             try:
