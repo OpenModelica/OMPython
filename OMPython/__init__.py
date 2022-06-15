@@ -788,7 +788,7 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
 
 class ModelicaSystem(object):
-    def __init__(self, fileName=None, modelName=None, lmodel=[], useCorba=False, commandLineOptions=None):  # 1
+    def __init__(self, fileName=None, modelName=None, lmodel=[], useCorba=False, commandLineOptions=None, variableFilter=None):  # 1
         """
         "constructor"
         It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called :
@@ -846,6 +846,8 @@ class ModelicaSystem(object):
         self.outputFlag = False
         self.csvFile = ''  # for storing inputs condition
         self.resultfile="" # for storing result file
+        self.variableFilter = variableFilter
+
         if not os.path.exists(self.fileName):  # if file does not eixt
             print("File Error:" + os.path.abspath(self.fileName) + " does not exist!!!")
             return
@@ -920,9 +922,17 @@ class ModelicaSystem(object):
                     print(loadmodelError)
         self.buildModel()
 
-    def buildModel(self):
+    def buildModel(self, variableFilter=None):
+        if variableFilter is not None:
+            self.variableFilter = variableFilter
+
+        if self.variableFilter is not None:
+            varFilter = "variableFilter=" + "\"" + self.variableFilter + "\""
+        else:
+            varFilter = ".*"
+
         # buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
-        buildModelResult = self.requestApi("buildModel", self.modelName)
+        buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
         buildModelError = self.requestApi("getErrorString")
         # Issue #145. Always print the getErrorString since it might contains build warnings.
         if buildModelError:
