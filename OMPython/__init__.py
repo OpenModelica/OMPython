@@ -929,8 +929,8 @@ class ModelicaSystem(object):
         if self.variableFilter is not None:
             varFilter = "variableFilter=" + "\"" + self.variableFilter + "\""
         else:
-            varFilter = ".*"
-
+            varFilter = "variableFilter=" +  "\".*""\""
+        # print(varFilter)
         # buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
         buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
         buildModelError = self.requestApi("getErrorString")
