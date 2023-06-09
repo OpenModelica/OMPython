@@ -975,6 +975,7 @@ class ModelicaSystem(object):
                 self.simulateOptions["stepSize"] = attr.get('stepSize')
                 self.simulateOptions["tolerance"] = attr.get('tolerance')
                 self.simulateOptions["solver"] = attr.get('solver')
+                self.simulateOptions["outputFormat"] = attr.get('outputFormat')
 
             for sv in rootCQ.iter('ScalarVariable'):
                 scalar={}
