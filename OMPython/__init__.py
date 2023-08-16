@@ -1316,13 +1316,12 @@ class ModelicaSystem(object):
             return
             #exit()
         else:
+            resultVars = self.getconn.sendExpression("readSimulationResultVars(\"" + resFile + "\")")
+            self.getconn.sendExpression("closeSimulationResultFile()")
             if (varList == None):
-                # validSolution = ['time'] + self.__getInputNames() + self.__getContinuousNames() + self.__getParameterNames()
-                validSolution = self.getconn.sendExpression("readSimulationResultVars(\"" + resFile + "\")")
-                self.getconn.sendExpression("closeSimulationResultFile()")
-                return validSolution
+                return resultVars
             elif (isinstance(varList,str)):
-                if (varList not in [l["name"] for l in self.quantitiesList] and varList!="time"):
+                if (varList not in resultVars and varList!="time"):
                     print('!!! ', varList, ' does not exist\n')
                     return
                 exp = "readSimulationResult(\"" + resFile + '",{' + varList + "})"
@@ -1336,7 +1335,7 @@ class ModelicaSystem(object):
                 for v in varList:
                     if v == "time":
                         continue
-                    if v not in [l["name"] for l in self.quantitiesList]:
+                    if v not in resultVars:
                         print('!!! ', v, ' does not exist\n')
                         return
                 variables = ",".join(varList)
