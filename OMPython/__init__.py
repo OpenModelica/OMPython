@@ -988,9 +988,15 @@ class ModelicaSystem(object):
                 scalar["aliasvariable"] = sv.get('aliasVariable')
                 ch = list(sv)
                 start = None
+                min = None
+                max = None
                 for att in ch:
                     start = att.get('start')
+                    min = att.get('min')
+                    max = att.get('max')
                 scalar["start"] =start
+                scalar["min"] = min
+                scalar["max"] = max
 
                 if(self.linearizationFlag==False):
                     if(scalar["variability"]=="parameter"):
