@@ -63,7 +63,7 @@ if sys.platform == 'darwin':
     sys.path.append('/opt/openmodelica/lib/python2.7/site-packages/')
 
 # TODO: replace this with the new parser
-from OMPython import OMTypedParser, OMParser
+from . import OMTypedParser, OMParser
 
 __license__ = """
  This file is part of OpenModelica.
@@ -788,13 +788,23 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
 
 class ModelicaSystem(object):
-    def __init__(self, fileName=None, modelName=None, lmodel=[], useCorba=False, commandLineOptions=None, variableFilter=None):  # 1
+    def __init__(self, fileName=None, modelName=None, lmodel=[], useCorba=False, commandLineOptions=None, variableFilter=None, xmlFileName=None):  # 1
         """
         "constructor"
         It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called :
-            •without any arguments: In this case it neither loads a file nor build a model. This is useful when a FMU needed to convert to Modelica model
-            •with two arguments as file name with ".mo" extension and the model name respectively
-            •with three arguments, the first and second are file name and model name respectively and the third arguments is Modelica standard library to load a model, which is common in such models where the model is based on the standard library. For example, here is a model named "dcmotor.mo" below table 4-2, which is located in the directory of OpenModelica at "C:\\OpenModelica1.9.4-dev.beta2\\share\\doc\\omc\\testmodels".
+            - without any arguments: In this case it neither loads a file nor build a model.
+              This is useful when a FMU needed to convert to Modelica model
+            - with two arguments as file name with ".mo" extension and the model name respectively
+            - with three arguments, the first and second are file name and model name respectively and the third arguments
+              is Modelica standard library to load a model, which is common in such models where the model is based on
+              the standard library. For example, here is a model named "dcmotor.mo" below table 4-2, which is located in the
+              directory of OpenModelica at "C:\\OpenModelica1.9.4-dev.beta2\\share\\doc\\omc\\testmodels".
+            - with two or three arguments and varableFilter to pick the list of variables that will be written by default when
+              calling simulate() as csv-string.
+              Another option to achieve the same, is using the overrideaux when calling simulate()
+            - with two or three arguments and xmlFileName to instantiate the model only and skip buildModel.
+              xmlFileName points to modelname_init.xml of a model that has been already built, e.g. by instantiating ModelicaSystem
+              without xmlFilename or .mos file.
         Note: If the model file is not in the current working directory, then the path where file is located must be included together with file name. Besides, if the Modelica model contains several different models within the same package, then in order to build the specific model, in second argument, user must put the package name with dot(.) followed by specific model name.
         ex: myModel = ModelicaSystem("ModelicaModel.mo", "modelName")
         """
@@ -826,10 +836,13 @@ class ModelicaSystem(object):
         self.linearoutputs = []  # linearization output list
         self.linearstates = []  # linearization  states list
 
-        if useCorba:
-            self.getconn = OMCSession()
+        if xmlFileName is None:
+            if useCorba:
+                self.getconn = OMCSession()
+            else:
+                self.getconn = OMCSessionZMQ()
         else:
-            self.getconn = OMCSessionZMQ()
+            self.getconn = None
 
         ## set commandLineOptions if provided by users
         if commandLineOptions is not None:
@@ -837,6 +850,7 @@ class ModelicaSystem(object):
             self.getconn.sendExpression(exp)
 
         self.xmlFile = None
+        self.xmlFileName = xmlFileName
         self.lmodel = lmodel  # may be needed if model is derived from other model
         self.modelName = modelName  # Model class name
         self.fileName = fileName  # Model file/package name
@@ -920,7 +934,11 @@ class ModelicaSystem(object):
                     print("| info | loadLibrary() failed, Unknown type detected: ", element , " is of type ",  type(element), ", The following patterns are supported\n1)[\"Modelica\"]\n2)[(\"Modelica\",\"3.2.3\"), \"PowerSystems\"]\n")
                 if loadmodelError:
                     print(loadmodelError)
-        self.buildModel()
+        if self.xmlFileName is None:
+            self.buildModel()
+        else:
+            self.xmlFile = self.xmlFileName
+            self.xmlparse()
 
     def buildModel(self, variableFilter=None):
         if variableFilter is not None:
@@ -929,8 +947,8 @@ class ModelicaSystem(object):
         if self.variableFilter is not None:
             varFilter = "variableFilter=" + "\"" + self.variableFilter + "\""
         else:
-            varFilter = "variableFilter=" +  "\".*""\""
-        # print(varFilter)
+            varFilter = "variableFilter=" + "\".*""\""
+
         # buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
         buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
         buildModelError = self.requestApi("getErrorString")
@@ -1219,13 +1237,27 @@ class ModelicaSystem(object):
             return ([self.optimizeOptions.get(x,"NotExist") for x in names])
 
     # to simulate or re-simulate model
-    def simulate(self,resultfile=None,simflags=None):  # 11
+    def simulate(self,resultfile=None,simflags=None,overrideaux=None):  # 11
         """
         This method simulates model according to the simulation options.
+
+        Parameters
+        ----------
+        resultfile : str or None
+            Output file name
+
+        simflags : str or None
+            Other simulation options not '-override' parameters
+
+        overrideaux : str or None
+            Specify 'outputFormat' and 'variableFilter
+
         usage
+        -----
         >>> simulate()
         >>> simulate(resultfile="a.mat")
         >>> simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10) set runtime simulation flags
+        >>> simulate(simflags="-noEventEmit -noRestart" ,overrideaux="outputFormat=csv,variableFilter=.*") 
         """
         if(resultfile is None):
             r=""
@@ -1247,6 +1279,12 @@ class ModelicaSystem(object):
             override =" -override=" + values1
         else:
             override =""
+        # add override flags not parameters or simulation options
+        if overrideaux:
+            if override:
+                override = override + "," + overrideaux
+            else:
+                override = " -override=" + overrideaux
 
         if (self.inputFlag):  # if model has input quantities
             for i in self.inputlist:
@@ -1263,16 +1301,21 @@ class ModelicaSystem(object):
                 if val[0][0] < float(self.simulateOptions["startTime"]):
                     print('Input time value is less than simulation startTime for inputs', i)
                     return
-            self.__simInput()  # create csv file
+            # self.__simInput()  # create csv file  # commented by Joerg
             csvinput=" -csvInput=" + self.csvFile
         else:
             csvinput=""
+
+        if self.xmlFileName is not None:
+            cwd_current = os.getcwd()
+            os.chdir(os.path.join(os.path.dirname(self.xmlFileName)))
 
         if (platform.system() == "Windows"):
             getExeFile = os.path.join(os.getcwd(), '{}.{}'.format(self.modelName, "exe")).replace("\\", "/")
         else:
             getExeFile = os.path.join(os.getcwd(), self.modelName).replace("\\", "/")
 
+        out = None
         if (os.path.exists(getExeFile)):
             cmd = getExeFile + override + csvinput + r + simflags
             #print(cmd)
@@ -1285,11 +1328,23 @@ class ModelicaSystem(object):
                 p.wait()
                 p.terminate()
             else:
-                os.system(cmd)
+                # os.system(cmd)  # Original code
+                # p = subprocess.Popen([cmd], stdout=subprocess.PIPE)
+                # print(str(cmd))
+                try:  # Python 3
+                    p = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                    out = p.stdout # .read()
+                except:  # Python 2
+                    os.system(cmd)
+                    out = ''
+                # p = subprocess.run([getExeFile, r], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             self.simulationFlag = True
+            if self.xmlFileName is not None:
+                os.chdir(cwd_current)
 
         else:
             raise Exception("Error: application file not generated yet")
+        return out
 
 
     # to extract simulation results
