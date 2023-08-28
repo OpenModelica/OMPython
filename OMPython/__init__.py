@@ -891,10 +891,10 @@ class ModelicaSystem(object):
 
         # create a unique temp directory for each session and build the model in that directory
         self.tempdir = tempfile.mkdtemp()
-        if not os.path.exists(self.tempdir.name):
+        if not os.path.exists(self.tempdir):
             return print(self.tempdir, " cannot be created")
 
-        exp="".join(["cd(","\"",self.tempdir.name,"\"",")"]).replace("\\","/")
+        exp="".join(["cd(","\"",self.tempdir,"\"",")"]).replace("\\","/")
         self.getconn.sendExpression(exp)
 
         self.buildModel()
@@ -1206,7 +1206,7 @@ class ModelicaSystem(object):
         """
         if(resultfile is None):
             r=""
-            self.resultfile = os.path.join(self.tempdir.name, self.modelName + "_res.mat").replace("\\", "/")
+            self.resultfile = os.path.join(self.tempdir, self.modelName + "_res.mat").replace("\\", "/")
         else:
             r=" -r=" + resultfile
             self.resultfile = resultfile
@@ -1246,14 +1246,14 @@ class ModelicaSystem(object):
             csvinput=""
 
         if (platform.system() == "Windows"):
-            getExeFile = os.path.join(self.tempdir.name, '{}.{}'.format(self.modelName, "exe")).replace("\\", "/")
+            getExeFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName, "exe")).replace("\\", "/")
         else:
-            getExeFile = os.path.join(self.tempdir.name, self.modelName).replace("\\", "/")
+            getExeFile = os.path.join(self.tempdir, self.modelName).replace("\\", "/")
         currentDir = os.getcwd()
         if (os.path.exists(getExeFile)):
             cmd = getExeFile + override + csvinput + r + simflags
             #print(cmd)
-            os.chdir(self.tempdir.name)
+            os.chdir(self.tempdir)
             if (platform.system() == "Windows"):
                 omhome = os.path.join(os.environ.get("OPENMODELICAHOME"))
                 dllPath = os.path.join(omhome, "bin").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc/cpp").replace("\\", "/") +  os.pathsep + os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
