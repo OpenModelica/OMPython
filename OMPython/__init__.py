@@ -890,7 +890,7 @@ class ModelicaSystem(object):
                     print(loadmodelError)
 
         # create a unique temp directory for each session and build the model in that directory
-        self.tempdir = tempfile.TemporaryDirectory()
+        self.tempdir = tempfile.mkdtemp()
         if not os.path.exists(self.tempdir.name):
             return print(self.tempdir, " cannot be created")
 
