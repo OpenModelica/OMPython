@@ -825,6 +825,7 @@ class ModelicaSystem(object):
         self.linearinputs = []  # linearization input list
         self.linearoutputs = []  # linearization output list
         self.linearstates = []  # linearization  states list
+        self.tempdir = ""
 
         if useCorba:
             self.getconn = OMCSession()
@@ -852,51 +853,18 @@ class ModelicaSystem(object):
             print("File Error:" + os.path.abspath(self.fileName) + " does not exist!!!")
             return
 
-        (head, tail) = os.path.split(self.fileName)  # to store directory/path and file)
-        self.currDir = os.getcwd()
-        self.modelDir = head
-        self.fileName_ = tail
-
-        if not self.modelDir:
-            file_ = os.path.exists(self.fileName_)
-            if (file_):  # execution from path where file is located
-                self.__loadingModel()
-            else:
-                print("Error: File does not exist!!!")
-
-        else:
-            os.chdir(self.modelDir)
-            file_ = os.path.exists(self.fileName_)
-            self.model = self.fileName_[:-3]
-            if (self.fileName_):  # execution from different path
-                os.chdir(self.currDir)
-                self.__loadingModel()
-            else:
-                print("Error: File does not exist!!!")
+        self.loadingModel()
 
     def __del__(self):
-        if self.getconn is not None:
-            self.requestApi('quit')
+        OMCSessionBase.__del__(self)
 
     # for loading file/package, loading model and building model
-    def __loadingModel(self):
+    def loadingModel(self):
         # load file
-        loadfileError = ''
-        loadfileResult = self.requestApi("loadFile", self.fileName)
-        loadfileError = self.requestApi("getErrorString")
-
-        # print the notification to users
-        if(loadfileResult==True and loadfileError):
-            print(loadfileError)
-
-        if (loadfileResult==False):
-            specError = 'Parser error: Unexpected token near: optimization (IDENT)'
-            if specError in loadfileError:
-                self.requestApi("setCommandLineOptions", '"+g=Optimica"')
-                self.requestApi("loadFile", self.fileName)
-            else:
-                print('loadFile Error: ' + loadfileError)
-                return
+        loadFileExp="".join(["loadFile(","\"",self.fileName,"\"",")"]).replace("\\","/")
+        loadMsg = self.getconn.sendExpression(loadFileExp)
+        if not loadMsg:
+            return print(self.getconn.sendExpression("getErrorString()"))
 
         # load Modelica standard libraries or Modelica files if needed
         for element in self.lmodel:
@@ -920,6 +888,15 @@ class ModelicaSystem(object):
                     print("| info | loadLibrary() failed, Unknown type detected: ", element , " is of type ",  type(element), ", The following patterns are supported\n1)[\"Modelica\"]\n2)[(\"Modelica\",\"3.2.3\"), \"PowerSystems\"]\n")
                 if loadmodelError:
                     print(loadmodelError)
+
+        # create a unique temp directory for each session and build the model in that directory
+        self.tempdir = tempfile.mkdtemp()
+        if not os.path.exists(self.tempdir):
+            return print(self.tempdir, " cannot be created")
+
+        exp="".join(["cd(","\"",self.tempdir,"\"",")"]).replace("\\","/")
+        self.getconn.sendExpression(exp)
+
         self.buildModel()
 
     def buildModel(self, variableFilter=None):
@@ -1229,7 +1206,7 @@ class ModelicaSystem(object):
         """
         if(resultfile is None):
             r=""
-            self.resultfile = "".join([self.modelName, "_res.mat"])
+            self.resultfile = os.path.join(self.tempdir, self.modelName + "_res.mat").replace("\\", "/")
         else:
             r=" -r=" + resultfile
             self.resultfile = resultfile
@@ -1238,7 +1215,7 @@ class ModelicaSystem(object):
         if(simflags is None):
             simflags=""
         else:
-            simflags=" " + simflags;
+            simflags=" " + simflags
 
         if (self.overridevariables or self.simoptionsoverride):
             tmpdict=self.overridevariables.copy()
@@ -1269,13 +1246,14 @@ class ModelicaSystem(object):
             csvinput=""
 
         if (platform.system() == "Windows"):
-            getExeFile = os.path.join(os.getcwd(), '{}.{}'.format(self.modelName, "exe")).replace("\\", "/")
+            getExeFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName, "exe")).replace("\\", "/")
         else:
-            getExeFile = os.path.join(os.getcwd(), self.modelName).replace("\\", "/")
-
+            getExeFile = os.path.join(self.tempdir, self.modelName).replace("\\", "/")
+        currentDir = os.getcwd()
         if (os.path.exists(getExeFile)):
             cmd = getExeFile + override + csvinput + r + simflags
             #print(cmd)
+            os.chdir(self.tempdir)
             if (platform.system() == "Windows"):
                 omhome = os.path.join(os.environ.get("OPENMODELICAHOME"))
                 dllPath = os.path.join(omhome, "bin").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc/cpp").replace("\\", "/") +  os.pathsep + os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
@@ -1286,11 +1264,10 @@ class ModelicaSystem(object):
                 p.terminate()
             else:
                 os.system(cmd)
+            os.chdir(currentDir)
             self.simulationFlag = True
-
         else:
-            raise Exception("Error: application file not generated yet")
-
+            raise Exception("Error: Application file path not found: " +  getExeFile)
 
     # to extract simulation results
     def getSolutions(self, varList=None, resultfile=None):  # 12
@@ -1312,7 +1289,7 @@ class ModelicaSystem(object):
 
         # check for result file exits
         if (not os.path.exists(resFile)):
-            print("Error: Result file does not exist")
+            print("Error: Result file does not exist " + resFile)
             return
             #exit()
         else:
