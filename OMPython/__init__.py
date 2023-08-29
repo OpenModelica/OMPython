@@ -1217,11 +1217,17 @@ class ModelicaSystem(object):
         else:
             simflags=" " + simflags
 
+        overrideFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName + "_override", "txt")).replace("\\", "/")
         if (self.overridevariables or self.simoptionsoverride):
             tmpdict=self.overridevariables.copy()
             tmpdict.update(self.simoptionsoverride)
-            values1 = ','.join("%s=%s" % (key, val) for (key, val) in list(tmpdict.items()))
-            override =" -override=" + values1
+            # write to override file
+            file = open(overrideFile, "w")
+            for (key, value) in tmpdict.items():
+                name = key + "=" + value + "\n"
+                file.write(name)
+            file.close()
+            override =" -overrideFile=" + overrideFile
         else:
             override =""
 
@@ -1573,10 +1579,11 @@ class ModelicaSystem(object):
             a = ("%s,%s" % (str(float(sl[i])), ",".join(list(str(float(inppp[i])) for inppp in interpolated_inputs_all)))) + ',0'
             l.append(a)
 
-        self.csvFile = '{}.csv'.format(self.modelName)
+        self.csvFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName, "csv")).replace("\\", "/")
         with open(self.csvFile, "w") as f:
             writer = csv.writer(f, delimiter='\n')
             writer.writerow(l)
+        f.close()
 
     # to convert Modelica model to FMU
     def convertMo2Fmu(self, version="2.0", fmuType="me_cs", fileNamePrefix="<default>", includeResources=True):  # 19
