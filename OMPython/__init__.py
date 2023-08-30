@@ -818,10 +818,8 @@ class ModelicaSystem(object):
         self.simulateOptions={}
         self.overridevariables={}
         self.simoptionsoverride={}
-        self.linearOptions={'startTime':0.0, 'stopTime': 1.0, 'numberOfIntervals':500, 'stepSize':0.002, 'tolerance':1e-8}
+        self.linearOptions={'startTime':0.0, 'stopTime': 1.0, 'stepSize':0.002, 'tolerance':1e-8}
         self.optimizeOptions={'startTime':0.0, 'stopTime': 1.0, 'numberOfIntervals':500, 'stepSize':0.002, 'tolerance':1e-8}
-        self.linearquantitiesList = []  # linearization  quantity list
-        self.linearparameters={}
         self.linearinputs = []  # linearization input list
         self.linearoutputs = []  # linearization output list
         self.linearstates = []  # linearization  states list
@@ -843,7 +841,6 @@ class ModelicaSystem(object):
         self.fileName = fileName  # Model file/package name
         self.inputFlag = False  # for model with input quantity
         self.simulationFlag = False  # if the model is simulated?
-        self.linearizationFlag = False
         self.outputFlag = False
         self.csvFile = ''  # for storing inputs condition
         self.resultfile="" # for storing result file
@@ -852,6 +849,12 @@ class ModelicaSystem(object):
         if not os.path.exists(self.fileName):  # if file does not eixt
             print("File Error:" + os.path.abspath(self.fileName) + " does not exist!!!")
             return
+
+        ## set default command Line Options for linearization as
+        ## linearize() will use the simulation executable and runtime
+        ## flag -l to perform linearization
+        self.getconn.sendExpression("setCommandLineOptions(\"--linearizationDumpLanguage=python\")")
+        self.getconn.sendExpression("setCommandLineOptions(\"--generateSymbolicLinearization\")")
 
         self.loadingModel()
 
@@ -975,35 +978,21 @@ class ModelicaSystem(object):
                 scalar["min"] = min
                 scalar["max"] = max
 
-                if(self.linearizationFlag==False):
-                    if(scalar["variability"]=="parameter"):
-                        if scalar["name"] in self.overridevariables:
-                            self.paramlist[scalar["name"]] = self.overridevariables[scalar["name"]]
-                        else:
-                            self.paramlist[scalar["name"]] = scalar["start"]
-                    if(scalar["variability"]=="continuous"):
-                        self.continuouslist[scalar["name"]]=scalar["start"]
-                    if(scalar["causality"]=="input"):
-                        self.inputlist[scalar["name"]]=scalar["start"]
-                    if(scalar["causality"]=="output"):
-                        self.outputlist[scalar["name"]]=scalar["start"]
+                if(scalar["variability"]=="parameter"):
+                    if scalar["name"] in self.overridevariables:
+                        self.paramlist[scalar["name"]] = self.overridevariables[scalar["name"]]
+                    else:
+                        self.paramlist[scalar["name"]] = scalar["start"]
+                if(scalar["variability"]=="continuous"):
+                    self.continuouslist[scalar["name"]]=scalar["start"]
+                if(scalar["causality"]=="input"):
+                    self.inputlist[scalar["name"]]=scalar["start"]
+                if(scalar["causality"]=="output"):
+                    self.outputlist[scalar["name"]]=scalar["start"]
 
-                if(self.linearizationFlag==True):
-                    if(scalar["variability"]=="parameter"):
-                        self.linearparameters[scalar["name"]]=scalar["start"]
-                    if(scalar["alias"]=="alias"):
-                        name=scalar["name"]
-                        if (name[1] == 'x'):
-                            self.linearstates.append(name[3:-1])
-                        if (name[1] == 'u'):
-                            self.linearinputs.append(name[3:-1])
-                        if (name[1] == 'y'):
-                            self.linearoutputs.append(name[3:-1])
-                    self.linearquantitiesList.append(scalar)
-                else:
-                    self.quantitiesList.append(scalar)
+                self.quantitiesList.append(scalar)
         else:
-            print("Error: ! XML file not generated")
+            print("Error: ! XML file not generated: " + self.xmlFile)
             return
 
 
@@ -1196,7 +1185,7 @@ class ModelicaSystem(object):
             return ([self.optimizeOptions.get(x,"NotExist") for x in names])
 
     # to simulate or re-simulate model
-    def simulate(self,resultfile=None,simflags=None):  # 11
+    def simulate(self, resultfile=None, simflags=None):  # 11
         """
         This method simulates model according to the simulation options.
         usage
@@ -1246,7 +1235,7 @@ class ModelicaSystem(object):
                 if val[0][0] < float(self.simulateOptions["startTime"]):
                     print('Input time value is less than simulation startTime for inputs', i)
                     return
-            self.__simInput()  # create csv file
+            self.createCSVData()  # create csv file
             csvinput=" -csvInput=" + self.csvFile
         else:
             csvinput=""
@@ -1486,12 +1475,20 @@ class ModelicaSystem(object):
                 return
 
     # To create csv file for inputs
-    def __simInput(self):
+    def createCSVData(self):
         sl = list()  # Actual timestamps
         skip = False
-        #inp = list()
-        #inp = deepcopy(self.__getInputValues())
-        inp = deepcopy(list(self.inputlist.values()))
+
+        ## check for NONE in input list and replace with proper data (e.g) [(startTime, 0.0), (stopTime, 0.0)]
+        tmpinputlist = {}
+        for (key, value) in self.inputlist.items():
+            if (value is None):
+                tmpinputlist[key] = [(float(self.simulateOptions["startTime"]), 0.0),(float(self.simulateOptions["stopTime"]), 0.0)]
+            else:
+                tmpinputlist[key] = value
+
+        inp = list(tmpinputlist.values())
+
         for i in inp:
             cl = list()
             el = list()
@@ -1645,73 +1642,105 @@ class ModelicaSystem(object):
         return optimizeResult
 
     # to linearize model
-    def linearize(self):  # 22
+    def linearize(self, lintime = None, simflags= None):  # 22
         """
         This method linearizes model according to the linearized options. This will generate a linear model that consists of matrices A, B, C and D.  It can be called:
         only without any arguments
         usage
         >>> linearize()
         """
-        try:
-            self.getconn.sendExpression("setCommandLineOptions(\"+generateSymbolicLinearization\")")
-            properties = ','.join("%s=%s" % (key, val) for (key, val) in list(self.linearOptions.items()))
-            if (self.overridevariables):
-                values = ','.join("%s=%s" % (key, val) for (key, val) in list(self.overridevariables.items()))
-                override ="-override=" + values
-            else:
-                override =""
 
-            if self.inputFlag:
-                nameVal = self.getInputs()
-                for n in nameVal:
-                    tupleList = nameVal.get(n)
+        if self.xmlFile is None:
+            return print("Linearization cannot be performed as the model is not build, use ModelicaSystem() to build the model first")
+
+        overrideLinearFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName + "_override_linear", "txt")).replace("\\", "/")
+
+        file = open(overrideLinearFile, "w")
+        for (key, value) in self.overridevariables.items():
+            name = key + "=" + value + "\n"
+            file.write(name)
+        for (key, value) in self.linearOptions.items():
+            name = key + "=" + str(value) + "\n"
+            file.write(name)
+        file.close()
+
+        override =" -overrideFile=" + overrideLinearFile
+        # print(override)
+
+        if self.inputFlag:
+            nameVal = self.getInputs()
+            for n in nameVal:
+                tupleList = nameVal.get(n)
+                if tupleList is not None:
                     for l in tupleList:
                         if l[0] < float(self.simulateOptions["startTime"]):
                             print('Input time value is less than simulation startTime')
                             return
-                self.__simInput()
-                csvinput ="-csvInput=" + self.csvFile
+            self.createCSVData()
+            csvinput =" -csvInput=" + self.csvFile
+        else:
+            csvinput=""
+
+        ## prepare the linearization runtime command
+        if (platform.system() == "Windows"):
+            getExeFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName, "exe")).replace("\\", "/")
+        else:
+            getExeFile = os.path.join(self.tempdir, self.modelName).replace("\\", "/")
+
+        if lintime is None:
+            linruntime = " -l=" + str(self.linearOptions["stopTime"])
+        else:
+            linruntime = " -l=" + lintime
+
+        if simflags is None:
+            simflags = ""
+
+        currentDir = os.getcwd()
+        if (os.path.exists(getExeFile)):
+            cmd = getExeFile + linruntime + override + csvinput + simflags
+            # print(cmd)
+            os.chdir(self.tempdir)
+            if (platform.system() == "Windows"):
+                omhome = os.path.join(os.environ.get("OPENMODELICAHOME"))
+                dllPath = os.path.join(omhome, "bin").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc/cpp").replace("\\", "/") +  os.pathsep + os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
+                my_env = os.environ.copy()
+                my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
+                p = subprocess.Popen(cmd, env=my_env)
+                p.wait()
+                p.terminate()
             else:
-                csvinput=""
+                os.system(cmd)
+        else:
+            os.chdir(currentDir)
+            raise Exception("Error: Application file path not found: " +  getExeFile)
 
-            #linexpr="linearize(" + self.modelName + "," + properties + ", simflags=\" " + csvinput + " " + override + " \")"
-            self.getconn.sendExpression("linearize(" + self.modelName + "," + properties + ", simflags=\" " + csvinput + " " + override + " \")")
-            linearizeError = ''
-            linearizeError = self.requestApi('getErrorString')
-            if linearizeError:
-                print(linearizeError)
-                return
+        # code to get the matrix and linear inputs, outputs and states
+        linearFile = os.path.join(self.tempdir, "linearized_model.py").replace("\\","/")
 
-            # code to get the matrix and linear inputs, outputs and states
-            linearFile = "linearized_model.mo"
+        # support older openmodelica versions before OpenModelica v1.16.2 where linearize() generates "linear_modelname.mo" file
+        if not os.path.exists(linearFile):
+            linearFile = '{}_{}.{}'.format('linear', self.modelName, 'py')
 
-            # support older openmodelica versions before OpenModelica v1.16.2 where linearize() generates "linear_modelname.mo" file
-            if not os.path.exists(linearFile):
-                linearFile = '{}_{}.{}'.format('linear', self.modelName, 'mo')
+        if os.path.exists(linearFile):
+            # this function is called from the generated python code linearized_model.py at runtime,
+            # to improve the performance by directly reading the matrices A, B, C and D from the julia code and avoid building the linearized modelica model
+            try:
+                from linearized_model import linearized_model
+                result = linearized_model()
+                (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
+                self.linearinputs = inputVars
+                self.linearoutputs = outputVars
+                self.linearstates = stateVars
+                return [A, B, C, D]
+                os.chdir(currentDir)
+            except:
+                os.chdir(currentDir)
+                raise Exception("ModuleNotFoundError: No module named 'linearized_model'")
+        else:
+            errormsg = self.getconn.sendExpression("getErrorString()")
+            os.chdir(currentDir)
+            return print("Linearization failed: ", "\"" , linearFile,"\"" ," not found \n", errormsg)
 
-            if os.path.exists(linearFile):
-                self.requestApi('loadFile', linearFile)
-                cNames = self.requestApi('getClassNames')
-                linModelName = cNames[0]
-                buildModelmsg=self.requestApi('buildModel', linModelName)
-                self.xmlFile=os.path.join(os.path.dirname(buildModelmsg[0]),buildModelmsg[1]).replace("\\","/")
-                if(os.path.exists(self.xmlFile)):
-                    self.linearizationFlag = True
-                    self.linearparameters={}
-                    self.linearquantitiesList=[]
-                    self.linearinputs=[]
-                    self.linearoutputs=[]
-                    self.linearstates=[]
-                    self.xmlparse()
-                    matrices = self.getlinearMatrix()
-                    return matrices
-                else:
-                    return self.requestApi('getErrorString')
-            else:
-                errormsg = self.sendExpression("getErrorString()")
-                return print("Linearization failed: " + "\"" + linearFile + "\"" + " not found \n" + errormsg)
-        except Exception as e:
-            raise e
 
     def getLinearInputs(self):
         """
@@ -1736,49 +1765,6 @@ class ModelicaSystem(object):
         >>> getLinearStates()
         """
         return self.linearstates
-
-    def getlinearMatrix(self):
-        """
-        Helper Function which generates the Linear Matrix A,B,C,D
-        """
-        matrix_A=OrderedDict()
-        matrix_B=OrderedDict()
-        matrix_C=OrderedDict()
-        matrix_D=OrderedDict()
-        for i in self.linearparameters:
-            name=i
-            if(name[0]=="A"):
-                matrix_A[name]=self.linearparameters[i]
-            if(name[0]=="B"):
-                matrix_B[name]=self.linearparameters[i]
-            if(name[0]=="C"):
-                matrix_C[name]=self.linearparameters[i]
-            if(name[0]=="D"):
-                matrix_D[name]=self.linearparameters[i]
-
-        tmpmatrix_A = self.getLinearMatrixValues(matrix_A)
-        tmpmatrix_B = self.getLinearMatrixValues(matrix_B)
-        tmpmatrix_C = self.getLinearMatrixValues(matrix_C)
-        tmpmatrix_D = self.getLinearMatrixValues(matrix_D)
-
-        return [tmpmatrix_A,tmpmatrix_B,tmpmatrix_C,tmpmatrix_D]
-
-    def getLinearMatrixValues(self,matrix):
-        """
-        Helper Function which generates the Linear Matrix A,B,C,D
-        """
-        if (matrix):
-            x=list(matrix.keys())
-            name=x[-1]
-            tmpmatrix=np.zeros((int(name[2]),int(name[4])))
-            for i in x:
-                rows=int(i[2])-1
-                cols=int(i[4])-1
-                tmpmatrix[rows][cols]=matrix[i]
-            return tmpmatrix
-        else:
-            return np.zeros((0,0))
-
 
 def FindBestOMCSession(*args, **kwargs):
   """
