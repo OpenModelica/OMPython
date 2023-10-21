@@ -1593,7 +1593,7 @@ class ModelicaSystem(object):
         >>> convertMo2Fmu(version="2.0", fmuType="me|cs|me_cs", fileNamePrefix="<default>", includeResources=true)
         """
         convertMo2FmuError = ''
-        if fileNamePrefix == "<default":
+        if fileNamePrefix == "<default>":
           fileNamePrefix = self.modelName
         if includeResources:
           includeResourcesStr = "true"
