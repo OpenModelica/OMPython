@@ -1592,7 +1592,7 @@ class ModelicaSystem(object):
         >>> convertMo2Fmu()
         >>> convertMo2Fmu(version="2.0", fmuType="me|cs|me_cs", fileNamePrefix="<default>", includeResources=true)
         """
-        convertMo2FmuError = ''
+
         if fileNamePrefix == "<default>":
           fileNamePrefix = self.modelName
         if includeResources:
@@ -1600,11 +1600,13 @@ class ModelicaSystem(object):
         else:
           includeResourcesStr = "false"
         properties = 'version="{}", fmuType="{}", fileNamePrefix="{}", includeResources={}'.format(version, fmuType, fileNamePrefix,includeResourcesStr)
-        translateModelFMUResult = self.requestApi('translateModelFMU', self.modelName, properties)
-        if convertMo2FmuError:
-            print(convertMo2FmuError)
+        fmu = self.requestApi('buildModelFMU', self.modelName, properties)
 
-        return translateModelFMUResult
+        ## report proper error message
+        if not os.path.exists(fmu):
+            return print(self.getconn.sendExpression("getErrorString()"))
+
+        return fmu
 
     # to convert FMU to Modelica model
     def convertFmu2Mo(self, fmuName):  # 20
@@ -1614,13 +1616,14 @@ class ModelicaSystem(object):
         usage
         >>> convertFmu2Mo("c:/BouncingBall.Fmu")
         """
-        convertFmu2MoError = ''
-        importResult = self.requestApi('importFMU', fmuName)
-        convertFmu2MoError = self.requestApi('getErrorString')
-        if convertFmu2MoError:
-            print(convertFmu2MoError)
 
-        return importResult
+        fileName = self.requestApi('importFMU', fmuName)
+
+        ## report proper error message
+        if not os.path.exists(fileName):
+            return print(self.getconn.sendExpression("getErrorString()"))
+
+        return fileName
 
     # to optimize model
     def optimize(self):  # 21
