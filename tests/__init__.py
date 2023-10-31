@@ -1,1 +1,1 @@
-__all__ = ['tests.test_OMParser', 'tests.test_ZMQ', 'tests.test_ModelicaSystem']
+__all__ = ['tests.test_OMParser', 'tests.test_ZMQ', 'tests.test_ModelicaSystem', 'tests.test_FMIExport']

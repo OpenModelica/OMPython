@@ -798,7 +798,6 @@ class ModelicaSystem(object):
         Note: If the model file is not in the current working directory, then the path where file is located must be included together with file name. Besides, if the Modelica model contains several different models within the same package, then in order to build the specific model, in second argument, user must put the package name with dot(.) followed by specific model name.
         ex: myModel = ModelicaSystem("ModelicaModel.mo", "modelName")
         """
-
         if fileName is None and modelName is None and not lmodel:  # all None
             if useCorba:
                 self.getconn = OMCSession()
@@ -806,10 +805,7 @@ class ModelicaSystem(object):
                 self.getconn = OMCSessionZMQ()
             return
 
-        if fileName is None:
-            return "File does not exist"
         self.tree = None
-
         self.quantitiesList=[]
         self.paramlist={}
         self.inputlist={}
@@ -830,6 +826,10 @@ class ModelicaSystem(object):
         else:
             self.getconn = OMCSessionZMQ()
 
+        ## needed for properly deleting the OMCSessionZMQ
+        self._omc_log_file = self.getconn._omc_log_file
+        self._omc_process = self.getconn._omc_process
+
         ## set commandLineOptions if provided by users
         if commandLineOptions is not None:
             exp="".join(["setCommandLineOptions(","\"",commandLineOptions,"\"",")"])
@@ -846,7 +846,7 @@ class ModelicaSystem(object):
         self.resultfile="" # for storing result file
         self.variableFilter = variableFilter
 
-        if not os.path.exists(self.fileName):  # if file does not eixt
+        if fileName is not None and  not os.path.exists(self.fileName):  # if file does not eixt
             print("File Error:" + os.path.abspath(self.fileName) + " does not exist!!!")
             return
 
@@ -856,19 +856,37 @@ class ModelicaSystem(object):
         self.getconn.sendExpression("setCommandLineOptions(\"--linearizationDumpLanguage=python\")")
         self.getconn.sendExpression("setCommandLineOptions(\"--generateSymbolicLinearization\")")
 
-        self.loadingModel()
+        self.setTempDirectory()
+
+        if fileName is not None:
+            self.loadFile()
+
+        ## allow directly loading models from MSL without fileName
+        if fileName is None and modelName is not None:
+            self.loadLibrary()
+
+        self.buildModel()
 
     def __del__(self):
         OMCSessionBase.__del__(self)
 
-    # for loading file/package, loading model and building model
-    def loadingModel(self):
+    def setCommandLineOptions(self):
+        ## set commandLineOptions if provided by users
+        if commandLineOptions is not None:
+            exp="".join(["setCommandLineOptions(","\"",commandLineOptions,"\"",")"])
+            cmdexp = self.getconn.sendExpression(exp)
+            if not cmdexp:
+                return print(self.getconn.sendExpression("getErrorString()"))
+
+    def loadFile(self):
         # load file
         loadFileExp="".join(["loadFile(","\"",self.fileName,"\"",")"]).replace("\\","/")
         loadMsg = self.getconn.sendExpression(loadFileExp)
         if not loadMsg:
             return print(self.getconn.sendExpression("getErrorString()"))
 
+    # for loading file/package, loading model and building model
+    def loadLibrary(self):
         # load Modelica standard libraries or Modelica files if needed
         for element in self.lmodel:
             if element is not None:
@@ -892,6 +910,7 @@ class ModelicaSystem(object):
                 if loadmodelError:
                     print(loadmodelError)
 
+    def setTempDirectory(self):
         # create a unique temp directory for each session and build the model in that directory
         self.tempdir = tempfile.mkdtemp()
         if not os.path.exists(self.tempdir):
@@ -900,7 +919,8 @@ class ModelicaSystem(object):
         exp="".join(["cd(","\"",self.tempdir,"\"",")"]).replace("\\","/")
         self.getconn.sendExpression(exp)
 
-        self.buildModel()
+    def getWorkDirectory(self):
+        return self.tempdir
 
     def buildModel(self, variableFilter=None):
         if variableFilter is not None:
