@@ -12,7 +12,7 @@ class testFMIExport(unittest.TestCase):
 
   def testCauerLowPassAnalog(self):
       print("testing Cauer")
-      mod = OMPython.ModelicaSystem(modelName="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog")
+      mod = OMPython.ModelicaSystem(modelName="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog", lmodel="Modelica")
       self.tmp = mod.getWorkDirectory()
 
       fmu = mod.convertMo2Fmu(fileNamePrefix="CauerLowPassAnalog")
@@ -20,7 +20,7 @@ class testFMIExport(unittest.TestCase):
 
   def testDrumBoiler(self):
       print("testing DrumBoiler")
-      mod = OMPython.ModelicaSystem(modelName="Modelica.Fluid.Examples.DrumBoiler.DrumBoiler")
+      mod = OMPython.ModelicaSystem(modelName="Modelica.Fluid.Examples.DrumBoiler.DrumBoiler", lmodel="Modelica")
       self.tmp = mod.getWorkDirectory()
 
       fmu = mod.convertMo2Fmu(fileNamePrefix="DrumBoiler")
