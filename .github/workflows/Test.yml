@@ -1,0 +1,46 @@
+name: Test
+
+on:
+  push:
+    branches: ['master']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        python-version: ['3.10']
+        os: ['ubuntu-latest']
+        omc-version: ['stable']
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Set up OpenModelica Compiler"
+        uses: AnHeuermann/setup-openmodelica@v0.6
+        with:
+          version: ${{ matrix.omc-version }}
+          packages: |
+            omc
+
+      - run: "omc --version"
+
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: 'x64'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install future pyparsing numpy psutil pyzmq
+
+      - name: Test OMPython
+        run: |
+          python -m unittest tests/test_ModelicaSystem.py
+          python -m unittest tests/test_OMParser.py
+          python -m unittest tests/test_ZMQ.py
