@@ -46,6 +46,6 @@ jobs:
           verbose: true
           emoji: true
           job-summary: true
-          custom-arguments: '-q'
+          custom-arguments: '-v'
           click-to-expand: true
           report-title: 'Test Report'
