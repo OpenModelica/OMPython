@@ -24,6 +24,8 @@ jobs:
           version: ${{ matrix.omc-version }}
           packages: |
             omc
+          libraries: |
+            'Modelica 4.0.0'
 
       - run: "omc --version"
 
