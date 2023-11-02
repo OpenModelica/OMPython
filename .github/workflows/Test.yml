@@ -49,11 +49,3 @@ jobs:
           custom-arguments: '-q'
           click-to-expand: true
           report-title: 'Test Report'
-
-      - name: Run Pytest
-        run: |
-          pytest tests/test_ModelicaSystem.py
-          # python -m unittest tests/test_ModelicaSystem.py
-          # python -m unittest tests/test_OMParser.py
-          # python -m unittest tests/test_ZMQ.py
-          # python -m unittest tests/test_FMIExport.py
