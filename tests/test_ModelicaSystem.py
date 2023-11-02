@@ -19,12 +19,10 @@ end M;
 
   def testModelicaSystemLoop(self):
     def worker():
-      origDir = os.getcwd()
-      os.chdir(self.tmp)
-      m = OMPython.ModelicaSystem("M.mo", "M")
+      filePath = os.path.join(self.tmp,"M.mo").replace("\\", "/")
+      m = OMPython.ModelicaSystem(filePath, "M")
       m.simulate()
       m.convertMo2Fmu(fmuType="me")
-      os.chdir(origDir)
     for _ in range(10):
       worker()
 
