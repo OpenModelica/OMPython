@@ -41,6 +41,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install future pyparsing numpy psutil pyzmq pytest pytest-md pytest-emoji
 
+      - name: Set timezone
+        uses: szenius/set-timezone@v1.2
+        with:
+          timezone: 'Europe/Berlin'
+
       - name: Run pytest
         uses: pavelzw/pytest-action@v2
         with:
