@@ -39,11 +39,21 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install future pyparsing numpy psutil pyzmq
+          pip install future pyparsing numpy psutil pyzmq pytest pytest-md pytest-emoji
 
-      - name: Test OMPython
+      - uses: pavelzw/pytest-action@v2
+        with:
+          verbose: true
+          emoji: true
+          job-summary: true
+          custom-arguments: '-q'
+          click-to-expand: true
+          report-title: 'Test Report'
+
+      - name: Run Pytest
         run: |
-          python -m unittest tests/test_ModelicaSystem.py
-          python -m unittest tests/test_OMParser.py
-          python -m unittest tests/test_ZMQ.py
-          python -m unittest tests/test_FMIExport.py
+          pytest tests/test_ModelicaSystem.py
+          # python -m unittest tests/test_ModelicaSystem.py
+          # python -m unittest tests/test_OMParser.py
+          # python -m unittest tests/test_ZMQ.py
+          # python -m unittest tests/test_FMIExport.py
