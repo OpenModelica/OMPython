@@ -44,3 +44,4 @@ jobs:
           python -m unittest tests/test_ModelicaSystem.py
           python -m unittest tests/test_OMParser.py
           python -m unittest tests/test_ZMQ.py
+          python -m unittest tests/test_FMIExport.py
