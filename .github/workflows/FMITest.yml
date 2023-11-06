@@ -1,10 +1,9 @@
-name: Test
+name: FMITest
 
 on:
-  push:
-    branches: ['master']
-  pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
 
 jobs:
   test:
@@ -46,12 +45,12 @@ jobs:
         with:
           timezoneLinux: 'Europe/Berlin'
 
-      - name: Run pytest
+      - name: Run FMI_EXPORT TEST
         uses: pavelzw/pytest-action@v2
         with:
           verbose: true
           emoji: true
           job-summary: true
-          custom-arguments: '-v --ignore=tests/test_FMIRegression.py '
+          custom-arguments: 'tests/test_FMIRegression.py -v'
           click-to-expand: true
-          report-title: 'Test Report'
+          report-title: 'FMI_Export TEST REPORT'
