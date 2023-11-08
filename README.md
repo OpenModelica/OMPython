@@ -3,10 +3,8 @@
 OMPython is a Python interface that uses ZeroMQ or CORBA (omniORB) to
 communicate with OpenModelica.
 
-[![FMITest](https://github.com/OpenModelica/OMPython/actions/workflows/FMITest.yml/badge.svg)]
-(https://github.com/OpenModelica/OMPython/actions/workflows/FMITest.yml)
-[![Test](https://github.com/OpenModelica/OMPython/actions/workflows/Test.yml/badge.svg)]
-(https://github.com/OpenModelica/OMPython/actions/workflows/Test.yml)
+[![FMITest](https://github.com/OpenModelica/OMPython/actions/workflows/FMITest.yml/badge.svg)](https://github.com/OpenModelica/OMPython/actions/workflows/FMITest.yml)
+[![Test](https://github.com/OpenModelica/OMPython/actions/workflows/Test.yml/badge.svg)](https://github.com/OpenModelica/OMPython/actions/workflows/Test.yml)
 
 ## Dependencies
 
