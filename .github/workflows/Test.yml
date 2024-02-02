@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: "Set up OpenModelica Compiler"
-        uses: AnHeuermann/setup-openmodelica@v0.6
+        uses: OpenModelica/setup-openmodelica@v1.0
         with:
           version: ${{ matrix.omc-version }}
           packages: |
