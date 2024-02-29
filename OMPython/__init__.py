@@ -894,17 +894,20 @@ class ModelicaSystem(object):
                 if isinstance(element, str):
                     if element.endswith(".mo"):
                         loadModelResult = self.requestApi("loadFile", element)
-                        loadmodelError = self.requestApi('getErrorString')
+                        if not loadModelResult:
+                            loadmodelError = self.requestApi('getErrorString')
                     else:
                         loadModelResult = self.requestApi("loadModel", element)
-                        loadmodelError = self.requestApi('getErrorString')
+                        if not loadModelResult:
+                            loadmodelError = self.requestApi('getErrorString')
                 elif isinstance(element, tuple):
                     if not element[1]:
                         libname = "".join(["loadModel(", element[0], ")"])
                     else:
                         libname = "".join(["loadModel(", element[0], ", ", "{", "\"", element[1], "\"", "}", ")"])
-                    loadmodelError = self.sendExpression(libname)
-                    loadmodelError = self.sendExpression("getErrorString()")
+                    loadModelResult = self.sendExpression(libname)
+                    if not loadModelResult:
+                        loadmodelError = self.sendExpression("getErrorString()")
                 else:
                     print("| info | loadLibrary() failed, Unknown type detected: ", element , " is of type ",  type(element), ", The following patterns are supported\n1)[\"Modelica\"]\n2)[(\"Modelica\",\"3.2.3\"), \"PowerSystems\"]\n")
                 if loadmodelError:
@@ -1205,7 +1208,7 @@ class ModelicaSystem(object):
             return ([self.optimizeOptions.get(x,"NotExist") for x in names])
 
     # to simulate or re-simulate model
-    def simulate(self, resultfile=None, simflags=None):  # 11
+    def simulate(self, resultfile=None, simflags=None, verbose=True):  # 11
         """
         This method simulates model according to the simulation options.
         usage
@@ -1274,11 +1277,17 @@ class ModelicaSystem(object):
                 dllPath = os.path.join(omhome, "bin").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc/cpp").replace("\\", "/") +  os.pathsep + os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
                 my_env = os.environ.copy()
                 my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
-                p = subprocess.Popen(cmd, env=my_env)
+                if not verbose:
+                    p = subprocess.Popen(cmd, env=my_env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                else:
+                    p = subprocess.Popen(cmd, env=my_env)
                 p.wait()
                 p.terminate()
             else:
-                os.system(cmd)
+                if not verbose:
+                    p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+                else:
+                    p = subprocess.Popen(cmd)
             os.chdir(currentDir)
             self.simulationFlag = True
         else:
