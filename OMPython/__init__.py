@@ -1748,6 +1748,9 @@ class ModelicaSystem(object):
             # this function is called from the generated python code linearized_model.py at runtime,
             # to improve the performance by directly reading the matrices A, B, C and D from the julia code and avoid building the linearized modelica model
             try:
+                ## add the generated linearfile directory to system path, as running from script does not find the module
+                ## https://github.com/OpenModelica/OMPython/issues/196
+                sys.path.append(os.path.dirname(linearFile))
                 from linearized_model import linearized_model
                 result = linearized_model()
                 (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
