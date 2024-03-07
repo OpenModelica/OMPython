@@ -859,7 +859,7 @@ class ModelicaSystem(object):
         self.setTempDirectory()
 
         if fileName is not None:
-            self.loadFile()
+            self.loadFile(verbose)
             self.loadLibrary(verbose)
 
         ## allow directly loading models from MSL without fileName
@@ -879,11 +879,12 @@ class ModelicaSystem(object):
             if not cmdexp:
                 return print(self.getconn.sendExpression("getErrorString()"))
 
-    def loadFile(self):
+    def loadFile(self, verbose):
         # load file
         loadFileExp="".join(["loadFile(","\"",self.fileName,"\"",")"]).replace("\\","/")
         loadMsg = self.getconn.sendExpression(loadFileExp)
-        if not loadMsg:
+        ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
+        if verbose or not loadMsg:
             return print(self.getconn.sendExpression("getErrorString()"))
 
     # for loading file/package, loading model and building model
@@ -893,31 +894,21 @@ class ModelicaSystem(object):
             if element is not None:
                 if isinstance(element, str):
                     if element.endswith(".mo"):
-                        loadModelResult = self.requestApi("loadFile", element)
-                        if not loadModelResult:
-                            loadmodelError = self.requestApi('getErrorString')
-                        ## always print the notification warning to user, to suppress the warnings add verbose=False
-                        if verbose:
-                            print(self.requestApi('getErrorString'))
+                        apiCall = "loadFile"
                     else:
-                        loadModelResult = self.requestApi("loadModel", element)
-                        if not loadModelResult:
-                            loadmodelError = self.requestApi('getErrorString')
-                        if verbose:
-                            print(self.requestApi('getErrorString'))
-
+                        apiCall = "loadModel"
+                    result = self.requestApi(apiCall, element)
                 elif isinstance(element, tuple):
                     if not element[1]:
                         libname = "".join(["loadModel(", element[0], ")"])
                     else:
                         libname = "".join(["loadModel(", element[0], ", ", "{", "\"", element[1], "\"", "}", ")"])
-                    loadModelResult = self.sendExpression(libname)
-                    if not loadModelResult:
-                        loadmodelError = self.sendExpression("getErrorString()")
-                    if verbose:
-                        print(self.requestApi('getErrorString'))
+                    result = self.sendExpression(libname)
                 else:
                     print("| info | loadLibrary() failed, Unknown type detected: ", element , " is of type ",  type(element), ", The following patterns are supported\n1)[\"Modelica\"]\n2)[(\"Modelica\",\"3.2.3\"), \"PowerSystems\"]\n")
+                ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
+                if verbose or not result:
+                    print(self.requestApi('getErrorString'))
 
     def setTempDirectory(self):
         # create a unique temp directory for each session and build the model in that directory
