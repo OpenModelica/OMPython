@@ -788,7 +788,7 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
 
 class ModelicaSystem(object):
-    def __init__(self, fileName=None, modelName=None, lmodel=[], useCorba=False, commandLineOptions=None, variableFilter=None):  # 1
+    def __init__(self, fileName=None, modelName=None, lmodel=[], useCorba=False, commandLineOptions=None, variableFilter=None, verbose=True):  # 1
         """
         "constructor"
         It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called :
@@ -860,12 +860,13 @@ class ModelicaSystem(object):
 
         if fileName is not None:
             self.loadFile()
+            self.loadLibrary(verbose)
 
         ## allow directly loading models from MSL without fileName
         if fileName is None and modelName is not None:
-            self.loadLibrary()
+            self.loadLibrary(verbose)
 
-        self.buildModel()
+        self.buildModel(variableFilter, verbose)
 
     def __del__(self):
         OMCSessionBase.__del__(self)
@@ -886,20 +887,25 @@ class ModelicaSystem(object):
             return print(self.getconn.sendExpression("getErrorString()"))
 
     # for loading file/package, loading model and building model
-    def loadLibrary(self):
+    def loadLibrary(self, verbose):
         # load Modelica standard libraries or Modelica files if needed
         for element in self.lmodel:
             if element is not None:
-                loadmodelError = ''
                 if isinstance(element, str):
                     if element.endswith(".mo"):
                         loadModelResult = self.requestApi("loadFile", element)
                         if not loadModelResult:
                             loadmodelError = self.requestApi('getErrorString')
+                        ## always print the notification warning to user, to suppress the warnings add verbose=False
+                        if verbose:
+                            print(self.requestApi('getErrorString'))
                     else:
                         loadModelResult = self.requestApi("loadModel", element)
                         if not loadModelResult:
                             loadmodelError = self.requestApi('getErrorString')
+                        if verbose:
+                            print(self.requestApi('getErrorString'))
+
                 elif isinstance(element, tuple):
                     if not element[1]:
                         libname = "".join(["loadModel(", element[0], ")"])
@@ -908,10 +914,10 @@ class ModelicaSystem(object):
                     loadModelResult = self.sendExpression(libname)
                     if not loadModelResult:
                         loadmodelError = self.sendExpression("getErrorString()")
+                    if verbose:
+                        print(self.requestApi('getErrorString'))
                 else:
                     print("| info | loadLibrary() failed, Unknown type detected: ", element , " is of type ",  type(element), ", The following patterns are supported\n1)[\"Modelica\"]\n2)[(\"Modelica\",\"3.2.3\"), \"PowerSystems\"]\n")
-                if loadmodelError:
-                    print(loadmodelError)
 
     def setTempDirectory(self):
         # create a unique temp directory for each session and build the model in that directory
@@ -925,7 +931,7 @@ class ModelicaSystem(object):
     def getWorkDirectory(self):
         return self.tempdir
 
-    def buildModel(self, variableFilter=None):
+    def buildModel(self, variableFilter=None, verbose=True):
         if variableFilter is not None:
             self.variableFilter = variableFilter
 
@@ -937,11 +943,14 @@ class ModelicaSystem(object):
         # buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
         buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
         buildModelError = self.requestApi("getErrorString")
-        # Issue #145. Always print the getErrorString since it might contains build warnings.
-        if buildModelError:
-            print(buildModelError)
+
         if ('' in buildModelResult):
-            return
+            print(buildModelError)
+
+        # Issue #145. Always print the getErrorString since it might contains build warnings.
+        if verbose:
+            print(buildModelError)
+
         self.xmlFile=os.path.join(os.path.dirname(buildModelResult[0]),buildModelResult[1]).replace("\\","/")
         self.xmlparse()
 
