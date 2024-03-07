@@ -898,21 +898,17 @@ class ModelicaSystem(object):
                     else:
                         apiCall = "loadModel"
                     result = self.requestApi(apiCall, element)
-                    ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
-                    if verbose or not result:
-                        print(self.requestApi('getErrorString'))
-
                 elif isinstance(element, tuple):
                     if not element[1]:
                         libname = "".join(["loadModel(", element[0], ")"])
                     else:
                         libname = "".join(["loadModel(", element[0], ", ", "{", "\"", element[1], "\"", "}", ")"])
                     result = self.sendExpression(libname)
-                    ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
-                    if verbose or not result:
-                        print(self.requestApi('getErrorString'))
                 else:
                     print("| info | loadLibrary() failed, Unknown type detected: ", element , " is of type ",  type(element), ", The following patterns are supported\n1)[\"Modelica\"]\n2)[(\"Modelica\",\"3.2.3\"), \"PowerSystems\"]\n")
+                ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
+                if verbose or not result:
+                    print(self.requestApi('getErrorString'))
 
     def setTempDirectory(self):
         # create a unique temp directory for each session and build the model in that directory
