@@ -895,14 +895,14 @@ class ModelicaSystem(object):
                     if element.endswith(".mo"):
                         loadModelResult = self.requestApi("loadFile", element)
                         if not loadModelResult:
-                            loadmodelError = self.requestApi('getErrorString')
+                            return print(self.getconn.sendExpression("getErrorString()"))
                         ## always print the notification warning to user, to suppress the warnings add verbose=False
                         if verbose:
                             print(self.requestApi('getErrorString'))
                     else:
                         loadModelResult = self.requestApi("loadModel", element)
                         if not loadModelResult:
-                            loadmodelError = self.requestApi('getErrorString')
+                            return print(self.getconn.sendExpression("getErrorString()"))
                         if verbose:
                             print(self.requestApi('getErrorString'))
 
@@ -913,7 +913,7 @@ class ModelicaSystem(object):
                         libname = "".join(["loadModel(", element[0], ", ", "{", "\"", element[1], "\"", "}", ")"])
                     loadModelResult = self.sendExpression(libname)
                     if not loadModelResult:
-                        loadmodelError = self.sendExpression("getErrorString()")
+                        return print(self.getconn.sendExpression("getErrorString()"))
                     if verbose:
                         print(self.requestApi('getErrorString'))
                 else:
@@ -942,14 +942,13 @@ class ModelicaSystem(object):
         # print(varFilter)
         # buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
         buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
-        buildModelError = self.requestApi("getErrorString")
 
         if ('' in buildModelResult):
-            print(buildModelError)
+            return print(self.getconn.sendExpression("getErrorString()"))
 
         # Issue #145. Always print the getErrorString since it might contains build warnings.
         if verbose:
-            print(buildModelError)
+            print(self.getconn.sendExpression("getErrorString()"))
 
         self.xmlFile=os.path.join(os.path.dirname(buildModelResult[0]),buildModelResult[1]).replace("\\","/")
         self.xmlparse()
