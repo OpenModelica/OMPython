@@ -788,7 +788,7 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
 
 class ModelicaSystem(object):
-    def __init__(self, fileName=None, modelName=None, lmodel=[], useCorba=False, commandLineOptions=None, variableFilter=None, verbose=True):  # 1
+    def __init__(self, fileName=None, modelName=None, lmodel=[], useCorba=False, commandLineOptions=None, variableFilter=None, customBuildDirectory=None, verbose=True):  # 1
         """
         "constructor"
         It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called :
@@ -856,7 +856,7 @@ class ModelicaSystem(object):
         self.getconn.sendExpression("setCommandLineOptions(\"--linearizationDumpLanguage=python\")")
         self.getconn.sendExpression("setCommandLineOptions(\"--generateSymbolicLinearization\")")
 
-        self.setTempDirectory()
+        self.setTempDirectory(customBuildDirectory)
 
         if fileName is not None:
             self.loadFile(verbose)
@@ -910,11 +910,16 @@ class ModelicaSystem(object):
                 if verbose or not result:
                     print(self.requestApi('getErrorString'))
 
-    def setTempDirectory(self):
+    def setTempDirectory(self, customBuildDirectory):
         # create a unique temp directory for each session and build the model in that directory
-        self.tempdir = tempfile.mkdtemp()
-        if not os.path.exists(self.tempdir):
-            return print(self.tempdir, " cannot be created")
+        if customBuildDirectory is not None:
+            if not os.path.exists(customBuildDirectory):
+                print(customBuildDirectory, " does not exist")
+            self.tempdir = customBuildDirectory
+        else:
+            self.tempdir = tempfile.mkdtemp()
+            if not os.path.exists(self.tempdir):
+                print(self.tempdir, " cannot be created")
 
         exp="".join(["cd(","\"",self.tempdir,"\"",")"]).replace("\\","/")
         self.getconn.sendExpression(exp)
