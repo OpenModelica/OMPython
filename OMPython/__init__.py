@@ -1286,13 +1286,13 @@ class ModelicaSystem(object):
                     p = subprocess.Popen(cmd, env=my_env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
                 else:
                     p = subprocess.Popen(cmd, env=my_env)
-                p.wait()
-                p.terminate()
             else:
                 if not verbose:
                     p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
                 else:
                     p = subprocess.Popen(cmd)
+            p.wait()
+            p.terminate()
             os.chdir(currentDir)
             self.simulationFlag = True
         else:
