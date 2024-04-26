@@ -1225,8 +1225,12 @@ class ModelicaSystem(object):
             r=""
             self.resultfile = os.path.join(self.tempdir, self.modelName + "_res.mat").replace("\\", "/")
         else:
-            r=" -r=" + resultfile
-            self.resultfile = resultfile
+            if os.path.exists(resultfile):
+                r=" -r=" + resultfile
+                self.resultfile = resultfile
+            else:
+                r=" -r=" + os.path.join(self.tempdir, resultfile).replace("\\", "/")
+                self.resultfile = os.path.join(self.tempdir, resultfile).replace("\\", "/")
 
         # allow runtime simulation flags from user input
         if(simflags is None):
