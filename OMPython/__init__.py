@@ -1280,6 +1280,7 @@ class ModelicaSystem(object):
         currentDir = os.getcwd()
         if (os.path.exists(getExeFile)):
             cmd = getExeFile + override + csvinput + r + simflags
+            cmd = cmd.split(" ")
             #print(cmd)
             os.chdir(self.tempdir)
             if (platform.system() == "Windows"):
