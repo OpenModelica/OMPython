@@ -94,6 +94,7 @@ TRUE = Keyword("true").setParseAction(replaceWith(True))
 FALSE = Keyword("false").setParseAction(replaceWith(False))
 NONE = (Keyword("NONE") + Suppress("(") + Suppress(")")).setParseAction(replaceWith(None))
 SOME = (Suppress(Keyword("SOME")) + Suppress("(") + omcValue + Suppress(")"))
+VARIABLE_ARRAY = Keyword(":").setParseAction(replaceWith(":"))
 
 omcString = QuotedString(quoteChar='"', escChar='\\', multiline=True).setParseAction(convertString)
 omcNumber = Combine(Optional('-') + ('0' | Word('123456789', nums)) +
@@ -107,7 +108,7 @@ fqident << ((ident + "." + fqident) | ident)
 omcValues = delimitedList(omcValue)
 omcTuple = Group(Suppress('(') + Optional(omcValues) + Suppress(')')).setParseAction(convertTuple)
 omcArray = Group(Suppress('{') + Optional(omcValues) + Suppress('}')).setParseAction(convertTuple)
-omcValue << (omcString | omcNumber | omcRecord | omcArray | omcTuple | SOME | TRUE | FALSE | NONE | Combine(fqident))
+omcValue << (omcString | omcNumber | omcRecord | omcArray | omcTuple | SOME | TRUE | FALSE | NONE | VARIABLE_ARRAY | Combine(fqident))
 recordMember = delimitedList(Group(ident + Suppress('=') + omcValue))
 omcRecord << Group(Suppress('record') + Suppress(fqident) + Dict(recordMember) + Suppress('end') + Suppress(fqident) + Suppress(';')).setParseAction(convertDict)
 
@@ -125,13 +126,13 @@ def parseString(string):
 
 if __name__ == "__main__":
     testdata = """
-   (1.0,{{1,true,3},{"4\\"
+   (1.0,:,{{1,true,3},{"4\\"
 ",5.9,6,NONE ( )},record ABC
   startTime = ErrorLevel.warning,
   'stop*Time' = SOME(1.0)
 end ABC;})
     """
-    expected = (1.0, ((1, True, 3), ('4"\n', 5.9, 6, None), {"'stop*Time'": 1.0, 'startTime': 'ErrorLevel.warning'}))
+    expected = (1.0, ":", ((1, True, 3), ('4"\n', 5.9, 6, None), {"'stop*Time'": 1.0, 'startTime': 'ErrorLevel.warning'}))
     results = parseString(testdata)
     if results != expected:
         print("Results:", results)
