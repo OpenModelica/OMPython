@@ -860,8 +860,8 @@ class ModelicaSystem(object):
         self.setTempDirectory(customBuildDirectory)
 
         if fileName is not None:
-            self.loadFile(verbose)
             self.loadLibrary(verbose)
+            self.loadFile(verbose)
 
         ## allow directly loading models from MSL without fileName
         if fileName is None and modelName is not None:
