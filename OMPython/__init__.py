@@ -999,13 +999,16 @@ class ModelicaSystem(object):
                 start = None
                 min = None
                 max = None
+                unit = None
                 for att in ch:
                     start = att.get('start')
                     min = att.get('min')
                     max = att.get('max')
+                    unit = att.get('unit')
                 scalar["start"] =start
                 scalar["min"] = min
                 scalar["max"] = max
+                scalar["unit"] = unit
 
                 if(scalar["variability"]=="parameter"):
                     if scalar["name"] in self.overridevariables:
