@@ -1,13 +1,7 @@
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
-
+from setuptools import setup
 from subprocess import call
 import os
-# Python 3.3 offers shutil.which()
-from distutils import spawn
-
+import shutil
 
 def warningOrError(errorOnFailure, msg):
     if errorOnFailure:
@@ -15,11 +9,11 @@ def warningOrError(errorOnFailure, msg):
     else:
         print(msg)
 
-
 def generateIDL():
     errorOnFailure = not os.path.exists(os.path.join(os.path.dirname(__file__), 'OMPythonIDL', '__init__.py'))
     try:
-        omhome = os.path.split(os.path.split(os.path.realpath(spawn.find_executable("omc")))[0])[0]
+        path_to_omc = shutil.which("omc")
+        omhome = os.path.dirname(os.path.dirname(os.path.split(path_to_omc)))
     except BaseException:
         omhome = None
     omhome = omhome or os.environ.get('OPENMODELICAHOME')
@@ -54,8 +48,9 @@ if hasomniidl:
     OMPython_packages.extend(['OMPythonIDL', 'OMPythonIDL._OMCIDL', 'OMPythonIDL._OMCIDL__POA'])
 
 setup(name='OMPython',
-      version='3.5.2',
+      version='3.6.0',
       description='OpenModelica-Python API Interface',
+      long_description=open('README.md').read(),
       author='Anand Kalaiarasi Ganeson',
       author_email='ganan642@student.liu.se',
       maintainer='Adeel Asghar',
@@ -64,11 +59,11 @@ setup(name='OMPython',
       url='http://openmodelica.org/',
       packages=OMPython_packages,
       install_requires=[
-          # 'omniORB', # Required, but not part of pypi
           'future',
-          'pyparsing',
           'numpy',
           'psutil',
+          'pyparsing',
           'pyzmq'
-      ]
+      ],
+      python_requires='>=3.8',
       )
