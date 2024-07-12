@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        python-version: ['3.10']
+        python-version: ['3.12']
         os: ['ubuntu-latest', 'windows-latest']
         omc-version: ['stable', 'nightly']
 
@@ -41,7 +41,7 @@ jobs:
           pip install future pyparsing numpy psutil pyzmq pytest pytest-md pytest-emoji
 
       - name: Set timezone
-        uses: szenius/set-timezone@v1.2
+        uses: szenius/set-timezone@v2.0
         with:
           timezoneLinux: 'Europe/Berlin'
 

@@ -12,12 +12,13 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        python-version: ['3.10']
-        os: ['ubuntu-latest']
+        python-version: ['3.10', '3.12']
+        os: ['ubuntu-latest', 'windows-latest']
         omc-version: ['stable']
 
     steps:
       - uses: actions/checkout@v4
+
       - name: "Set up OpenModelica Compiler"
         uses: OpenModelica/setup-openmodelica@v1.0
         with:
@@ -26,12 +27,10 @@ jobs:
             omc
           libraries: |
             'Modelica 4.0.0'
-
       - run: "omc --version"
 
-      - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           architecture: 'x64'
@@ -42,7 +41,7 @@ jobs:
           pip install future pyparsing numpy psutil pyzmq pytest pytest-md pytest-emoji
 
       - name: Set timezone
-        uses: szenius/set-timezone@v1.2
+        uses: szenius/set-timezone@v2.0
         with:
           timezoneLinux: 'Europe/Berlin'
 

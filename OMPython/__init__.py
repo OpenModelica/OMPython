@@ -33,7 +33,7 @@ from __future__ import print_function
 from future.utils import with_metaclass
 from builtins import int, range
 from copy import deepcopy
-from distutils import spawn
+import shutil
 
 import abc
 import csv
@@ -129,10 +129,10 @@ class OMCSessionHelper():
     if omc_env_home:
       self.omhome = omc_env_home
     else:
-      path_to_omc = spawn.find_executable("omc")
+      path_to_omc = shutil.which("omc")
       if path_to_omc is None:
         raise ValueError("Cannot find OpenModelica executable, please install from openmodelica.org")
-      self.omhome = os.path.split(os.path.split(os.path.realpath(path_to_omc))[0])[0]
+      self.omhome = os.path.dirname(os.path.dirname(path_to_omc))
   def _get_omc_path(self):
     try:
       return os.path.join(self.omhome, 'bin', 'omc')

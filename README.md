@@ -31,45 +31,57 @@ Installation using `pip` is recommended.
 
 Install the latest OMPython master by running:
 
-    python -m pip install -U https://github.com/OpenModelica/OMPython/archive/master.zip
+```bash
+python -m pip install -U https://github.com/OpenModelica/OMPython/archive/master.zip
+```
 
 ### Windows
 
-Install the version as packaged with your OpenModelica installation by
-running:
+Install the version packed with your OpenModelica installation by running:
 
-    cd %OPENMODELICAHOME%\share\omc\scripts\PythonInterface
-    python -m pip install -U .
+```cmd
+cd %OPENMODELICAHOME%\share\omc\scripts\PythonInterface
+python -m pip install -U .
+```
 
-Instead, to Install the latest version of the OMPython master branch
+### Local installation
+
+To Install the latest version of the OMPython master branch
 only, previously cloned into `<OMPythonPath>`, run:
 
-    cd <OMPythonPath>
-    python -m pip install -U .
+```
+cd <OMPythonPath>
+python -m pip install -U .
+```
 
 ## Usage
 
-Running the following commads should get you started
+Running the following commands should get you started
 
-``` python
+```python
 import OMPython
 help(OMPython)
 ```
 
-or read the [OMPython
-documentation](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/ompython.html)
+```python
+from OMPython import OMCSessionZMQ
+omc = OMCSessionZMQ()
+omc.sendExpression("getVersion()")
+```
+
+or read the [OMPython documentation](https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/ompython.html)
 online.
 
 ## Bug Reports
 
--   See OMPython bugs on the [OpenModelica
+  - See OMPython bugs on the [OpenModelica
     trac](https://trac.openmodelica.org/OpenModelica/query?component=OMPython)
     or submit a [new
     ticket](https://trac.openmodelica.org/OpenModelica/newticket).
--   [Pull requests](https://github.com/OpenModelica/OMPython/pulls) are
+  - [Pull requests](https://github.com/OpenModelica/OMPython/pulls) are
     welcome.
 
 ## Contact
 
--   Adeel Asghar, <adeel.asghar@liu.se>
--   Arunkumar Palanisamy, <arunkumar.palanisamy@liu.se>
+  - Adeel Asghar, <adeel.asghar@liu.se>
+  - Arunkumar Palanisamy, <arunkumar.palanisamy@liu.se>
