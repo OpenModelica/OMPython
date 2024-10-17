@@ -1375,7 +1375,7 @@ class ModelicaSystem(object):
         args3 - function name (eg; continuous, parameter, simulation, linearization,optimization)
         args4 - dict() which stores the new override variables list,
         """
-        if(isinstance(args1,str)):
+        def apply_single(args1):
             args1=self.strip_space(args1)
             value=args1.split("=")
             if value[0] in args2:
@@ -1387,24 +1387,24 @@ class ModelicaSystem(object):
                     args2[value[0]]=value[1]
                     if(args4!=None):
                         args4[value[0]]=value[1]
+
+                return True
+
             else:
-                print("\"" + value[0] + "\"" + " is not a" +  args3 + " variable")
-                return
+                print("\"" + value[0] + "\"" + " is not a " +  args3 + " variable")
+                return False
+
+        result = []
+        if (isinstance(args1, str)):
+            result = [apply_single(args1)]
+
         elif(isinstance(args1,list)):
+            result = []
             args1=self.strip_space(args1)
             for var in args1:
-                value=var.split("=")
-                if value[0] in args2:
-                    if (args3 == "parameter" and self.isParameterChangeable(value[0], value[1], verbose)):
-                        args2[value[0]]=value[1]
-                        if(args4!=None):
-                            args4[value[0]]=value[1]
-                    elif (args3 != "parameter"):
-                        args2[value[0]]=value[1]
-                        if(args4!=None):
-                            args4[value[0]]=value[1]
-                else:
-                    print("\"" + value[0] + "\"" + " is not a "+ args3 + " variable")
+                result.append(apply_single(var))
+
+        return all(result)
 
     def setContinuous(self, cvals):  # 13
         """
