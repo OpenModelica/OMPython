@@ -1288,7 +1288,19 @@ class ModelicaSystem(object):
             os.chdir(self.tempdir)
             if (platform.system() == "Windows"):
                 omhome = os.path.join(os.environ.get("OPENMODELICAHOME"))
-                dllPath = os.path.join(omhome, "bin").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc/cpp").replace("\\", "/") +  os.pathsep + os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
+                dllPath = os.path.join(omhome, "bin").replace("\\", "/") + os.pathsep + \
+                          os.path.join(omhome, "lib/omc").replace("\\", "/") + os.pathsep + \
+                          os.path.join(omhome, "lib/omc/cpp").replace("\\", "/") + os.pathsep + \
+                          os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
+                for element in self.lmodel:
+                    if element is not None:
+                        if isinstance(element, str):
+                            if element.endswith("package.mo"):
+                                pkgpath = element[:-10] + '/Resources/Library/'
+                                for wver in ['win32', 'win64']:
+                                    pkgpath_wver = pkgpath + '/' + wver
+                                    if os.path.exists(pkgpath_wver):
+                                        dllPath = pkgpath_wver + os.pathsep + dllPath
                 my_env = os.environ.copy()
                 my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
                 if not verbose:
