@@ -1303,15 +1303,15 @@ class ModelicaSystem(object):
                                         dllPath = pkgpath_wver + os.pathsep + dllPath
                 my_env = os.environ.copy()
                 my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
-                if not verbose:
-                    p = subprocess.Popen(cmd, env=my_env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                else:
-                    p = subprocess.Popen(cmd, env=my_env)
             else:
-                if not verbose:
-                    p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                else:
-                    p = subprocess.Popen(cmd)
+                my_env = None
+
+            p = subprocess.Popen(cmd, env=my_env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = p.communicate()
+            if stderr:
+                logger.warning(f"OM error: {stderr.decode('ascii')}")
+            if verbose and stdout:
+                logger.info(f"OM output:\n{stdout.decode('ascii').strip()}")
             p.wait()
             p.terminate()
             os.chdir(currentDir)
