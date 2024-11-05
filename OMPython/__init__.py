@@ -912,11 +912,11 @@ class ModelicaSystem(object):
                         libname = "".join(["loadModel(", element[0], ", ", "{", "\"", element[1], "\"", "}", ")"])
                     result = self.sendExpression(libname)
                 else:
-                    logger.info("loadLibrary() failed, Unknown type detected: " +
-                                "{} is of type {}, ".format(element, type(element)) +
-                                "The following patterns are supported:\n" +
-                                "1)[\"Modelica\"]\n" +
-                                "2)[(\"Modelica\",\"3.2.3\"), \"PowerSystems\"]\n")
+                    raise ModelicaSystemError("loadLibrary() failed, Unknown type detected: " +
+                                              "{} is of type {}, ".format(element, type(element)) +
+                                              "The following patterns are supported:\n" +
+                                              "1)[\"Modelica\"]\n" +
+                                              "2)[(\"Modelica\",\"3.2.3\"), \"PowerSystems\"]\n")
                 ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
                 if self._verbose or not result:
                     self._check_error()
