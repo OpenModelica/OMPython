@@ -1026,7 +1026,8 @@ class ModelicaSystem(object):
         try:
             res = self.getconn.sendExpression(exp)
         except Exception as e:
-            print(e)
+            errstr = "Exception {} raised: {}".format(type(e), e)
+            self._raise_error(errstr=errstr)
             res = None
         return res
 
@@ -1082,9 +1083,8 @@ class ModelicaSystem(object):
 
                 self.quantitiesList.append(scalar)
         else:
-            print("Error: ! XML file not generated: " + self.xmlFile)
-            return
-
+            errstr = "XML file not generated: " + self.xmlFile
+            self._raise_error(errstr=errstr)
 
     def getQuantities(self, names=None):  # 3
         """
@@ -1321,13 +1321,16 @@ class ModelicaSystem(object):
                     val=[(float(self.simulateOptions["startTime"]), 0.0), (float(self.simulateOptions["stopTime"]), 0.0)]
                     self.inputlist[i]=[(float(self.simulateOptions["startTime"]), 0.0), (float(self.simulateOptions["stopTime"]), 0.0)]
                 if float(self.simulateOptions["startTime"]) != val[0][0]:
-                    print("!!! startTime not matched for Input ",i)
+                    errstr = "!!! startTime not matched for Input {}".format(i)
+                    self._raise_error(errstr=errstr)
                     return
                 if float(self.simulateOptions["stopTime"]) != val[-1][0]:
-                    print("!!! stopTime not matched for Input ",i)
+                    errstr = "!!! stopTime not matched for Input {}".format(i)
+                    self._raise_error(errstr=errstr)
                     return
                 if val[0][0] < float(self.simulateOptions["startTime"]):
-                    print('Input time value is less than simulation startTime for inputs', i)
+                    errstr = "Input time value is less than simulation startTime for inputs {}".format(i)
+                    self._raise_error(errstr=errstr)
                     return
             self.createCSVData()  # create csv file
             csvinput=" -csvInput=" + self.csvFile
@@ -1368,7 +1371,8 @@ class ModelicaSystem(object):
 
         # check for result file exits
         if (not os.path.exists(resFile)):
-            print("Error: Result file does not exist " + resFile)
+            errstr = "Error: Result file does not exist {}".format(resFile)
+            self._raise_error(errstr=errstr)
             return
             #exit()
         else:
@@ -1378,7 +1382,8 @@ class ModelicaSystem(object):
                 return resultVars
             elif (isinstance(varList,str)):
                 if (varList not in resultVars and varList!="time"):
-                    print('!!! ', varList, ' does not exist\n')
+                    errstr = '!!! ' + varList + ' does not exist'
+                    self._raise_error(errstr=errstr)
                     return
                 exp = "readSimulationResult(\"" + resFile + '",{' + varList + "})"
                 res = self.getconn.sendExpression(exp)
@@ -1392,7 +1397,8 @@ class ModelicaSystem(object):
                     if v == "time":
                         continue
                     if v not in resultVars:
-                        print('!!! ', v, ' does not exist\n')
+                        errstr = '!!! ' + v + ' does not exist'
+                        self._raise_error(errstr=errstr)
                         return
                 variables = ",".join(varList)
                 exp = "readSimulationResult(\"" + resFile + '",{' + variables + "})"
@@ -1432,8 +1438,8 @@ class ModelicaSystem(object):
                 return True
 
             else:
-                print("\"" + value[0] + "\"" + " is not a " +  args3 + " variable")
-                return False
+                errstr = "\"" + value[0] + "\"" + " is not a" + args3 + " variable"
+                self._raise_error(errstr=errstr)
 
         result = []
         if (isinstance(args1, str)):
@@ -1525,7 +1531,8 @@ class ModelicaSystem(object):
                     self.inputlist[value[0]] = tmpvalue
                 self.inputFlag=True
             else:
-                print(value[0], "!is not an input")
+                errstr = value[0] + " is not an input"
+                self._raise_error(errstr=errstr)
         elif (isinstance(name,list)):
             name=self.strip_space(name)
             for var in name:
@@ -1539,7 +1546,8 @@ class ModelicaSystem(object):
                         self.inputlist[value[0]] = tmpvalue
                     self.inputFlag=True
                 else:
-                    print(value[0], "!is not an input")
+                    errstr = value[0] + " is not an input"
+                    self._raise_error(errstr=errstr)
 
     def checkValidInputs(self,name):
         if name != sorted(name, key=lambda x: x[0]):
