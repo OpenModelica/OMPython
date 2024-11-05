@@ -914,7 +914,11 @@ class ModelicaSystem(object):
                         libname = "".join(["loadModel(", element[0], ", ", "{", "\"", element[1], "\"", "}", ")"])
                     result = self.sendExpression(libname)
                 else:
-                    print("| info | loadLibrary() failed, Unknown type detected: ", element , " is of type ",  type(element), ", The following patterns are supported\n1)[\"Modelica\"]\n2)[(\"Modelica\",\"3.2.3\"), \"PowerSystems\"]\n")
+                    logger.info("loadLibrary() failed, Unknown type detected: " +
+                                "{} is of type {}, ".format(element, type(element)) +
+                                "The following patterns are supported:\n" +
+                                "1)[\"Modelica\"]\n" +
+                                "2)[(\"Modelica\",\"3.2.3\"), \"PowerSystems\"]\n")
                 ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
                 if self._verbose or not result:
                     self._check_error()
@@ -999,7 +1003,7 @@ class ModelicaSystem(object):
             varFilter = "variableFilter=" + "\"" + self.variableFilter + "\""
         else:
             varFilter = "variableFilter=" +  "\".*""\""
-        # print(varFilter)
+        logger.debug(varFilter)
         # buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
         buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
         if self._verbose:
@@ -1477,7 +1481,11 @@ class ModelicaSystem(object):
         q = self.getQuantities(name)
         if (q[0]["changeable"] == "false"):
             if self._verbose:
-                print("| info |  setParameters() failed : It is not possible to set the following signal " + "\"" + name + "\"" + ", It seems to be structural, final, protected or evaluated or has a non-constant binding, use sendExpression(setParameterValue("+ self.modelName + ", " + name + ", " + value + "), parsed=false)" + " and rebuild the model using buildModel() API")
+                logger.info("setParameters() failed : It is not possible to set " +
+                            "the following signal \"{}\", ".format(name) + "It seems to be structural, final, " +
+                            "protected or evaluated or has a non-constant binding, use sendExpression(" +
+                            "setParameterValue({}, {}, {}), ".format(self.modelName, name, value) +
+                            "parsed=false) and rebuild the model using buildModel() API")
             return False
         return True
 
@@ -1755,7 +1763,7 @@ class ModelicaSystem(object):
         file.close()
 
         override =" -overrideFile=" + overrideLinearFile
-        # print(override)
+        logger.debug(f"overwrite = {override}")
 
         if self.inputFlag:
             nameVal = self.getInputs()
