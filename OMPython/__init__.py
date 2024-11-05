@@ -839,9 +839,7 @@ class ModelicaSystem(object):
         self._omc_process = self.getconn._omc_process
 
         ## set commandLineOptions if provided by users
-        if commandLineOptions is not None:
-            exp="".join(["setCommandLineOptions(","\"",commandLineOptions,"\"",")"])
-            self.getconn.sendExpression(exp)
+        self.setCommandLineOptions(commandLineOptions=commandLineOptions)
 
         self.xmlFile = None
         self.lmodel = lmodel  # may be needed if model is derived from other model
@@ -880,7 +878,7 @@ class ModelicaSystem(object):
     def __del__(self):
         OMCSessionBase.__del__(self)
 
-    def setCommandLineOptions(self):
+    def setCommandLineOptions(self, commandLineOptions: str):
         ## set commandLineOptions if provided by users
         if commandLineOptions is not None:
             exp="".join(["setCommandLineOptions(","\"",commandLineOptions,"\"",")"])
