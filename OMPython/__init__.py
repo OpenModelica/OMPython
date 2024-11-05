@@ -793,7 +793,7 @@ class ModelicaSystemError(Exception):
 
 
 class ModelicaSystem(object):
-    def __init__(self, fileName=None, modelName=None, lmodel=[], useCorba=False, commandLineOptions=None,
+    def __init__(self, fileName=None, modelName=None, lmodel=None, useCorba=False, commandLineOptions=None,
                  variableFilter=None, customBuildDirectory=None, verbose=True, raiseerrors=False):  # 1
         """
         "constructor"
@@ -840,6 +840,9 @@ class ModelicaSystem(object):
 
         ## set commandLineOptions if provided by users
         self.setCommandLineOptions(commandLineOptions=commandLineOptions)
+
+        if lmodel is None:
+            lmodel = []
 
         self.xmlFile = None
         self.lmodel = lmodel  # may be needed if model is derived from other model
