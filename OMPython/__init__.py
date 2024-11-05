@@ -788,8 +788,13 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
             raise Exception("Process Exited, No connection with OMC. Create a new instance of OMCSession")
 
 
+class ModelicaSystemError(Exception):
+    pass
+
+
 class ModelicaSystem(object):
-    def __init__(self, fileName=None, modelName=None, lmodel=[], useCorba=False, commandLineOptions=None, variableFilter=None, customBuildDirectory=None, verbose=True):  # 1
+    def __init__(self, fileName=None, modelName=None, lmodel=[], useCorba=False, commandLineOptions=None,
+                 variableFilter=None, customBuildDirectory=None, verbose=True, raiseerrors=False):  # 1
         """
         "constructor"
         It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called :
@@ -848,6 +853,8 @@ class ModelicaSystem(object):
         self.csvFile = ''  # for storing inputs condition
         self.resultfile="" # for storing result file
         self.variableFilter = variableFilter
+
+        self._raiseerrors = raiseerrors
 
         if fileName is not None and not os.path.exists(self.fileName):  # if file does not exist
             raise IOError("File Error:" + os.path.abspath(self.fileName) + " does not exist!!!")
@@ -970,6 +977,19 @@ class ModelicaSystem(object):
         except Exception as e:
             os.chdir(currentDir)
             raise Exception("Error running command {}: {}".format(repr(cmd), e))
+
+    def _check_error(self):
+        errstr = self.getconn.sendExpression("getErrorString()")
+        if errstr is None or not errstr:
+            return
+
+        self._raise_error(errstr=errstr)
+
+    def _raise_error(self, errstr: str):
+        if self._raiseerrors:
+            raise ModelicaSystemError("OM error: {}".format(errstr))
+        else:
+            logger.error(errstr)
 
     def buildModel(self, variableFilter=None):
         if variableFilter is not None:
