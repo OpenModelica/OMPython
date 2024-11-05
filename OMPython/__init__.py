@@ -812,16 +812,17 @@ class ModelicaSystem(object):
             return
 
         self.tree = None
-        self.quantitiesList=[]
-        self.paramlist={}
-        self.inputlist={}
-        self.outputlist={}
-        self.continuouslist={}
-        self.simulateOptions={}
-        self.overridevariables={}
-        self.simoptionsoverride={}
-        self.linearOptions={'startTime':0.0, 'stopTime': 1.0, 'stepSize':0.002, 'tolerance':1e-8}
-        self.optimizeOptions={'startTime':0.0, 'stopTime': 1.0, 'numberOfIntervals':500, 'stepSize':0.002, 'tolerance':1e-8}
+        self.quantitiesList = []
+        self.paramlist = {}
+        self.inputlist = {}
+        self.outputlist = {}
+        self.continuouslist = {}
+        self.simulateOptions = {}
+        self.overridevariables = {}
+        self.simoptionsoverride = {}
+        self.linearOptions = {'startTime': 0.0, 'stopTime': 1.0, 'stepSize': 0.002, 'tolerance': 1e-8}
+        self.optimizeOptions = {'startTime': 0.0, 'stopTime': 1.0, 'numberOfIntervals': 500, 'stepSize': 0.002,
+                                'tolerance': 1e-8}
         self.linearinputs = []  # linearization input list
         self.linearoutputs = []  # linearization output list
         self.linearstates = []  # linearization  states list
@@ -852,7 +853,7 @@ class ModelicaSystem(object):
         self.simulationFlag = False  # if the model is simulated?
         self.outputFlag = False
         self.csvFile = ''  # for storing inputs condition
-        self.resultfile="" # for storing result file
+        self.resultfile = ""  # for storing result file
         self.variableFilter = variableFilter
 
         self._raiseerrors = raiseerrors
@@ -884,14 +885,14 @@ class ModelicaSystem(object):
     def setCommandLineOptions(self, commandLineOptions: str):
         ## set commandLineOptions if provided by users
         if commandLineOptions is not None:
-            exp="".join(["setCommandLineOptions(","\"",commandLineOptions,"\"",")"])
+            exp = "".join(["setCommandLineOptions(", "\"", commandLineOptions, "\"", ")"])
             cmdexp = self.getconn.sendExpression(exp)
             if not cmdexp:
                 self._check_error()
 
     def loadFile(self):
         # load file
-        loadFileExp="".join(["loadFile(","\"",self.fileName,"\"",")"]).replace("\\","/")
+        loadFileExp = "".join(["loadFile(", "\"", self.fileName, "\"", ")"]).replace("\\", "/")
         loadMsg = self.getconn.sendExpression(loadFileExp)
         ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
         if not loadMsg:
@@ -935,7 +936,7 @@ class ModelicaSystem(object):
             if not os.path.exists(self.tempdir):
                 raise IOError(self.tempdir, " cannot be created")
 
-        exp="".join(["cd(","\"",self.tempdir,"\"",")"]).replace("\\","/")
+        exp = "".join(["cd(", "\"", self.tempdir, "\"", ")"]).replace("\\", "/")
         self.getconn.sendExpression(exp)
 
     def getWorkDirectory(self):
@@ -1003,7 +1004,7 @@ class ModelicaSystem(object):
         if self.variableFilter is not None:
             varFilter = "variableFilter=" + "\"" + self.variableFilter + "\""
         else:
-            varFilter = "variableFilter=" +  "\".*""\""
+            varFilter = "variableFilter=" + "\".*""\""
         logger.debug(varFilter)
         # buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
         buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
@@ -1011,11 +1012,11 @@ class ModelicaSystem(object):
             logger.info("OM model build result: {}".format(buildModelResult))
         self._check_error()
 
-        self.xmlFile=os.path.join(os.path.dirname(buildModelResult[0]),buildModelResult[1]).replace("\\","/")
+        self.xmlFile = os.path.join(os.path.dirname(buildModelResult[0]), buildModelResult[1]).replace("\\", "/")
         self.xmlparse()
 
-    def sendExpression(self,expr,parsed=True):
-        return self.getconn.sendExpression(expr,parsed)
+    def sendExpression(self, expr, parsed=True):
+        return self.getconn.sendExpression(expr, parsed)
 
     # request to OMC
     def requestApi(self, apiName, entity=None, properties=None):  # 2
@@ -1036,14 +1037,13 @@ class ModelicaSystem(object):
             res = None
         return res
 
-
     def xmlparse(self):
-        if(os.path.exists(self.xmlFile)):
+        if (os.path.exists(self.xmlFile)):
             self.tree = ET.parse(self.xmlFile)
             self.root = self.tree.getroot()
             rootCQ = self.root
             for attr in rootCQ.iter('DefaultExperiment'):
-                self.simulateOptions["startTime"]= attr.get('startTime')
+                self.simulateOptions["startTime"] = attr.get('startTime')
                 self.simulateOptions["stopTime"] = attr.get('stopTime')
                 self.simulateOptions["stepSize"] = attr.get('stepSize')
                 self.simulateOptions["tolerance"] = attr.get('tolerance')
@@ -1051,7 +1051,7 @@ class ModelicaSystem(object):
                 self.simulateOptions["outputFormat"] = attr.get('outputFormat')
 
             for sv in rootCQ.iter('ScalarVariable'):
-                scalar={}
+                scalar = {}
                 scalar["name"] = sv.get('name')
                 scalar["changeable"] = sv.get('isValueChangeable')
                 scalar["description"] = sv.get('description')
@@ -1069,22 +1069,22 @@ class ModelicaSystem(object):
                     min = att.get('min')
                     max = att.get('max')
                     unit = att.get('unit')
-                scalar["start"] =start
+                scalar["start"] = start
                 scalar["min"] = min
                 scalar["max"] = max
                 scalar["unit"] = unit
 
-                if(scalar["variability"]=="parameter"):
+                if (scalar["variability"] == "parameter"):
                     if scalar["name"] in self.overridevariables:
                         self.paramlist[scalar["name"]] = self.overridevariables[scalar["name"]]
                     else:
                         self.paramlist[scalar["name"]] = scalar["start"]
-                if(scalar["variability"]=="continuous"):
-                    self.continuouslist[scalar["name"]]=scalar["start"]
-                if(scalar["causality"]=="input"):
-                    self.inputlist[scalar["name"]]=scalar["start"]
-                if(scalar["causality"]=="output"):
-                    self.outputlist[scalar["name"]]=scalar["start"]
+                if (scalar["variability"] == "continuous"):
+                    self.continuouslist[scalar["name"]] = scalar["start"]
+                if (scalar["causality"] == "input"):
+                    self.inputlist[scalar["name"]] = scalar["start"]
+                if (scalar["causality"] == "output"):
+                    self.outputlist[scalar["name"]] = scalar["start"]
 
                 self.quantitiesList.append(scalar)
         else:
@@ -1099,13 +1099,12 @@ class ModelicaSystem(object):
         >>> getQuantities("Name1")
         >>> getQuantities(["Name1","Name2"])
         """
-        if(names==None):
+        if (names == None):
             return self.quantitiesList
-        elif(isinstance(names, str)):
+        elif (isinstance(names, str)):
             return [x for x in self.quantitiesList if x["name"] == names]
         elif isinstance(names, list):
-            return [x for y in names for x in self.quantitiesList if x["name"]==y]
-
+            return [x for y in names for x in self.quantitiesList if x["name"] == y]
 
     def getContinuous(self, names=None):  # 4
         """
@@ -1116,36 +1115,36 @@ class ModelicaSystem(object):
         >>> getContinuous(["Name1","Name2"])
         """
         if not self.simulationFlag:
-            if(names==None):
+            if names is None:
                 return self.continuouslist
-            elif(isinstance(names, str)):
-                return [self.continuouslist.get(names ,"NotExist")]
-            elif(isinstance(names, list)):
-                return ([self.continuouslist.get(x ,"NotExist") for x in names])
+            elif isinstance(names, str):
+                return [self.continuouslist.get(names, "NotExist")]
+            elif isinstance(names, list):
+                return [self.continuouslist.get(x, "NotExist") for x in names]
         else:
-            if(names==None):
+            if names is None:
                 for i in self.continuouslist:
                     try:
                         value = self.getSolutions(i)
-                        self.continuouslist[i]=value[0][-1]
+                        self.continuouslist[i] = value[0][-1]
                     except Exception:
                         raise ModelicaSystemError("OM error: {} could not be computed".format(i))
                 return self.continuouslist
 
-            elif(isinstance(names, str)):
+            elif (isinstance(names, str)):
                 if names in self.continuouslist:
                     value = self.getSolutions(names)
-                    self.continuouslist[names]=value[0][-1]
+                    self.continuouslist[names] = value[0][-1]
                     return [self.continuouslist.get(names)]
                 else:
                     raise ModelicaSystemError("OM error: {} is not continuous".format(names))
 
-            elif(isinstance(names, list)):
-                valuelist=[]
+            elif (isinstance(names, list)):
+                valuelist = []
                 for i in names:
                     if i in self.continuouslist:
-                        value=self.getSolutions(i)
-                        self.continuouslist[i]=value[0][-1]
+                        value = self.getSolutions(i)
+                        self.continuouslist[i] = value[0][-1]
                         valuelist.append(value[0][-1])
                     else:
                         raise ModelicaSystemError("OM error: {} is not continuous".format(i))
@@ -1160,12 +1159,12 @@ class ModelicaSystem(object):
         >>> getParameters("Name1")
         >>> getParameters(["Name1","Name2"])
         """
-        if(names==None):
+        if (names == None):
             return self.paramlist
-        elif(isinstance(names, str)):
-            return [self.paramlist.get(names,"NotExist")]
-        elif(isinstance(names, list)):
-            return ([self.paramlist.get(x,"NotExist") for x in names])
+        elif (isinstance(names, str)):
+            return [self.paramlist.get(names, "NotExist")]
+        elif (isinstance(names, list)):
+            return ([self.paramlist.get(x, "NotExist") for x in names])
 
     def getlinearParameters(self, names=None):  # 5
         """
@@ -1173,12 +1172,12 @@ class ModelicaSystem(object):
         If *name is None then the function will return dict which contain all parameter names as key and value as corresponding values. eg., getParameters()
         Otherwise variable number of arguments can be passed as parameter name in string format separated by commas. eg., getParameters('paraName1', 'paraName2')
         """
-        if(names==0):
+        if (names == 0):
             return self.linearparameters
-        elif(isinstance(names, str)):
-            return [self.linearparameters.get(names,"NotExist")]
+        elif (isinstance(names, str)):
+            return [self.linearparameters.get(names, "NotExist")]
         else:
-            return ([self.linearparameters.get(x,"NotExist") for x in names])
+            return ([self.linearparameters.get(x, "NotExist") for x in names])
 
     def getInputs(self, names=None):  # 6
         """
@@ -1186,12 +1185,12 @@ class ModelicaSystem(object):
         If *name is None then the function will return dict which contain all input names as key and value as corresponding values. eg., getInputs()
         Otherwise variable number of arguments can be passed as input name in string format separated by commas. eg., getInputs('iName1', 'iName2')
         """
-        if(names==None):
+        if (names == None):
             return self.inputlist
-        elif(isinstance(names, str)):
-            return [self.inputlist.get(names,"NotExist")]
-        elif(isinstance(names, list)):
-            return ([self.inputlist.get(x,"NotExist") for x in names])
+        elif (isinstance(names, str)):
+            return [self.inputlist.get(names, "NotExist")]
+        elif (isinstance(names, list)):
+            return ([self.inputlist.get(x, "NotExist") for x in names])
 
     def getOutputs(self, names=None):  # 7
         """
@@ -1203,31 +1202,31 @@ class ModelicaSystem(object):
         >>> getOutputs(["Name1","Name2"])
         """
         if not self.simulationFlag:
-            if(names==None):
+            if (names == None):
                 return self.outputlist
-            elif(isinstance(names, str)):
-                return [self.outputlist.get(names,"NotExist")]
+            elif (isinstance(names, str)):
+                return [self.outputlist.get(names, "NotExist")]
             else:
-                return ([self.outputlist.get(x,"NotExist") for x in names])
+                return ([self.outputlist.get(x, "NotExist") for x in names])
         else:
-            if (names== None):
+            if (names == None):
                 for i in self.outputlist:
                     value = self.getSolutions(i)
-                    self.outputlist[i]=value[0][-1]
+                    self.outputlist[i] = value[0][-1]
                 return self.outputlist
-            elif(isinstance(names, str)):
-                 if names in self.outputlist:
-                     value = self.getSolutions(names)
-                     self.outputlist[names]=value[0][-1]
-                     return [self.outputlist.get(names)]
-                 else:
-                     return (names, " is not Output")
-            elif(isinstance(names, list)):
-                valuelist=[]
+            elif (isinstance(names, str)):
+                if names in self.outputlist:
+                    value = self.getSolutions(names)
+                    self.outputlist[names] = value[0][-1]
+                    return [self.outputlist.get(names)]
+                else:
+                    return (names, " is not Output")
+            elif (isinstance(names, list)):
+                valuelist = []
                 for i in names:
                     if i in self.outputlist:
-                        value=self.getSolutions(i)
-                        self.outputlist[i]=value[0][-1]
+                        value = self.getSolutions(i)
+                        self.outputlist[i] = value[0][-1]
                         valuelist.append(value[0][-1])
                     else:
                         return (i, "is not Output")
@@ -1242,12 +1241,12 @@ class ModelicaSystem(object):
         >>> getSimulationOptions("Name1")
         >>> getSimulationOptions(["Name1","Name2"])
         """
-        if(names==None):
+        if (names == None):
             return self.simulateOptions
-        elif(isinstance(names, str)):
-            return [self.simulateOptions.get(names,"NotExist")]
-        elif(isinstance(names, list)):
-            return ([self.simulateOptions.get(x,"NotExist") for x in names])
+        elif (isinstance(names, str)):
+            return [self.simulateOptions.get(names, "NotExist")]
+        elif (isinstance(names, list)):
+            return ([self.simulateOptions.get(x, "NotExist") for x in names])
 
     def getLinearizationOptions(self, names=None):  # 9
         """
@@ -1258,12 +1257,12 @@ class ModelicaSystem(object):
         >>> getLinearizationOptions("Name1")
         >>> getLinearizationOptions(["Name1","Name2"])
         """
-        if(names==None):
+        if (names == None):
             return self.linearOptions
-        elif(isinstance(names, str)):
-            return [self.linearOptions.get(names,"NotExist")]
-        elif(isinstance(names, list)):
-            return ([self.linearOptions.get(x,"NotExist") for x in names])
+        elif (isinstance(names, str)):
+            return [self.linearOptions.get(names, "NotExist")]
+        elif (isinstance(names, list)):
+            return ([self.linearOptions.get(x, "NotExist") for x in names])
 
     def getOptimizationOptions(self, names=None):  # 10
         """
@@ -1272,12 +1271,12 @@ class ModelicaSystem(object):
         >>> getOptimizationOptions("Name1")
         >>> getOptimizationOptions(["Name1","Name2"])
         """
-        if(names==None):
+        if (names == None):
             return self.optimizeOptions
-        elif(isinstance(names, str)):
-            return [self.optimizeOptions.get(names,"NotExist")]
-        elif(isinstance(names, list)):
-            return ([self.optimizeOptions.get(x,"NotExist") for x in names])
+        elif (isinstance(names, str)):
+            return [self.optimizeOptions.get(names, "NotExist")]
+        elif (isinstance(names, list)):
+            return ([self.optimizeOptions.get(x, "NotExist") for x in names])
 
     # to simulate or re-simulate model
     def simulate(self, resultfile=None, simflags=None):  # 11
@@ -1288,26 +1287,27 @@ class ModelicaSystem(object):
         >>> simulate(resultfile="a.mat")
         >>> simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10")  # set runtime simulation flags
         """
-        if(resultfile is None):
-            r=""
+        if (resultfile is None):
+            r = ""
             self.resultfile = os.path.join(self.tempdir, self.modelName + "_res.mat").replace("\\", "/")
         else:
             if os.path.exists(resultfile):
-                r=" -r=" + resultfile
+                r = " -r=" + resultfile
                 self.resultfile = resultfile
             else:
-                r=" -r=" + os.path.join(self.tempdir, resultfile).replace("\\", "/")
+                r = " -r=" + os.path.join(self.tempdir, resultfile).replace("\\", "/")
                 self.resultfile = os.path.join(self.tempdir, resultfile).replace("\\", "/")
 
         # allow runtime simulation flags from user input
-        if(simflags is None):
-            simflags=""
+        if (simflags is None):
+            simflags = ""
         else:
-            simflags=" " + simflags
+            simflags = " " + simflags
 
-        overrideFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName + "_override", "txt")).replace("\\", "/")
+        overrideFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName + "_override", "txt")).replace("\\",
+                                                                                                               "/")
         if (self.overridevariables or self.simoptionsoverride):
-            tmpdict=self.overridevariables.copy()
+            tmpdict = self.overridevariables.copy()
             tmpdict.update(self.simoptionsoverride)
             # write to override file
             file = open(overrideFile, "w")
@@ -1315,16 +1315,18 @@ class ModelicaSystem(object):
                 name = key + "=" + value + "\n"
                 file.write(name)
             file.close()
-            override =" -overrideFile=" + overrideFile
+            override = " -overrideFile=" + overrideFile
         else:
-            override =""
+            override = ""
 
         if (self.inputFlag):  # if model has input quantities
             for i in self.inputlist:
-                val=self.inputlist[i]
-                if(val==None):
-                    val=[(float(self.simulateOptions["startTime"]), 0.0), (float(self.simulateOptions["stopTime"]), 0.0)]
-                    self.inputlist[i]=[(float(self.simulateOptions["startTime"]), 0.0), (float(self.simulateOptions["stopTime"]), 0.0)]
+                val = self.inputlist[i]
+                if (val == None):
+                    val = [(float(self.simulateOptions["startTime"]), 0.0),
+                           (float(self.simulateOptions["stopTime"]), 0.0)]
+                    self.inputlist[i] = [(float(self.simulateOptions["startTime"]), 0.0),
+                                         (float(self.simulateOptions["stopTime"]), 0.0)]
                 if float(self.simulateOptions["startTime"]) != val[0][0]:
                     errstr = "!!! startTime not matched for Input {}".format(i)
                     self._raise_error(errstr=errstr)
@@ -1338,9 +1340,9 @@ class ModelicaSystem(object):
                     self._raise_error(errstr=errstr)
                     return
             self.createCSVData()  # create csv file
-            csvinput=" -csvInput=" + self.csvFile
+            csvinput = " -csvInput=" + self.csvFile
         else:
-            csvinput=""
+            csvinput = ""
 
         if (platform.system() == "Windows"):
             getExeFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName, "exe")).replace("\\", "/")
@@ -1379,14 +1381,14 @@ class ModelicaSystem(object):
             errstr = "Error: Result file does not exist {}".format(resFile)
             self._raise_error(errstr=errstr)
             return
-            #exit()
+            # exit()
         else:
             resultVars = self.getconn.sendExpression("readSimulationResultVars(\"" + resFile + "\")")
             self.getconn.sendExpression("closeSimulationResultFile()")
             if (varList == None):
                 return resultVars
-            elif (isinstance(varList,str)):
-                if (varList not in resultVars and varList!="time"):
+            elif (isinstance(varList, str)):
+                if (varList not in resultVars and varList != "time"):
                     errstr = '!!! ' + varList + ' does not exist'
                     self._raise_error(errstr=errstr)
                     return
@@ -1397,7 +1399,7 @@ class ModelicaSystem(object):
                 self.getconn.sendExpression(exp2)
                 return npRes
             elif (isinstance(varList, list)):
-                #varList, = varList
+                # varList, = varList
                 for v in varList:
                     if v == "time":
                         continue
@@ -1413,13 +1415,13 @@ class ModelicaSystem(object):
                 self.getconn.sendExpression(exp2)
                 return npRes
 
-    def strip_space(self,name):
-        if(isinstance(name,str)):
-            return name.replace(" ","")
-        elif(isinstance(name,list)):
-            return [x.replace(" ","") for x in name]
+    def strip_space(self, name):
+        if (isinstance(name, str)):
+            return name.replace(" ", "")
+        elif (isinstance(name, list)):
+            return [x.replace(" ", "") for x in name]
 
-    def setMethodHelper(self,args1,args2,args3,args4=None):
+    def setMethodHelper(self, args1, args2, args3, args4=None):
         """
         Helper function for setParameter(),setContinuous(),setSimulationOptions(),setLinearizationOption(),setOptimizationOption()
         args1 - string or list of string given by user
@@ -1428,17 +1430,17 @@ class ModelicaSystem(object):
         args4 - dict() which stores the new override variables list,
         """
         def apply_single(args1):
-            args1=self.strip_space(args1)
-            value=args1.split("=")
+            args1 = self.strip_space(args1)
+            value = args1.split("=")
             if value[0] in args2:
                 if (args3 == "parameter" and self.isParameterChangeable(value[0], value[1])):
-                    args2[value[0]]=value[1]
-                    if(args4!=None):
-                        args4[value[0]]=value[1]
+                    args2[value[0]] = value[1]
+                    if (args4 != None):
+                        args4[value[0]] = value[1]
                 elif (args3 != "parameter"):
-                    args2[value[0]]=value[1]
-                    if(args4!=None):
-                        args4[value[0]]=value[1]
+                    args2[value[0]] = value[1]
+                    if (args4 != None):
+                        args4[value[0]] = value[1]
 
                 return True
 
@@ -1450,9 +1452,9 @@ class ModelicaSystem(object):
         if (isinstance(args1, str)):
             result = [apply_single(args1)]
 
-        elif(isinstance(args1,list)):
+        elif (isinstance(args1, list)):
             result = []
-            args1=self.strip_space(args1)
+            args1 = self.strip_space(args1)
             for var in args1:
                 result.append(apply_single(var))
 
@@ -1466,7 +1468,7 @@ class ModelicaSystem(object):
         >>> setContinuous("Name=value")
         >>> setContinuous(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(cvals,self.continuouslist,"continuous",self.overridevariables)
+        return self.setMethodHelper(cvals, self.continuouslist, "continuous", self.overridevariables)
 
     def setParameters(self, pvals):  # 14
         """
@@ -1476,7 +1478,7 @@ class ModelicaSystem(object):
         >>> setParameters("Name=value")
         >>> setParameters(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(pvals,self.paramlist,"parameter",self.overridevariables)
+        return self.setMethodHelper(pvals, self.paramlist, "parameter", self.overridevariables)
 
     def isParameterChangeable(self, name, value):
         q = self.getQuantities(name)
@@ -1498,7 +1500,7 @@ class ModelicaSystem(object):
         >>> setSimulationOptions("Name=value")
         >>> setSimulationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(simOptions,self.simulateOptions,"simulation-option",self.simoptionsoverride)
+        return self.setMethodHelper(simOptions, self.simulateOptions, "simulation-option", self.simoptionsoverride)
 
     def setLinearizationOptions(self, linearizationOptions):  # 18
         """
@@ -1508,7 +1510,7 @@ class ModelicaSystem(object):
         >>> setLinearizationOptions("Name=value")
         >>> setLinearizationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(linearizationOptions,self.linearOptions,"Linearization-option",None)
+        return self.setMethodHelper(linearizationOptions, self.linearOptions, "Linearization-option", None)
 
     def setOptimizationOptions(self, optimizationOptions):  # 17
         """
@@ -1518,7 +1520,7 @@ class ModelicaSystem(object):
         >>> setOptimizationOptions("Name=value")
         >>> setOptimizationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(optimizationOptions,self.optimizeOptions,"optimization-option",None)
+        return self.setMethodHelper(optimizationOptions, self.optimizeOptions, "optimization-option", None)
 
     def setInputs(self, name):  # 15
         """
@@ -1528,32 +1530,34 @@ class ModelicaSystem(object):
         >>> setInputs("Name=value")
         >>> setInputs(["Name1=value1","Name2=value2"])
         """
-        if (isinstance(name,str)):
-            name=self.strip_space(name)
-            value=name.split("=")
+        if (isinstance(name, str)):
+            name = self.strip_space(name)
+            value = name.split("=")
             if value[0] in self.inputlist:
-                tmpvalue=eval(value[1])
-                if(isinstance(tmpvalue,int) or  isinstance(tmpvalue, float)):
-                    self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])), (float(self.simulateOptions["stopTime"]), float(value[1]))]
-                elif(isinstance(tmpvalue,list)):
+                tmpvalue = eval(value[1])
+                if (isinstance(tmpvalue, int) or isinstance(tmpvalue, float)):
+                    self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])),
+                                                (float(self.simulateOptions["stopTime"]), float(value[1]))]
+                elif (isinstance(tmpvalue, list)):
                     self.checkValidInputs(tmpvalue)
                     self.inputlist[value[0]] = tmpvalue
-                self.inputFlag=True
+                self.inputFlag = True
             else:
                 errstr = value[0] + " is not an input"
                 self._raise_error(errstr=errstr)
-        elif (isinstance(name,list)):
-            name=self.strip_space(name)
+        elif (isinstance(name, list)):
+            name = self.strip_space(name)
             for var in name:
-                value=var.split("=")
+                value = var.split("=")
                 if value[0] in self.inputlist:
-                    tmpvalue=eval(value[1])
-                    if(isinstance(tmpvalue,int) or  isinstance(tmpvalue, float)):
-                        self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])), (float(self.simulateOptions["stopTime"]), float(value[1]))]
-                    elif(isinstance(tmpvalue,list)):
+                    tmpvalue = eval(value[1])
+                    if (isinstance(tmpvalue, int) or isinstance(tmpvalue, float)):
+                        self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])),
+                                                    (float(self.simulateOptions["stopTime"]), float(value[1]))]
+                    elif (isinstance(tmpvalue, list)):
                         self.checkValidInputs(tmpvalue)
                         self.inputlist[value[0]] = tmpvalue
-                    self.inputFlag=True
+                    self.inputFlag = True
                 else:
                     errstr = value[0] + " is not an input"
                     self._raise_error(errstr=errstr)
@@ -1563,7 +1567,7 @@ class ModelicaSystem(object):
             raise ModelicaSystemError('Time value should be in increasing order')
         for l in name:
             if isinstance(l, tuple):
-                #if l[0] < float(self.simValuesList[0]):
+                # if l[0] < float(self.simValuesList[0]):
                 if l[0] < float(self.simulateOptions["startTime"]):
                     ModelicaSystemError('Input time value is less than simulation startTime')
                 if len(l) != 2:
@@ -1580,7 +1584,8 @@ class ModelicaSystem(object):
         tmpinputlist = {}
         for (key, value) in self.inputlist.items():
             if (value is None):
-                tmpinputlist[key] = [(float(self.simulateOptions["startTime"]), 0.0),(float(self.simulateOptions["stopTime"]), 0.0)]
+                tmpinputlist[key] = [(float(self.simulateOptions["startTime"]), 0.0),
+                                     (float(self.simulateOptions["stopTime"]), 0.0)]
             else:
                 tmpinputlist[key] = value
 
@@ -1662,15 +1667,16 @@ class ModelicaSystem(object):
             interpolated_inputs_all.append(templist)
 
         name_ = 'time'
-        #name = ','.join(self.__getInputNames())
-        name=','.join(list(self.inputlist.keys()))
+        # name = ','.join(self.__getInputNames())
+        name = ','.join(list(self.inputlist.keys()))
         name = '{},{},{}'.format(name_, name, 'end')
 
         a = ''
         l = []
         l.append(name)
         for i in range(0, len(sl)):
-            a = ("%s,%s" % (str(float(sl[i])), ",".join(list(str(float(inppp[i])) for inppp in interpolated_inputs_all)))) + ',0'
+            a = ("%s,%s" % (str(float(sl[i])), ",".join(list(str(float(inppp[i])) \
+                                                             for inppp in interpolated_inputs_all)))) + ',0'
             l.append(a)
 
         self.csvFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName, "csv")).replace("\\", "/")
@@ -1691,12 +1697,14 @@ class ModelicaSystem(object):
         """
 
         if fileNamePrefix == "<default>":
-          fileNamePrefix = self.modelName
+            fileNamePrefix = self.modelName
         if includeResources:
-          includeResourcesStr = "true"
+            includeResourcesStr = "true"
         else:
-          includeResourcesStr = "false"
-        properties = 'version="{}", fmuType="{}", fileNamePrefix="{}", includeResources={}'.format(version, fmuType, fileNamePrefix,includeResourcesStr)
+            includeResourcesStr = "false"
+        properties = 'version="{}", fmuType="{}", fileNamePrefix="{}", includeResources={}'.format(version, fmuType,
+                                                                                                   fileNamePrefix,
+                                                                                                   includeResourcesStr)
         fmu = self.requestApi('buildModelFMU', self.modelName, properties)
 
         ## report proper error message
@@ -1740,7 +1748,7 @@ class ModelicaSystem(object):
         return optimizeResult
 
     # to linearize model
-    def linearize(self, lintime = None, simflags= None):  # 22
+    def linearize(self, lintime=None, simflags=None):  # 22
         """
         This method linearizes model according to the linearized options. This will generate a linear model that consists of matrices A, B, C and D.  It can be called:
         only without any arguments
@@ -1752,7 +1760,8 @@ class ModelicaSystem(object):
             raise IOError("Linearization cannot be performed as the model is not build, "
                           "use ModelicaSystem() to build the model first")
 
-        overrideLinearFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName + "_override_linear", "txt")).replace("\\", "/")
+        overrideLinearFile = os.path.join(self.tempdir,
+                                          '{}.{}'.format(self.modelName + "_override_linear", "txt")).replace("\\", "/")
 
         file = open(overrideLinearFile, "w")
         for (key, value) in self.overridevariables.items():
@@ -1763,7 +1772,7 @@ class ModelicaSystem(object):
             file.write(name)
         file.close()
 
-        override =" -overrideFile=" + overrideLinearFile
+        override = " -overrideFile=" + overrideLinearFile
         logger.debug(f"overwrite = {override}")
 
         if self.inputFlag:
@@ -1775,9 +1784,9 @@ class ModelicaSystem(object):
                         if l[0] < float(self.simulateOptions["startTime"]):
                             raise ModelicaSystemError('Input time value is less than simulation startTime')
             self.createCSVData()
-            csvinput =" -csvInput=" + self.csvFile
+            csvinput = " -csvInput=" + self.csvFile
         else:
-            csvinput=""
+            csvinput = ""
 
         ## prepare the linearization runtime command
         if (platform.system() == "Windows"):
@@ -1798,10 +1807,10 @@ class ModelicaSystem(object):
             cmd = cmd.split(' ')
             self._run_cmd(cmd=cmd)
         else:
-            raise Exception("Error: Application file path not found: " +  getExeFile)
+            raise Exception("Error: Application file path not found: " + getExeFile)
 
         # code to get the matrix and linear inputs, outputs and states
-        linearFile = os.path.join(self.tempdir, "linearized_model.py").replace("\\","/")
+        linearFile = os.path.join(self.tempdir, "linearized_model.py").replace("\\", "/")
 
         # support older openmodelica versions before OpenModelica v1.16.2 where linearize() generates "linear_modelname.mo" file
         if not os.path.exists(linearFile):
@@ -1820,7 +1829,7 @@ class ModelicaSystem(object):
                 self.linearoutputs = outputVars
                 self.linearstates = stateVars
                 return [A, B, C, D]
-            except:
+            except ModuleNotFoundError:
                 raise Exception("ModuleNotFoundError: No module named 'linearized_model'")
         else:
             errormsg = self.getconn.sendExpression("getErrorString()")
@@ -1849,6 +1858,7 @@ class ModelicaSystem(object):
         >>> getLinearStates()
         """
         return self.linearstates
+
 
 def FindBestOMCSession(*args, **kwargs):
   """
