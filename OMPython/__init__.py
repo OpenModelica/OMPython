@@ -886,15 +886,15 @@ class ModelicaSystem(object):
             exp="".join(["setCommandLineOptions(","\"",commandLineOptions,"\"",")"])
             cmdexp = self.getconn.sendExpression(exp)
             if not cmdexp:
-                return print(self.getconn.sendExpression("getErrorString()"))
+                self._check_error()
 
     def loadFile(self):
         # load file
         loadFileExp="".join(["loadFile(","\"",self.fileName,"\"",")"]).replace("\\","/")
         loadMsg = self.getconn.sendExpression(loadFileExp)
         ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
-        if self._verbose or not loadMsg:
-            return print(self.getconn.sendExpression("getErrorString()"))
+        if not loadMsg:
+            self._check_error()
 
     # for loading file/package, loading model and building model
     def loadLibrary(self):
@@ -917,7 +917,7 @@ class ModelicaSystem(object):
                     print("| info | loadLibrary() failed, Unknown type detected: ", element , " is of type ",  type(element), ", The following patterns are supported\n1)[\"Modelica\"]\n2)[(\"Modelica\",\"3.2.3\"), \"PowerSystems\"]\n")
                 ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
                 if self._verbose or not result:
-                    print(self.requestApi('getErrorString'))
+                    self._check_error()
 
     def setTempDirectory(self, customBuildDirectory):
         # create a unique temp directory for each session and build the model in that directory
@@ -1002,14 +1002,9 @@ class ModelicaSystem(object):
         # print(varFilter)
         # buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
         buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
-        buildModelError = self.requestApi("getErrorString")
-
-        if ('' in buildModelResult):
-            print(buildModelError)
-
-        # Issue #145. Always print the getErrorString since it might contains build warnings.
         if self._verbose:
-            print(buildModelError)
+            logger.info("OM model build result: {}".format(buildModelResult))
+        self._check_error()
 
         self.xmlFile=os.path.join(os.path.dirname(buildModelResult[0]),buildModelResult[1]).replace("\\","/")
         self.xmlparse()
@@ -1693,7 +1688,7 @@ class ModelicaSystem(object):
 
         ## report proper error message
         if not os.path.exists(fmu):
-            return print(self.getconn.sendExpression("getErrorString()"))
+            self._check_error()
 
         return fmu
 
@@ -1710,7 +1705,7 @@ class ModelicaSystem(object):
 
         ## report proper error message
         if not os.path.exists(fileName):
-            return print(self.getconn.sendExpression("getErrorString()"))
+            self._check_error()
 
         return fileName
 
@@ -1727,9 +1722,7 @@ class ModelicaSystem(object):
         optimizeError = ''
         self.getconn.sendExpression("setCommandLineOptions(\"-g=Optimica\")")
         optimizeResult = self.requestApi('optimize', cName, properties)
-        optimizeError = self.requestApi('getErrorString')
-        if optimizeError:
-            print(optimizeError)
+        self._check_error()
 
         return optimizeResult
 
