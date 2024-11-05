@@ -822,6 +822,8 @@ class ModelicaSystem(object):
         self.linearstates = []  # linearization  states list
         self.tempdir = ""
 
+        self._verbose = verbose
+
         if useCorba:
             self.getconn = OMCSession()
         else:
@@ -859,14 +861,14 @@ class ModelicaSystem(object):
         self.setTempDirectory(customBuildDirectory)
 
         if fileName is not None:
-            self.loadLibrary(verbose)
-            self.loadFile(verbose)
+            self.loadLibrary()
+            self.loadFile()
 
         ## allow directly loading models from MSL without fileName
         if fileName is None and modelName is not None:
-            self.loadLibrary(verbose)
+            self.loadLibrary()
 
-        self.buildModel(variableFilter, verbose)
+        self.buildModel(variableFilter)
 
     def __del__(self):
         OMCSessionBase.__del__(self)
@@ -879,16 +881,16 @@ class ModelicaSystem(object):
             if not cmdexp:
                 return print(self.getconn.sendExpression("getErrorString()"))
 
-    def loadFile(self, verbose):
+    def loadFile(self):
         # load file
         loadFileExp="".join(["loadFile(","\"",self.fileName,"\"",")"]).replace("\\","/")
         loadMsg = self.getconn.sendExpression(loadFileExp)
         ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
-        if verbose or not loadMsg:
+        if self._verbose or not loadMsg:
             return print(self.getconn.sendExpression("getErrorString()"))
 
     # for loading file/package, loading model and building model
-    def loadLibrary(self, verbose):
+    def loadLibrary(self):
         # load Modelica standard libraries or Modelica files if needed
         for element in self.lmodel:
             if element is not None:
@@ -907,7 +909,7 @@ class ModelicaSystem(object):
                 else:
                     print("| info | loadLibrary() failed, Unknown type detected: ", element , " is of type ",  type(element), ", The following patterns are supported\n1)[\"Modelica\"]\n2)[(\"Modelica\",\"3.2.3\"), \"PowerSystems\"]\n")
                 ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
-                if verbose or not result:
+                if self._verbose or not result:
                     print(self.requestApi('getErrorString'))
 
     def setTempDirectory(self, customBuildDirectory):
@@ -927,7 +929,7 @@ class ModelicaSystem(object):
     def getWorkDirectory(self):
         return self.tempdir
 
-    def _run_cmd(self, cmd: list, verbose: bool = True):
+    def _run_cmd(self, cmd: list):
         logger.debug("Run OM command {} in {}".format(cmd, self.tempdir))
 
         if platform.system() == "Windows":
@@ -960,7 +962,7 @@ class ModelicaSystem(object):
             stderr = stderr.decode('ascii').strip()
             if stderr:
                 logger.warning("OM error: {}".format(stderr))
-            if verbose and stdout:
+            if self._verbose and stdout:
                 logger.info("OM output:\n{}".format(stdout))
             p.wait()
             p.terminate()
@@ -969,7 +971,7 @@ class ModelicaSystem(object):
             os.chdir(currentDir)
             raise Exception("Error running command {}: {}".format(repr(cmd), e))
 
-    def buildModel(self, variableFilter=None, verbose=True):
+    def buildModel(self, variableFilter=None):
         if variableFilter is not None:
             self.variableFilter = variableFilter
 
@@ -986,7 +988,7 @@ class ModelicaSystem(object):
             print(buildModelError)
 
         # Issue #145. Always print the getErrorString since it might contains build warnings.
-        if verbose:
+        if self._verbose:
             print(buildModelError)
 
         self.xmlFile=os.path.join(os.path.dirname(buildModelResult[0]),buildModelResult[1]).replace("\\","/")
@@ -1258,7 +1260,7 @@ class ModelicaSystem(object):
             return ([self.optimizeOptions.get(x,"NotExist") for x in names])
 
     # to simulate or re-simulate model
-    def simulate(self, resultfile=None, simflags=None, verbose=True):  # 11
+    def simulate(self, resultfile=None, simflags=None):  # 11
         """
         This method simulates model according to the simulation options.
         usage
@@ -1325,7 +1327,7 @@ class ModelicaSystem(object):
         if os.path.exists(getExeFile):
             cmd = getExeFile + override + csvinput + r + simflags
             cmd = cmd.split(" ")
-            self._run_cmd(cmd=cmd, verbose=verbose)
+            self._run_cmd(cmd=cmd)
 
             self.simulationFlag = True
         else:
@@ -1391,7 +1393,7 @@ class ModelicaSystem(object):
         elif(isinstance(name,list)):
             return [x.replace(" ","") for x in name]
 
-    def setMethodHelper(self,args1,args2,args3,args4=None,verbose=None):
+    def setMethodHelper(self,args1,args2,args3,args4=None):
         """
         Helper function for setParameter(),setContinuous(),setSimulationOptions(),setLinearizationOption(),setOptimizationOption()
         args1 - string or list of string given by user
@@ -1403,7 +1405,7 @@ class ModelicaSystem(object):
             args1=self.strip_space(args1)
             value=args1.split("=")
             if value[0] in args2:
-                if (args3 == "parameter" and self.isParameterChangeable(value[0], value[1], verbose)):
+                if (args3 == "parameter" and self.isParameterChangeable(value[0], value[1])):
                     args2[value[0]]=value[1]
                     if(args4!=None):
                         args4[value[0]]=value[1]
@@ -1440,7 +1442,7 @@ class ModelicaSystem(object):
         """
         return self.setMethodHelper(cvals,self.continuouslist,"continuous",self.overridevariables)
 
-    def setParameters(self, pvals, verbose=True):  # 14
+    def setParameters(self, pvals):  # 14
         """
         This method is used to set parameter values. It can be called:
         with a sequence of parameter name and assigning corresponding value as arguments as show in the example below:
@@ -1448,12 +1450,12 @@ class ModelicaSystem(object):
         >>> setParameters("Name=value")
         >>> setParameters(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(pvals,self.paramlist,"parameter",self.overridevariables, verbose)
+        return self.setMethodHelper(pvals,self.paramlist,"parameter",self.overridevariables)
 
-    def isParameterChangeable(self, name, value, verbose):
+    def isParameterChangeable(self, name, value):
         q = self.getQuantities(name)
         if (q[0]["changeable"] == "false"):
-            if verbose:
+            if self._verbose:
                 print("| info |  setParameters() failed : It is not possible to set the following signal " + "\"" + name + "\"" + ", It seems to be structural, final, protected or evaluated or has a non-constant binding, use sendExpression(setParameterValue("+ self.modelName + ", " + name + ", " + value + "), parsed=false)" + " and rebuild the model using buildModel() API")
             return False
         return True
