@@ -968,15 +968,15 @@ class ModelicaSystem(object):
             stdout = stdout.decode('ascii').strip()
             stderr = stderr.decode('ascii').strip()
             if stderr:
-                logger.warning("OM error: {}".format(stderr))
+                raise ModelicaSystemError("Error running command {}: {}".format(cmd, stderr))
             if self._verbose and stdout:
-                logger.info("OM output:\n{}".format(stdout))
+                logger.info("OM output for command {}:\n{}".format(cmd, stdout))
             p.wait()
             p.terminate()
             os.chdir(currentDir)
         except Exception as e:
             os.chdir(currentDir)
-            raise Exception("Error running command {}: {}".format(repr(cmd), e))
+            raise ModelicaSystemError("Exception {} running command {}: {}".format(type(e), cmd, e))
 
     def _check_error(self):
         errstr = self.getconn.sendExpression("getErrorString()")
@@ -1124,7 +1124,7 @@ class ModelicaSystem(object):
                         value = self.getSolutions(i)
                         self.continuouslist[i]=value[0][-1]
                     except Exception:
-                        print(i,"could not be computed")
+                        raise ModelicaSystemError("OM error: {} could not be computed".format(i))
                 return self.continuouslist
 
             elif(isinstance(names, str)):
@@ -1133,7 +1133,7 @@ class ModelicaSystem(object):
                     self.continuouslist[names]=value[0][-1]
                     return [self.continuouslist.get(names)]
                 else:
-                    return (names, "  is not continuous")
+                    raise ModelicaSystemError("OM error: {} is not continuous".format(names))
 
             elif(isinstance(names, list)):
                 valuelist=[]
@@ -1143,7 +1143,7 @@ class ModelicaSystem(object):
                         self.continuouslist[i]=value[0][-1]
                         valuelist.append(value[0][-1])
                     else:
-                        return (i,"  is not continuous")
+                        raise ModelicaSystemError("OM error: {} is not continuous".format(i))
                 return valuelist
 
     def getParameters(self, names=None):  # 5
@@ -1549,22 +1549,18 @@ class ModelicaSystem(object):
                     errstr = value[0] + " is not an input"
                     self._raise_error(errstr=errstr)
 
-    def checkValidInputs(self,name):
+    def checkValidInputs(self, name):
         if name != sorted(name, key=lambda x: x[0]):
-            print('Time value should be in increasing order')
-            return
+            raise ModelicaSystemError('Time value should be in increasing order')
         for l in name:
             if isinstance(l, tuple):
                 #if l[0] < float(self.simValuesList[0]):
                 if l[0] < float(self.simulateOptions["startTime"]):
-                    print('Input time value is less than simulation startTime')
-                    return
+                    ModelicaSystemError('Input time value is less than simulation startTime')
                 if len(l) != 2:
-                    print('Value for ' + l + ' is in incorrect format!')
-                    return
+                    ModelicaSystemError('Value for ' + l + ' is in incorrect format!')
             else:
-                print('Error!!! Value must be in tuple format')
-                return
+                ModelicaSystemError('Error!!! Value must be in tuple format')
 
     # To create csv file for inputs
     def createCSVData(self):
@@ -1768,8 +1764,7 @@ class ModelicaSystem(object):
                 if tupleList is not None:
                     for l in tupleList:
                         if l[0] < float(self.simulateOptions["startTime"]):
-                            print('Input time value is less than simulation startTime')
-                            return
+                            raise ModelicaSystemError('Input time value is less than simulation startTime')
             self.createCSVData()
             csvinput =" -csvInput=" + self.csvFile
         else:
@@ -1820,8 +1815,7 @@ class ModelicaSystem(object):
                 raise Exception("ModuleNotFoundError: No module named 'linearized_model'")
         else:
             errormsg = self.getconn.sendExpression("getErrorString()")
-            return print("Linearization failed: ", "\"" , linearFile,"\"" ," not found \n", errormsg)
-
+            raise ModelicaSystemError("Linearization failed: {} not found: {}".format(repr(linearFile), errormsg))
 
     def getLinearInputs(self):
         """
