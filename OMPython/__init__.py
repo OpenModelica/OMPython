@@ -1285,7 +1285,7 @@ class ModelicaSystem(object):
         usage
         >>> simulate()
         >>> simulate(resultfile="a.mat")
-        >>> simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10) set runtime simulation flags
+        >>> simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10")  # set runtime simulation flags
         """
         if(resultfile is None):
             r=""
