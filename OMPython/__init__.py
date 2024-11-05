@@ -847,9 +847,8 @@ class ModelicaSystem(object):
         self.resultfile="" # for storing result file
         self.variableFilter = variableFilter
 
-        if fileName is not None and  not os.path.exists(self.fileName):  # if file does not eixt
-            print("File Error:" + os.path.abspath(self.fileName) + " does not exist!!!")
-            return
+        if fileName is not None and not os.path.exists(self.fileName):  # if file does not exist
+            raise IOError("File Error:" + os.path.abspath(self.fileName) + " does not exist!!!")
 
         ## set default command Line Options for linearization as
         ## linearize() will use the simulation executable and runtime
@@ -915,12 +914,12 @@ class ModelicaSystem(object):
         # create a unique temp directory for each session and build the model in that directory
         if customBuildDirectory is not None:
             if not os.path.exists(customBuildDirectory):
-                print(customBuildDirectory, " does not exist")
+                raise IOError(customBuildDirectory, " does not exist")
             self.tempdir = customBuildDirectory
         else:
             self.tempdir = tempfile.mkdtemp()
             if not os.path.exists(self.tempdir):
-                print(self.tempdir, " cannot be created")
+                raise IOError(self.tempdir, " cannot be created")
 
         exp="".join(["cd(","\"",self.tempdir,"\"",")"]).replace("\\","/")
         self.getconn.sendExpression(exp)
@@ -1722,7 +1721,8 @@ class ModelicaSystem(object):
         """
 
         if self.xmlFile is None:
-            return print("Linearization cannot be performed as the model is not build, use ModelicaSystem() to build the model first")
+            raise IOError("Linearization cannot be performed as the model is not build, "
+                          "use ModelicaSystem() to build the model first")
 
         overrideLinearFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName + "_override_linear", "txt")).replace("\\", "/")
 
