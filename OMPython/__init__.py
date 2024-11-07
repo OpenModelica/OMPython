@@ -928,6 +928,55 @@ class ModelicaSystem(object):
     def getWorkDirectory(self):
         return self.tempdir
 
+    def _run_cmd(self, cmd: list, verbose: bool = True):
+        logger.debug("Run OM command {} in {}".format(cmd, self.tempdir))
+
+        if platform.system() == "Windows":
+            omhome = os.path.join(os.environ.get("OPENMODELICAHOME"))
+            dllPath = (os.path.join(omhome, "bin")
+                       + os.pathsep + os.path.join(omhome, "lib/omc")
+                       + os.pathsep + os.path.join(omhome, "lib/omc/cpp")
+                       + os.pathsep + os.path.join(omhome, "lib/omc/omsicpp"))
+
+            # include path to resources of defined external libraries
+            for element in self.lmodel:
+                if element is not None:
+                    if isinstance(element, str):
+                        if element.endswith("package.mo"):
+                            pkgpath = element[:-10] + '/Resources/Library/'
+                            for wver in ['win32', 'win64']:
+                                pkgpath_wver = pkgpath + '/' + wver
+                                if os.path.exists(pkgpath_wver):
+                                    dllPath = pkgpath_wver + os.pathsep + dllPath
+
+            # fix backslash in path definitions
+            dllPath = dllPath.replace("\\", "/")
+
+            my_env = os.environ.copy()
+            my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
+        else:
+            # TODO: how to handle path to resources of external libraries for any system not Windows?
+            my_env = None
+
+        currentDir = os.getcwd()
+        try:
+            os.chdir(self.tempdir)
+            p = subprocess.Popen(cmd, env=my_env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = p.communicate()
+
+            stdout = stdout.decode('ascii').strip()
+            stderr = stderr.decode('ascii').strip()
+            if stderr:
+                logger.warning("OM error: {}".format(stderr))
+            if verbose and stdout:
+                logger.info("OM output:\n{}".format(stdout))
+            p.wait()
+            p.terminate()
+            os.chdir(currentDir)
+        except Exception as e:
+            os.chdir(currentDir)
+            raise Exception("Error running command {}: {}".format(repr(cmd), e))
+
     def buildModel(self, variableFilter=None, verbose=True):
         if variableFilter is not None:
             self.variableFilter = variableFilter
@@ -1280,32 +1329,15 @@ class ModelicaSystem(object):
             getExeFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName, "exe")).replace("\\", "/")
         else:
             getExeFile = os.path.join(self.tempdir, self.modelName).replace("\\", "/")
-        currentDir = os.getcwd()
-        if (os.path.exists(getExeFile)):
+
+        if os.path.exists(getExeFile):
             cmd = getExeFile + override + csvinput + r + simflags
             cmd = cmd.split(" ")
-            #print(cmd)
-            os.chdir(self.tempdir)
-            if (platform.system() == "Windows"):
-                omhome = os.path.join(os.environ.get("OPENMODELICAHOME"))
-                dllPath = os.path.join(omhome, "bin").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc/cpp").replace("\\", "/") +  os.pathsep + os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
-                my_env = os.environ.copy()
-                my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
-                if not verbose:
-                    p = subprocess.Popen(cmd, env=my_env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                else:
-                    p = subprocess.Popen(cmd, env=my_env)
-            else:
-                if not verbose:
-                    p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
-                else:
-                    p = subprocess.Popen(cmd)
-            p.wait()
-            p.terminate()
-            os.chdir(currentDir)
+            self._run_cmd(cmd=cmd, verbose=verbose)
+
             self.simulationFlag = True
         else:
-            raise Exception("Error: Application file path not found: " +  getExeFile)
+            raise Exception("Error: Application file path not found: " + getExeFile)
 
     # to extract simulation results
     def getSolutions(self, varList=None, resultfile=None):  # 12
@@ -1741,23 +1773,11 @@ class ModelicaSystem(object):
         if simflags is None:
             simflags = ""
 
-        currentDir = os.getcwd()
         if (os.path.exists(getExeFile)):
             cmd = getExeFile + linruntime + override + csvinput + simflags
-            # print(cmd)
-            os.chdir(self.tempdir)
-            if (platform.system() == "Windows"):
-                omhome = os.path.join(os.environ.get("OPENMODELICAHOME"))
-                dllPath = os.path.join(omhome, "bin").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc/cpp").replace("\\", "/") +  os.pathsep + os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
-                my_env = os.environ.copy()
-                my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
-                p = subprocess.Popen(cmd, env=my_env)
-                p.wait()
-                p.terminate()
-            else:
-                os.system(cmd)
+            cmd = cmd.split(' ')
+            self._run_cmd(cmd=cmd)
         else:
-            os.chdir(currentDir)
             raise Exception("Error: Application file path not found: " +  getExeFile)
 
         # code to get the matrix and linear inputs, outputs and states
@@ -1780,13 +1800,10 @@ class ModelicaSystem(object):
                 self.linearoutputs = outputVars
                 self.linearstates = stateVars
                 return [A, B, C, D]
-                os.chdir(currentDir)
             except:
-                os.chdir(currentDir)
                 raise Exception("ModuleNotFoundError: No module named 'linearized_model'")
         else:
             errormsg = self.getconn.sendExpression("getErrorString()")
-            os.chdir(currentDir)
             return print("Linearization failed: ", "\"" , linearFile,"\"" ," not found \n", errormsg)
 
 
