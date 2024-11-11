@@ -933,25 +933,18 @@ class ModelicaSystem(object):
 
         if platform.system() == "Windows":
             omhome = os.path.join(os.environ.get("OPENMODELICAHOME"))
-            dllPath = (os.path.join(omhome, "bin")
-                       + os.pathsep + os.path.join(omhome, "lib/omc")
-                       + os.pathsep + os.path.join(omhome, "lib/omc/cpp")
-                       + os.pathsep + os.path.join(omhome, "lib/omc/omsicpp"))
+            dllPath = ""
 
-            # include path to resources of defined external libraries
-            for element in self.lmodel:
-                if element is not None:
-                    if isinstance(element, str):
-                        if element.endswith("package.mo"):
-                            pkgpath = element[:-10] + '/Resources/Library/'
-                            for wver in ['win32', 'win64']:
-                                pkgpath_wver = pkgpath + '/' + wver
-                                if os.path.exists(pkgpath_wver):
-                                    dllPath = pkgpath_wver + os.pathsep + dllPath
+            ## set the process environment from the generated .bat file in windows which should have all the dependencies
+            batFilePath = os.path.join(self.tempdir, '{}.{}'.format(self.modelName, "bat")).replace("\\", "/")
+            if (not os.path.exists(batFilePath)):
+                print("Error: bat does not exist " + batFilePath)
 
-            # fix backslash in path definitions
-            dllPath = dllPath.replace("\\", "/")
-
+            with open(batFilePath, 'r') as file:
+                for line in file:
+                    match = re.match(r"^SET PATH=([^%]*)", line, re.IGNORECASE)
+                    if match:
+                        dllPath = match.group(1).strip(';')  # Remove any trailing semicolons
             my_env = os.environ.copy()
             my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
         else:
