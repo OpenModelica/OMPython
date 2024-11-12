@@ -895,7 +895,7 @@ class ModelicaSystem(object):
         loadFileExp = "".join(["loadFile(", "\"", self.fileName, "\"", ")"]).replace("\\", "/")
         loadMsg = self.getconn.sendExpression(loadFileExp)
         ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
-        if not loadMsg:
+        if self._verbose or not loadMsg:
             self._check_error()
 
     # for loading file/package, loading model and building model
