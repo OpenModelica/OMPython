@@ -53,6 +53,8 @@ from pyparsing import (
     delimitedList,
     nums,
     replaceWith,
+    infixNotation,
+    opAssoc,
 )
 
 import sys
@@ -87,6 +89,28 @@ def convertTuple(t):
     return tuple(t[0])
 
 
+
+def evaluateExpression(s, loc, toks):
+    # Convert the tokens (ParseResults) into a string expression
+    flat_list = [item for sublist in toks[0] for item in sublist]
+    expr = " ".join(flat_list)
+    try:
+        # Evaluate the expression safely
+        return eval(expr)
+    except Exception as e:
+        print(f"Error evaluating expression: {expr}")
+        return None
+
+# Number parsing (supports arithmetic expressions in dimensions) (e.g., {1 + 1, 1})
+arrayDimension = infixNotation(
+    Word(nums),
+    [
+        (Word("+-", exact=1), 1, opAssoc.RIGHT),
+        (Word("*/", exact=1), 2, opAssoc.LEFT),
+        (Word("+-", exact=1), 2, opAssoc.LEFT),
+    ],
+).setParseAction(evaluateExpression)
+
 omcRecord = Forward()
 omcValue = Forward()
 
@@ -107,7 +131,8 @@ fqident << ((ident + "." + fqident) | ident)
 omcValues = delimitedList(omcValue)
 omcTuple = Group(Suppress('(') + Optional(omcValues) + Suppress(')')).setParseAction(convertTuple)
 omcArray = Group(Suppress('{') + Optional(omcValues) + Suppress('}')).setParseAction(convertTuple)
-omcValue << (omcString | omcNumber | omcRecord | omcArray | omcTuple | SOME | TRUE | FALSE | NONE | Combine(fqident))
+omcArraySpecialTypes = Group(Suppress('{') + delimitedList(arrayDimension) + Suppress('}')).setParseAction(convertTuple)
+omcValue << (omcString | omcNumber | omcRecord | omcArray | omcArraySpecialTypes | omcTuple | SOME | TRUE | FALSE | NONE | Combine(fqident))
 recordMember = delimitedList(Group(ident + Suppress('=') + omcValue))
 omcRecord << Group(Suppress('record') + Suppress(fqident) + Dict(recordMember) + Suppress('end') + Suppress(fqident) + Suppress(';')).setParseAction(convertDict)
 
