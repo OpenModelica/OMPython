@@ -97,13 +97,12 @@ def evaluateExpression(s, loc, toks):
     try:
         # Evaluate the expression safely
         return eval(expr)
-    except Exception as e:
-        print(f"Error evaluating expression: {expr}")
-        return None
+    except NameError:
+        return expr
 
 # Number parsing (supports arithmetic expressions in dimensions) (e.g., {1 + 1, 1})
 arrayDimension = infixNotation(
-    Word(nums),
+    Word(alphas + "_", alphanums + "_") | Word(nums),
     [
         (Word("+-", exact=1), 1, opAssoc.RIGHT),
         (Word("*/", exact=1), 2, opAssoc.LEFT),
