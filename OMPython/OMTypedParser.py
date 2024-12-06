@@ -93,11 +93,11 @@ def convertTuple(t):
 def evaluateExpression(s, loc, toks):
     # Convert the tokens (ParseResults) into a string expression
     flat_list = [item for sublist in toks[0] for item in sublist]
-    expr = " ".join(flat_list)
+    expr = "".join(flat_list)
     try:
         # Evaluate the expression safely
         return eval(expr)
-    except NameError:
+    except Exception:
         return expr
 
 # Number parsing (supports arithmetic expressions in dimensions) (e.g., {1 + 1, 1})

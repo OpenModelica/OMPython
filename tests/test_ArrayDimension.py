@@ -30,7 +30,7 @@ class Test_ArrayDimension:
         omc.sendExpression("getErrorString()")
 
         result = omc.sendExpression("getComponents(A)")
-        assert result[-1][-1] == ('y + 1', 10), f"array dimension does not match the expected value. Got: {result[-1][-1]}, Expected: {('y + 1', 10)}"
+        assert result[-1][-1] == ('y+1', 10), f"array dimension does not match the expected value. Got: {result[-1][-1]}, Expected: {('y+1', 10)}"
 
         omc.__del__()
         shutil.rmtree(tempdir, ignore_errors= True)
