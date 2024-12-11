@@ -936,6 +936,7 @@ class ModelicaSystem(object):
             if not os.path.exists(self.tempdir):
                 raise IOError(self.tempdir, " cannot be created")
 
+        logger.info("Define tempdir as {}".format(self.tempdir))
         exp = "".join(["cd(", "\"", self.tempdir, "\"", ")"]).replace("\\", "/")
         self.getconn.sendExpression(exp)
 
