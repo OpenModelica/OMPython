@@ -685,8 +685,11 @@ except ImportError:
 
 class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
-    def __init__(self, readonly=False, timeout = 10.00, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = None, port = None):
-        OMCSessionHelper.__init__(self)
+    def __init__(self, readonly=False, timeout = 10.00,
+                 docker = None, dockerContainer = None, dockerExtraArgs = None, dockerOpenModelicaPath = "omc",
+                 dockerNetwork = None, port = None):
+        if dockerExtraArgs is None:
+            dockerExtraArgs = []
         OMCSessionBase.__init__(self, readonly)
         # Locating and using the IOR
         if sys.platform != 'win32' or docker or dockerContainer:
