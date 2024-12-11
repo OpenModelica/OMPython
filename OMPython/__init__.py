@@ -540,8 +540,11 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
 
 class OMCSession(OMCSessionHelper, OMCSessionBase):
 
-    def __init__(self, readonly=False, serverFlag='--interactive=corba', timeout = 10.0, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = None):
-        OMCSessionHelper.__init__(self)
+    def __init__(self, readonly = False, serverFlag ='--interactive=corba', timeout = 10.0,
+                 docker = None, dockerContainer = None, dockerExtraArgs = None, dockerOpenModelicaPath = "omc",
+                 dockerNetwork = None):
+        if dockerExtraArgs is None:
+            dockerExtraArgs = []
         OMCSessionBase.__init__(self, readonly)
         self._create_omc_log_file("objid")
         # Locating and using the IOR
