@@ -555,9 +555,9 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
 
 class OMCSession(OMCSessionHelper, OMCSessionBase):
 
-    def __init__(self, omhome: str = None, readonly = False, serverFlag ='--interactive=corba', timeout = 10.0,
+    def __init__(self, readonly = False, serverFlag ='--interactive=corba', timeout = 10.0,
                  docker = None, dockerContainer = None, dockerExtraArgs = None, dockerOpenModelicaPath = "omc",
-                 dockerNetwork = None):
+                 dockerNetwork = None, omhome: str = None):
         if dockerExtraArgs is None:
             dockerExtraArgs = []
 
@@ -702,9 +702,9 @@ except ImportError:
 
 class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
-    def __init__(self, omhome: str = None, readonly=False, timeout = 10.00,
+    def __init__(self, readonly=False, timeout = 10.00,
                  docker = None, dockerContainer = None, dockerExtraArgs = None, dockerOpenModelicaPath = "omc",
-                 dockerNetwork = None, port = None):
+                 dockerNetwork = None, port = None, omhome: str = None):
         if dockerExtraArgs is None:
             dockerExtraArgs = []
 
@@ -818,9 +818,10 @@ class ModelicaSystemError(Exception):
 
 
 class ModelicaSystem(object):
-    def __init__(self, omhome: str = None, fileName=None, modelName=None, lmodel=None,
+    def __init__(self, fileName=None, modelName=None, lmodel=None,
                  useCorba=False, commandLineOptions=None,
-                 variableFilter=None, customBuildDirectory=None, verbose=True, raiseerrors=False):  # 1
+                 variableFilter=None, customBuildDirectory=None, verbose=True, raiseerrors=False,
+                 omhome: str = None):  # 1
         """
         "constructor"
         It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called :
