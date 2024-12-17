@@ -122,23 +122,38 @@ class DummyPopen():
   def wait(self, timeout):
     return self.process.wait(timeout=timeout)
 
-class OMCSessionHelper():
-  def __init__(self):
-    # Get the path to the OMC executable, if not installed this will be None
-    omc_env_home = os.environ.get('OPENMODELICAHOME')
-    if omc_env_home:
-      self.omhome = omc_env_home
-    else:
-      path_to_omc = shutil.which("omc")
-      if path_to_omc is None:
+
+class OMCSessionHelper:
+    def __init__(self, omhome: str = None):
+        self.omhome = None
+
+        # use the provided path
+        if omhome is not None:
+            self.omhome = omhome
+            return
+
+        # check the environment variable
+        omhome = os.environ.get('OPENMODELICAHOME')
+        if omhome is not None:
+            self.omhome = omhome
+            return
+
+        # Get the path to the OMC executable, if not installed this will be None
+        path_to_omc = shutil.which("omc")
+        if path_to_omc is not None:
+            self.omhome = os.path.dirname(os.path.dirname(path_to_omc))
+            return
+
         raise ValueError("Cannot find OpenModelica executable, please install from openmodelica.org")
-      self.omhome = os.path.dirname(os.path.dirname(path_to_omc))
-  def _get_omc_path(self):
-    try:
-      return os.path.join(self.omhome, 'bin', 'omc')
-    except BaseException:
-      logger.error("The OpenModelica compiler is missing in the System path (%s), please install it" % os.path.join(self.omhome, 'bin', 'omc'))
-      raise
+
+    def _get_omc_path(self):
+        try:
+            return os.path.join(self.omhome, 'bin', 'omc')
+        except BaseException:
+            logger.error("The OpenModelica compiler is missing in the System path (%s), please install it"
+                         % os.path.join(self.omhome, 'bin', 'omc'))
+            raise
+
 
 class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
 
@@ -540,8 +555,13 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
 
 class OMCSession(OMCSessionHelper, OMCSessionBase):
 
-    def __init__(self, readonly=False, serverFlag='--interactive=corba', timeout = 10.0, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = None):
-        OMCSessionHelper.__init__(self)
+    def __init__(self, readonly = False, serverFlag ='--interactive=corba', timeout = 10.0,
+                 docker = None, dockerContainer = None, dockerExtraArgs = None, dockerOpenModelicaPath = "omc",
+                 dockerNetwork = None, omhome: str = None):
+        if dockerExtraArgs is None:
+            dockerExtraArgs = []
+
+        OMCSessionHelper.__init__(self, omhome=omhome)
         OMCSessionBase.__init__(self, readonly)
         self._create_omc_log_file("objid")
         # Locating and using the IOR
@@ -682,8 +702,13 @@ except ImportError:
 
 class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
-    def __init__(self, readonly=False, timeout = 10.00, docker = None, dockerContainer = None, dockerExtraArgs = [], dockerOpenModelicaPath = "omc", dockerNetwork = None, port = None):
-        OMCSessionHelper.__init__(self)
+    def __init__(self, readonly=False, timeout = 10.00,
+                 docker = None, dockerContainer = None, dockerExtraArgs = None, dockerOpenModelicaPath = "omc",
+                 dockerNetwork = None, port = None, omhome: str = None):
+        if dockerExtraArgs is None:
+            dockerExtraArgs = []
+
+        OMCSessionHelper.__init__(self, omhome=omhome)
         OMCSessionBase.__init__(self, readonly)
         # Locating and using the IOR
         if sys.platform != 'win32' or docker or dockerContainer:
@@ -793,8 +818,10 @@ class ModelicaSystemError(Exception):
 
 
 class ModelicaSystem(object):
-    def __init__(self, fileName=None, modelName=None, lmodel=None, useCorba=False, commandLineOptions=None,
-                 variableFilter=None, customBuildDirectory=None, verbose=True, raiseerrors=False):  # 1
+    def __init__(self, fileName=None, modelName=None, lmodel=None,
+                 useCorba=False, commandLineOptions=None,
+                 variableFilter=None, customBuildDirectory=None, verbose=True, raiseerrors=False,
+                 omhome: str = None):  # 1
         """
         "constructor"
         It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called :
@@ -806,9 +833,9 @@ class ModelicaSystem(object):
         """
         if fileName is None and modelName is None and not lmodel:  # all None
             if useCorba:
-                self.getconn = OMCSession()
+                self.getconn = OMCSession(omhome=omhome)
             else:
-                self.getconn = OMCSessionZMQ()
+                self.getconn = OMCSessionZMQ(omhome=omhome)
             return
 
         self.tree = None
@@ -831,9 +858,9 @@ class ModelicaSystem(object):
         self._verbose = verbose
 
         if useCorba:
-            self.getconn = OMCSession()
+            self.getconn = OMCSession(omhome=omhome)
         else:
-            self.getconn = OMCSessionZMQ()
+            self.getconn = OMCSessionZMQ(omhome=omhome)
 
         ## needed for properly deleting the OMCSessionZMQ
         self._omc_log_file = self.getconn._omc_log_file
