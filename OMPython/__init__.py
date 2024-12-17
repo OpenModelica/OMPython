@@ -947,7 +947,6 @@ class ModelicaSystem(object):
         logger.debug("Run OM command {} in {}".format(cmd, self.tempdir))
 
         if platform.system() == "Windows":
-            omhome = os.path.join(os.environ.get("OPENMODELICAHOME"))
             dllPath = ""
 
             ## set the process environment from the generated .bat file in windows which should have all the dependencies
