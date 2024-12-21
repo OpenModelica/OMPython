@@ -814,10 +814,9 @@ class ModelicaSystem:
             # TODO: how to handle path to resources of external libraries for any system not Windows?
             my_env = None
 
-        currentDir = os.getcwd()
         try:
-            os.chdir(self.tempdir)
-            p = subprocess.Popen(cmd, env=my_env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p = subprocess.Popen(cmd, env=my_env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 cwd=self.tempdir)
             stdout, stderr = p.communicate()
 
             stdout = stdout.decode('ascii').strip()
@@ -828,9 +827,7 @@ class ModelicaSystem:
                 logger.info("OM output for command {}:\n{}".format(cmd, stdout))
             p.wait()
             p.terminate()
-            os.chdir(currentDir)
         except Exception as e:
-            os.chdir(currentDir)
             raise ModelicaSystemError("Exception {} running command {}: {}".format(type(e), cmd, e))
 
     def _check_error(self):
