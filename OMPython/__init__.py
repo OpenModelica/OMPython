@@ -678,7 +678,7 @@ class ModelicaSystemError(Exception):
 class ModelicaSystem(object):
     def __init__(self, fileName=None, modelName=None, lmodel=None, commandLineOptions=None,
                  variableFilter=None, customBuildDirectory=None, verbose=True, raiseerrors=False,
-                 omhome: str = None):  # 1
+                 omhome: str = None, session: OMCSessionBase = None):  # 1
         """
         "constructor"
         It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called :
@@ -688,6 +688,11 @@ class ModelicaSystem(object):
         Note: If the model file is not in the current working directory, then the path where file is located must be included together with file name. Besides, if the Modelica model contains several different models within the same package, then in order to build the specific model, in second argument, user must put the package name with dot(.) followed by specific model name.
         ex: myModel = ModelicaSystem("ModelicaModel.mo", "modelName")
         """
+        if session is not None:
+            self.getconn = session
+        else:
+            self.getconn = OMCSession(omhome=omhome)
+
         if fileName is None and modelName is None and not lmodel:  # all None
             self.getconn = OMCSession(omhome=omhome)
             return
@@ -756,9 +761,6 @@ class ModelicaSystem(object):
             self.loadLibrary()
 
         self.buildModel(variableFilter)
-
-    def __del__(self):
-        OMCSessionBase.__del__(self)
 
     def setCommandLineOptions(self, commandLineOptions: str):
         ## set commandLineOptions if provided by users
