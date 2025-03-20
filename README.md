@@ -1,6 +1,6 @@
 # OMPython
 
-OMPython is a Python interface that uses ZeroMQ or CORBA (omniORB) to
+OMPython is a Python interface that uses ZeroMQ to
 communicate with OpenModelica.
 
 [![FMITest](https://github.com/OpenModelica/OMPython/actions/workflows/FMITest.yml/badge.svg)](https://github.com/OpenModelica/OMPython/actions/workflows/FMITest.yml)
@@ -8,46 +8,22 @@ communicate with OpenModelica.
 
 ## Dependencies
 
-### Using ZeroMQ
-
 -   Python 2.7 and 3.x supported
 -   PyZMQ is required
-
-### Using omniORB
-
--   Currently, only Python 2.7 is supported
--   omniORB is required:
-    -   Windows: included in the OpenModelica installation
-    -   Linux: Install omniORB including Python 2 support (the omniidl
-        command needs to be on the PATH). On Ubuntu, this is done by
-        running
-        `sudo apt-get install omniorb python-omniorb omniidl omniidl-python`
 
 ## Installation
 
 Installation using `pip` is recommended.
 
-### Linux
-
-Install the latest OMPython master by running:
+### Via pip
 
 ```bash
-python -m pip install -U https://github.com/OpenModelica/OMPython/archive/master.zip
+pip install OMPython
 ```
 
-### Windows
+### Via source
 
-Install the version packed with your OpenModelica installation by running:
-
-```cmd
-cd %OPENMODELICAHOME%\share\omc\scripts\PythonInterface
-python -m pip install -U .
-```
-
-### Local installation
-
-To Install the latest version of the OMPython master branch
-only, previously cloned into `<OMPythonPath>`, run:
+Clone the repository and run:
 
 ```
 cd <OMPythonPath>
@@ -64,8 +40,8 @@ help(OMPython)
 ```
 
 ```python
-from OMPython import OMCSessionZMQ
-omc = OMCSessionZMQ()
+from OMPython import OMCSession
+omc = OMCSession()
 omc.sendExpression("getVersion()")
 ```
 

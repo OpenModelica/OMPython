@@ -10,7 +10,7 @@ according to the documenation of pytest
 class Test_FMIRegression:
 
     def buildModelFMU(self, modelName):
-        omc = OMPython.OMCSessionZMQ()
+        omc = OMPython.OMCSession()
 
         ## create a temp dir for each session
         tempdir = tempfile.mkdtemp()
