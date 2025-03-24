@@ -11,7 +11,7 @@ end M;"""
     self.tmp = tempfile.mkdtemp(prefix='tmpOMPython.tests')
     self.origDir = os.getcwd()
     os.chdir(self.tmp)
-    self.om = OMPython.OMCSession()
+    self.om = OMPython.OMCSessionZMQ()
     os.chdir(self.origDir)
   def __del__(self):
     shutil.rmtree(self.tmp, ignore_errors=True)
