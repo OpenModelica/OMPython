@@ -1,30 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 OMPython is a Python interface to OpenModelica.
-To get started, create an OMCSession/OMCSessionZMQ object:
-from OMPython import OMCSession/OMCSessionZMQ
-omc = OMCSession()/OMCSessionZMQ()
-omc.sendExpression(command)
-
-Note: Conversion from OMPython 1.0 to OMPython 2.0 is very simple
-1.0:
-import OMPython
-OMPython.execute(command)
-2.0:
-from OMPython import OMCSession
-OMPython = OMCSession()
-OMPython.execute(command)
-
-OMPython 3.0 includes a new class OMCSessionZMQ uses PyZMQ to communicate
-with OpenModelica. A new argument `useCorba=False` is added to ModelicaSystem
-class which means it will use OMCSessionZMQ by default. If you want to use
-OMCSession then create ModelicaSystem object like this,
-obj = ModelicaSystem(useCorba=True)
-
-The difference between execute and sendExpression is the type of the
-returned expression. sendExpression maps Modelica types to Python types,
-while execute tries to map also output that is not valid Modelica.
-That format is harder to use.
+To get started, create an OMCSessionZMQ object:
+from OMPython import OMCSessionZMQ
+omc = OMCSessionZMQ()
+omc.sendExpression("command")
 """
 
 from __future__ import absolute_import
@@ -56,7 +36,8 @@ from collections import OrderedDict
 import numpy as np
 import pyparsing
 import importlib
-
+import zmq
+import warnings
 
 if sys.platform == 'darwin':
     # On Mac let's assume omc is installed here and there might be a broken omniORB installed in a bad place
@@ -552,154 +533,6 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
                                  str(builtin).lower(), str(showProtected).lower()))
         return value
 
-
-class OMCSession(OMCSessionHelper, OMCSessionBase):
-
-    def __init__(self, readonly = False, serverFlag ='--interactive=corba', timeout = 10.0,
-                 docker = None, dockerContainer = None, dockerExtraArgs = None, dockerOpenModelicaPath = "omc",
-                 dockerNetwork = None, omhome: str = None):
-        if dockerExtraArgs is None:
-            dockerExtraArgs = []
-
-        OMCSessionHelper.__init__(self, omhome=omhome)
-        OMCSessionBase.__init__(self, readonly)
-        self._create_omc_log_file("objid")
-        # Locating and using the IOR
-        if sys.platform != 'win32' or docker or dockerContainer:
-            self._port_file = "openmodelica." + self._currentUser + ".objid." + self._random_string
-        else:
-            self._port_file = "openmodelica.objid." + self._random_string
-        self._port_file = os.path.join("/tmp" if (docker or dockerContainer) else self._temp_dir, self._port_file).replace("\\", "/")
-        # set omc executable path and args
-        self._docker = docker
-        self._dockerContainer = dockerContainer
-        self._dockerExtraArgs = dockerExtraArgs
-        self._dockerOpenModelicaPath = dockerOpenModelicaPath
-        self._dockerNetwork = dockerNetwork
-        self._timeout = timeout
-        self._create_omc_log_file("port")
-
-        self._set_omc_command([serverFlag, "+c={0}".format(self._random_string)])
-
-        # start up omc executable, which is waiting for the CORBA connection
-        self._start_omc_process(timeout)
-        # connect to the running omc instance using CORBA
-        self._connect_to_omc(timeout)
-
-    def __del__(self):
-        OMCSessionBase.__del__(self)
-
-    def _connect_to_omc(self, timeout):
-        # add OPENMODELICAHOME\lib\python to PYTHONPATH so python can load omniORB imports
-        sys.path.append(os.path.join(self.omhome, 'lib', 'python'))
-        # import the skeletons for the global module
-        try:
-          from omniORB import CORBA
-          from OMPythonIDL import _OMCIDL
-        except ImportError:
-          self._omc_process.kill()
-          raise
-        self._omc_corba_uri = "file:///" + self._port_file
-        # See if the omc server is running
-        attempts = 0
-        while True:
-            if self._dockerCid:
-                try:
-                    self._ior = subprocess.check_output(["docker", "exec", self._dockerCid, "cat", self._port_file], stderr=subprocess.DEVNULL if (sys.version_info > (3, 0)) else subprocess.STDOUT).decode().strip()
-                    break
-                except subprocess.CalledProcessError:
-                    pass
-            if os.path.isfile(self._port_file):
-                # Read the IOR file
-                with open(self._port_file, 'r') as f_p:
-                    self._ior = f_p.readline()
-                break
-            attempts += 1
-            if attempts == 80:
-                name = self._omc_log_file.name
-                self._omc_log_file.close()
-                with open(name) as fin:
-                  contents = fin.read()
-                self._omc_process.kill()
-                raise Exception("OMC Server is down (timeout=%f). Please start it! If the OMC version is old, try OMCSession(..., serverFlag='-d=interactiveCorba') or +d=interactiveCorba. Log-file says:\n%s" % (timeout, contents))
-            time.sleep(timeout / 80.0)
-
-        while True:
-            if self._dockerCid:
-                try:
-                    self._port = subprocess.check_output(["docker", "exec", self._dockerCid, "cat", self._port_file]).decode().strip()
-                    break
-                except:
-                    pass
-            else:
-                if os.path.isfile(self._port_file):
-                    # Read the port file
-                    with open(self._port_file, 'r') as f_p:
-                        self._port = f_p.readline()
-                    os.remove(self._port_file)
-                    break
-
-            attempts += 1
-            if attempts == 80.0:
-                name = self._omc_log_file.name
-                self._omc_log_file.close()
-                logger.error("OMC Server is down (timeout=%f). Please start it! Log-file says:\n%s" % open(name).read())
-                raise Exception("OMC Server is down. Could not open file %s" % (timeout,self._port_file))
-            time.sleep(timeout / 80.0)
-
-        logger.info("OMC Server is up and running at {0}".format(self._omc_corba_uri))
-        # initialize the ORB with maximum size for the ORB set
-        sys.argv.append("-ORBgiopMaxMsgSize")
-        sys.argv.append("2147483647")
-        self._orb = CORBA.ORB_init(sys.argv, CORBA.ORB_ID)
-
-        # Find the root POA
-        self._poa = self._orb.resolve_initial_references("RootPOA")
-        # Convert the IOR into an object reference
-        self._obj_reference = self._orb.string_to_object(self._ior)
-        # Narrow the reference to the OmcCommunication object
-        self._omc = self._obj_reference._narrow(_OMCIDL.OmcCommunication)
-        # Check if we are using the right object
-        if self._omc is None:
-            logger.error("Object reference is not valid")
-            raise Exception
-
-    def execute(self, command):
-        ## check for process is running
-        p=self._omc_process.poll()
-        if (p == None):
-            result = self._omc.sendExpression(command)
-            if command == "quit()":
-                self._omc = None
-                return result
-            else:
-                answer = OMParser.check_for_values(result)
-                return answer
-        else:
-            raise Exception("Process Exited, No connection with OMC. Create a new instance of OMCSession")
-
-    def sendExpression(self, command, parsed=True):
-        ## check for process is running
-        p=self._omc_process.poll()
-        if (p== None):
-            result = self._omc.sendExpression(str(command))
-            if command == "quit()":
-                self._omc = None
-                return result
-            else:
-                if parsed is True:
-                    answer = OMTypedParser.parseString(result)
-                    return answer
-                else:
-                    return result
-        else:
-            raise Exception("Process Exited, No connection with OMC. Create a new instance of OMCSession")
-
-try:
-  import zmq
-except ImportError:
-  pass
-
 class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
     def __init__(self, readonly=False, timeout = 10.00,
@@ -770,7 +603,6 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
         logger.info("OMC Server is up and running at {0} pid={1} cid={2}".format(self._omc_zeromq_uri, self._omc_process.pid, self._dockerCid))
 
         # Create the ZeroMQ socket and connect to OMC server
-        import zmq
         context = zmq.Context.instance()
         self._omc = context.socket(zmq.REQ)
         self._omc.setsockopt(zmq.LINGER, 0) # Dismisses pending messages if closed
@@ -810,16 +642,13 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
                 else:
                     return result
         else:
-            raise Exception("Process Exited, No connection with OMC. Create a new instance of OMCSession")
-
+            raise Exception("Process Exited, No connection with OMC. Create a new instance of OMCSessionZMQ")
 
 class ModelicaSystemError(Exception):
     pass
 
-
 class ModelicaSystem(object):
-    def __init__(self, fileName=None, modelName=None, lmodel=None,
-                 useCorba=False, commandLineOptions=None,
+    def __init__(self, fileName=None, modelName=None, lmodel=None, commandLineOptions=None,
                  variableFilter=None, customBuildDirectory=None, verbose=True, raiseerrors=False,
                  omhome: str = None, session: OMCSessionBase = None):  # 1
         """
@@ -831,14 +660,8 @@ class ModelicaSystem(object):
         Note: If the model file is not in the current working directory, then the path where file is located must be included together with file name. Besides, if the Modelica model contains several different models within the same package, then in order to build the specific model, in second argument, user must put the package name with dot(.) followed by specific model name.
         ex: myModel = ModelicaSystem("ModelicaModel.mo", "modelName")
         """
-        if session is not None:
-            self.getconn = session
-        elif useCorba:
-            self.getconn = OMCSession(omhome=omhome)
-        else:
-            self.getconn = OMCSessionZMQ(omhome=omhome)
-
         if fileName is None and modelName is None and not lmodel:  # all None
+            raise Exception("Cannot create ModelicaSystem object without any arguments")
             return
 
         self.tree = None
@@ -860,7 +683,12 @@ class ModelicaSystem(object):
 
         self._verbose = verbose
 
-        ## needed for properly deleting the OMCSessionZMQ
+        if session is not None:
+            self.getconn = session
+        else:
+            self.getconn = OMCSessionZMQ(omhome=omhome)
+
+        ## needed for properly deleting the session
         self._omc_log_file = self.getconn._omc_log_file
         self._omc_process = self.getconn._omc_process
 
@@ -1880,41 +1708,3 @@ class ModelicaSystem(object):
         >>> getLinearStates()
         """
         return self.linearstates
-
-
-def FindBestOMCSession(*args, **kwargs):
-  """
-  Analyzes the OMC executable version string to find a suitable selection
-  of CORBA or ZMQ, as well as older flags to launch the executable (such
-  as +d=interactiveCorba for RML-based OMC).
-
-  This is mainly useful if you are testing old OpenModelica versions using
-  the latest OMPython.
-  """
-  base = OMCSessionHelper()
-  omc = base._get_omc_path()
-  versionOK = False
-  for cmd in ["--version", "+version"]:
-    try:
-      v = str(subprocess.check_output([omc, cmd], stderr=subprocess.STDOUT))
-      versionOK = True
-      break
-    except subprocess.CalledProcessError:
-      pass
-  if not versionOK:
-    raise Exception("Failed to use omc --version or omc +version. Is omc on the PATH?")
-  zmq = False
-  v = v.strip().split("-")[0].split("~")[0].strip()
-  a = re.search(r"v?([0-9]+)[.]([0-9]+)[.][0-9]+", v)
-  try:
-    major = int(a.group(1))
-    minor = int(a.group(2))
-    if major > 1 or (major==1 and minor >= 12):
-      zmq = True
-  except:
-    pass
-  if zmq:
-    return OMCSessionZMQ(*args, **kwargs)
-  if cmd == "+version":
-    return OMCSession(*args, serverFlag="+d=interactiveCorba", **kwargs)
-  return OMCSession(*args, serverFlag="-d=interactiveCorba", **kwargs)

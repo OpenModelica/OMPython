@@ -33,27 +33,5 @@ end M;"""
     self.assertNotEqual("", self.om.sendExpression('res.resultFile'))
     self.clean()
 
-class FindBestOMCSession(unittest.TestCase):
-  def __init__(self, *args, **kwargs):
-    super(FindBestOMCSession, self).__init__(*args, **kwargs)
-    self.simpleModel = """model M
-  Real r = time;
-end M;"""
-    self.tmp = tempfile.mkdtemp(prefix='tmpOMPython.extratests')
-    self.origDir = os.getcwd()
-    os.chdir(self.tmp)
-    self.om = OMPython.FindBestOMCSession()
-    os.chdir(self.origDir)
-  def __del__(self):
-    shutil.rmtree(self.tmp, ignore_errors=True)
-    del(self.om)
-  def clean(self):
-    del(self.om)
-    self.om = None
-
-  def testHelloWorldBestOMCSession(self):
-    self.assertEqual("HelloWorld!", self.om.sendExpression('"HelloWorld!"'))
-    self.clean()
-
 if __name__ == '__main__':
     unittest.main()
