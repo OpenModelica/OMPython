@@ -40,8 +40,8 @@ help(OMPython)
 ```
 
 ```python
-from OMPython import OMCSession
-omc = OMCSession()
+from OMPython import OMCSessionZMQ
+omc = OMCSessionZMQ()
 omc.sendExpression("getVersion()")
 ```
 
@@ -50,12 +50,8 @@ online.
 
 ## Bug Reports
 
-  - See OMPython bugs on the [OpenModelica
-    trac](https://trac.openmodelica.org/OpenModelica/query?component=OMPython)
-    or submit a [new
-    ticket](https://trac.openmodelica.org/OpenModelica/newticket).
-  - [Pull requests](https://github.com/OpenModelica/OMPython/pulls) are
-    welcome.
+  - Submit bugs through the [OpenModelica GitHub issues](https://github.com/OpenModelica/OMPython/issues/new).
+  - [Pull requests](https://github.com/OpenModelica/OMPython/pulls) are welcome ❤️.
 
 ## Contact
 

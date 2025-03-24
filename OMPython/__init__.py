@@ -1,30 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 OMPython is a Python interface to OpenModelica.
-To get started, create an OMCSession/OMCSessionZMQ object:
-from OMPython import OMCSession/OMCSessionZMQ
-omc = OMCSession()/OMCSessionZMQ()
-omc.sendExpression(command)
-
-Note: Conversion from OMPython 1.0 to OMPython 2.0 is very simple
-1.0:
-import OMPython
-OMPython.execute(command)
-2.0:
-from OMPython import OMCSession
-OMPython = OMCSession()
-OMPython.execute(command)
-
-OMPython 3.0 includes a new class OMCSessionZMQ uses PyZMQ to communicate
-with OpenModelica. A new argument `useCorba=False` is added to ModelicaSystem
-class which means it will use OMCSessionZMQ by default. If you want to use
-OMCSession then create ModelicaSystem object like this,
-obj = ModelicaSystem(useCorba=True)
-
-The difference between execute and sendExpression is the type of the
-returned expression. sendExpression maps Modelica types to Python types,
-while execute tries to map also output that is not valid Modelica.
-That format is harder to use.
+To get started, create an OMCSessionZMQ object:
+from OMPython import OMCSessionZMQ
+omc = OMCSessionZMQ()
+omc.sendExpression("command")
 """
 
 from __future__ import absolute_import
@@ -553,7 +533,7 @@ class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
                                  str(builtin).lower(), str(showProtected).lower()))
         return value
 
-class OMCSession(OMCSessionHelper, OMCSessionBase):
+class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
     def __init__(self, readonly=False, timeout = 10.00,
                  docker = None, dockerContainer = None, dockerExtraArgs = None, dockerOpenModelicaPath = "omc",
@@ -662,16 +642,7 @@ class OMCSession(OMCSessionHelper, OMCSessionBase):
                 else:
                     return result
         else:
-            raise Exception("Process Exited, No connection with OMC. Create a new instance of OMCSession")
-
-class OMCSessionZMQ(OMCSession):
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "OMCSessionZMQ is deprecated and will be remove in the next release. Please use OMCSession instead.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        super(OMCSessionZMQ, self).__init__(*args, **kwargs)
+            raise Exception("Process Exited, No connection with OMC. Create a new instance of OMCSessionZMQ")
 
 class ModelicaSystemError(Exception):
     pass
@@ -689,13 +660,8 @@ class ModelicaSystem(object):
         Note: If the model file is not in the current working directory, then the path where file is located must be included together with file name. Besides, if the Modelica model contains several different models within the same package, then in order to build the specific model, in second argument, user must put the package name with dot(.) followed by specific model name.
         ex: myModel = ModelicaSystem("ModelicaModel.mo", "modelName")
         """
-        if session is not None:
-            self.getconn = session
-        else:
-            self.getconn = OMCSession(omhome=omhome)
-
         if fileName is None and modelName is None and not lmodel:  # all None
-            self.getconn = OMCSession(omhome=omhome)
+            raise Exception("Cannot create ModelicaSystem object without any arguments")
             return
 
         self.tree = None
@@ -717,7 +683,10 @@ class ModelicaSystem(object):
 
         self._verbose = verbose
 
-        self.getconn = OMCSession(omhome=omhome)
+        if session is not None:
+            self.getconn = session
+        else:
+            self.getconn = OMCSessionZMQ(omhome=omhome)
 
         ## needed for properly deleting the session
         self._omc_log_file = self.getconn._omc_log_file

@@ -10,7 +10,7 @@ according to the documenation of pytest
 class Test_ArrayDimension:
 
     def test_ArrayDimension(self):
-        omc = OMPython.OMCSession()
+        omc = OMPython.OMCSessionZMQ()
 
         ## create a temp dir for each session
         tempdir = tempfile.mkdtemp()
