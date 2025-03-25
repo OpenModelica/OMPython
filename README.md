@@ -51,7 +51,7 @@ online.
 ## Bug Reports
 
   - Submit bugs through the [OpenModelica GitHub issues](https://github.com/OpenModelica/OMPython/issues/new).
-  - [Pull requests](https://github.com/OpenModelica/OMPython/pulls) are welcome ❤️.
+  - [Pull requests](https://github.com/OpenModelica/OMPython/pulls) are welcome.
 
 ## Contact
 

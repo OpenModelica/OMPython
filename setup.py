@@ -20,6 +20,13 @@ setup(name='OMPython',
           'psutil',
           'pyparsing',
           'pyzmq'
-      ],
+        ],
       python_requires='>=3.8',
+      project_urls={
+        'documentation': 'https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/ompython.html',
+        'source': 'https://github.com/OpenModelica/OMPython',
+        'download': 'https://pypi.org/project/OMPython/#files',
+        'tracker': 'https://github.com/OpenModelica/OMPython/issues',
+        'release notes': 'https://github.com/OpenModelica/OMPython/releases',
+        },
       )
