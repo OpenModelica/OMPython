@@ -717,8 +717,8 @@ class ModelicaSystem(object):
         ## set default command Line Options for linearization as
         ## linearize() will use the simulation executable and runtime
         ## flag -l to perform linearization
-        self.getconn.sendExpression("setCommandLineOptions(\"--linearizationDumpLanguage=python\")")
-        self.getconn.sendExpression("setCommandLineOptions(\"--generateSymbolicLinearization\")")
+        self.sendExpression("setCommandLineOptions(\"--linearizationDumpLanguage=python\")")
+        self.sendExpression("setCommandLineOptions(\"--generateSymbolicLinearization\")")
 
         self.setTempDirectory(customBuildDirectory)
 
@@ -736,14 +736,14 @@ class ModelicaSystem(object):
         ## set commandLineOptions if provided by users
         if commandLineOptions is not None:
             exp = "".join(["setCommandLineOptions(", "\"", commandLineOptions, "\"", ")"])
-            cmdexp = self.getconn.sendExpression(exp)
+            cmdexp = self.sendExpression(exp)
             if not cmdexp:
                 self._check_error()
 
     def loadFile(self):
         # load file
         loadFileExp = "".join(["loadFile(", "\"", self.fileName, "\"", ")"]).replace("\\", "/")
-        loadMsg = self.getconn.sendExpression(loadFileExp)
+        loadMsg = self.sendExpression(loadFileExp)
         ## Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
         if self._verbose or not loadMsg:
             self._check_error()
@@ -788,7 +788,7 @@ class ModelicaSystem(object):
 
         logger.info("Define tempdir as {}".format(self.tempdir))
         exp = "".join(["cd(", "\"", self.tempdir, "\"", ")"]).replace("\\", "/")
-        self.getconn.sendExpression(exp)
+        self.sendExpression(exp)
 
     def getWorkDirectory(self):
         return self.tempdir
@@ -835,7 +835,7 @@ class ModelicaSystem(object):
             raise ModelicaSystemError("Exception {} running command {}: {}".format(type(e), cmd, e))
 
     def _check_error(self):
-        errstr = self.getconn.sendExpression("getErrorString()")
+        errstr = self.sendExpression("getErrorString()")
         if errstr is None or not errstr:
             return
 
@@ -856,7 +856,7 @@ class ModelicaSystem(object):
         else:
             varFilter = "variableFilter=" + "\".*""\""
         logger.debug(varFilter)
-        # buildModelResult=self.getconn.sendExpression("buildModel("+ mName +")")
+        # buildModelResult=self.sendExpression("buildModel("+ mName +")")
         buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
         if self._verbose:
             logger.info("OM model build result: {}".format(buildModelResult))
@@ -866,6 +866,7 @@ class ModelicaSystem(object):
         self.xmlparse()
 
     def sendExpression(self, expr, parsed=True):
+        logger.debug("sendExpression(%r, %r)", expr, parsed)
         return self.getconn.sendExpression(expr, parsed)
 
     # request to OMC
@@ -880,7 +881,7 @@ class ModelicaSystem(object):
         else:
             exp = '{}()'.format(apiName)
         try:
-            res = self.getconn.sendExpression(exp)
+            res = self.sendExpression(exp)
         except Exception as e:
             errstr = "Exception {} raised: {}".format(type(e), e)
             self._raise_error(errstr=errstr)
@@ -1233,8 +1234,8 @@ class ModelicaSystem(object):
             return
             # exit()
         else:
-            resultVars = self.getconn.sendExpression("readSimulationResultVars(\"" + resFile + "\")")
-            self.getconn.sendExpression("closeSimulationResultFile()")
+            resultVars = self.sendExpression("readSimulationResultVars(\"" + resFile + "\")")
+            self.sendExpression("closeSimulationResultFile()")
             if (varList == None):
                 return resultVars
             elif (isinstance(varList, str)):
@@ -1243,10 +1244,10 @@ class ModelicaSystem(object):
                     self._raise_error(errstr=errstr)
                     return
                 exp = "readSimulationResult(\"" + resFile + '",{' + varList + "})"
-                res = self.getconn.sendExpression(exp)
+                res = self.sendExpression(exp)
                 npRes = np.array(res)
                 exp2 = "closeSimulationResultFile()"
-                self.getconn.sendExpression(exp2)
+                self.sendExpression(exp2)
                 return npRes
             elif (isinstance(varList, list)):
                 # varList, = varList
@@ -1259,10 +1260,10 @@ class ModelicaSystem(object):
                         return
                 variables = ",".join(varList)
                 exp = "readSimulationResult(\"" + resFile + '",{' + variables + "})"
-                res = self.getconn.sendExpression(exp)
+                res = self.sendExpression(exp)
                 npRes = np.array(res)
                 exp2 = "closeSimulationResultFile()"
-                self.getconn.sendExpression(exp2)
+                self.sendExpression(exp2)
                 return npRes
 
     def strip_space(self, name):
@@ -1591,7 +1592,7 @@ class ModelicaSystem(object):
         cName = self.modelName
         properties = ','.join("%s=%s" % (key, val) for (key, val) in list(self.optimizeOptions.items()))
         optimizeError = ''
-        self.getconn.sendExpression("setCommandLineOptions(\"-g=Optimica\")")
+        self.sendExpression("setCommandLineOptions(\"-g=Optimica\")")
         optimizeResult = self.requestApi('optimize', cName, properties)
         self._check_error()
 
@@ -1682,7 +1683,7 @@ class ModelicaSystem(object):
             except ModuleNotFoundError:
                 raise Exception("ModuleNotFoundError: No module named 'linearized_model'")
         else:
-            errormsg = self.getconn.sendExpression("getErrorString()")
+            errormsg = self.sendExpression("getErrorString()")
             raise ModelicaSystemError("Linearization failed: {} not found: {}".format(repr(linearFile), errormsg))
 
     def getLinearInputs(self):
