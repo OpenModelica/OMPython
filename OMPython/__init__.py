@@ -1652,6 +1652,8 @@ class ModelicaSystem(object):
 
         if simflags is None:
             simflags = ""
+        else:
+            simflags = " " + simflags
 
         if (os.path.exists(getExeFile)):
             cmd = getExeFile + linruntime + override + csvinput + simflags
