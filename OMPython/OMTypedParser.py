@@ -1,10 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from builtins import int, range
-
 __author__ = "Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-19, and Martin Sjölund"
 __license__ = """
  This file is part of OpenModelica.
@@ -59,6 +54,7 @@ from pyparsing import (
 
 import sys
 
+
 def convertNumbers(s, l, toks):
     n = toks[0]
     try:
@@ -75,7 +71,8 @@ def convertString2(s, s2):
     tmp = tmp.replace("\n", "\\n")
     tmp = tmp.replace("\r", "\\r")
     tmp = tmp.replace("\t", "\\t")
-    return "'"+tmp+"'";
+    return "'"+tmp+"'"
+
 
 def convertString(s, s2):
     return s2[0].replace("\\\"", '"')
@@ -89,7 +86,6 @@ def convertTuple(t):
     return tuple(t[0])
 
 
-
 def evaluateExpression(s, loc, toks):
     # Convert the tokens (ParseResults) into a string expression
     flat_list = [item for sublist in toks[0] for item in sublist]
@@ -99,6 +95,7 @@ def evaluateExpression(s, loc, toks):
         return eval(expr)
     except Exception:
         return expr
+
 
 # Number parsing (supports arithmetic expressions in dimensions) (e.g., {1 + 1, 1})
 arrayDimension = infixNotation(
@@ -123,7 +120,7 @@ omcNumber = Combine(Optional('-') + ('0' | Word('123456789', nums)) +
                     Optional('.' + Word(nums)) +
                     Optional(Word('eE', exact=1) + Word(nums + '+-', nums)))
 
-#ident = Word(alphas + "_", alphanums + "_") | Combine("'" + Word(alphanums + "!#$%&()*+,-./:;<>=?@[]^{}|~ ") + "'")
+# ident = Word(alphas + "_", alphanums + "_") | Combine("'" + Word(alphanums + "!#$%&()*+,-./:;<>=?@[]^{}|~ ") + "'")
 ident = Word(alphas + "_", alphanums + "_") | QuotedString(quoteChar='\'', escChar='\\').setParseAction(convertString2)
 fqident = Forward()
 fqident << ((ident + "." + fqident) | ident)
@@ -143,7 +140,7 @@ omcNumber.setParseAction(convertNumbers)
 def parseString(string):
     res = omcGrammar.parseString(string)
     if len(res) == 0:
-      return
+        return
     return res[0]
 
 
