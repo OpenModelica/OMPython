@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install future pyparsing numpy psutil pyzmq pytest pytest-md pytest-emoji
+          pip install . pytest pytest-md pytest-emoji
 
       - name: Set timezone
         uses: szenius/set-timezone@v2.0
