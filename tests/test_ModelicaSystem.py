@@ -54,6 +54,28 @@ end M;
         assert mod.getParameters(["e", "g"]) == ["21.3", "0.12"]
         assert mod.getParameters(["g", "e"]) == ["0.12", "21.3"]
 
+    def test_setSimulationOptions(self):
+        omc = OMPython.OMCSessionZMQ()
+        model_path = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels/"
+        mod = OMPython.ModelicaSystem(model_path + "BouncingBall.mo", "BouncingBall", raiseerrors=True)
+
+        # method 1
+        mod.setSimulationOptions("stopTime=1.234")
+        mod.setSimulationOptions("tolerance=1.1e-08")
+        assert mod.getSimulationOptions("stopTime") == ["1.234"]
+        assert mod.getSimulationOptions("tolerance") == ["1.1e-08"]
+        assert mod.getSimulationOptions(["tolerance", "stopTime"]) == ["1.1e-08", "1.234"]
+        d = mod.getSimulationOptions()
+        assert isinstance(d, dict)
+        assert d["stopTime"] == "1.234"
+        assert d["tolerance"] == "1.1e-08"
+
+        # method 2
+        mod.setSimulationOptions(["stopTime=2.1", "tolerance=1.2e-08"])
+        d = mod.getSimulationOptions()
+        assert d["stopTime"] == "2.1"
+        assert d["tolerance"] == "1.2e-08"
+
 
 if __name__ == '__main__':
     unittest.main()
