@@ -7,13 +7,7 @@ omc = OMCSessionZMQ()
 omc.sendExpression("command")
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from future.utils import with_metaclass
-from builtins import int, range
 import shutil
-
 import abc
 import csv
 import getpass
@@ -138,7 +132,7 @@ class OMCSessionHelper:
             raise
 
 
-class OMCSessionBase(with_metaclass(abc.ABCMeta, object)):
+class OMCSessionBase(metaclass=abc.ABCMeta):
 
     def __init__(self, readonly=False):
         self.readonly = readonly
@@ -652,7 +646,7 @@ class ModelicaSystemError(Exception):
     pass
 
 
-class ModelicaSystem(object):
+class ModelicaSystem:
     def __init__(self, fileName=None, modelName=None, lmodel=None, commandLineOptions=None,
                  variableFilter=None, customBuildDirectory=None, verbose=True, raiseerrors=False,
                  omhome: str = None, session: OMCSessionBase = None):  # 1

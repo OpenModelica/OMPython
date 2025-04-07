@@ -15,7 +15,6 @@ setup(name='OMPython',
       url='http://openmodelica.org/',
       packages=OMPython_packages,
       install_requires=[
-          'future',
           'numpy',
           'psutil',
           'pyparsing',
