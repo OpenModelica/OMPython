@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "OMPython"
+version = "3.6.0"
+description = "OpenModelica-Python API Interface"
+readme = "README.md"
+authors = [
+    {name = "Anand Kalaiarasi Ganeson", email = "ganan642@student.liu.se"},
+]
+maintainers = [
+    {name = "Adeel Asghar", email = "adeel.asghar@liu.se"},
+]
+license = "BSD-3-Clause OR LicenseRef-OSMC-PL-1.2 OR GPL-3.0-only"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "psutil",
+    "pyparsing",
+    "pyzmq",
+]
+
+[tool.setuptools]
+packages = ["OMPython", "OMPython.OMParser"]
+
+[project.urls]
+Homepage = "http://openmodelica.org/"
+Documentation = "https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/ompython.html"
+"Source Code" = "https://github.com/OpenModelica/OMPython"
+Issues = "https://github.com/OpenModelica/OMPython/issues"
+"Release Notes" = "https://github.com/OpenModelica/OMPython/releases"
+Download = "https://pypi.org/project/OMPython/#files"
