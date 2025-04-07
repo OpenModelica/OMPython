@@ -207,8 +207,6 @@ def delete_elements(strings):
 
 
 def make_subset_sets(strings, name):
-    index = 0
-    anchor = 0
     main_set_name = "SET1"
     subset_name = "Subset1"
     set_name = "Set1"
@@ -285,8 +283,6 @@ def make_subset_sets(strings, name):
 def make_sets(strings, name):
     if strings == "{}":
         return
-    index = 0
-    anchor = 0
     main_set_name = "SET1"
     set_name = "Set1"
 
@@ -415,7 +411,6 @@ def get_inner_sets(strings, for_this, name):
 
 
 def make_elements(strings):
-    original_string = strings
     index = 0
     main_set_name = "SET1"
 
@@ -563,7 +558,6 @@ def get_the_set(string):
         max_count = main_count
         last_set = 0
         last_subset = 0
-        last_brace = 0
         pos = position
 
         while pos < len(string):
@@ -616,7 +610,6 @@ def get_the_set(string):
                                 break
                         elif ch == "(":
                             brace_count += 1
-                            brace_start = position
                             position += 1
                             while position < end_of_main_set:
                                 s = string[position]
@@ -625,7 +618,6 @@ def get_the_set(string):
                                 elif s == ")":
                                     brace_count -= 1
                                     if brace_count == 0:
-                                        last_brace = position
                                         break
                                 elif s == "=" and string[position + 1] == "{":
                                     indx = position + 2
@@ -672,7 +664,6 @@ def get_the_set(string):
                                 break
                         elif ch == "(":
                             brace_count += 1
-                            brace_start = position
                             position += 1
                             while position < end_of_main_set:
                                 s = string[position]
@@ -681,13 +672,11 @@ def get_the_set(string):
                                 elif s == ")":
                                     brace_count -= 1
                                     if brace_count == 0:
-                                        last_brace = position
                                         break
                                 position += 1
                         position += 1
                 elif char == "(":
                     brace_count += 1
-                    brace_start = position
                     position += 1
                     while position < end_of_main_set:
                         s = string[position]
@@ -696,7 +685,6 @@ def get_the_set(string):
                         elif s == ")":
                             brace_count -= 1
                             if brace_count == 0:
-                                last_brace = position
                                 break
                         position += 1
 
