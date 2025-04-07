@@ -1,6 +1,9 @@
 import OMPython
 import unittest
-import tempfile, shutil, os
+import tempfile
+import shutil
+import os
+
 
 class ModelicaSystemTester(unittest.TestCase):
     def __init__(self, *args, **kwargs):
@@ -20,12 +23,13 @@ end M;
 
     def testModelicaSystemLoop(self):
         def worker():
-            filePath = os.path.join(self.tmp,"M.mo").replace("\\", "/")
+            filePath = os.path.join(self.tmp, "M.mo").replace("\\", "/")
             m = OMPython.ModelicaSystem(filePath, "M")
             m.simulate()
             m.convertMo2Fmu(fmuType="me")
             for _ in range(10):
                 worker()
+
 
 if __name__ == '__main__':
     unittest.main()

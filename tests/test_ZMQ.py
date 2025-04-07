@@ -1,6 +1,9 @@
 import OMPython
 import unittest
-import tempfile, shutil, os
+import tempfile
+import shutil
+import os
+
 
 class ZMQTester(unittest.TestCase):
     def __init__(self, *args, **kwargs):
@@ -16,10 +19,10 @@ end M;"""
 
     def __del__(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
-        del(self.om)
+        del self.om
 
     def clean(self):
-        del(self.om)
+        del self.om
         self.om = None
 
     def testHelloWorld(self):
@@ -36,6 +39,7 @@ end M;"""
         self.om.sendExpression('res:=simulate(M, stopTime=2.0)')
         self.assertNotEqual("", self.om.sendExpression('res.resultFile'))
         self.clean()
+
 
 if __name__ == '__main__':
     unittest.main()

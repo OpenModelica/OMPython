@@ -1,6 +1,8 @@
 import OMPython
 import unittest
-import tempfile, shutil, os
+import shutil
+import os
+
 
 class testFMIExport(unittest.TestCase):
     def __init__(self, *args, **kwargs):
@@ -25,6 +27,7 @@ class testFMIExport(unittest.TestCase):
 
         fmu = mod.convertMo2Fmu(fileNamePrefix="DrumBoiler")
         self.assertEqual(True, os.path.exists(fmu))
+
 
 if __name__ == '__main__':
     unittest.main()

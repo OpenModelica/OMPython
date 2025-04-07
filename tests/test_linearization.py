@@ -1,6 +1,8 @@
 import OMPython
-import tempfile, shutil, os
-import pytest
+import tempfile
+import shutil
+import os
+
 
 class Test_Linearization:
     def loadModel(self):
@@ -26,7 +28,7 @@ end linearTest;
 
     def test_example(self):
         self.loadModel()
-        filePath = os.path.join(self.tmp,"linearTest.mo").replace("\\", "/")
+        filePath = os.path.join(self.tmp, "linearTest.mo").replace("\\", "/")
         print(filePath)
         mod = OMPython.ModelicaSystem(filePath, "linearTest")
         [A, B, C, D] = mod.linearize()

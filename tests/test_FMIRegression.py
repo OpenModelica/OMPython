@@ -1,36 +1,35 @@
 import OMPython
-import tempfile, shutil, os
-import pytest
+import tempfile
+import shutil
+import os
 
 
-"""
-do not change the prefix class name, the class name should have prefix "Test"
-according to the documenation of pytest
-"""
+# do not change the prefix class name, the class name should have prefix "Test"
+# according to the documenation of pytest
 class Test_FMIRegression:
 
     def buildModelFMU(self, modelName):
         omc = OMPython.OMCSessionZMQ()
 
-        ## create a temp dir for each session
+        # create a temp dir for each session
         tempdir = tempfile.mkdtemp()
         if not os.path.exists(tempdir):
             return print(tempdir, " cannot be created")
 
-        tempdirExp="".join(["cd(","\"",tempdir,"\"",")"]).replace("\\","/")
+        tempdirExp = "".join(["cd(", "\"", tempdir, "\"", ")"]).replace("\\", "/")
         omc.sendExpression(tempdirExp)
 
         omc.sendExpression("loadModel(Modelica)")
         omc.sendExpression("getErrorString()")
 
         fileNamePrefix = modelName.split(".")[-1]
-        exp = "buildModelFMU(" + modelName + ", fileNamePrefix=\"" + fileNamePrefix  + "\"" + ")"
+        exp = "buildModelFMU(" + modelName + ", fileNamePrefix=\"" + fileNamePrefix + "\"" + ")"
 
         fmu = omc.sendExpression(exp)
-        assert True == os.path.exists(fmu)
+        assert os.path.exists(fmu)
 
         omc.__del__()
-        shutil.rmtree(tempdir, ignore_errors= True)
+        shutil.rmtree(tempdir, ignore_errors=True)
 
     def test_Modelica_Blocks_Examples_Filter(self):
         self.buildModelFMU("Modelica.Blocks.Examples.Filter")
