@@ -29,6 +29,7 @@ import numpy as np
 import pyparsing
 import importlib
 import zmq
+import pathlib
 
 
 if sys.platform == 'darwin':
@@ -700,7 +701,7 @@ class ModelicaSystem:
         self.xmlFile = None
         self.lmodel = lmodel  # may be needed if model is derived from other model
         self.modelName = modelName  # Model class name
-        self.fileName = fileName  # Model file/package name
+        self.fileName = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
         self.inputFlag = False  # for model with input quantity
         self.simulationFlag = False  # if the model is simulated?
         self.outputFlag = False
@@ -710,8 +711,8 @@ class ModelicaSystem:
 
         self._raiseerrors = raiseerrors
 
-        if fileName is not None and not os.path.exists(self.fileName):  # if file does not exist
-            raise IOError("File Error:" + os.path.abspath(self.fileName) + " does not exist!!!")
+        if fileName is not None and not self.fileName.is_file():  # if file does not exist
+            raise IOError(f"File Error: {self.fileName} does not exist!!!")
 
         # set default command Line Options for linearization as
         # linearize() will use the simulation executable and runtime
@@ -741,8 +742,7 @@ class ModelicaSystem:
 
     def loadFile(self):
         # load file
-        loadFileExp = "".join(["loadFile(", "\"", self.fileName, "\"", ")"]).replace("\\", "/")
-        loadMsg = self.sendExpression(loadFileExp)
+        loadMsg = self.sendExpression(f'loadFile("{self.fileName.as_posix()}")')
         # Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
         if self._verbose or not loadMsg:
             self._check_error()

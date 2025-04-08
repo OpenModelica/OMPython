@@ -3,6 +3,7 @@ import unittest
 import tempfile
 import shutil
 import os
+import pathlib
 
 
 class ModelicaSystemTester(unittest.TestCase):
@@ -75,6 +76,29 @@ end M;
         d = mod.getSimulationOptions()
         assert d["stopTime"] == "2.1"
         assert d["tolerance"] == "1.2e-08"
+
+    def test_relative_path(self):
+        cwd = pathlib.Path.cwd()
+        (fd, name) = tempfile.mkstemp(dir=cwd, text=True)
+        try:
+            with os.fdopen(fd, 'w') as f:
+                f.write("""model M
+  Real x(start = 1, fixed=true);
+  parameter Real a = -1;
+equation
+  der(x) = x*a;
+end M;
+""")
+
+            model_file = pathlib.Path(name).relative_to(cwd)
+            model_relative = str(model_file)
+            assert "/" not in model_relative
+
+            mod = OMPython.ModelicaSystem(model_relative, "M", raiseerrors=True)
+            assert float(mod.getParameters("a")[0]) == -1
+        finally:
+            # clean up the temporary file
+            model_file.unlink()
 
 
 if __name__ == '__main__':
