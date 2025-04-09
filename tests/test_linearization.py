@@ -1,13 +1,15 @@
 import OMPython
 import tempfile
 import shutil
-import os
+import unittest
+import pathlib
 
 
-class Test_Linearization:
-    def loadModel(self):
-        self.tmp = tempfile.mkdtemp(prefix='tmpOMPython.tests')
-        with open("%s/linearTest.mo" % self.tmp, "w") as fout:
+class Test_Linearization(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix='tmpOMPython.tests'))
+        with open(self.tmp / "linearTest.mo", "w") as fout:
             fout.write("""
 model linearTest
   Real x1(start=1);
@@ -21,14 +23,13 @@ equation
   f*x4 - e*x3 - der(x3) = x1;
   der(x4) = x1 + x2 + der(x3) + x4;
 end linearTest;
-                       """)
+""")
 
     def __del__(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_example(self):
-        self.loadModel()
-        filePath = os.path.join(self.tmp, "linearTest.mo").replace("\\", "/")
+        filePath = (self.tmp / "linearTest.mo").as_posix()
         print(filePath)
         mod = OMPython.ModelicaSystem(filePath, "linearTest")
         [A, B, C, D] = mod.linearize()
