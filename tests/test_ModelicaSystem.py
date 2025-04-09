@@ -28,8 +28,8 @@ end M;
             m = OMPython.ModelicaSystem(filePath, "M")
             m.simulate()
             m.convertMo2Fmu(fmuType="me")
-            for _ in range(10):
-                worker()
+        for _ in range(10):
+            worker()
 
     def test_setParameters(self):
         omc = OMPython.OMCSessionZMQ()
