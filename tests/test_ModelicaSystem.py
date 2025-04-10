@@ -262,6 +262,11 @@ end M_getters;
             },
         ]
 
+        assert mod.getInputs() == {}
+        assert mod.getOutputs() == {'y': '-0.4'}
+        assert mod.getOutputs("y") == ["-0.4"]
+
+        # getContinuous before simulate():
         assert mod.getContinuous() == {
             'x': '1.0',
             'der(x)': None,
@@ -269,10 +274,29 @@ end M_getters;
         }
         assert mod.getContinuous("y") == ['-0.4']
         assert mod.getContinuous(["y", "x"]) == ['-0.4', '1.0']
+        assert mod.getContinuous("a") == ["NotExist"]  # a is a parameter
 
-        assert mod.getInputs() == {}
-        assert mod.getOutputs() == {'y': '-0.4'}
-        assert mod.getOutputs("y") == ["-0.4"]
+        stopTime=1.0
+        a = -0.5
+        b = 0.1
+        x0 = 1.0
+        mod.setSimulationOptions(f"stopTime={stopTime}")
+        mod.simulate()
+        # getContinuous after simulate() should return values at end of simulation:
+        with self.assertRaises(OMPython.ModelicaSystemError):
+            mod.getContinuous("a")  # a is a parameter
+        with self.assertRaises(OMPython.ModelicaSystemError):
+            mod.getContinuous(["x", "a", "y"])  # a is a parameter
+        d = mod.getContinuous()
+        assert d.keys() == {"x", "der(x)", "y"}
+        x_analytical = -b/a + (x0 + b/a) * np.exp(a * stopTime)
+        dx_analytical = (x0 + b/a) * a * np.exp(a * stopTime)
+        assert np.isclose(d["x"], x_analytical, 1e-4)
+        assert np.isclose(d["der(x)"], dx_analytical, 1e-4)
+        assert np.isclose(d["y"], dx_analytical, 1e-4)
+        assert mod.getContinuous("x") == [d["x"]]
+        assert mod.getContinuous(["y", "x"]) == [d["y"], d["x"]]
+
 
     def test_simulate_inputs(self):
         model_file = self.tmp / "M_input.mo"
