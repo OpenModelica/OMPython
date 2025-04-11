@@ -40,6 +40,12 @@ end M;"""
         self.assertNotEqual("", self.om.sendExpression('res.resultFile'))
         self.clean()
 
+    def test_execute(self):
+        self.assertEqual('"HelloWorld!"\n', self.om.execute('"HelloWorld!"'))
+        self.assertEqual('"HelloWorld!"\n', self.om.sendExpression('"HelloWorld!"', parsed=False))
+        self.assertEqual('HelloWorld!', self.om.sendExpression('"HelloWorld!"', parsed=True))
+        self.clean()
+
 
 if __name__ == '__main__':
     unittest.main()
