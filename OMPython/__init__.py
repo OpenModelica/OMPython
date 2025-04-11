@@ -1143,10 +1143,6 @@ class ModelicaSystem:
                     errstr = f"!!! stopTime not matched for Input {i}"
                     self._raise_error(errstr=errstr)
                     return
-                if val[0][0] < float(self.simulateOptions["startTime"]):
-                    errstr = f"Input time value is less than simulation startTime for inputs {i}"
-                    self._raise_error(errstr=errstr)
-                    return
             self.createCSVData()  # create csv file
             csvinput = " -csvInput=" + self.csvFile
         else:
