@@ -137,17 +137,17 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
                 return self.omc_cache[p]
 
         if opt:
-            expression = '{0}({1})'.format(question, opt)
+            expression = f'{question}({opt})'
         else:
             expression = question
 
-        logger.debug('OMC ask: {0}  - parsed: {1}'.format(expression, parsed))
+        logger.debug('OMC ask: %s  - parsed: %s', expression, parsed)
 
         try:
             res = self.sendExpression(expression, parsed=parsed)
-        except Exception as e:
-            logger.error("OMC failed: {0}, {1}, parsed={2}".format(question, opt, parsed))
-            raise e
+        except Exception:
+            logger.error("OMC failed: %s, %s, parsed=%s", question, opt, parsed)
+            raise
 
         # save response
         self.omc_cache[p] = res
@@ -156,7 +156,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
 
     # TODO: Open Modelica Compiler API functions. Would be nice to generate these.
     def loadFile(self, filename):
-        return self.ask('loadFile', '"{0}"'.format(filename))
+        return self.ask('loadFile', f'"{filename}"')
 
     def loadModel(self, className):
         return self.ask('loadModel', className)
@@ -207,7 +207,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         return self.ask('getDerivedClassModifierNames', className)
 
     def getDerivedClassModifierValue(self, className, modifierName):
-        return self.ask('getDerivedClassModifierValue', '{0}, {1}'.format(className, modifierName))
+        return self.ask('getDerivedClassModifierValue', f'{className}, {modifierName}')
 
     def typeNameStrings(self, className):
         return self.ask('typeNameStrings', className)
@@ -219,79 +219,79 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         try:
             return self.ask('getClassComment', className)
         except pyparsing.ParseException as ex:
-            logger.warning("Method 'getClassComment' failed for {0}".format(className))
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            logger.warning("Method 'getClassComment' failed for %s", className)
+            logger.warning('OMTypedParser error: %s', ex.message)
             return 'No description available'
 
     def getNthComponent(self, className, comp_id):
         """ returns with (type, name, description) """
-        return self.ask('getNthComponent', '{0}, {1}'.format(className, comp_id))
+        return self.ask('getNthComponent', f'{className}, {comp_id}')
 
     def getNthComponentAnnotation(self, className, comp_id):
-        return self.ask('getNthComponentAnnotation', '{0}, {1}'.format(className, comp_id))
+        return self.ask('getNthComponentAnnotation', f'{className}, {comp_id}')
 
     def getImportCount(self, className):
         return self.ask('getImportCount', className)
 
     def getNthImport(self, className, importNumber):
         # [Path, id, kind]
-        return self.ask('getNthImport', '{0}, {1}'.format(className, importNumber))
+        return self.ask('getNthImport', f'{className}, {importNumber}')
 
     def getInheritanceCount(self, className):
         return self.ask('getInheritanceCount', className)
 
     def getNthInheritedClass(self, className, inheritanceDepth):
-        return self.ask('getNthInheritedClass', '{0}, {1}'.format(className, inheritanceDepth))
+        return self.ask('getNthInheritedClass', f'{className}, {inheritanceDepth}')
 
     def getParameterNames(self, className):
         try:
             return self.ask('getParameterNames', className)
         except KeyError as ex:
-            logger.warning('OMPython error: {0}'.format(ex))
+            logger.warning('OMPython error: %s', ex)
             # FIXME: OMC returns with a different structure for empty parameter set
             return []
 
     def getParameterValue(self, className, parameterName):
         try:
-            return self.ask('getParameterValue', '{0}, {1}'.format(className, parameterName))
+            return self.ask('getParameterValue', f'{className}, {parameterName}')
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            logger.warning('OMTypedParser error: %s', ex.message)
             return ""
 
     def getComponentModifierNames(self, className, componentName):
-        return self.ask('getComponentModifierNames', '{0}, {1}'.format(className, componentName))
+        return self.ask('getComponentModifierNames', f'{className}, {componentName}')
 
     def getComponentModifierValue(self, className, componentName):
         try:
             # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
-            return self.ask('getComponentModifierValue', '{0}, {1}'.format(className, componentName))
+            return self.ask('getComponentModifierValue', f'{className}, {componentName}')
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
-            result = self.ask('getComponentModifierValue', '{0}, {1}'.format(className, componentName), parsed=False)
+            logger.warning('OMTypedParser error: %s', ex.message)
+            result = self.ask('getComponentModifierValue', f'{className}, {componentName}', parsed=False)
             try:
                 answer = OMParser.check_for_values(result)
                 OMParser.result = {}
                 return answer[2:]
             except (TypeError, UnboundLocalError) as ex:
-                logger.warning('OMParser error: {0}'.format(ex))
+                logger.warning('OMParser error: %s', ex)
                 return result
 
     def getExtendsModifierNames(self, className, componentName):
-        return self.ask('getExtendsModifierNames', '{0}, {1}'.format(className, componentName))
+        return self.ask('getExtendsModifierNames', f'{className}, {componentName}')
 
     def getExtendsModifierValue(self, className, extendsName, modifierName):
         try:
             # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
-            return self.ask('getExtendsModifierValue', '{0}, {1}, {2}'.format(className, extendsName, modifierName))
+            return self.ask('getExtendsModifierValue', f'{className}, {extendsName}, {modifierName}')
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
-            result = self.ask('getExtendsModifierValue', '{0}, {1}, {2}'.format(className, extendsName, modifierName), parsed=False)
+            logger.warning('OMTypedParser error: %s', ex.message)
+            result = self.ask('getExtendsModifierValue', f'{className}, {extendsName}, {modifierName}', parsed=False)
             try:
                 answer = OMParser.check_for_values(result)
                 OMParser.result = {}
                 return answer[2:]
             except (TypeError, UnboundLocalError) as ex:
-                logger.warning('OMParser error: {0}'.format(ex))
+                logger.warning('OMParser error: %s', ex)
                 return result
 
     def getNthComponentModification(self, className, comp_id):
@@ -299,7 +299,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
 
         # get {$Code(....)} field
         # \{\$Code\((\S*\s*)*\)\}
-        value = self.ask('getNthComponentModification', '{0}, {1}'.format(className, comp_id), parsed=False)
+        value = self.ask('getNthComponentModification', f'{className}, {comp_id}', parsed=False)
         value = value.replace("{$Code(", "")
         return value[:-3]
         # return self.re_Code.findall(value)
@@ -315,16 +315,15 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
     # end getClassNames;
     def getClassNames(self, className=None, recursive=False, qualified=False, sort=False, builtin=False,
                       showProtected=False):
-        if className:
-            value = self.ask('getClassNames',
-                             '{0}, recursive={1}, qualified={2}, sort={3}, builtin={4}, showProtected={5}'.format(
-                                 className, str(recursive).lower(), str(qualified).lower(), str(sort).lower(),
-                                 str(builtin).lower(), str(showProtected).lower()))
-        else:
-            value = self.ask('getClassNames',
-                             'recursive={0}, qualified={1}, sort={2}, builtin={3}, showProtected={4}'.format(
-                                 str(recursive).lower(), str(qualified).lower(), str(sort).lower(),
-                                 str(builtin).lower(), str(showProtected).lower()))
+        value = self.ask(
+            'getClassNames',
+            (f'{className}, ' if className else '') +
+            f'recursive={str(recursive).lower()}, '
+            f'qualified={str(qualified).lower()}, '
+            f'sort={str(sort).lower()}, '
+            f'builtin={str(builtin).lower()}, '
+            f'showProtected={str(showProtected).lower()}'
+        )
         return value
 
 
