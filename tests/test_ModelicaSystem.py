@@ -315,10 +315,11 @@ end M_getters;
         model_file.write_text("""
 model M_input
   Real x(start=0, fixed=true);
-  input Real u;
+  input Real u1;
+  input Real u2;
   output Real y;
 equation
-  der(x) = u;
+  der(x) = u1 + u2;
   y = x;
 end M_input;
 """)
@@ -326,25 +327,55 @@ end M_input;
 
         mod.setSimulationOptions("stopTime=1.0")
 
-        # integrate a constant
-        mod.setInputs("u=2.5")
+        # integrate zero (no setInputs call) - it should default to None -> 0
         assert mod.getInputs() == {
-            "u": [
+            "u1": None,
+            "u2": None,
+        }
+        mod.simulate()
+        y = mod.getSolutions("y")[0]
+        assert np.isclose(y[-1], 0.0)
+
+        # integrate a constant
+        mod.setInputs("u1=2.5")
+        assert mod.getInputs() == {
+            "u1": [
                 (0.0, 2.5),
                 (1.0, 2.5),
             ],
+            "u2": None,
         }
         mod.simulate()
         y = mod.getSolutions("y")[0]
         assert np.isclose(y[-1], 2.5)
 
         # now let's integrate the sum of two ramps
-        mod.setInputs("u=[(0.0, 0.0), (0.5, 2), (1.0, 0)]")
-        assert mod.getInputs("u") == [[
+        mod.setInputs("u1=[(0.0, 0.0), (0.5, 2), (1.0, 0)]")
+        assert mod.getInputs("u1") == [[
             (0.0, 0.0),
             (0.5, 2.0),
             (1.0, 0.0),
         ]]
+        mod.simulate()
+        y = mod.getSolutions("y")[0]
+        assert np.isclose(y[-1], 1.0)
+
+        # let's try some edge cases
+        mod.setInputs("u1=[(-0.5, 0.0), (1.0, 1)]")
+        # unmatched startTime
+        with self.assertRaises(OMPython.ModelicaSystemError):
+            mod.simulate()
+        # unmatched stopTime
+        mod.setInputs("u1=[(0.0, 0.0), (0.5, 1)]")
+        with self.assertRaises(OMPython.ModelicaSystemError):
+            mod.simulate()
+
+        # Let's use both inputs, but each one with different number of of
+        # samples. This has an effect when generating the csv file.
+        mod.setInputs([
+            "u1=[(0.0, 0), (1.0, 1)]",
+            "u2=[(0.0, 0), (0.25, 0.5), (0.5, 1.0), (1.0, 0)]",
+        ])
         mod.simulate()
         y = mod.getSolutions("y")[0]
         assert np.isclose(y[-1], 1.0)
