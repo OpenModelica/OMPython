@@ -391,25 +391,13 @@ class OMCSessionZMQ(OMCSessionBase):
         except Exception:
             pass
         self._omc_log_file.close()
-        if sys.version_info.major >= 3:
-            try:
-                self._omc_process.wait(timeout=2.0)
-            except Exception:
-                if self._omc_process:
-                    self._omc_process.kill()
-        else:
-            for i in range(0, 100):
-                time.sleep(0.02)
-                if self._omc_process and (self._omc_process.poll() is not None):
-                    break
-        # kill self._omc_process process if it is still running/exists
-        if self._omc_process is not None and self._omc_process.returncode is None:
-            logger.warning("OMC did not exit after being sent the quit() command; killing the process with pid=%s" % str(self._omc_process.pid))
-            if sys.platform == "win32":
-                self._omc_process.kill()
-                self._omc_process.wait()
-            else:
-                os.killpg(os.getpgid(self._omc_process.pid), signal.SIGTERM)
+        try:
+            self._omc_process.wait(timeout=2.0)
+        except Exception:
+            if self._omc_process:
+                print("OMC did not exit after being sent the quit() command; killing the process with pid={self._omc_process.pid}")
+                if sys.platform != "win32":
+                    os.killpg(os.getpgid(self._omc_process.pid), signal.SIGTERM)
                 self._omc_process.kill()
                 self._omc_process.wait()
 
