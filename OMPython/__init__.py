@@ -516,7 +516,7 @@ class OMCSessionZMQ(OMCSessionBase):
         if sys.platform == 'win32':
             self._omc_command = omc_path_and_args_list
         else:
-            self._omc_command = ' '.join([shlex.quote(a) if (sys.version_info > (3, 0)) else a for a in omc_path_and_args_list])
+            self._omc_command = ' '.join([shlex.quote(a) for a in omc_path_and_args_list])
 
         return self._omc_command
 
@@ -551,7 +551,7 @@ class OMCSessionZMQ(OMCSessionBase):
         while True:
             if self._dockerCid:
                 try:
-                    self._port = subprocess.check_output(["docker", "exec", self._dockerCid, "cat", self._port_file], stderr=subprocess.DEVNULL if (sys.version_info > (3, 0)) else subprocess.STDOUT).decode().strip()
+                    self._port = subprocess.check_output(["docker", "exec", self._dockerCid, "cat", self._port_file], stderr=subprocess.DEVNULL).decode().strip()
                     break
                 except Exception:
                     pass
