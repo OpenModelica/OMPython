@@ -537,10 +537,7 @@ class OMCSessionZMQ(OMCSessionBase):
         raise ValueError("Cannot find OpenModelica executable, please install from openmodelica.org")
 
     def _get_omc_path(self) -> pathlib.Path:
-        omc = self.omhome / "bin" / "omc"
-        if not omc.exists():
-            raise FileNotFoundError(f"The OpenModelica compiler is missing in the System path ({omc}), please install it")
-        return omc
+        return self.omhome / "bin" / "omc"
 
     def _connect_to_omc(self, timeout):
         self._omc_zeromq_uri = "file:///" + self._port_file
