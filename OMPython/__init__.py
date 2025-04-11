@@ -419,7 +419,7 @@ class OMCSessionZMQ(OMCSessionBase):
         else:
             log_filename = f"openmodelica.{self._currentUser}.{suffix}.{self._random_string}.log"
         # this file must be closed in the destructor
-        self._omc_log_file = open(pathlib.Path(self._temp_dir) / log_filename, "w")
+        self._omc_log_file = open(pathlib.Path(self._temp_dir) / log_filename, "w+")
 
     def _start_omc_process(self, timeout):
         if sys.platform == 'win32':
@@ -469,13 +469,14 @@ class OMCSessionZMQ(OMCSessionBase):
                             self._omc_process = DummyPopen(int(columns[1]))
                         except psutil.NoSuchProcess:
                             raise Exception(
-                                "Could not find PID %s - is this a docker instance spawned without --pid=host?\n"
-                                "Log-file says:\n%s" % (self._random_string, open(self._omc_log_file.name).read()))
+                                f"Could not find PID {dockerTop} - is this a docker instance spawned without --pid=host?\n"
+                                f"Log-file says:\n{open(self._omc_log_file.name).read()}")
                         break
                 if self._omc_process is not None:
                     break
                 time.sleep(timeout / 40.0)
             if self._omc_process is None:
+
                 raise Exception("Docker top did not contain omc process %s:\n%s\nLog-file says:\n%s"
                                 % (self._random_string, dockerTop, open(self._omc_log_file.name).read()))
         return self._omc_process
@@ -579,11 +580,11 @@ class OMCSessionZMQ(OMCSessionBase):
                 name = self._omc_log_file.name
                 self._omc_log_file.close()
                 logger.error("OMC Server did not start. Please start it! Log-file says:\n%s" % open(name).read())
-                raise Exception("OMC Server did not start (timeout=%f). Could not open file %s" % (timeout, self._port_file))
+                raise Exception(f"OMC Server did not start (timeout={timeout}). Could not open file {self._port_file}")
             time.sleep(timeout / 80.0)
 
         self._port = self._port.replace("0.0.0.0", self._serverIPAddress)
-        logger.info("OMC Server is up and running at {0} pid={1} cid={2}".format(self._omc_zeromq_uri, self._omc_process.pid, self._dockerCid))
+        logger.info(f"OMC Server is up and running at {self._omc_zeromq_uri} pid={self._omc_process.pid} cid={self._dockerCid}")
 
         # Create the ZeroMQ socket and connect to OMC server
         context = zmq.Context.instance()
@@ -593,35 +594,35 @@ class OMCSessionZMQ(OMCSessionBase):
         self._omc.connect(self._port)
 
     def sendExpression(self, command, parsed=True):
-        # check for process is running
-        p = self._omc_process.poll()
-        if p is None:
-            attempts = 0
-            while True:
-                try:
-                    self._omc.send_string(str(command), flags=zmq.NOBLOCK)
-                    break
-                except zmq.error.Again:
-                    pass
-                attempts += 1
-                if attempts == 50.0:
-                    name = self._omc_log_file.name
-                    self._omc_log_file.close()
-                    raise Exception("No connection with OMC (timeout=%f). Log-file says: \n%s" % (self._timeout, open(name).read()))
-                time.sleep(self._timeout / 50.0)
-            if command == "quit()":
-                self._omc.close()
-                self._omc = None
-                return None
-            else:
-                result = self._omc.recv_string()
-                if parsed is True:
-                    answer = OMTypedParser.parseString(result)
-                    return answer
-                else:
-                    return result
-        else:
+        p = self._omc_process.poll()  # check if process is running
+        if p is not None:
             raise Exception("Process Exited, No connection with OMC. Create a new instance of OMCSessionZMQ")
+
+        attempts = 0
+        while True:
+            try:
+                self._omc.send_string(str(command), flags=zmq.NOBLOCK)
+                break
+            except zmq.error.Again:
+                pass
+            attempts += 1
+            if attempts >= 50:
+                self._omc_log_file.seek(0)
+                log = self._omc_log_file.read()
+                self._omc_log_file.close()
+                raise Exception(f"No connection with OMC (timeout={self._timeout}). Log-file says: \n{log}")
+            time.sleep(self._timeout / 50.0)
+        if command == "quit()":
+            self._omc.close()
+            self._omc = None
+            return None
+        else:
+            result = self._omc.recv_string()
+            if parsed is True:
+                answer = OMTypedParser.parseString(result)
+                return answer
+            else:
+                return result
 
 
 class ModelicaSystemError(Exception):
