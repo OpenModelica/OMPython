@@ -230,8 +230,9 @@ class ModelicaSystem:
                 raise ModelicaSystemError(f"Error running command {cmd}: {stderr}")
             if self._verbose and stdout:
                 logger.info("OM output for command %s:\n%s", cmd, stdout)
-            p.wait()
-            p.terminate()
+            # check process returncode, some errors don't print to stderr
+            if p.wait():
+                raise ModelicaSystemError(f"Error running command {cmd}: nonzero returncode")
         except Exception as e:
             raise ModelicaSystemError(f"Exception {type(e)} running command {cmd}: {e}")
 
