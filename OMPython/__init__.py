@@ -1464,7 +1464,7 @@ class ModelicaSystem:
             l.append(a)
 
         self.csvFile = (pathlib.Path(self.tempdir) / f'{self.modelName}.csv').as_posix()
-        with open(self.csvFile, "w") as f:
+        with open(self.csvFile, "w", newline="") as f:
             writer = csv.writer(f, delimiter='\n')
             writer.writerow(l)
         f.close()
