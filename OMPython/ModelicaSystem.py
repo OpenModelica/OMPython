@@ -736,7 +736,7 @@ class ModelicaSystem:
             raise Exception(f"Error: Application file path not found: {exe_file}")
 
         cmd = exe_file.as_posix() + override + csvinput + r + simflags
-        cmd = cmd.split(" ")
+        cmd = [s for s in cmd.split(' ') if s]
         self._run_cmd(cmd=cmd, timeout=timeout)
         self.simulationFlag = True
 
@@ -1116,7 +1116,7 @@ class ModelicaSystem:
             raise Exception(f"Error: Application file path not found: {exe_file}")
         else:
             cmd = exe_file.as_posix() + linruntime + override + csvinput + simflags
-            cmd = cmd.split(' ')
+            cmd = [s for s in cmd.split(' ') if s]
             self._run_cmd(cmd=cmd, timeout=timeout)
 
         # code to get the matrix and linear inputs, outputs and states
