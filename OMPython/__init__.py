@@ -30,6 +30,7 @@ import pyparsing
 import importlib
 import zmq
 import pathlib
+import warnings
 
 
 if sys.platform == 'darwin':
@@ -268,19 +269,15 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
     def _connect_to_omc(self, timeout):
         pass
 
-    # FIXME: we should have one function which interacts with OMC. Either execute OR sendExpression.
-    # Execute uses OMParser.check_for_values and sendExpression uses OMTypedParser.parseString.
-    # We should have one parser. Then we can get rid of one of these functions.
-    @abc.abstractmethod
-    def execute(self, command):
-        pass
-
     def clearOMParserResult(self):
         OMParser.result = {}
 
-    # FIXME: we should have one function which interacts with OMC. Either execute OR sendExpression.
-    # Execute uses OMParser.check_for_values and sendExpression uses OMTypedParser.parseString.
-    # We should have one parser. Then we can get rid of one of these functions.
+    def execute(self, command):
+        warnings.warn("This function is depreciated and will be removed in future versions; "
+                      "please use sendExpression() instead", DeprecationWarning, stacklevel=1)
+
+        return self.sendExpression(command, parsed=False)
+
     @abc.abstractmethod
     def sendExpression(self, command, parsed=True):
         """
@@ -312,10 +309,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         logger.debug('OMC ask: {0}  - parsed: {1}'.format(expression, parsed))
 
         try:
-            if parsed:
-                res = self.execute(expression)
-            else:
-                res = self.sendExpression(expression, parsed=False)
+            res = self.sendExpression(expression, parsed=parsed)
         except Exception as e:
             logger.error("OMC failed: {0}, {1}, parsed={2}".format(question, opt, parsed))
             raise e
@@ -600,10 +594,6 @@ class OMCSessionZMQ(OMCSessionBase):
         self._omc.setsockopt(zmq.LINGER, 0)  # Dismisses pending messages if closed
         self._omc.setsockopt(zmq.IMMEDIATE, True)  # Queue messages only to completed connections
         self._omc.connect(self._port)
-
-    def execute(self, command):
-        # check for process is running
-        return self.sendExpression(command, parsed=False)
 
     def sendExpression(self, command, parsed=True):
         # check for process is running
