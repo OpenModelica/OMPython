@@ -177,7 +177,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
                     break
         # kill self._omc_process process if it is still running/exists
         if self._omc_process is not None and self._omc_process.returncode is None:
-            print("OMC did not exit after being sent the quit() command; killing the process with pid=%s" % str(self._omc_process.pid))
+            logger.warning("OMC did not exit after being sent the quit() command; killing the process with pid=%s" % str(self._omc_process.pid))
             if sys.platform == "win32":
                 self._omc_process.kill()
                 self._omc_process.wait()
@@ -801,7 +801,7 @@ class ModelicaSystem:
             # set the process environment from the generated .bat file in windows which should have all the dependencies
             batFilePath = os.path.join(self.tempdir, '{}.{}'.format(self.modelName, "bat")).replace("\\", "/")
             if (not os.path.exists(batFilePath)):
-                print("Error: bat does not exist " + batFilePath)
+                ModelicaSystemError("Batch file (*.bat) does not exist " + batFilePath)
 
             with open(batFilePath, 'r') as file:
                 for line in file:
