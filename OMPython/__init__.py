@@ -646,7 +646,6 @@ class ModelicaSystem:
             raise Exception("Cannot create ModelicaSystem object without any arguments")
             return
 
-        self.tree = None
         self.quantitiesList = []
         self.paramlist = {}
         self.inputlist = {}
@@ -871,9 +870,8 @@ class ModelicaSystem:
 
     def xmlparse(self):
         if (os.path.exists(self.xmlFile)):
-            self.tree = ET.parse(self.xmlFile)
-            self.root = self.tree.getroot()
-            rootCQ = self.root
+            tree = ET.parse(self.xmlFile)
+            rootCQ = tree.getroot()
             for attr in rootCQ.iter('DefaultExperiment'):
                 self.simulateOptions["startTime"] = attr.get('startTime')
                 self.simulateOptions["stopTime"] = attr.get('stopTime')
