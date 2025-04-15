@@ -8,7 +8,7 @@ communicate with OpenModelica.
 
 ## Dependencies
 
--   Python 2.7 and 3.x supported
+-   Python 3.x supported
 -   PyZMQ is required
 
 ## Installation
