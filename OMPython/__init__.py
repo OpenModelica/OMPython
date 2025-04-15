@@ -104,171 +104,6 @@ class DummyPopen():
 
 class OMCSessionBase(metaclass=abc.ABCMeta):
 
-    def __init__(self, readonly=False):
-        self.readonly = readonly
-        self.omc_cache = {}
-        self._omc_process = None
-        self._omc_command = None
-        self._omc = None
-        self._dockerCid = None
-        self._serverIPAddress = "127.0.0.1"
-        self._interactivePort = None
-        # FIXME: this code is not well written... need to be refactored
-        self._temp_dir = tempfile.gettempdir()
-        # generate a random string for this session
-        self._random_string = uuid.uuid4().hex
-        # omc log file
-        self._omc_log_file = None
-        try:
-            self._currentUser = getpass.getuser()
-            if not self._currentUser:
-                self._currentUser = "nobody"
-        except KeyError:
-            # We are running as a uid not existing in the password database... Pretend we are nobody
-            self._currentUser = "nobody"
-
-    def __del__(self):
-        try:
-            self.sendExpression("quit()")
-        except Exception:
-            pass
-        self._omc_log_file.close()
-        if sys.version_info.major >= 3:
-            try:
-                self._omc_process.wait(timeout=2.0)
-            except Exception:
-                if self._omc_process:
-                    self._omc_process.kill()
-        else:
-            for i in range(0, 100):
-                time.sleep(0.02)
-                if self._omc_process and (self._omc_process.poll() is not None):
-                    break
-        # kill self._omc_process process if it is still running/exists
-        if self._omc_process is not None and self._omc_process.returncode is None:
-            logger.warning("OMC did not exit after being sent the quit() command; killing the process with pid=%s" % str(self._omc_process.pid))
-            if sys.platform == "win32":
-                self._omc_process.kill()
-                self._omc_process.wait()
-            else:
-                os.killpg(os.getpgid(self._omc_process.pid), signal.SIGTERM)
-                self._omc_process.kill()
-                self._omc_process.wait()
-
-    def _create_omc_log_file(self, suffix):
-        if sys.platform == 'win32':
-            self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.{0}.{1}.log".format(suffix, self._random_string)), 'w')
-        else:
-            # this file must be closed in the destructor
-            self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.{0}.{1}.{2}.log".format(self._currentUser, suffix, self._random_string)), 'w')
-
-    def _start_omc_process(self, timeout):
-        if sys.platform == 'win32':
-            omhome_bin = os.path.join(self.omhome, 'bin').replace("\\", "/")
-            my_env = os.environ.copy()
-            my_env["PATH"] = omhome_bin + os.pathsep + my_env["PATH"]
-            self._omc_process = subprocess.Popen(self._omc_command, stdout=self._omc_log_file, stderr=self._omc_log_file, env=my_env)
-        else:
-            # set the user environment variable so omc running from wsgi has the same user as OMPython
-            my_env = os.environ.copy()
-            my_env["USER"] = self._currentUser
-            # Because we spawned a shell, and we need to be able to kill OMC, create a new process group for this
-            self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file, stderr=self._omc_log_file, env=my_env, preexec_fn=os.setsid)
-        if self._docker:
-            for i in range(0, 40):
-                try:
-                    with open(self._dockerCidFile, "r") as fin:
-                        self._dockerCid = fin.read().strip()
-                except Exception:
-                    pass
-                if self._dockerCid:
-                    break
-                time.sleep(timeout / 40.0)
-            try:
-                os.remove(self._dockerCidFile)
-            except Exception:
-                pass
-            if self._dockerCid is None:
-                logger.error("Docker did not start. Log-file says:\n%s" % (open(self._omc_log_file.name).read()))
-                raise Exception("Docker did not start (timeout=%f might be too short especially if you did not docker pull the image before this command)." % timeout)
-        if self._docker or self._dockerContainer:
-            if self._dockerNetwork == "separate":
-                self._serverIPAddress = json.loads(subprocess.check_output(["docker", "inspect", self._dockerCid]).decode().strip())[0]["NetworkSettings"]["IPAddress"]
-            for i in range(0, 40):
-                if sys.platform == 'win32':
-                    break
-                dockerTop = subprocess.check_output(["docker", "top", self._dockerCid]).decode().strip()
-                self._omc_process = None
-                for line in dockerTop.split("\n"):
-                    columns = line.split()
-                    if self._random_string in line:
-                        try:
-                            self._omc_process = DummyPopen(int(columns[1]))
-                        except psutil.NoSuchProcess:
-                            raise Exception(f"Could not find PID {dockerTop} - is this a docker instance spawned without --pid=host?\nLog-file says:\n{open(self._omc_log_file.name).read()}")
-                        break
-                if self._omc_process is not None:
-                    break
-                time.sleep(timeout / 40.0)
-            if self._omc_process is None:
-                raise Exception("Docker top did not contain omc process %s:\n%s\nLog-file says:\n%s" % (self._random_string, dockerTop, open(self._omc_log_file.name).read()))
-        return self._omc_process
-
-    def _getuid(self):
-        """
-        The uid to give to docker.
-        On Windows, volumes are mapped with all files are chmod ugo+rwx,
-        so uid does not matter as long as it is not the root user.
-        """
-        return 1000 if sys.platform == 'win32' else os.getuid()
-
-    def _set_omc_command(self, omc_path_and_args_list):
-        """Define the command that will be called by the subprocess module.
-
-        On Windows, use the list input style of the subprocess module to
-        avoid problems resulting from spaces in the path string.
-        Linux, however, only works with the string version.
-        """
-        if (self._docker or self._dockerContainer) and sys.platform == "win32":
-            extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
-            if not self._interactivePort:
-                raise Exception("docker on Windows requires knowing which port to connect to. For dockerContainer=..., the container needs to have already manually exposed this port when it was started (-p 127.0.0.1:n:n) or you get an error later.")
-        else:
-            extraFlags = []
-        if self._docker:
-            if sys.platform == "win32":
-                p = int(self._interactivePort)
-                dockerNetworkStr = ["-p", "127.0.0.1:%d:%d" % (p, p)]
-            elif self._dockerNetwork == "host" or self._dockerNetwork is None:
-                dockerNetworkStr = ["--network=host"]
-            elif self._dockerNetwork == "separate":
-                dockerNetworkStr = []
-                extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
-            else:
-                raise Exception('dockerNetwork was set to %s, but only \"host\" or \"separate\" is allowed')
-            self._dockerCidFile = self._omc_log_file.name + ".docker.cid"
-            omcCommand = ["docker", "run", "--cidfile", self._dockerCidFile, "--rm", "--env", "USER=%s" % self._currentUser, "--user", str(self._getuid())] + self._dockerExtraArgs + dockerNetworkStr + [self._docker, self._dockerOpenModelicaPath]
-        elif self._dockerContainer:
-            omcCommand = ["docker", "exec", "--env", "USER=%s" % self._currentUser, "--user", str(self._getuid())] + self._dockerExtraArgs + [self._dockerContainer, self._dockerOpenModelicaPath]
-            self._dockerCid = self._dockerContainer
-        else:
-            omcCommand = [self._get_omc_path()]
-        if self._interactivePort:
-            extraFlags = extraFlags + ["--interactivePort=%d" % int(self._interactivePort)]
-
-        omc_path_and_args_list = omcCommand + omc_path_and_args_list + extraFlags
-
-        if sys.platform == 'win32':
-            self._omc_command = omc_path_and_args_list
-        else:
-            self._omc_command = ' '.join([shlex.quote(a) if (sys.version_info > (3, 0)) else a for a in omc_path_and_args_list])
-
-        return self._omc_command
-
-    @abc.abstractmethod
-    def _connect_to_omc(self, timeout):
-        pass
-
     def clearOMParserResult(self):
         OMParser.result = {}
 
@@ -503,7 +338,28 @@ class OMCSessionZMQ(OMCSessionBase):
 
         self.omhome = self._get_omhome(omhome=omhome)
 
-        OMCSessionBase.__init__(self, readonly)
+        self.readonly = readonly
+        self.omc_cache = {}
+        self._omc_process = None
+        self._omc_command = None
+        self._omc = None
+        self._dockerCid = None
+        self._serverIPAddress = "127.0.0.1"
+        self._interactivePort = None
+        # FIXME: this code is not well written... need to be refactored
+        self._temp_dir = tempfile.gettempdir()
+        # generate a random string for this session
+        self._random_string = uuid.uuid4().hex
+        # omc log file
+        self._omc_log_file = None
+        try:
+            self._currentUser = getpass.getuser()
+            if not self._currentUser:
+                self._currentUser = "nobody"
+        except KeyError:
+            # We are running as a uid not existing in the password database... Pretend we are nobody
+            self._currentUser = "nobody"
+
         # Locating and using the IOR
         if sys.platform != 'win32' or docker or dockerContainer:
             self._port_file = "openmodelica." + self._currentUser + ".port." + self._random_string
@@ -530,7 +386,149 @@ class OMCSessionZMQ(OMCSessionBase):
         self._connect_to_omc(timeout)
 
     def __del__(self):
-        OMCSessionBase.__del__(self)
+        try:
+            self.sendExpression("quit()")
+        except Exception:
+            pass
+        self._omc_log_file.close()
+        if sys.version_info.major >= 3:
+            try:
+                self._omc_process.wait(timeout=2.0)
+            except Exception:
+                if self._omc_process:
+                    self._omc_process.kill()
+        else:
+            for i in range(0, 100):
+                time.sleep(0.02)
+                if self._omc_process and (self._omc_process.poll() is not None):
+                    break
+        # kill self._omc_process process if it is still running/exists
+        if self._omc_process is not None and self._omc_process.returncode is None:
+            logger.warning("OMC did not exit after being sent the quit() command; killing the process with pid=%s" % str(self._omc_process.pid))
+            if sys.platform == "win32":
+                self._omc_process.kill()
+                self._omc_process.wait()
+            else:
+                os.killpg(os.getpgid(self._omc_process.pid), signal.SIGTERM)
+                self._omc_process.kill()
+                self._omc_process.wait()
+
+    def _create_omc_log_file(self, suffix):
+        if sys.platform == 'win32':
+            self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.{0}.{1}.log".format(suffix, self._random_string)), 'w')
+        else:
+            # this file must be closed in the destructor
+            self._omc_log_file = open(os.path.join(self._temp_dir, "openmodelica.{0}.{1}.{2}.log".format(self._currentUser, suffix, self._random_string)), 'w')
+
+    def _start_omc_process(self, timeout):
+        if sys.platform == 'win32':
+            omhome_bin = os.path.join(self.omhome, 'bin').replace("\\", "/")
+            my_env = os.environ.copy()
+            my_env["PATH"] = omhome_bin + os.pathsep + my_env["PATH"]
+            self._omc_process = subprocess.Popen(self._omc_command, stdout=self._omc_log_file,
+                                                 stderr=self._omc_log_file, env=my_env)
+        else:
+            # set the user environment variable so omc running from wsgi has the same user as OMPython
+            my_env = os.environ.copy()
+            my_env["USER"] = self._currentUser
+            # Because we spawned a shell, and we need to be able to kill OMC, create a new process group for this
+            self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file,
+                                                 stderr=self._omc_log_file, env=my_env, preexec_fn=os.setsid)
+        if self._docker:
+            for i in range(0, 40):
+                try:
+                    with open(self._dockerCidFile, "r") as fin:
+                        self._dockerCid = fin.read().strip()
+                except Exception:
+                    pass
+                if self._dockerCid:
+                    break
+                time.sleep(timeout / 40.0)
+            try:
+                os.remove(self._dockerCidFile)
+            except Exception:
+                pass
+            if self._dockerCid is None:
+                logger.error("Docker did not start. Log-file says:\n%s" % (open(self._omc_log_file.name).read()))
+                raise Exception("Docker did not start (timeout=%f might be too short especially if you did not docker pull the image before this command)." % timeout)
+
+        dockerTop = None
+        if self._docker or self._dockerContainer:
+            if self._dockerNetwork == "separate":
+                self._serverIPAddress = json.loads(subprocess.check_output(["docker", "inspect", self._dockerCid]).decode().strip())[0]["NetworkSettings"]["IPAddress"]
+            for i in range(0, 40):
+                if sys.platform == 'win32':
+                    break
+                dockerTop = subprocess.check_output(["docker", "top", self._dockerCid]).decode().strip()
+                self._omc_process = None
+                for line in dockerTop.split("\n"):
+                    columns = line.split()
+                    if self._random_string in line:
+                        try:
+                            self._omc_process = DummyPopen(int(columns[1]))
+                        except psutil.NoSuchProcess:
+                            raise Exception(
+                                "Could not find PID %s - is this a docker instance spawned without --pid=host?\n"
+                                "Log-file says:\n%s" % (self._random_string, open(self._omc_log_file.name).read()))
+                        break
+                if self._omc_process is not None:
+                    break
+                time.sleep(timeout / 40.0)
+            if self._omc_process is None:
+                raise Exception("Docker top did not contain omc process %s:\n%s\nLog-file says:\n%s"
+                                % (self._random_string, dockerTop, open(self._omc_log_file.name).read()))
+        return self._omc_process
+
+    def _getuid(self):
+        """
+        The uid to give to docker.
+        On Windows, volumes are mapped with all files are chmod ugo+rwx,
+        so uid does not matter as long as it is not the root user.
+        """
+        return 1000 if sys.platform == 'win32' else os.getuid()
+
+    def _set_omc_command(self, omc_path_and_args_list):
+        """Define the command that will be called by the subprocess module.
+
+        On Windows, use the list input style of the subprocess module to
+        avoid problems resulting from spaces in the path string.
+        Linux, however, only works with the string version.
+        """
+        if (self._docker or self._dockerContainer) and sys.platform == "win32":
+            extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
+            if not self._interactivePort:
+                raise Exception("docker on Windows requires knowing which port to connect to. For dockerContainer=..., the container needs to have already manually exposed this port when it was started (-p 127.0.0.1:n:n) or you get an error later.")
+        else:
+            extraFlags = []
+        if self._docker:
+            if sys.platform == "win32":
+                p = int(self._interactivePort)
+                dockerNetworkStr = ["-p", "127.0.0.1:%d:%d" % (p, p)]
+            elif self._dockerNetwork == "host" or self._dockerNetwork is None:
+                dockerNetworkStr = ["--network=host"]
+            elif self._dockerNetwork == "separate":
+                dockerNetworkStr = []
+                extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
+            else:
+                raise Exception('dockerNetwork was set to %s, but only \"host\" or \"separate\" is allowed')
+            self._dockerCidFile = self._omc_log_file.name + ".docker.cid"
+            omcCommand = ["docker", "run", "--cidfile", self._dockerCidFile, "--rm", "--env", "USER=%s" % self._currentUser, "--user", str(self._getuid())] + self._dockerExtraArgs + dockerNetworkStr + [self._docker, self._dockerOpenModelicaPath]
+        elif self._dockerContainer:
+            omcCommand = ["docker", "exec", "--env", "USER=%s" % self._currentUser, "--user", str(self._getuid())] + self._dockerExtraArgs + [self._dockerContainer, self._dockerOpenModelicaPath]
+            self._dockerCid = self._dockerContainer
+        else:
+            omcCommand = [self._get_omc_path()]
+        if self._interactivePort:
+            extraFlags = extraFlags + ["--interactivePort=%d" % int(self._interactivePort)]
+
+        omc_path_and_args_list = omcCommand + omc_path_and_args_list + extraFlags
+
+        if sys.platform == 'win32':
+            self._omc_command = omc_path_and_args_list
+        else:
+            self._omc_command = ' '.join([shlex.quote(a) if (sys.version_info > (3, 0)) else a for a in omc_path_and_args_list])
+
+        return self._omc_command
 
     def _get_omhome(self, omhome: str = None):
         # use the provided path
