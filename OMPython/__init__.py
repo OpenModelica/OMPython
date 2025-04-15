@@ -101,38 +101,6 @@ class DummyPopen():
         return self.process.wait(timeout=timeout)
 
 
-class OMCSessionHelper:
-    def __init__(self, omhome: str = None):
-        self.omhome = None
-
-        # use the provided path
-        if omhome is not None:
-            self.omhome = omhome
-            return
-
-        # check the environment variable
-        omhome = os.environ.get('OPENMODELICAHOME')
-        if omhome is not None:
-            self.omhome = omhome
-            return
-
-        # Get the path to the OMC executable, if not installed this will be None
-        path_to_omc = shutil.which("omc")
-        if path_to_omc is not None:
-            self.omhome = os.path.dirname(os.path.dirname(path_to_omc))
-            return
-
-        raise ValueError("Cannot find OpenModelica executable, please install from openmodelica.org")
-
-    def _get_omc_path(self):
-        try:
-            return os.path.join(self.omhome, 'bin', 'omc')
-        except BaseException:
-            logger.error("The OpenModelica compiler is missing in the System path (%s), please install it"
-                         % os.path.join(self.omhome, 'bin', 'omc'))
-            raise
-
-
 class OMCSessionBase(metaclass=abc.ABCMeta):
 
     def __init__(self, readonly=False):
@@ -531,7 +499,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         return value
 
 
-class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
+class OMCSessionZMQ(OMCSessionBase):
 
     def __init__(self, readonly=False, timeout=10.00,
                  docker=None, dockerContainer=None, dockerExtraArgs=None, dockerOpenModelicaPath="omc",
@@ -539,7 +507,8 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
         if dockerExtraArgs is None:
             dockerExtraArgs = []
 
-        OMCSessionHelper.__init__(self, omhome=omhome)
+        self.omhome = self._get_omhome(omhome=omhome)
+
         OMCSessionBase.__init__(self, readonly)
         # Locating and using the IOR
         if sys.platform != 'win32' or docker or dockerContainer:
@@ -568,6 +537,31 @@ class OMCSessionZMQ(OMCSessionHelper, OMCSessionBase):
 
     def __del__(self):
         OMCSessionBase.__del__(self)
+
+    def _get_omhome(self, omhome: str = None):
+        # use the provided path
+        if omhome is not None:
+            return omhome
+
+        # check the environment variable
+        omhome = os.environ.get('OPENMODELICAHOME')
+        if omhome is not None:
+            return omhome
+
+        # Get the path to the OMC executable, if not installed this will be None
+        path_to_omc = shutil.which("omc")
+        if path_to_omc is not None:
+            return os.path.dirname(os.path.dirname(path_to_omc))
+
+        raise ValueError("Cannot find OpenModelica executable, please install from openmodelica.org")
+
+    def _get_omc_path(self):
+        try:
+            return os.path.join(self.omhome, 'bin', 'omc')
+        except BaseException:
+            logger.error("The OpenModelica compiler is missing in the System path (%s), please install it"
+                         % os.path.join(self.omhome, 'bin', 'omc'))
+            raise
 
     def _connect_to_omc(self, timeout):
         self._omc_zeromq_uri = "file:///" + self._port_file
