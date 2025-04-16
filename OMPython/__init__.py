@@ -644,7 +644,6 @@ class ModelicaSystem:
         """
         if fileName is None and modelName is None and not lmodel:  # all None
             raise Exception("Cannot create ModelicaSystem object without any arguments")
-            return
 
         self.tree = None
         self.quantitiesList = []
