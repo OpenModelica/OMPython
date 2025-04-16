@@ -32,11 +32,6 @@ import pathlib
 import warnings
 
 
-if sys.platform == 'darwin':
-    # On Mac let's assume omc is installed here and there might be a broken omniORB installed in a bad place
-    sys.path.append('/opt/local/lib/python2.7/site-packages/')
-    sys.path.append('/opt/openmodelica/lib/python2.7/site-packages/')
-
 # TODO: replace this with the new parser
 from OMPython import OMTypedParser, OMParser
 
