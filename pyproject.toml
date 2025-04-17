@@ -14,7 +14,7 @@ maintainers = [
     {name = "Adeel Asghar", email = "adeel.asghar@liu.se"},
 ]
 license = "BSD-3-Clause OR LicenseRef-OSMC-PL-1.2 OR GPL-3.0-only"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
     "numpy",
     "psutil",
