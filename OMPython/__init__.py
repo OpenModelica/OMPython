@@ -219,7 +219,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             return self.ask('getClassComment', className)
         except pyparsing.ParseException as ex:
             logger.warning("Method 'getClassComment' failed for {0}".format(className))
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            logger.warning('OMTypedParser error: {0}'.format(ex.msg))
             return 'No description available'
 
     def getNthComponent(self, className, comp_id):
@@ -254,7 +254,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         try:
             return self.ask('getParameterValue', '{0}, {1}'.format(className, parameterName))
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            logger.warning('OMTypedParser error: {0}'.format(ex.msg))
             return ""
 
     def getComponentModifierNames(self, className, componentName):
@@ -265,7 +265,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
             return self.ask('getComponentModifierValue', '{0}, {1}'.format(className, componentName))
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            logger.warning('OMTypedParser error: {0}'.format(ex.msg))
             result = self.ask('getComponentModifierValue', '{0}, {1}'.format(className, componentName), parsed=False)
             try:
                 answer = OMParser.check_for_values(result)
@@ -283,7 +283,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
             return self.ask('getExtendsModifierValue', '{0}, {1}, {2}'.format(className, extendsName, modifierName))
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            logger.warning('OMTypedParser error: {0}'.format(ex.msg))
             result = self.ask('getExtendsModifierValue', '{0}, {1}, {2}'.format(className, extendsName, modifierName), parsed=False)
             try:
                 answer = OMParser.check_for_values(result)
@@ -1401,7 +1401,7 @@ class ModelicaSystem:
                 if l[0] < float(self.simulateOptions["startTime"]):
                     ModelicaSystemError('Input time value is less than simulation startTime')
                 if len(l) != 2:
-                    ModelicaSystemError('Value for ' + l + ' is in incorrect format!')
+                    ModelicaSystemError('Value for ' + str(l) + ' is in incorrect format!')
             else:
                 ModelicaSystemError('Error!!! Value must be in tuple format')
 
