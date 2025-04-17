@@ -1465,7 +1465,7 @@ class ModelicaSystem:
         with arguments of https://build.openmodelica.org/Documentation/OpenModelica.Scripting.translateModelFMU.html
         usage
         >>> convertMo2Fmu()
-        >>> convertMo2Fmu(version="2.0", fmuType="me|cs|me_cs", fileNamePrefix="<default>", includeResources=true)
+        >>> convertMo2Fmu(version="2.0", fmuType="me|cs|me_cs", fileNamePrefix="<default>", includeResources=True)
         """
 
         if fileNamePrefix == "<default>":
