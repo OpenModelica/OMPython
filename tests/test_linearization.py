@@ -1,13 +1,16 @@
 import OMPython
 import tempfile
 import shutil
-import os
+import unittest
+import pathlib
+import numpy as np
 
 
-class Test_Linearization:
-    def loadModel(self):
-        self.tmp = tempfile.mkdtemp(prefix='tmpOMPython.tests')
-        with open("%s/linearTest.mo" % self.tmp, "w") as fout:
+class Test_Linearization(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tmp = pathlib.Path(tempfile.mkdtemp(prefix='tmpOMPython.tests'))
+        with open(self.tmp / "linearTest.mo", "w") as fout:
             fout.write("""
 model linearTest
   Real x1(start=1);
@@ -21,15 +24,13 @@ equation
   f*x4 - e*x3 - der(x3) = x1;
   der(x4) = x1 + x2 + der(x3) + x4;
 end linearTest;
-                       """)
+""")
 
     def __del__(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_example(self):
-        self.loadModel()
-        filePath = os.path.join(self.tmp, "linearTest.mo").replace("\\", "/")
-        print(filePath)
+        filePath = (self.tmp / "linearTest.mo").as_posix()
         mod = OMPython.ModelicaSystem(filePath, "linearTest")
         [A, B, C, D] = mod.linearize()
         expected_matrixA = [[-3, 2, 0, 0], [-7, 0, -5, 1], [-1, 0, -1, 4], [0, 1, -1, 5]]
@@ -37,3 +38,47 @@ end linearTest;
         assert B == [], f"Matrix does not match the expected value. Got: {B}, Expected: {[]}"
         assert C == [], f"Matrix does not match the expected value. Got: {C}, Expected: {[]}"
         assert D == [], f"Matrix does not match the expected value. Got: {D}, Expected: {[]}"
+        assert mod.getLinearInputs() == []
+        assert mod.getLinearOutputs() == []
+        assert mod.getLinearStates() == ["x1", "x2", "x3", "x4"]
+
+    def test_getters(self):
+        model_file = self.tmp / "pendulum.mo"
+        model_file.write_text("""
+model Pendulum
+  Real phi(start=Modelica.Constants.pi, fixed=true);
+  Real omega(start=0, fixed=true);
+  input Real u1;
+  input Real u2;
+  output Real y1;
+  output Real y2;
+  parameter Real l = 1.2;
+  parameter Real g = 9.81;
+equation
+    der(phi) = omega + u2;
+    der(omega) = -g/l * sin(phi);
+    y1 = y2 + 0.5*omega;
+    y2 = phi + u1;
+end Pendulum;
+""")
+        mod = OMPython.ModelicaSystem(model_file.as_posix(), "Pendulum", ["Modelica"], raiseerrors=True)
+
+        d = mod.getLinearizationOptions()
+        assert isinstance(d, dict)
+        assert "startTime" in d
+        assert "stopTime" in d
+        assert mod.getLinearizationOptions(["stopTime", "startTime"]) == [d["stopTime"], d["startTime"]]
+        mod.setLinearizationOptions("stopTime=0.02")
+        assert mod.getLinearizationOptions("stopTime") == ["0.02"]
+
+        mod.setInputs(["u1=0", "u2=0"])
+        [A, B, C, D] = mod.linearize()
+        g = float(mod.getParameters("g")[0])
+        l = float(mod.getParameters("l")[0])
+        assert mod.getLinearInputs() == ["u1", "u2"]
+        assert mod.getLinearStates() == ["omega", "phi"]
+        assert mod.getLinearOutputs() == ["y1", "y2"]
+        assert np.isclose(A, [[0, g/l], [1, 0]]).all()
+        assert np.isclose(B, [[0, 0], [0, 1]]).all()
+        assert np.isclose(C, [[0.5, 1], [0, 1]]).all()
+        assert np.isclose(D, [[1, 0], [1, 0]]).all()
