@@ -23,7 +23,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["OMPython", "OMPython.OMParser"]
+packages = ["OMPython"]
 
 [project.urls]
 Homepage = "http://openmodelica.org/"
