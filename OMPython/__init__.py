@@ -17,7 +17,6 @@ import os
 import platform
 import psutil
 import re
-import shlex
 import signal
 import subprocess
 import sys
@@ -395,8 +394,6 @@ class OMCSessionZMQ(OMCSessionBase):
         except Exception:
             if self._omc_process:
                 print("OMC did not exit after being sent the quit() command; killing the process with pid={self._omc_process.pid}")
-                if sys.platform != "win32":
-                    os.killpg(os.getpgid(self._omc_process.pid), signal.SIGTERM)
                 self._omc_process.kill()
                 self._omc_process.wait()
 
@@ -419,9 +416,8 @@ class OMCSessionZMQ(OMCSessionBase):
             # set the user environment variable so omc running from wsgi has the same user as OMPython
             my_env = os.environ.copy()
             my_env["USER"] = self._currentUser
-            # Because we spawned a shell, and we need to be able to kill OMC, create a new process group for this
-            self._omc_process = subprocess.Popen(self._omc_command, shell=True, stdout=self._omc_log_file,
-                                                 stderr=self._omc_log_file, env=my_env, preexec_fn=os.setsid)
+            self._omc_process = subprocess.Popen(self._omc_command, stdout=self._omc_log_file,
+                                                 stderr=self._omc_log_file, env=my_env)
         if self._docker:
             for i in range(0, 40):
                 try:
@@ -510,12 +506,7 @@ class OMCSessionZMQ(OMCSessionBase):
         if self._interactivePort:
             extraFlags = extraFlags + ["--interactivePort=%d" % int(self._interactivePort)]
 
-        omc_path_and_args_list = omcCommand + omc_path_and_args_list + extraFlags
-
-        if sys.platform == 'win32':
-            self._omc_command = omc_path_and_args_list
-        else:
-            self._omc_command = ' '.join([shlex.quote(a) for a in omc_path_and_args_list])
+        self._omc_command = omcCommand + omc_path_and_args_list + extraFlags
 
         return self._omc_command
 
