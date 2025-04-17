@@ -43,6 +43,8 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import importlib
 import pathlib
+from dataclasses import dataclass
+from typing import Optional
 
 from OMPython.OMCSession import OMCSessionBase, OMCSessionZMQ
 
@@ -52,6 +54,57 @@ logger = logging.getLogger(__name__)
 
 class ModelicaSystemError(Exception):
     pass
+
+
+@dataclass
+class LinearizationResult:
+    """Modelica model linearization results.
+
+    Attributes:
+        n: number of states
+        m: number of inputs
+        p: number of outputs
+        A: state matrix (n x n)
+        B: input matrix (n x m)
+        C: output matrix (p x n)
+        D: feedthrough matrix (p x m)
+        x0: fixed point
+        u0: input corresponding to the fixed point
+        stateVars: names of state variables
+        inputVars: names of inputs
+        outputVars: names of outputs
+    """
+
+    n: int
+    m: int
+    p: int
+
+    A: list
+    B: list
+    C: list
+    D: list
+
+    x0: list[float]
+    u0: list[float]
+
+    stateVars: list[str]
+    inputVars: list[str]
+    outputVars: list[str]
+
+    def __iter__(self):
+        """Allow unpacking A, B, C, D = result."""
+        yield self.A
+        yield self.B
+        yield self.C
+        yield self.D
+
+    def __getitem__(self, index: int):
+        """Allow accessing A, B, C, D via result[0] through result[3].
+
+        This is needed for backwards compatibility, because
+        ModelicaSystem.linearize() used to return [A, B, C, D].
+        """
+        return {0: self.A, 1: self.B, 2: self.C, 3: self.D}[index]
 
 
 class ModelicaSystem:
@@ -967,13 +1020,22 @@ class ModelicaSystem:
 
         return optimizeResult
 
-    # to linearize model
-    def linearize(self, lintime=None, simflags=None):  # 22
-        """
-        This method linearizes model according to the linearized options. This will generate a linear model that consists of matrices A, B, C and D.  It can be called:
-        only without any arguments
-        usage
-        >>> linearize()
+    def linearize(self, lintime: Optional[float] = None, simflags: Optional[str] = None) -> LinearizationResult:
+        """Linearize the model according to linearOptions.
+
+        Args:
+            lintime: Override linearOptions["stopTime"] value.
+            simflags: A string of extra command line flags for the model
+              binary.
+
+        Returns:
+            A LinearizationResult object is returned. This allows several
+            uses:
+            * `(A, B, C, D) = linearize()` to get just the matrices,
+            * `result = linearize(); result.A` to get everything and access the
+              attributes one by one,
+            * `result = linearize(); A = result[0]` mostly just for backwards
+              compatibility, because linearize() used to return `[A, B, C, D]`.
         """
 
         if self.xmlFile is None:
@@ -1043,7 +1105,8 @@ class ModelicaSystem:
             self.linearinputs = inputVars
             self.linearoutputs = outputVars
             self.linearstates = stateVars
-            return [A, B, C, D]
+            return LinearizationResult(n, m, p, A, B, C, D, x0, u0, stateVars,
+                                       inputVars, outputVars)
         except ModuleNotFoundError:
             raise Exception("ModuleNotFoundError: No module named 'linearized_model'")
 
