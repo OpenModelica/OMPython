@@ -33,11 +33,6 @@ import pathlib
 import warnings
 
 
-if sys.platform == 'darwin':
-    # On Mac let's assume omc is installed here and there might be a broken omniORB installed in a bad place
-    sys.path.append('/opt/local/lib/python2.7/site-packages/')
-    sys.path.append('/opt/openmodelica/lib/python2.7/site-packages/')
-
 # TODO: replace this with the new parser
 from OMPython import OMTypedParser, OMParser
 
@@ -104,6 +99,10 @@ class DummyPopen():
 
 class OMCSessionBase(metaclass=abc.ABCMeta):
 
+    def __init__(self, readonly=False):
+        self._readonly = readonly
+        self._omc_cache = {}
+
     def clearOMParserResult(self):
         OMParser.result = {}
 
@@ -131,10 +130,10 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
     def ask(self, question, opt=None, parsed=True):
         p = (question, opt, parsed)
 
-        if self.readonly and question != 'getErrorString':
+        if self._readonly and question != 'getErrorString':
             # can use cache if readonly
-            if p in self.omc_cache:
-                return self.omc_cache[p]
+            if p in self._omc_cache:
+                return self._omc_cache[p]
 
         if opt:
             expression = '{0}({1})'.format(question, opt)
@@ -150,7 +149,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             raise e
 
         # save response
-        self.omc_cache[p] = res
+        self._omc_cache[p] = res
 
         return res
 
@@ -220,7 +219,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             return self.ask('getClassComment', className)
         except pyparsing.ParseException as ex:
             logger.warning("Method 'getClassComment' failed for {0}".format(className))
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            logger.warning('OMTypedParser error: {0}'.format(ex.msg))
             return 'No description available'
 
     def getNthComponent(self, className, comp_id):
@@ -255,7 +254,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         try:
             return self.ask('getParameterValue', '{0}, {1}'.format(className, parameterName))
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            logger.warning('OMTypedParser error: {0}'.format(ex.msg))
             return ""
 
     def getComponentModifierNames(self, className, componentName):
@@ -266,7 +265,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
             return self.ask('getComponentModifierValue', '{0}, {1}'.format(className, componentName))
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            logger.warning('OMTypedParser error: {0}'.format(ex.msg))
             result = self.ask('getComponentModifierValue', '{0}, {1}'.format(className, componentName), parsed=False)
             try:
                 answer = OMParser.check_for_values(result)
@@ -284,7 +283,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
             return self.ask('getExtendsModifierValue', '{0}, {1}, {2}'.format(className, extendsName, modifierName))
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: {0}'.format(ex.message))
+            logger.warning('OMTypedParser error: {0}'.format(ex.msg))
             result = self.ask('getExtendsModifierValue', '{0}, {1}, {2}'.format(className, extendsName, modifierName), parsed=False)
             try:
                 answer = OMParser.check_for_values(result)
@@ -336,10 +335,10 @@ class OMCSessionZMQ(OMCSessionBase):
         if dockerExtraArgs is None:
             dockerExtraArgs = []
 
+        super().__init__(readonly=readonly)
+
         self.omhome = self._get_omhome(omhome=omhome)
 
-        self.readonly = readonly
-        self.omc_cache = {}
         self._omc_process = None
         self._omc_command = None
         self._omc = None
@@ -644,7 +643,6 @@ class ModelicaSystem:
         """
         if fileName is None and modelName is None and not lmodel:  # all None
             raise Exception("Cannot create ModelicaSystem object without any arguments")
-            return
 
         self.tree = None
         self.quantitiesList = []
@@ -1403,7 +1401,7 @@ class ModelicaSystem:
                 if l[0] < float(self.simulateOptions["startTime"]):
                     ModelicaSystemError('Input time value is less than simulation startTime')
                 if len(l) != 2:
-                    ModelicaSystemError('Value for ' + l + ' is in incorrect format!')
+                    ModelicaSystemError('Value for ' + str(l) + ' is in incorrect format!')
             else:
                 ModelicaSystemError('Error!!! Value must be in tuple format')
 
@@ -1525,7 +1523,7 @@ class ModelicaSystem:
         with arguments of https://build.openmodelica.org/Documentation/OpenModelica.Scripting.translateModelFMU.html
         usage
         >>> convertMo2Fmu()
-        >>> convertMo2Fmu(version="2.0", fmuType="me|cs|me_cs", fileNamePrefix="<default>", includeResources=true)
+        >>> convertMo2Fmu(version="2.0", fmuType="me|cs|me_cs", fileNamePrefix="<default>", includeResources=True)
         """
 
         if fileNamePrefix == "<default>":
