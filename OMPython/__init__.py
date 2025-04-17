@@ -99,6 +99,10 @@ class DummyPopen():
 
 class OMCSessionBase(metaclass=abc.ABCMeta):
 
+    def __init__(self, readonly=False):
+        self._readonly = readonly
+        self._omc_cache = {}
+
     def clearOMParserResult(self):
         OMParser.result = {}
 
@@ -126,10 +130,10 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
     def ask(self, question, opt=None, parsed=True):
         p = (question, opt, parsed)
 
-        if self.readonly and question != 'getErrorString':
+        if self._readonly and question != 'getErrorString':
             # can use cache if readonly
-            if p in self.omc_cache:
-                return self.omc_cache[p]
+            if p in self._omc_cache:
+                return self._omc_cache[p]
 
         if opt:
             expression = '{0}({1})'.format(question, opt)
@@ -145,7 +149,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             raise e
 
         # save response
-        self.omc_cache[p] = res
+        self._omc_cache[p] = res
 
         return res
 
@@ -331,10 +335,10 @@ class OMCSessionZMQ(OMCSessionBase):
         if dockerExtraArgs is None:
             dockerExtraArgs = []
 
+        super().__init__(readonly=readonly)
+
         self.omhome = self._get_omhome(omhome=omhome)
 
-        self.readonly = readonly
-        self.omc_cache = {}
         self._omc_process = None
         self._omc_command = None
         self._omc = None
