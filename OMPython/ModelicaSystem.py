@@ -498,19 +498,6 @@ class ModelicaSystem:
         elif isinstance(names, list):
             return ([self.paramlist.get(x, "NotExist") for x in names])
 
-    def getlinearParameters(self, names=None):  # 5
-        """
-        This method returns dict. The key is parameter names and value is corresponding parameter value.
-        If *name is None then the function will return dict which contain all parameter names as key and value as corresponding values. eg., getParameters()
-        Otherwise variable number of arguments can be passed as parameter name in string format separated by commas. eg., getParameters('paraName1', 'paraName2')
-        """
-        if names is None:
-            return self.linearparameters
-        elif isinstance(names, str):
-            return [self.linearparameters.get(names, "NotExist")]
-        else:
-            return [self.linearparameters.get(x, "NotExist") for x in names]
-
     def getInputs(self, names=None):  # 6
         """
         This method returns dict. The key is input names and value is corresponding input value.
