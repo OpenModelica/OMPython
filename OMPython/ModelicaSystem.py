@@ -545,14 +545,42 @@ class ModelicaSystem:
         elif isinstance(names, list):
             return ([self.inputlist.get(x, "NotExist") for x in names])
 
-    def getOutputs(self, names=None):  # 7
-        """
-        This method returns dict. The key is output names and value is corresponding output value.
-        If name is None then the function will return dict which contain all output names as key and value as corresponding values. eg., getOutputs()
-        usage:
-        >>> getOutputs()
-        >>> getOutputs("Name1")
-        >>> getOutputs(["Name1","Name2"])
+    def getOutputs(self, names: Optional[str | list[str]] = None):  # 7
+        """Get output values.
+
+        If called before simulate(), the initial values are returned as
+        strings. If called after simulate(), the final values (at stopTime)
+        are returned as numpy.float64.
+
+        Args:
+            names: Either None (default), a string with the output name,
+              or a list of output name strings.
+        Returns:
+            If `names` is None, a dict in the format
+            {output_name: output_value} is returned.
+            If `names` is a string, a single element list [output_value] is
+            returned.
+            If `names` is a list, a list with one value for each output name
+            in names is returned: [output1_value, output2_value, ...].
+
+        Examples:
+            Before simulate():
+            >>> mod.getOutputs()
+            {'out1': '-0.4', 'out2': '1.2'}
+            >>> mod.getOutputs("out1")
+            ['-0.4']
+            >>> mod.getOutputs(["out1","out2"])
+            ['-0.4', '1.2']
+            >>> mod.getOutputs("ThisOutputDoesNotExist")
+            ['NotExist']
+
+            After simulate():
+            >>> mod.getOutputs()
+            {'out1': np.float64(-0.1234), 'out2': np.float64(2.1)}
+            >>> mod.getOutputs("out1")
+            [np.float64(-0.1234)]
+            >>> mod.getOutputs(["out1","out2"])
+            [np.float64(-0.1234), np.float64(2.1)]
         """
         if not self.simulationFlag:
             if names is None:
