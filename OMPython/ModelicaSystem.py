@@ -511,11 +511,32 @@ class ModelicaSystem:
         elif isinstance(names, list):
             return ([self.paramlist.get(x, "NotExist") for x in names])
 
-    def getInputs(self, names=None):  # 6
-        """
-        This method returns dict. The key is input names and value is corresponding input value.
-        If *name is None then the function will return dict which contain all input names as key and value as corresponding values. eg., getInputs()
-        Otherwise variable number of arguments can be passed as input name in string format separated by commas. eg., getInputs('iName1', 'iName2')
+    def getInputs(self, names: Optional[str | list[str]] = None) -> dict | list:  # 6
+        """Get input values.
+
+        Args:
+            names: Either None (default), a string with the input name,
+              or a list of input name strings.
+        Returns:
+            If `names` is None, a dict in the format
+            {input_name: input_value} is returned.
+            If `names` is a string, a single element list [input_value] is
+            returned.
+            If `names` is a list, a list with one value for each input name
+            in names is returned: [input1_values, input2_values, ...].
+            In all cases, input values are returned as a list of tuples,
+            where the first element in the tuple is the time and the second
+            element is the input value.
+
+        Examples:
+            >>> mod.getInputs()
+            {'Name1': [(0.0, 0.0), (1.0, 1.0)], 'Name2': None}
+            >>> mod.getInputs("Name1")
+            [[(0.0, 0.0), (1.0, 1.0)]]
+            >>> mod.getInputs(["Name1","Name2"])
+            [[(0.0, 0.0), (1.0, 1.0)], None]
+            >>> mod.getInputs("ThisInputDoesNotExist")
+            ['NotExist']
         """
         if names is None:
             return self.inputlist
