@@ -482,14 +482,27 @@ class ModelicaSystem:
                         raise ModelicaSystemError(f"OM error: {i} is not continuous")
                 return valuelist
 
-    def getParameters(self, names=None):  # 5
-        """
-        This method returns dict. The key is parameter names and value is corresponding parameter value.
-        If name is None then the function will return dict which contain all parameter names as key and value as corresponding values.
-        usage:
-        >>> getParameters()
-        >>> getParameters("Name1")
-        >>> getParameters(["Name1","Name2"])
+    def getParameters(self, names: Optional[str | list[str]] = None) -> dict[str, str] | list[str]:  # 5
+        """Get parameter values.
+
+        Args:
+            names: Either None (default), a string with the parameter name,
+              or a list of parameter name strings.
+        Returns:
+            If `names` is None, a dict in the format
+            {parameter_name: parameter_value} is returned.
+            If `names` is a string, a single element list is returned.
+            If `names` is a list, a list with one value for each parameter name
+            in names is returned.
+            In all cases, parameter values are returned as strings.
+
+        Examples:
+            >>> mod.getParameters()
+            {'Name1': '1.23', 'Name2': '4.56'}
+            >>> mod.getParameters("Name1")
+            ['1.23']
+            >>> mod.getParameters(["Name1","Name2"])
+            ['1.23', '4.56']
         """
         if names is None:
             return self.paramlist
