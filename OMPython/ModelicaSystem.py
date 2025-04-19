@@ -108,17 +108,54 @@ class LinearizationResult:
 
 
 class ModelicaSystem:
-    def __init__(self, fileName=None, modelName=None, lmodel=None, commandLineOptions=None,
-                 variableFilter=None, customBuildDirectory=None, verbose=True, raiseerrors=False,
-                 omhome: str = None, session: OMCSessionBase = None):  # 1
-        """
-        "constructor"
-        It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called :
-            •without any arguments: In this case it neither loads a file nor build a model. This is useful when a FMU needed to convert to Modelica model
-            •with two arguments as file name with ".mo" extension and the model name respectively
-            •with three arguments, the first and second are file name and model name respectively and the third arguments is Modelica standard library to load a model, which is common in such models where the model is based on the standard library. For example, here is a model named "dcmotor.mo" below table 4-2, which is located in the directory of OpenModelica at "C:\\OpenModelica1.9.4-dev.beta2\\share\\doc\\omc\\testmodels".
-        Note: If the model file is not in the current working directory, then the path where file is located must be included together with file name. Besides, if the Modelica model contains several different models within the same package, then in order to build the specific model, in second argument, user must put the package name with dot(.) followed by specific model name.
-        ex: myModel = ModelicaSystem("ModelicaModel.mo", "modelName")
+    def __init__(
+            self,
+            fileName: Optional[str | os.PathLike] = None,
+            modelName: Optional[str] = None,
+            lmodel: Optional[list[str | tuple[str, str]]] = None,
+            commandLineOptions: Optional[str] = None,
+            variableFilter: Optional[str] = None,
+            customBuildDirectory: Optional[str | os.PathLike] = None,
+            verbose: bool = True,
+            raiseerrors: bool = False,
+            omhome: Optional[str] = None,
+            session: Optional[OMCSessionBase] = None
+            ):
+        """Initialize, load and build a model.
+
+        The constructor loads the model file and builds it, generating exe and
+        xml files, etc.
+
+        Args:
+            fileName: Path to the model file. Either absolute or relative to
+              the current working directory.
+            modelName: The name of the model class. If it is contained within
+              a package, "PackageName.ModelName" should be used.
+            lmodel: List of libraries to be loaded before the model itself is
+              loaded. Two formats are supported for the list elements:
+              lmodel=["Modelica"] for just the library name
+              and lmodel=[("Modelica","3.2.3")] for specifying both the name
+              and the version.
+            commandLineOptions: String with extra command line options to be
+              provided to omc via setCommandLineOptions().
+            variableFilter: A regular expression. Only variables fully
+              matching the regexp will be stored in the result file.
+              Leaving it unspecified is equivalent to ".*".
+            customBuildDirectory: Path to a directory to be used for temporary
+              files like the model executable. If left unspecified, a tmp
+              directory will be created.
+            verbose: If True, enable verbose logging.
+            raiseerrors: If True, raise exceptions instead of just logging
+              OpenModelica errors.
+            omhome: OPENMODELICAHOME value to be used when creating the OMC
+              session.
+            session: OMC session to be used. If unspecified, a new session
+              will be created.
+
+        Examples:
+            mod = ModelicaSystem("ModelicaModel.mo", "modelName")
+            mod = ModelicaSystem("ModelicaModel.mo", "modelName", ["Modelica"])
+            mod = ModelicaSystem("ModelicaModel.mo", "modelName", [("Modelica","3.2.3"), "PowerSystems"])
         """
         if fileName is None and modelName is None and not lmodel:  # all None
             raise Exception("Cannot create ModelicaSystem object without any arguments")
