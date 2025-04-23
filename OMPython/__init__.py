@@ -392,7 +392,7 @@ class OMCSessionZMQ(OMCSessionBase):
             self._omc_process.wait(timeout=2.0)
         except Exception:
             if self._omc_process:
-                print("OMC did not exit after being sent the quit() command; killing the process with pid={self._omc_process.pid}")
+                logger.warning("OMC did not exit after being sent the quit() command; killing the process with pid=%s", self._omc_process.pid)
                 self._omc_process.kill()
                 self._omc_process.wait()
 
