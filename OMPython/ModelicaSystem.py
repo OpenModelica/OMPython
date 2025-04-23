@@ -760,29 +760,24 @@ class ModelicaSystem:
 
         # check for result file exits
         if not os.path.exists(resFile):
-            errstr = f"Error: Result file does not exist {resFile}"
-            self._raise_error(errstr=errstr)
-            return
+            raise ModelicaSystemError(f"Result file does not exist {resFile}")
         resultVars = self.sendExpression(f'readSimulationResultVars("{resFile}")')
         self.sendExpression("closeSimulationResultFile()")
         if varList is None:
             return resultVars
         elif isinstance(varList, str):
             if varList not in resultVars and varList != "time":
-                self._raise_error(errstr=f'!!! {varList} does not exist')
-                return
+                raise ModelicaSystemError(f"Requested data {repr(varList)} does not exist")
             res = self.sendExpression(f'readSimulationResult("{resFile}", {{{varList}}})')
             npRes = np.array(res)
             self.sendExpression("closeSimulationResultFile()")
             return npRes
         elif isinstance(varList, list):
-            # varList, = varList
-            for v in varList:
-                if v == "time":
+            for var in varList:
+                if var == "time":
                     continue
-                if v not in resultVars:
-                    self._raise_error(errstr=f'!!! {v} does not exist')
-                    return
+                if var not in resultVars:
+                    raise ModelicaSystemError(f"Requested data {repr(var)} does not exist")
             variables = ",".join(varList)
             res = self.sendExpression(f'readSimulationResult("{resFile}",{{{variables}}})')
             npRes = np.array(res)
@@ -823,7 +818,8 @@ class ModelicaSystem:
                 return True
 
             else:
-                self._raise_error(errstr=f'"{value[0]}" is not a {args3} variable')
+                raise ModelicaSystemError("Unhandled case in setMethodHelper.apply_single() - "
+                                          f"{repr(value[0])} is not a {repr(args3)} variable")
 
         result = []
         if isinstance(args1, str):
