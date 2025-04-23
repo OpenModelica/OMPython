@@ -395,19 +395,11 @@ class ModelicaSystem:
             scalar["changeable"] = sv.get('isValueChangeable')
             scalar["aliasvariable"] = sv.get('aliasVariable')
             ch = list(sv)
-            start = None
-            min = None
-            max = None
-            unit = None
             for att in ch:
-                start = att.get('start')
-                min = att.get('min')
-                max = att.get('max')
-                unit = att.get('unit')
-            scalar["start"] = start
-            scalar["min"] = min
-            scalar["max"] = max
-            scalar["unit"] = unit
+                scalar["start"] = att.get('start')
+                scalar["min"] = att.get('min')
+                scalar["max"] = att.get('max')
+                scalar["unit"] = att.get('unit')
 
             if scalar["variability"] == "parameter":
                 if scalar["name"] in self.overridevariables:
