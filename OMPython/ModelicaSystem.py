@@ -430,6 +430,8 @@ class ModelicaSystem:
         elif isinstance(names, list):
             return [x for y in names for x in self.quantitiesList if x["name"] == y]
 
+        raise ModelicaSystemError("Unhandled input for getQuantities()")
+
     def getContinuous(self, names=None):  # 4
         """
         This method returns dict. The key is continuous names and value is corresponding continuous value.
@@ -474,6 +476,8 @@ class ModelicaSystem:
                         raise ModelicaSystemError(f"OM error: {i} is not continuous")
                 return valuelist
 
+        raise ModelicaSystemError("Unhandled input for getContinous()")
+
     def getParameters(self, names: Optional[str | list[str]] = None) -> dict[str, str] | list[str]:  # 5
         """Get parameter values.
 
@@ -502,6 +506,8 @@ class ModelicaSystem:
             return [self.paramlist.get(names, "NotExist")]
         elif isinstance(names, list):
             return ([self.paramlist.get(x, "NotExist") for x in names])
+
+        raise ModelicaSystemError("Unhandled input for getParameters()")
 
     def getInputs(self, names: Optional[str | list[str]] = None) -> dict | list:  # 6
         """Get input values.
@@ -536,6 +542,8 @@ class ModelicaSystem:
             return [self.inputlist.get(names, "NotExist")]
         elif isinstance(names, list):
             return ([self.inputlist.get(x, "NotExist") for x in names])
+
+        raise ModelicaSystemError("Unhandled input for getInputs()")
 
     def getOutputs(self, names: Optional[str | list[str]] = None):  # 7
         """Get output values.
@@ -605,6 +613,8 @@ class ModelicaSystem:
                         return (i, "is not Output")
                 return valuelist
 
+        raise ModelicaSystemError("Unhandled input for getOutputs()")
+
     def getSimulationOptions(self, names=None):  # 8
         """
         This method returns dict. The key is simulation option names and value is corresponding simulation option value.
@@ -620,6 +630,8 @@ class ModelicaSystem:
             return [self.simulateOptions.get(names, "NotExist")]
         elif isinstance(names, list):
             return ([self.simulateOptions.get(x, "NotExist") for x in names])
+
+        raise ModelicaSystemError("Unhandled input for getSimulationOptions()")
 
     def getLinearizationOptions(self, names=None):  # 9
         """
@@ -637,6 +649,8 @@ class ModelicaSystem:
         elif isinstance(names, list):
             return ([self.linearOptions.get(x, "NotExist") for x in names])
 
+        raise ModelicaSystemError("Unhandled input for getLinearizationOptions()")
+
     def getOptimizationOptions(self, names=None):  # 10
         """
         usage:
@@ -650,6 +664,8 @@ class ModelicaSystem:
             return [self.optimizeOptions.get(names, "NotExist")]
         elif isinstance(names, list):
             return ([self.optimizeOptions.get(x, "NotExist") for x in names])
+
+        raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
     def get_exe_file(self) -> pathlib.Path:
         """Get path to model executable."""
@@ -773,11 +789,15 @@ class ModelicaSystem:
             self.sendExpression("closeSimulationResultFile()")
             return npRes
 
+        raise ModelicaSystemError("Unhandled input for getSolutions()")
+
     def strip_space(self, name):
         if isinstance(name, str):
             return name.replace(" ", "")
         elif isinstance(name, list):
             return [x.replace(" ", "") for x in name]
+
+        raise ModelicaSystemError("Unhandled input for strip_space()")
 
     def setMethodHelper(self, args1, args2, args3, args4=None):
         """
