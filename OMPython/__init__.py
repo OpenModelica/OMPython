@@ -620,7 +620,6 @@ class ModelicaSystem:
         if fileName is None and modelName is None and not lmodel:  # all None
             raise Exception("Cannot create ModelicaSystem object without any arguments")
 
-        self.tree = None
         self.quantitiesList = []
         self.paramlist = {}
         self.inputlist = {}
@@ -842,9 +841,8 @@ class ModelicaSystem:
             self._raise_error(errstr=f"XML file not generated: {self.xmlFile}")
             return
 
-        self.tree = ET.parse(self.xmlFile)
-        self.root = self.tree.getroot()
-        rootCQ = self.root
+        tree = ET.parse(self.xmlFile)
+        rootCQ = tree.getroot()
         for attr in rootCQ.iter('DefaultExperiment'):
             for key in ("startTime", "stopTime", "stepSize", "tolerance",
                         "solver", "outputFormat"):
