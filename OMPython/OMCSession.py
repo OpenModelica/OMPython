@@ -75,6 +75,7 @@ class DummyPopen():
         return self.process.wait(timeout=timeout)
 
 
+# noinspection PyPep8Naming
 class OMCSessionBase(metaclass=abc.ABCMeta):
 
     def clearOMParserResult(self):
@@ -300,6 +301,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         return value
 
 
+# noinspection PyPep8Naming
 class OMCSessionZMQ(OMCSessionBase):
 
     def __init__(self, readonly=False, timeout=10.00,
