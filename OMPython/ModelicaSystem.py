@@ -505,7 +505,7 @@ class ModelicaSystem:
         elif isinstance(names, str):
             return [self.paramlist.get(names, "NotExist")]
         elif isinstance(names, list):
-            return ([self.paramlist.get(x, "NotExist") for x in names])
+            return [self.paramlist.get(x, "NotExist") for x in names]
 
         raise ModelicaSystemError("Unhandled input for getParameters()")
 
@@ -541,7 +541,7 @@ class ModelicaSystem:
         elif isinstance(names, str):
             return [self.inputlist.get(names, "NotExist")]
         elif isinstance(names, list):
-            return ([self.inputlist.get(x, "NotExist") for x in names])
+            return [self.inputlist.get(x, "NotExist") for x in names]
 
         raise ModelicaSystemError("Unhandled input for getInputs()")
 
@@ -588,7 +588,7 @@ class ModelicaSystem:
             elif isinstance(names, str):
                 return [self.outputlist.get(names, "NotExist")]
             else:
-                return ([self.outputlist.get(x, "NotExist") for x in names])
+                return [self.outputlist.get(x, "NotExist") for x in names]
         else:
             if names is None:
                 for i in self.outputlist:
@@ -601,7 +601,7 @@ class ModelicaSystem:
                     self.outputlist[names] = value[0][-1]
                     return [self.outputlist.get(names)]
                 else:
-                    return (names, " is not Output")
+                    return names, " is not Output"
             elif isinstance(names, list):
                 valuelist = []
                 for i in names:
@@ -610,7 +610,7 @@ class ModelicaSystem:
                         self.outputlist[i] = value[0][-1]
                         valuelist.append(value[0][-1])
                     else:
-                        return (i, "is not Output")
+                        return i, "is not Output"
                 return valuelist
 
         raise ModelicaSystemError("Unhandled input for getOutputs()")
@@ -629,7 +629,7 @@ class ModelicaSystem:
         elif isinstance(names, str):
             return [self.simulateOptions.get(names, "NotExist")]
         elif isinstance(names, list):
-            return ([self.simulateOptions.get(x, "NotExist") for x in names])
+            return [self.simulateOptions.get(x, "NotExist") for x in names]
 
         raise ModelicaSystemError("Unhandled input for getSimulationOptions()")
 
@@ -647,7 +647,7 @@ class ModelicaSystem:
         elif isinstance(names, str):
             return [self.linearOptions.get(names, "NotExist")]
         elif isinstance(names, list):
-            return ([self.linearOptions.get(x, "NotExist") for x in names])
+            return [self.linearOptions.get(x, "NotExist") for x in names]
 
         raise ModelicaSystemError("Unhandled input for getLinearizationOptions()")
 
@@ -663,7 +663,7 @@ class ModelicaSystem:
         elif isinstance(names, str):
             return [self.optimizeOptions.get(names, "NotExist")]
         elif isinstance(names, list):
-            return ([self.optimizeOptions.get(x, "NotExist") for x in names])
+            return [self.optimizeOptions.get(x, "NotExist") for x in names]
 
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
@@ -855,7 +855,7 @@ class ModelicaSystem:
 
     def isParameterChangeable(self, name, value):
         q = self.getQuantities(name)
-        if (q[0]["changeable"] == "false"):
+        if q[0]["changeable"] == "false":
             if self._verbose:
                 logger.info("setParameters() failed : It is not possible to set "
                             f'the following signal "{name}", It seems to be structural, final, '
@@ -924,10 +924,10 @@ class ModelicaSystem:
                 value = var.split("=")
                 if value[0] in self.inputlist:
                     tmpvalue = eval(value[1])
-                    if (isinstance(tmpvalue, int) or isinstance(tmpvalue, float)):
+                    if isinstance(tmpvalue, int) or isinstance(tmpvalue, float):
                         self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])),
                                                     (float(self.simulateOptions["stopTime"]), float(value[1]))]
-                    elif (isinstance(tmpvalue, list)):
+                    elif isinstance(tmpvalue, list):
                         self.checkValidInputs(tmpvalue)
                         self.inputlist[value[0]] = tmpvalue
                     self.inputFlag = True
