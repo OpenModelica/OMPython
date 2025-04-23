@@ -54,6 +54,7 @@ class ModelicaSystemError(Exception):
     pass
 
 
+# noinspection PyUnresolvedReferences,PyPep8Naming
 class ModelicaSystem:
     def __init__(self, fileName=None, modelName=None, lmodel=None, commandLineOptions=None,
                  variableFilter=None, customBuildDirectory=None, verbose=True, raiseerrors=False,
