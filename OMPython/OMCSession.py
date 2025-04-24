@@ -75,6 +75,10 @@ class DummyPopen():
         return self.process.wait(timeout=timeout)
 
 
+class OMCSessionException(Exception):
+    pass
+
+
 class OMCSessionBase(metaclass=abc.ABCMeta):
 
     def __init__(self, readonly=False):
