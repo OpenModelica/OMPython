@@ -310,18 +310,13 @@ class ModelicaSystem:
             my_env = None
 
         try:
-            p = subprocess.Popen(cmd, env=my_env, stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE, cwd=self.tempdir)
-            stdout, stderr = p.communicate()
-
-            stdout = stdout.decode('ascii').strip()
-            stderr = stderr.decode('ascii').strip()
-            if stderr:
+            cmdres = subprocess.run(cmd, capture_output=True, text=True, env=my_env, cwd=self.tempdir)
+            stdout = cmdres.stdout.strip()
+            stderr = cmdres.stderr.strip()
+            if cmdres.returncode != 0 or stderr:
                 raise ModelicaSystemError(f"Error running command {cmd}: {stderr}")
             if self._verbose and stdout:
                 logger.info("OM output for command %s:\n%s", cmd, stdout)
-            p.wait()
-            p.terminate()
         except Exception as e:
             raise ModelicaSystemError(f"Exception {type(e)} running command {cmd}: {e}")
 
