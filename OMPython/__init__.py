@@ -7,11 +7,6 @@ omc = OMCSessionZMQ()
 omc.sendExpression("command")
 """
 
-import logging
-
-from OMPython.OMCSession import OMCSessionBase, OMCSessionZMQ
-from OMPython.ModelicaSystem import ModelicaSystem, ModelicaSystemError
-
 __license__ = """
  This file is part of OpenModelica.
 
@@ -40,6 +35,11 @@ __license__ = """
  EXPRESSLY SET FORTH IN THE BY RECIPIENT SELECTED SUBSIDIARY LICENSE
  CONDITIONS OF OSMC-PL.
 """
+
+import logging
+
+from OMPython.OMCSession import OMCSessionBase, OMCSessionZMQ
+from OMPython.ModelicaSystem import ModelicaSystem, ModelicaSystemError
 
 # Logger Defined
 logger = logging.getLogger('OMPython')
