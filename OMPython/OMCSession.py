@@ -373,9 +373,10 @@ class OMCSessionZMQ(OMCSessionBase):
         self._omc_log_file.close()
         try:
             self._omc_process.wait(timeout=2.0)
-        except Exception:
+        except subprocess.TimeoutExpired:
             if self._omc_process:
-                logger.warning("OMC did not exit after being sent the quit() command; killing the process with pid=%s", self._omc_process.pid)
+                logger.warning("OMC did not exit after being sent the quit() command; "
+                               "killing the process with pid=%s", self._omc_process.pid)
                 self._omc_process.kill()
                 self._omc_process.wait()
 
@@ -405,14 +406,14 @@ class OMCSessionZMQ(OMCSessionBase):
                 try:
                     with open(self._dockerCidFile, "r") as fin:
                         self._dockerCid = fin.read().strip()
-                except Exception:
+                except IOError:
                     pass
                 if self._dockerCid:
                     break
                 time.sleep(timeout / 40.0)
             try:
                 os.remove(self._dockerCidFile)
-            except Exception:
+            except FileNotFoundError:
                 pass
             if self._dockerCid is None:
                 logger.error("Docker did not start. Log-file says:\n%s" % (open(self._omc_log_file.name).read()))
@@ -520,9 +521,10 @@ class OMCSessionZMQ(OMCSessionBase):
         while True:
             if self._dockerCid:
                 try:
-                    self._port = subprocess.check_output(["docker", "exec", self._dockerCid, "cat", self._port_file], stderr=subprocess.DEVNULL).decode().strip()
+                    self._port = subprocess.check_output(["docker", "exec", self._dockerCid, "cat", self._port_file],
+                                                         stderr=subprocess.DEVNULL).decode().strip()
                     break
-                except Exception:
+                except subprocess.CalledProcessError:
                     pass
             else:
                 if os.path.isfile(self._port_file):
