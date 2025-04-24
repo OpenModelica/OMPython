@@ -52,7 +52,7 @@ import warnings
 
 # TODO: replace this with the new parser
 from OMPython import OMTypedParser
-from OMPython import OMParser
+from OMPython.OMParser import om_parser_basic
 
 
 # define logger using the current module name as ID
@@ -80,9 +80,6 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
     def __init__(self, readonly=False):
         self._readonly = readonly
         self._omc_cache = {}
-
-    def clearOMParserResult(self):
-        OMParser.result = {}
 
     def execute(self, command):
         warnings.warn("This function is depreciated and will be removed in future versions; "
@@ -246,8 +243,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             logger.warning('OMTypedParser error: %s', ex.message)
             result = self.ask('getComponentModifierValue', f'{className}, {componentName}', parsed=False)
             try:
-                answer = OMParser.check_for_values(result)
-                OMParser.result = {}
+                answer = om_parser_basic(result)
                 return answer[2:]
             except (TypeError, UnboundLocalError) as ex:
                 logger.warning('OMParser error: %s', ex)
@@ -264,8 +260,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             logger.warning('OMTypedParser error: %s', ex.message)
             result = self.ask('getExtendsModifierValue', f'{className}, {extendsName}, {modifierName}', parsed=False)
             try:
-                answer = OMParser.check_for_values(result)
-                OMParser.result = {}
+                answer = om_parser_basic(result)
                 return answer[2:]
             except (TypeError, UnboundLocalError) as ex:
                 logger.warning('OMParser error: %s', ex)
