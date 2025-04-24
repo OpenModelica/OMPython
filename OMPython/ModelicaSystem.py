@@ -230,15 +230,11 @@ class ModelicaSystem:
         if commandLineOptions is None:
             return
         exp = f'setCommandLineOptions("{commandLineOptions}")'
-        if not self.sendExpression(exp):
-            self._check_error()
+        self.sendExpression(exp)
 
     def loadFile(self, fileName: pathlib.Path):
         # load file
-        loadMsg = self.sendExpression(f'loadFile("{fileName.as_posix()}")')
-        # Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
-        if self._verbose or not loadMsg:
-            self._check_error()
+        self.sendExpression(f'loadFile("{fileName.as_posix()}")')
 
     # for loading file/package, loading model and building model
     def loadLibrary(self, lmodel: list):
@@ -250,22 +246,19 @@ class ModelicaSystem:
                         apiCall = "loadFile"
                     else:
                         apiCall = "loadModel"
-                    result = self.requestApi(apiCall, element)
+                    self.requestApi(apiCall, element)
                 elif isinstance(element, tuple):
                     if not element[1]:
-                        libname = f"loadModel({element[0]})"
+                        expr_load_lib = f"loadModel({element[0]})"
                     else:
-                        libname = f'loadModel({element[0]}, {{"{element[1]}"}})'
-                    result = self.sendExpression(libname)
+                        expr_load_lib = f'loadModel({element[0]}, {{"{element[1]}"}})'
+                    self.sendExpression(expr_load_lib)
                 else:
                     raise ModelicaSystemError("loadLibrary() failed, Unknown type detected: "
                                               f"{element} is of type {type(element)}, "
                                               "The following patterns are supported:\n"
                                               '1)["Modelica"]\n'
                                               '2)[("Modelica","3.2.3"), "PowerSystems"]\n')
-                # Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
-                if self._verbose or not result:
-                    self._check_error()
 
     def setTempDirectory(self, customBuildDirectory):
         # create a unique temp directory for each session and build the model in that directory
@@ -323,12 +316,6 @@ class ModelicaSystem:
         except Exception as e:
             raise ModelicaSystemError(f"Exception {type(e)} running command {cmd}: {e}")
 
-    def _check_error(self):
-        errstr = self.sendExpression("getErrorString()")
-        if not errstr:
-            return
-        self._raise_error(errstr=errstr)
-
     def _raise_error(self, errstr: str):
         if self._raiseerrors:
             raise ModelicaSystemError(f"OM error: {errstr}")
@@ -347,7 +334,6 @@ class ModelicaSystem:
         buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
         if self._verbose:
             logger.info("OM model build result: %s", buildModelResult)
-        self._check_error()
 
         self.xmlFile = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
         self.xmlparse()
@@ -1017,7 +1003,7 @@ class ModelicaSystem:
 
         # report proper error message
         if not os.path.exists(fmu):
-            self._check_error()
+            raise ModelicaSystemError(f"Missing FMU file: {fmu}")
 
         return fmu
 
@@ -1034,7 +1020,7 @@ class ModelicaSystem:
 
         # report proper error message
         if not os.path.exists(fileName):
-            self._check_error()
+            raise ModelicaSystemError(f"Missing file {fileName}")
 
         return fileName
 
@@ -1050,7 +1036,6 @@ class ModelicaSystem:
         properties = ','.join(f"{key}={val}" for key, val in self.optimizeOptions.items())
         self.setCommandLineOptions("-g=Optimica")
         optimizeResult = self.requestApi('optimize', cName, properties)
-        self._check_error()
 
         return optimizeResult
 
