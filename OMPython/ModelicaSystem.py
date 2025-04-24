@@ -287,7 +287,7 @@ class ModelicaSystem:
     def getWorkDirectory(self):
         return self.tempdir
 
-    def _run_cmd(self, cmd: list):
+    def _run_cmd(self, cmd: list, timeout: Optional[int] = None):
         logger.debug("Run OM command %s in %s", cmd, self.tempdir)
 
         if platform.system() == "Windows":
@@ -310,13 +310,16 @@ class ModelicaSystem:
             my_env = None
 
         try:
-            cmdres = subprocess.run(cmd, capture_output=True, text=True, env=my_env, cwd=self.tempdir)
+            cmdres = subprocess.run(cmd, capture_output=True, text=True, env=my_env, cwd=self.tempdir,
+                                    timeout=timeout)
             stdout = cmdres.stdout.strip()
             stderr = cmdres.stderr.strip()
             if cmdres.returncode != 0 or stderr:
                 raise ModelicaSystemError(f"Error running command {cmd}: {stderr}")
             if self._verbose and stdout:
                 logger.info("OM output for command %s:\n%s", cmd, stdout)
+        except subprocess.TimeoutExpired:
+            raise ModelicaSystemError(f"Timeout running command {repr(cmd)}")
         except Exception as e:
             raise ModelicaSystemError(f"Exception {type(e)} running command {cmd}: {e}")
 
@@ -661,7 +664,7 @@ class ModelicaSystem:
         else:
             return pathlib.Path(self.tempdir) / self.modelName
 
-    def simulate(self, resultfile=None, simflags=None):  # 11
+    def simulate(self, resultfile=None, simflags=None, timeout: Optional[int] = None):  # 11
         """
         This method simulates model according to the simulation options.
         usage
@@ -724,7 +727,7 @@ class ModelicaSystem:
 
         cmd = exe_file.as_posix() + override + csvinput + r + simflags
         cmd = cmd.split(" ")
-        self._run_cmd(cmd=cmd)
+        self._run_cmd(cmd=cmd, timeout=timeout)
         self.simulationFlag = True
 
     # to extract simulation results
@@ -1041,7 +1044,8 @@ class ModelicaSystem:
 
         return optimizeResult
 
-    def linearize(self, lintime: Optional[float] = None, simflags: Optional[str] = None) -> LinearizationResult:
+    def linearize(self, lintime: Optional[float] = None, simflags: Optional[str] = None,
+                  timeout: Optional[int] = None) -> LinearizationResult:
         """Linearize the model according to linearOptions.
 
         Args:
@@ -1102,7 +1106,7 @@ class ModelicaSystem:
         else:
             cmd = exe_file.as_posix() + linruntime + override + csvinput + simflags
             cmd = cmd.split(' ')
-            self._run_cmd(cmd=cmd)
+            self._run_cmd(cmd=cmd, timeout=timeout)
 
         # code to get the matrix and linear inputs, outputs and states
         linearFile = pathlib.Path(self.tempdir) / "linearized_model.py"
