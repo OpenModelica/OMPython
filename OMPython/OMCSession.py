@@ -51,7 +51,7 @@ import zmq
 import warnings
 
 # TODO: replace this with the new parser
-from OMPython import OMTypedParser
+from OMPython.OMTypedParser import parseString as om_parser_typed
 from OMPython.OMParser import om_parser_basic
 
 
@@ -567,7 +567,7 @@ class OMCSessionZMQ(OMCSessionBase):
         else:
             result = self._omc.recv_string()
             if parsed is True:
-                answer = OMTypedParser.parseString(result)
+                answer = om_parser_typed(result)
                 return answer
             else:
                 return result
