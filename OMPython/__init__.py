@@ -7,33 +7,10 @@ omc = OMCSessionZMQ()
 omc.sendExpression("command")
 """
 
-import shutil
-import abc
-import csv
-import getpass
 import logging
-import json
-import os
-import platform
-import psutil
-import re
-import signal
-import subprocess
-import sys
-import tempfile
-import time
-import uuid
-import xml.etree.ElementTree as ET
-import numpy as np
-import pyparsing
-import importlib
-import zmq
-import pathlib
-import warnings
 
-
-# TODO: replace this with the new parser
-from OMPython import OMTypedParser, OMParser
+from OMPython.OMCSession import OMCSessionBase, OMCSessionZMQ
+from OMPython.ModelicaSystem import ModelicaSystem, ModelicaSystemError
 
 __license__ = """
  This file is part of OpenModelica.
@@ -78,3 +55,13 @@ logger_console_handler.setFormatter(logger_formatter)
 # add the handlers to the logger
 logger.addHandler(logger_console_handler)
 logger.setLevel(logging.WARNING)
+
+
+# global names imported if import 'from OMPython import *' is used
+__all__ = [
+    'ModelicaSystem',
+    'ModelicaSystemError',
+
+    'OMCSessionZMQ',
+    'OMCSessionBase',
+]
