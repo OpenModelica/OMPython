@@ -194,7 +194,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             return self.ask('getClassComment', className)
         except pyparsing.ParseException as ex:
             logger.warning("Method 'getClassComment' failed for %s", className)
-            logger.warning('OMTypedParser error: %s', ex.message)
+            logger.warning('OMTypedParser error: %s', ex.msg)
             return 'No description available'
 
     def getNthComponent(self, className, comp_id):
@@ -229,7 +229,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         try:
             return self.ask('getParameterValue', f'{className}, {parameterName}')
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s', ex.message)
+            logger.warning('OMTypedParser error: %s', ex.msg)
             return ""
 
     def getComponentModifierNames(self, className, componentName):
@@ -240,7 +240,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
             return self.ask('getComponentModifierValue', f'{className}, {componentName}')
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s', ex.message)
+            logger.warning('OMTypedParser error: %s', ex.msg)
             result = self.ask('getComponentModifierValue', f'{className}, {componentName}', parsed=False)
             try:
                 answer = om_parser_basic(result)
@@ -257,7 +257,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
             return self.ask('getExtendsModifierValue', f'{className}, {extendsName}, {modifierName}')
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s', ex.message)
+            logger.warning('OMTypedParser error: %s', ex.msg)
             result = self.ask('getExtendsModifierValue', f'{className}, {extendsName}, {modifierName}', parsed=False)
             try:
                 answer = om_parser_basic(result)
