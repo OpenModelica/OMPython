@@ -39,7 +39,7 @@ __license__ = """
 import logging
 
 from OMPython.OMCSession import OMCSessionBase, OMCSessionZMQ
-from OMPython.ModelicaSystem import ModelicaSystem, ModelicaSystemError
+from OMPython.ModelicaSystem import ModelicaSystem, ModelicaSystemError, LinearizationResult
 
 # Logger Defined
 logger = logging.getLogger('OMPython')
@@ -61,6 +61,7 @@ logger.setLevel(logging.WARNING)
 __all__ = [
     'ModelicaSystem',
     'ModelicaSystemError',
+    'LinearizationResult',
 
     'OMCSessionZMQ',
     'OMCSessionBase',
