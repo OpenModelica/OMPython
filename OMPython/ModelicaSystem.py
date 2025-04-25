@@ -1062,6 +1062,7 @@ class ModelicaSystem:
             lintime: Override linearOptions["stopTime"] value.
             simflags: A string of extra command line flags for the model
               binary.
+            timeout: Possible timeout for the execution of OM.
 
         Returns:
             A LinearizationResult object is returned. This allows several
