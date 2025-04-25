@@ -314,7 +314,9 @@ class ModelicaSystem:
                                     timeout=timeout)
             stdout = cmdres.stdout.strip()
             stderr = cmdres.stderr.strip()
-            if cmdres.returncode != 0 or stderr:
+            if cmdres.returncode != 0:
+                raise ModelicaSystemError(f"Error running command {cmd}: nonzero return code")
+            if stderr:
                 raise ModelicaSystemError(f"Error running command {cmd}: {stderr}")
             if self._verbose and stdout:
                 logger.info("OM output for command %s:\n%s", cmd, stdout)
