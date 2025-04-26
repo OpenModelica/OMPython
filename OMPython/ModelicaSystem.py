@@ -179,6 +179,8 @@ class ModelicaSystem:
         self._verbose = verbose
 
         if session is not None:
+            if not isinstance(session, OMCSessionZMQ):
+                raise ModelicaSystemError("Invalid session data provided!")
             self.getconn = session
         else:
             self.getconn = OMCSessionZMQ(omhome=omhome)
