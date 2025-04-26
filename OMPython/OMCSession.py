@@ -562,6 +562,17 @@ class OMCSessionZMQ:
             return None
         else:
             result = self._omc.recv_string()
+
+            # allways check for error
+            self._omc.send_string("getErrorString()", flags=zmq.NOBLOCK)
+            error_raw = self._omc.recv_string()
+            error_str = om_parser_typed(error_raw)
+            if error_str:
+                if "Error" in error_str:
+                    raise OMCSessionException(f"OM Error for 'sendExpression({command}, {parsed})': {error_str}")
+                else:
+                    logger.warning(f"[OM]: {error_str}")
+
             if parsed is True:
                 answer = om_parser_typed(result)
                 return answer
