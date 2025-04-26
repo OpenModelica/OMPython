@@ -722,8 +722,8 @@ class ModelicaSystem:
                     errstr = f"!!! stopTime not matched for Input {i}"
                     self._raise_error(errstr=errstr)
                     return
-            self.createCSVData()  # create csv file
-            csvinput = " -csvInput=" + self.csvFile
+            self.csvFile = self.createCSVData()  # create csv file
+            csvinput = " -csvInput=" + self.csvFile.as_posix()
         else:
             csvinput = ""
 
@@ -944,7 +944,7 @@ class ModelicaSystem:
             else:
                 ModelicaSystemError('Error!!! Value must be in tuple format')
 
-    def createCSVData(self) -> None:
+    def createCSVData(self) -> pathlib.Path:
         start_time: float = float(self.simulateOptions["startTime"])
         stop_time: float = float(self.simulateOptions["stopTime"])
 
@@ -985,11 +985,13 @@ class ModelicaSystem:
             ]
             csv_rows.append(row)
 
-        self.csvFile: str = (pathlib.Path(self.tempdir) / f'{self.modelName}.csv').as_posix()
+        csvFile = pathlib.Path(self.tempdir) / f'{self.modelName}.csv'
 
-        with open(self.csvFile, "w", newline="") as f:
+        with open(csvFile, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerows(csv_rows)
+
+        return csvFile
 
     # to convert Modelica model to FMU
     def convertMo2Fmu(self, version="2.0", fmuType="me_cs", fileNamePrefix="<default>", includeResources=True):  # 19
@@ -1093,8 +1095,8 @@ class ModelicaSystem:
                     for l in tupleList:
                         if l[0] < float(self.simulateOptions["startTime"]):
                             raise ModelicaSystemError('Input time value is less than simulation startTime')
-            self.createCSVData()
-            csvinput = " -csvInput=" + self.csvFile
+            self.csvFile = self.createCSVData()
+            csvinput = " -csvInput=" + self.csvFile.as_posix()
         else:
             csvinput = ""
 
