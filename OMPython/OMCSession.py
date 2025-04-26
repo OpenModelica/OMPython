@@ -3,6 +3,8 @@
 Definition of an OMC session.
 """
 
+from __future__ import annotations
+
 __license__ = """
  This file is part of OpenModelica.
 
@@ -33,7 +35,6 @@ __license__ = """
 """
 
 import shutil
-import abc
 import getpass
 import logging
 import json
@@ -80,9 +81,12 @@ class OMCSessionException(Exception):
     pass
 
 
-class OMCSessionBase(metaclass=abc.ABCMeta):
+class OMCSessionCmd:
 
-    def __init__(self, readonly=False):
+    def __init__(self, session: OMCSessionZMQ, readonly: Optional[bool] = False):
+        if not isinstance(session, OMCSessionZMQ):
+            raise OMCSessionException("Invalid session definition!")
+        self._session = session
         self._readonly = readonly
         self._omc_cache = {}
 
@@ -91,21 +95,6 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
                       "please use sendExpression() instead", DeprecationWarning, stacklevel=1)
 
         return self.sendExpression(command, parsed=False)
-
-    @abc.abstractmethod
-    def sendExpression(self, command, parsed=True):
-        """
-        Sends an expression to the OpenModelica. The return type is parsed as if the
-        expression was part of the typed OpenModelica API (see ModelicaBuiltin.mo).
-        * Integer and Real are returned as Python numbers
-        * Strings, enumerations, and typenames are returned as Python strings
-        * Arrays, tuples, and MetaModelica lists are returned as tuples
-        * Records are returned as dicts (the name of the record is lost)
-        * Booleans are returned as True or False
-        * NONE() is returned as None
-        * SOME(value) is returned as value
-        """
-        pass
 
     def _ask(self, question: str, opt: Optional[list[str]] = None, parsed: Optional[bool] = True):
 
@@ -126,7 +115,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         logger.debug('OMC ask: %s (parsed=%s)', expression, parsed)
 
         try:
-            res = self.sendExpression(expression, parsed=parsed)
+            res = self._session.sendExpression(expression, parsed=parsed)
         except OMCSessionException as ex:
             raise OMCSessionException("OMC _ask() failed: %s (parsed=%s)", expression, parsed) from ex
 
@@ -282,15 +271,13 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         return value
 
 
-class OMCSessionZMQ(OMCSessionBase):
+class OMCSessionZMQ:
 
     def __init__(self, readonly=False, timeout=10.00,
                  docker=None, dockerContainer=None, dockerExtraArgs=None, dockerOpenModelicaPath="omc",
                  dockerNetwork=None, port=None, omhome: str = None):
         if dockerExtraArgs is None:
             dockerExtraArgs = []
-
-        super().__init__(readonly=readonly)
 
         self.omhome = self._get_omhome(omhome=omhome)
 
