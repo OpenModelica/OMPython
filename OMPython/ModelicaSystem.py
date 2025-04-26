@@ -46,7 +46,7 @@ import pathlib
 from dataclasses import dataclass
 from typing import Optional
 
-from OMPython.OMCSession import OMCSessionBase, OMCSessionZMQ
+from OMPython.OMCSession import OMCSessionZMQ
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
