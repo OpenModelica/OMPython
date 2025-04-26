@@ -116,7 +116,6 @@ class ModelicaSystem:
             commandLineOptions: Optional[str] = None,
             variableFilter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
-            verbose: bool = True,
             omhome: Optional[str] = None,
             session: Optional[OMCSessionBase] = None
             ):
@@ -143,7 +142,6 @@ class ModelicaSystem:
             customBuildDirectory: Path to a directory to be used for temporary
               files like the model executable. If left unspecified, a tmp
               directory will be created.
-            verbose: If True, enable verbose logging.
             omhome: OPENMODELICAHOME value to be used when creating the OMC
               session.
             session: OMC session to be used. If unspecified, a new session
@@ -172,8 +170,6 @@ class ModelicaSystem:
         self.linearoutputs = []  # linearization output list
         self.linearstates = []  # linearization  states list
         self.tempdir = ""
-
-        self._verbose = verbose
 
         if session is not None:
             if not isinstance(session, OMCSessionZMQ):
@@ -300,12 +296,13 @@ class ModelicaSystem:
                                     timeout=timeout)
             stdout = cmdres.stdout.strip()
             stderr = cmdres.stderr.strip()
+
+            logger.debug("OM output for command %s:\n%s", cmd, stdout)
+
             if cmdres.returncode != 0:
                 raise ModelicaSystemError(f"Error running command {cmd}: return code = {cmdres.returncode}")
             if stderr:
                 raise ModelicaSystemError(f"Error running command {cmd}: {stderr}")
-            if self._verbose and stdout:
-                logger.info("OM output for command %s:\n%s", cmd, stdout)
         except subprocess.TimeoutExpired:
             raise ModelicaSystemError(f"Timeout running command {repr(cmd)}")
         except Exception as ex:
@@ -321,8 +318,7 @@ class ModelicaSystem:
             varFilter = 'variableFilter=".*"'
         logger.debug("varFilter=%s", varFilter)
         buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
-        if self._verbose:
-            logger.info("OM model build result: %s", buildModelResult)
+        logger.debug("OM model build result: %s", buildModelResult)
 
         self.xmlFile = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
         self.xmlparse()
@@ -821,12 +817,10 @@ class ModelicaSystem:
     def isParameterChangeable(self, name, value):
         q = self.getQuantities(name)
         if q[0]["changeable"] == "false":
-            if self._verbose:
-                logger.info("setParameters() failed : It is not possible to set "
-                            f'the following signal "{name}", It seems to be structural, final, '
-                            "protected or evaluated or has a non-constant binding, use sendExpression("
-                            f"setParameterValue({self.modelName}, {name}, {value}), "
-                            "parsed=false) and rebuild the model using buildModel() API")
+            logger.verbose(f"setParameters() failed : It is not possible to set the following signal {repr(name)}. "
+                           "It seems to be structural, final, protected or evaluated or has a non-constant binding, "
+                           f"use sendExpression(\"setParameterValue({self.modelName}, {name}, {value})\", "
+                           "parsed=False) and rebuild the model using buildModel() API")
             return False
         return True
 
