@@ -202,7 +202,7 @@ class ModelicaSystem:
 
         self._raiseerrors = raiseerrors
 
-        if fileName is not None and not self.fileName.is_file():  # if file does not exist
+        if self.fileName is not None and not self.fileName.is_file():  # if file does not exist
             raise IOError(f"File Error: {self.fileName} does not exist!!!")
 
         # set default command Line Options for linearization as
@@ -213,13 +213,13 @@ class ModelicaSystem:
 
         self.setTempDirectory(customBuildDirectory)
 
-        if fileName is not None:
-            self.loadLibrary()
-            self.loadFile()
+        if self.fileName is not None:
+            self.loadLibrary(lmodel=self.lmodel)
+            self.loadFile(fileName=self.fileName)
 
         # allow directly loading models from MSL without fileName
-        if fileName is None and modelName is not None:
-            self.loadLibrary()
+        elif fileName is None and modelName is not None:
+            self.loadLibrary(lmodel=self.lmodel)
 
         self.buildModel(variableFilter)
 
@@ -231,17 +231,17 @@ class ModelicaSystem:
         if not self.sendExpression(exp):
             self._check_error()
 
-    def loadFile(self):
+    def loadFile(self, fileName: pathlib.Path):
         # load file
-        loadMsg = self.sendExpression(f'loadFile("{self.fileName.as_posix()}")')
+        loadMsg = self.sendExpression(f'loadFile("{fileName.as_posix()}")')
         # Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
         if self._verbose or not loadMsg:
             self._check_error()
 
     # for loading file/package, loading model and building model
-    def loadLibrary(self):
+    def loadLibrary(self, lmodel: list):
         # load Modelica standard libraries or Modelica files if needed
-        for element in self.lmodel:
+        for element in lmodel:
             if element is not None:
                 if isinstance(element, str):
                     if element.endswith(".mo"):
