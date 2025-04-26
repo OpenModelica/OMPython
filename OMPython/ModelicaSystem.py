@@ -107,6 +107,18 @@ class LinearizationResult:
         return {0: self.A, 1: self.B, 2: self.C, 3: self.D}[index]
 
 
+class ModelicaSystemCmd:
+
+    def __init__(self, cmdpath: pathlib.Path, modelname: str):
+        pass
+
+    def arg_set(self, key, val=None):
+        pass
+
+    def run(self):
+        pass
+
+
 class ModelicaSystem:
     def __init__(
             self,
