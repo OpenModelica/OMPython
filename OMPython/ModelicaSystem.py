@@ -277,7 +277,7 @@ class ModelicaSystem:
                 raise IOError(self.tempdir, " cannot be created")
 
         logger.info("Define tempdir as %s", self.tempdir)
-        exp = f'cd("{pathlib.Path(self.tempdir).as_posix()}")'
+        exp = f'cd("{pathlib.Path(self.tempdir).absolute().as_posix()}")'
         self.sendExpression(exp)
 
     def getWorkDirectory(self):
