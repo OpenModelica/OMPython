@@ -292,7 +292,7 @@ class ModelicaSystem:
             # set the process environment from the generated .bat file in windows which should have all the dependencies
             batFilePath = pathlib.Path(self.tempdir) / f"{self.modelName}.bat"
             if not batFilePath.exists():
-                ModelicaSystemError("Batch file (*.bat) does not exist " + batFilePath)
+                ModelicaSystemError("Batch file (*.bat) does not exist " + str(batFilePath))
 
             with open(batFilePath, 'r') as file:
                 for line in file:
