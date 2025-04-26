@@ -183,10 +183,6 @@ class ModelicaSystem:
         else:
             self.getconn = OMCSessionZMQ(omhome=omhome)
 
-        # needed for properly deleting the session
-        self._omc_log_file = self.getconn._omc_log_file
-        self._omc_process = self.getconn._omc_process
-
         # set commandLineOptions if provided by users
         self.setCommandLineOptions(commandLineOptions=commandLineOptions)
 
