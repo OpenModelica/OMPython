@@ -46,7 +46,7 @@ import pathlib
 from dataclasses import dataclass
 from typing import Optional
 
-from OMPython.OMCSession import OMCSessionBase, OMCSessionZMQ
+from OMPython.OMCSession import OMCSessionZMQ
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
@@ -119,7 +119,7 @@ class ModelicaSystem:
             verbose: bool = True,
             raiseerrors: bool = False,
             omhome: Optional[str] = None,
-            session: Optional[OMCSessionBase] = None
+            session: Optional[OMCSessionZMQ] = None
             ):
         """Initialize, load and build a model.
 
