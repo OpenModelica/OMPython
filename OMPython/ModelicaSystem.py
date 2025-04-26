@@ -770,7 +770,8 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getSolutions()")
 
-    def strip_space(self, name):
+    @staticmethod
+    def _strip_space(name):
         if isinstance(name, str):
             return name.replace(" ", "")
         elif isinstance(name, list):
@@ -787,7 +788,7 @@ class ModelicaSystem:
         args4 - dict() which stores the new override variables list,
         """
         def apply_single(args1):
-            args1 = self.strip_space(args1)
+            args1 = self._strip_space(args1)
             value = args1.split("=")
             if value[0] in args2:
                 if args3 == "parameter" and self.isParameterChangeable(value[0], value[1]):
@@ -811,7 +812,7 @@ class ModelicaSystem:
 
         elif isinstance(args1, list):
             result = []
-            args1 = self.strip_space(args1)
+            args1 = self._strip_space(args1)
             for var in args1:
                 result.append(apply_single(var))
 
@@ -888,7 +889,7 @@ class ModelicaSystem:
         >>> setInputs(["Name1=value1","Name2=value2"])
         """
         if isinstance(name, str):
-            name = self.strip_space(name)
+            name = self._strip_space(name)
             value = name.split("=")
             if value[0] in self.inputlist:
                 tmpvalue = eval(value[1])
@@ -903,7 +904,7 @@ class ModelicaSystem:
                 errstr = value[0] + " is not an input"
                 self._raise_error(errstr=errstr)
         elif isinstance(name, list):
-            name = self.strip_space(name)
+            name = self._strip_space(name)
             for var in name:
                 value = var.split("=")
                 if value[0] in self.inputlist:
