@@ -158,7 +158,7 @@ class ModelicaSystem:
             mod = ModelicaSystem("ModelicaModel.mo", "modelName", [("Modelica","3.2.3"), "PowerSystems"])
         """
         if fileName is None and modelName is None and not lmodel:  # all None
-            raise Exception("Cannot create ModelicaSystem object without any arguments")
+            raise ModelicaSystemError("Cannot create ModelicaSystem object without any arguments")
 
         self.quantitiesList = []
         self.paramlist = {}
@@ -205,7 +205,7 @@ class ModelicaSystem:
         self._raiseerrors = raiseerrors
 
         if self.fileName is not None and not self.fileName.is_file():  # if file does not exist
-            raise IOError(f"File Error: {self.fileName} does not exist!!!")
+            raise IOError(f"{self.fileName} does not exist!")
 
         # set default command Line Options for linearization as
         # linearize() will use the simulation executable and runtime
@@ -313,8 +313,8 @@ class ModelicaSystem:
                 logger.info("OM output for command %s:\n%s", cmd, stdout)
         except subprocess.TimeoutExpired:
             raise ModelicaSystemError(f"Timeout running command {repr(cmd)}")
-        except Exception as e:
-            raise ModelicaSystemError(f"Exception {type(e)} running command {cmd}: {e}")
+        except Exception as ex:
+            raise ModelicaSystemError(f"Error running command {cmd}") from ex
 
     def _raise_error(self, errstr: str):
         if self._raiseerrors:
@@ -437,8 +437,8 @@ class ModelicaSystem:
                     try:
                         value = self.getSolutions(i)
                         self.continuouslist[i] = value[0][-1]
-                    except Exception:
-                        raise ModelicaSystemError(f"OM error: {i} could not be computed")
+                    except OMCSessionException as ex:
+                        raise ModelicaSystemError(f"{i} could not be computed") from ex
                 return self.continuouslist
 
             elif isinstance(names, str):
@@ -447,7 +447,7 @@ class ModelicaSystem:
                     self.continuouslist[names] = value[0][-1]
                     return [self.continuouslist.get(names)]
                 else:
-                    raise ModelicaSystemError(f"OM error: {names} is not continuous")
+                    raise ModelicaSystemError(f"{names} is not continuous")
 
             elif isinstance(names, list):
                 valuelist = []
@@ -457,7 +457,7 @@ class ModelicaSystem:
                         self.continuouslist[i] = value[0][-1]
                         valuelist.append(value[0][-1])
                     else:
-                        raise ModelicaSystemError(f"OM error: {i} is not continuous")
+                        raise ModelicaSystemError(f"{i} is not continuous")
                 return valuelist
 
         raise ModelicaSystemError("Unhandled input for getContinous()")
@@ -717,7 +717,7 @@ class ModelicaSystem:
 
         exe_file = self.get_exe_file()
         if not exe_file.exists():
-            raise Exception(f"Error: Application file path not found: {exe_file}")
+            raise ModelicaSystemError(f"Application file path not found: {exe_file}")
 
         cmd = exe_file.as_posix() + override + csvinput + resultfileflag + simflags
         cmd = [s for s in cmd.split(' ') if s]
@@ -1099,7 +1099,7 @@ class ModelicaSystem:
             simflags = " " + simflags
 
         if not exe_file.exists():
-            raise Exception(f"Error: Application file path not found: {exe_file}")
+            raise ModelicaSystemError(f"Application file path not found: {exe_file}")
         else:
             cmd = exe_file.as_posix() + linruntime + override + csvinput + simflags
             cmd = [s for s in cmd.split(' ') if s]
@@ -1129,8 +1129,8 @@ class ModelicaSystem:
             self.linearstates = stateVars
             return LinearizationResult(n, m, p, A, B, C, D, x0, u0, stateVars,
                                        inputVars, outputVars)
-        except ModuleNotFoundError:
-            raise Exception("ModuleNotFoundError: No module named 'linearized_model'")
+        except ModuleNotFoundError as ex:
+            raise ModelicaSystemError("No module named 'linearized_model'") from ex
 
     def getLinearInputs(self):
         """
