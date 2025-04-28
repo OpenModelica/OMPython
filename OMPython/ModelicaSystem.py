@@ -173,15 +173,14 @@ class ModelicaSystemCmd:
         for arg in args:
             self.arg_set(key=arg, val=args[arg])
 
-    def run(self) -> bool:
+    def get_exe(self) -> pathlib.Path:
         """
-        Run the requested simulation
+        Get the path to the executable / complied model.
 
         Returns
         -------
-            bool
+            pathlib.Path
         """
-
         if platform.system() == "Windows":
             path_exe = self._runpath / f"{self._modelname}.exe"
         else:
@@ -189,6 +188,19 @@ class ModelicaSystemCmd:
 
         if not path_exe.exists():
             raise ModelicaSystemError(f"Application file path not found: {path_exe}")
+
+        return path_exe
+
+    def get_cmd(self) -> list:
+        """
+        Run the requested simulation
+
+        Returns
+        -------
+            list
+        """
+
+        path_exe = self.get_exe()
 
         cmdl = [path_exe.as_posix()]
         for key in self._args:
@@ -199,6 +211,19 @@ class ModelicaSystemCmd:
                 cmdl.append(f"-{key}={valstr}")
             else:
                 cmdl.append(f"-{key}={self._args[key]}")
+
+        return cmdl
+
+    def run(self) -> int:
+        """
+        Run the requested simulation
+
+        Returns
+        -------
+            int
+        """
+
+        cmdl: list = self.get_cmd()
 
         logger.debug("Run OM command %s in %s", repr(cmdl), self._runpath.as_posix())
 
