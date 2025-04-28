@@ -128,10 +128,6 @@ class ModelicaSystemCmd:
         self._timeout = timeout
         self._args = {}
 
-        self._exe_file = self.get_exe_file(tempdir=runpath, modelname=modelname)
-        if not self._exe_file.exists():
-            raise ModelicaSystemError(f"Application file path not found: {self._exe_file}")
-
     def arg_set(self, key: str, val: str = None) -> None:
         """
         Set one argument for the executeable model.
@@ -173,7 +169,15 @@ class ModelicaSystemCmd:
             bool
         """
 
-        cmdl = [self._exe_file.as_posix()]
+        if platform.system() == "Windows":
+            path_exe = self._runpath / f"{self._modelname}.exe"
+        else:
+            path_exe = self._runpath / self._modelname
+
+        if not path_exe.exists():
+            raise ModelicaSystemError(f"Application file path not found: {path_exe}")
+
+        cmdl = [path_exe.as_posix()]
         for key in self._args:
             if self._args[key] is None:
                 cmdl.append(f"-{key}")
@@ -219,25 +223,6 @@ class ModelicaSystemCmd:
             raise ModelicaSystemError(f"Error running command {cmdl}") from ex
 
         return True
-
-    @staticmethod
-    def get_exe_file(tempdir: pathlib.Path, modelname: str) -> pathlib.Path:
-        """
-        Get path to model executable.
-
-        Parameters
-        ----------
-        tempdir : pathlib.Path
-        modelname : str
-
-        Returns
-        -------
-            pathlib.Path
-        """
-        if platform.system() == "Windows":
-            return pathlib.Path(tempdir) / f"{modelname}.exe"
-        else:
-            return pathlib.Path(tempdir) / modelname
 
     @staticmethod
     def parse_simflags(simflags: str) -> dict:
