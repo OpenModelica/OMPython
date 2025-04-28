@@ -45,6 +45,7 @@ import importlib
 import pathlib
 from dataclasses import dataclass
 from typing import Optional
+import warnings
 
 from OMPython.OMCSession import OMCSessionZMQ
 
@@ -109,14 +110,78 @@ class LinearizationResult:
 
 class ModelicaSystemCmd:
 
-    def __init__(self, cmdpath: pathlib.Path, modelname: str):
-        pass
+    def __init__(self, cmdpath: pathlib.Path, modelname: str, timeout: Optional[int] = None):
+        self.tempdir = cmdpath
+        self.modelName = modelname
+        self._exe_file = self.get_exe_file(tempdir=cmdpath, modelName=modelname)
+        if not self._exe_file.exists():
+            raise ModelicaSystemError(f"Application file path not found: {self._exe_file}")
+
+        self._timeout = timeout
+        self._args = {}
 
     def arg_set(self, key, val=None):
-        pass
+        key = key.strip()
+        if val is not None:
+            val = val.strip()
+        self._args[key] = val
+
+    def args_set(self, args: dict):
+        for arg in args:
+            self.arg_set(key=arg, val=args[arg])
 
     def run(self):
-        pass
+
+        cmd = [self._exe_file.as_posix()] + [f"{key}={self._args[key]}" for key in self._args]
+        self._run_cmd(cmd=cmd, timeout=self._timeout)
+
+        return True
+
+    def _run_cmd(self, cmd: list, timeout: Optional[int] = None):
+        logger.debug("Run OM command %s in %s", cmd, self.tempdir)
+
+        if platform.system() == "Windows":
+            dllPath = ""
+
+            # set the process environment from the generated .bat file in windows which should have all the dependencies
+            batFilePath = pathlib.Path(self.tempdir) / f"{self.modelName}.bat"
+            if not batFilePath.exists():
+                ModelicaSystemError("Batch file (*.bat) does not exist " + str(batFilePath))
+
+            with open(batFilePath, 'r') as file:
+                for line in file:
+                    match = re.match(r"^SET PATH=([^%]*)", line, re.IGNORECASE)
+                    if match:
+                        dllPath = match.group(1).strip(';')  # Remove any trailing semicolons
+            my_env = os.environ.copy()
+            my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
+        else:
+            # TODO: how to handle path to resources of external libraries for any system not Windows?
+            my_env = None
+
+        try:
+            cmdres = subprocess.run(cmd, capture_output=True, text=True, env=my_env, cwd=self.tempdir,
+                                    timeout=timeout)
+            stdout = cmdres.stdout.strip()
+            stderr = cmdres.stderr.strip()
+
+            logger.debug("OM output for command %s:\n%s", cmd, stdout)
+
+            if cmdres.returncode != 0:
+                raise ModelicaSystemError(f"Error running command {cmd}: return code = {cmdres.returncode}")
+            if stderr:
+                raise ModelicaSystemError(f"Error running command {cmd}: {stderr}")
+        except subprocess.TimeoutExpired:
+            raise ModelicaSystemError(f"Timeout running command {repr(cmd)}")
+        except Exception as ex:
+            raise ModelicaSystemError(f"Error running command {cmd}") from ex
+
+    def get_exe_file(self, tempdir, modelName) -> pathlib.Path:
+        """Get path to model executable."""
+        if platform.system() == "Windows":
+            return pathlib.Path(tempdir) / f"{modelName}.exe"
+        else:
+            return pathlib.Path(tempdir) / modelName
 
 
 class ModelicaSystem:
@@ -288,45 +353,6 @@ class ModelicaSystem:
 
     def getWorkDirectory(self):
         return self.tempdir
-
-    def _run_cmd(self, cmd: list, timeout: Optional[int] = None):
-        logger.debug("Run OM command %s in %s", cmd, self.tempdir)
-
-        if platform.system() == "Windows":
-            dllPath = ""
-
-            # set the process environment from the generated .bat file in windows which should have all the dependencies
-            batFilePath = pathlib.Path(self.tempdir) / f"{self.modelName}.bat"
-            if not batFilePath.exists():
-                raise ModelicaSystemError("Batch file (*.bat) does not exist " + str(batFilePath))
-
-            with open(batFilePath, 'r') as file:
-                for line in file:
-                    match = re.match(r"^SET PATH=([^%]*)", line, re.IGNORECASE)
-                    if match:
-                        dllPath = match.group(1).strip(';')  # Remove any trailing semicolons
-            my_env = os.environ.copy()
-            my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
-        else:
-            # TODO: how to handle path to resources of external libraries for any system not Windows?
-            my_env = None
-
-        try:
-            cmdres = subprocess.run(cmd, capture_output=True, text=True, env=my_env, cwd=self.tempdir,
-                                    timeout=timeout)
-            stdout = cmdres.stdout.strip()
-            stderr = cmdres.stderr.strip()
-
-            logger.debug("OM output for command %s:\n%s", cmd, stdout)
-
-            if cmdres.returncode != 0:
-                raise ModelicaSystemError(f"Error running command {cmd}: return code = {cmdres.returncode}")
-            if stderr:
-                raise ModelicaSystemError(f"Error running command {cmd}: {stderr}")
-        except subprocess.TimeoutExpired:
-            raise ModelicaSystemError(f"Timeout running command {repr(cmd)}")
-        except Exception as ex:
-            raise ModelicaSystemError(f"Error running command {cmd}") from ex
 
     def buildModel(self, variableFilter=None):
         if variableFilter is not None:
@@ -651,21 +677,20 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
-    def get_exe_file(self) -> pathlib.Path:
-        """Get path to model executable."""
-        if platform.system() == "Windows":
-            return pathlib.Path(self.tempdir) / f"{self.modelName}.exe"
-        else:
-            return pathlib.Path(self.tempdir) / self.modelName
-
-    def simulate(self, resultfile=None, simflags=None, timeout: Optional[int] = None):  # 11
+    def simulate(self, resultfile: Optional[str] = None, simflags: Optional[str] = None,
+                 simargs: Optional[dict[str, str | None]] = None,
+                 timeout: Optional[int] = None):  # 11
         """
         This method simulates model according to the simulation options.
         usage
         >>> simulate()
         >>> simulate(resultfile="a.mat")
         >>> simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10")  # set runtime simulation flags
+        >>> simulate(simargs={"-noEventEmit": None, "-noRestart": None, "-override": "e=0.3,g=10"})  # using simargs
         """
+
+        om_cmd = ModelicaSystemCmd(cmdpath=pathlib.Path(self.tempdir), modelname=self.modelName, timeout=timeout)
+
         if resultfile is None:
             # default result file generated by OM
             self.resultfile = (pathlib.Path(self.tempdir) / f"{self.modelName}_res.mat").as_posix()
@@ -674,13 +699,26 @@ class ModelicaSystem:
         else:
             self.resultfile = (pathlib.Path(self.tempdir) / resultfile).as_posix()
         # always define the resultfile to use
-        resultfileflag = " -r=" + self.resultfile
+        om_cmd.arg_set(key="-r", val=self.resultfile)
 
         # allow runtime simulation flags from user input
-        if simflags is None:
-            simflags = ""
-        else:
-            simflags = " " + simflags
+        # TODO: merge into ModelicaSystemCmd?
+        if simflags is not None:
+            # add old style simulation arguments
+            warnings.warn("The argument simflags is depreciated and will be removed in future versions; "
+                          "please use simargs instead", DeprecationWarning, stacklevel=1)
+
+            args = [s for s in simflags.split(' ') if s]
+            for arg in args:
+                parts = arg.split('=')
+                if len(parts) == 1:
+                    val = None
+                else:
+                    val = '='.join(parts[1:])
+                om_cmd.arg_set(key=parts[0], val=val)
+
+        if simargs:
+            om_cmd.args_set(args=simargs)
 
         overrideFile = pathlib.Path(self.tempdir) / f"{self.modelName}_override.txt"
         if self.overridevariables or self.simoptionsoverride:
@@ -690,9 +728,8 @@ class ModelicaSystem:
             with open(overrideFile, "w") as file:
                 for key, value in tmpdict.items():
                     file.write(f"{key}={value}\n")
-            override = " -overrideFile=" + overrideFile.as_posix()
-        else:
-            override = ""
+
+            om_cmd.arg_set(key="-overrideFile", val=overrideFile.as_posix())
 
         if self.inputFlag:  # if model has input quantities
             for i in self.inputlist:
@@ -707,18 +744,10 @@ class ModelicaSystem:
                 if float(self.simulateOptions["stopTime"]) != val[-1][0]:
                     raise ModelicaSystemError(f"stopTime not matched for Input {i}!")
             self.csvFile = self.createCSVData()  # create csv file
-            csvinput = " -csvInput=" + self.csvFile.as_posix()
-        else:
-            csvinput = ""
 
-        exe_file = self.get_exe_file()
-        if not exe_file.exists():
-            raise ModelicaSystemError(f"Application file path not found: {exe_file}")
+            om_cmd.arg_set(key="-csvInput", val=self.csvFile.as_posix())
 
-        cmd = exe_file.as_posix() + override + csvinput + resultfileflag + simflags
-        cmd = [s for s in cmd.split(' ') if s]
-        self._run_cmd(cmd=cmd, timeout=timeout)
-        self.simulationFlag = True
+        self.simulationFlag = om_cmd.run()
 
     # to extract simulation results
     def getSolutions(self, varList=None, resultfile=None):  # 12
@@ -1033,13 +1062,15 @@ class ModelicaSystem:
         return optimizeResult
 
     def linearize(self, lintime: Optional[float] = None, simflags: Optional[str] = None,
+                  simargs: Optional[dict[str, str | None]] = None,
                   timeout: Optional[int] = None) -> LinearizationResult:
         """Linearize the model according to linearOptions.
 
         Args:
             lintime: Override linearOptions["stopTime"] value.
             simflags: A string of extra command line flags for the model
-              binary.
+              binary. - depreciated in favor of simargs
+            simargs: A dict with command line flags and possible options
             timeout: Possible timeout for the execution of OM.
 
         Returns:
@@ -1056,6 +1087,8 @@ class ModelicaSystem:
             raise IOError("Linearization cannot be performed as the model is not build, "
                           "use ModelicaSystem() to build the model first")
 
+        om_cmd = ModelicaSystemCmd(cmdpath=pathlib.Path(self.tempdir), modelname=self.modelName, timeout=timeout)
+
         overrideLinearFile = pathlib.Path(self.tempdir) / f'{self.modelName}_override_linear.txt'
 
         with open(overrideLinearFile, "w") as file:
@@ -1064,8 +1097,7 @@ class ModelicaSystem:
             for key, value in self.linearOptions.items():
                 file.write(f"{key}={value}\n")
 
-        override = " -overrideFile=" + overrideLinearFile.as_posix()
-        logger.debug(f"overwrite = {override}")
+        om_cmd.arg_set(key="-overrideFile", val=overrideLinearFile.as_posix())
 
         if self.inputFlag:
             nameVal = self.getInputs()
@@ -1076,26 +1108,30 @@ class ModelicaSystem:
                         if l[0] < float(self.simulateOptions["startTime"]):
                             raise ModelicaSystemError('Input time value is less than simulation startTime')
             self.csvFile = self.createCSVData()
-            csvinput = " -csvInput=" + self.csvFile.as_posix()
-        else:
-            csvinput = ""
+            om_cmd.arg_set(key="-csvInput", val=self.csvFile.as_posix())
 
-        # prepare the linearization runtime command
-        exe_file = self.get_exe_file()
+        om_cmd.arg_set(key="-l", val=f"{lintime or self.linearOptions["stopTime"]}")
 
-        linruntime = f' -l={lintime or self.linearOptions["stopTime"]}'
+        # allow runtime simulation flags from user input
+        # TODO: merge into ModelicaSystemCmd?
+        if simflags is not None:
+            # add old style simulation arguments
+            warnings.warn("The argument simflags is depreciated and will be removed in future versions; "
+                          "please use simargs instead", DeprecationWarning, stacklevel=1)
 
-        if simflags is None:
-            simflags = ""
-        else:
-            simflags = " " + simflags
+            args = [s for s in simflags.split(' ') if s]
+            for arg in args:
+                parts = arg.split('=')
+                if len(parts) == 1:
+                    val = None
+                else:
+                    val = '='.join(parts[1:])
+                om_cmd.arg_set(key=parts[0], val=val)
 
-        if not exe_file.exists():
-            raise ModelicaSystemError(f"Application file path not found: {exe_file}")
-        else:
-            cmd = exe_file.as_posix() + linruntime + override + csvinput + simflags
-            cmd = [s for s in cmd.split(' ') if s]
-            self._run_cmd(cmd=cmd, timeout=timeout)
+        if simargs:
+            om_cmd.args_set(args=simargs)
+
+        self.simulationFlag = om_cmd.run()
 
         # code to get the matrix and linear inputs, outputs and states
         linearFile = pathlib.Path(self.tempdir) / "linearized_model.py"
