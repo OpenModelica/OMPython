@@ -132,8 +132,14 @@ class ModelicaSystemCmd:
 
     def run(self):
 
-        cmd = [self._exe_file.as_posix()] + [f"{key}={self._args[key]}" for key in self._args]
-        self._run_cmd(cmd=cmd, timeout=self._timeout)
+        cmdl = [self._exe_file.as_posix()]
+        for key in self._args:
+            if self._args[key] is None:
+                cmdl.append(f"-{key}")
+            else:
+                cmdl.append(f"-{key}={self._args[key]}")
+
+        self._run_cmd(cmd=cmdl, timeout=self._timeout)
 
         return True
 
@@ -686,7 +692,7 @@ class ModelicaSystem:
         >>> simulate()
         >>> simulate(resultfile="a.mat")
         >>> simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10")  # set runtime simulation flags
-        >>> simulate(simargs={"-noEventEmit": None, "-noRestart": None, "-override": "e=0.3,g=10"})  # using simargs
+        >>> simulate(simargs={"noEventEmit": None, "noRestart": None, "override": "e=0.3,g=10"})  # using simargs
         """
 
         om_cmd = ModelicaSystemCmd(cmdpath=pathlib.Path(self.tempdir), modelname=self.modelName, timeout=timeout)
@@ -699,7 +705,7 @@ class ModelicaSystem:
         else:
             self.resultfile = (pathlib.Path(self.tempdir) / resultfile).as_posix()
         # always define the resultfile to use
-        om_cmd.arg_set(key="-r", val=self.resultfile)
+        om_cmd.arg_set(key="r", val=self.resultfile)
 
         # allow runtime simulation flags from user input
         # TODO: merge into ModelicaSystemCmd?
@@ -710,6 +716,9 @@ class ModelicaSystem:
 
             args = [s for s in simflags.split(' ') if s]
             for arg in args:
+                if arg[0] != '-':
+                    raise ModelicaSystemError(f"Invalid simulation flag: {arg}")
+                arg = arg[1:]
                 parts = arg.split('=')
                 if len(parts) == 1:
                     val = None
@@ -729,7 +738,7 @@ class ModelicaSystem:
                 for key, value in tmpdict.items():
                     file.write(f"{key}={value}\n")
 
-            om_cmd.arg_set(key="-overrideFile", val=overrideFile.as_posix())
+            om_cmd.arg_set(key="overrideFile", val=overrideFile.as_posix())
 
         if self.inputFlag:  # if model has input quantities
             for i in self.inputlist:
@@ -745,7 +754,7 @@ class ModelicaSystem:
                     raise ModelicaSystemError(f"stopTime not matched for Input {i}!")
             self.csvFile = self.createCSVData()  # create csv file
 
-            om_cmd.arg_set(key="-csvInput", val=self.csvFile.as_posix())
+            om_cmd.arg_set(key="csvInput", val=self.csvFile.as_posix())
 
         self.simulationFlag = om_cmd.run()
 
@@ -1070,7 +1079,7 @@ class ModelicaSystem:
             lintime: Override linearOptions["stopTime"] value.
             simflags: A string of extra command line flags for the model
               binary. - depreciated in favor of simargs
-            simargs: A dict with command line flags and possible options
+            simargs: A dict with command line flags and possible options; example: "simargs={'csvInput': 'a.csv'}"
             timeout: Possible timeout for the execution of OM.
 
         Returns:
@@ -1097,7 +1106,7 @@ class ModelicaSystem:
             for key, value in self.linearOptions.items():
                 file.write(f"{key}={value}\n")
 
-        om_cmd.arg_set(key="-overrideFile", val=overrideLinearFile.as_posix())
+        om_cmd.arg_set(key="overrideFile", val=overrideLinearFile.as_posix())
 
         if self.inputFlag:
             nameVal = self.getInputs()
@@ -1108,9 +1117,9 @@ class ModelicaSystem:
                         if l[0] < float(self.simulateOptions["startTime"]):
                             raise ModelicaSystemError('Input time value is less than simulation startTime')
             self.csvFile = self.createCSVData()
-            om_cmd.arg_set(key="-csvInput", val=self.csvFile.as_posix())
+            om_cmd.arg_set(key="csvInput", val=self.csvFile.as_posix())
 
-        om_cmd.arg_set(key="-l", val=f"{lintime or self.linearOptions["stopTime"]}")
+        om_cmd.arg_set(key="l", val=f"{lintime or self.linearOptions["stopTime"]}")
 
         # allow runtime simulation flags from user input
         # TODO: merge into ModelicaSystemCmd?
@@ -1121,6 +1130,8 @@ class ModelicaSystem:
 
             args = [s for s in simflags.split(' ') if s]
             for arg in args:
+                if arg[0] != '-':
+                    raise ModelicaSystemError(f"Invalid simulation flag: {arg}")
                 parts = arg.split('=')
                 if len(parts) == 1:
                     val = None
