@@ -117,7 +117,6 @@ class ModelicaSystem:
             variableFilter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
             verbose: bool = True,
-            raiseerrors: bool = False,
             omhome: Optional[str] = None,
             session: Optional[OMCSessionBase] = None
             ):
@@ -145,8 +144,6 @@ class ModelicaSystem:
               files like the model executable. If left unspecified, a tmp
               directory will be created.
             verbose: If True, enable verbose logging.
-            raiseerrors: If True, raise exceptions instead of just logging
-              OpenModelica errors.
             omhome: OPENMODELICAHOME value to be used when creating the OMC
               session.
             session: OMC session to be used. If unspecified, a new session
@@ -201,8 +198,6 @@ class ModelicaSystem:
         self.csvFile = ''  # for storing inputs condition
         self.resultfile = ""  # for storing result file
         self.variableFilter = variableFilter
-
-        self._raiseerrors = raiseerrors
 
         if self.fileName is not None and not self.fileName.is_file():  # if file does not exist
             raise IOError(f"{self.fileName} does not exist!")
@@ -316,12 +311,6 @@ class ModelicaSystem:
         except Exception as ex:
             raise ModelicaSystemError(f"Error running command {cmd}") from ex
 
-    def _raise_error(self, errstr: str):
-        if self._raiseerrors:
-            raise ModelicaSystemError(f"OM error: {errstr}")
-        else:
-            logger.error(errstr)
-
     def buildModel(self, variableFilter=None):
         if variableFilter is not None:
             self.variableFilter = variableFilter
@@ -353,17 +342,12 @@ class ModelicaSystem:
                 exp = f'{apiName}({entity})'
         else:
             exp = f'{apiName}()'
-        try:
-            res = self.sendExpression(exp)
-        except Exception as e:
-            self._raise_error(errstr=f"Exception {type(e)} raised: {e}")
-            res = None
-        return res
+
+        return self.sendExpression(exp)
 
     def xmlparse(self):
         if not self.xmlFile.exists():
-            self._raise_error(errstr=f"XML file not generated: {self.xmlFile}")
-            return
+            ModelicaSystemError(f"XML file not generated: {self.xmlFile}")
 
         tree = ET.parse(self.xmlFile)
         rootCQ = tree.getroot()
@@ -703,13 +687,9 @@ class ModelicaSystem:
                     self.inputlist[i] = [(float(self.simulateOptions["startTime"]), 0.0),
                                          (float(self.simulateOptions["stopTime"]), 0.0)]
                 if float(self.simulateOptions["startTime"]) != val[0][0]:
-                    errstr = f"!!! startTime not matched for Input {i}"
-                    self._raise_error(errstr=errstr)
-                    return
+                    raise ModelicaSystemError(f"startTime not matched for Input {i}!")
                 if float(self.simulateOptions["stopTime"]) != val[-1][0]:
-                    errstr = f"!!! stopTime not matched for Input {i}"
-                    self._raise_error(errstr=errstr)
-                    return
+                    raise ModelicaSystemError(f"stopTime not matched for Input {i}!")
             self.csvFile = self.createCSVData()  # create csv file
             csvinput = " -csvInput=" + self.csvFile.as_posix()
         else:
@@ -901,8 +881,7 @@ class ModelicaSystem:
                     self.inputlist[value[0]] = tmpvalue
                 self.inputFlag = True
             else:
-                errstr = value[0] + " is not an input"
-                self._raise_error(errstr=errstr)
+                raise ModelicaSystemError(f"{value[0]} is not an input")
         elif isinstance(name, list):
             name = self._strip_space(name)
             for var in name:
@@ -917,8 +896,7 @@ class ModelicaSystem:
                         self.inputlist[value[0]] = tmpvalue
                     self.inputFlag = True
                 else:
-                    errstr = value[0] + " is not an input"
-                    self._raise_error(errstr=errstr)
+                    raise ModelicaSystemError(f"{value[0]} is not an input!")
 
     def checkValidInputs(self, name):
         if name != sorted(name, key=lambda x: x[0]):
