@@ -108,17 +108,54 @@ class LinearizationResult:
 
 
 class ModelicaSystem:
-    def __init__(self, fileName=None, modelName=None, lmodel=None, commandLineOptions=None,
-                 variableFilter=None, customBuildDirectory=None, verbose=True, raiseerrors=False,
-                 omhome: str = None, session: OMCSessionBase = None):  # 1
-        """
-        "constructor"
-        It initializes to load file and build a model, generating object, exe, xml, mat, and json files. etc. It can be called :
-            •without any arguments: In this case it neither loads a file nor build a model. This is useful when a FMU needed to convert to Modelica model
-            •with two arguments as file name with ".mo" extension and the model name respectively
-            •with three arguments, the first and second are file name and model name respectively and the third arguments is Modelica standard library to load a model, which is common in such models where the model is based on the standard library. For example, here is a model named "dcmotor.mo" below table 4-2, which is located in the directory of OpenModelica at "C:\\OpenModelica1.9.4-dev.beta2\\share\\doc\\omc\\testmodels".
-        Note: If the model file is not in the current working directory, then the path where file is located must be included together with file name. Besides, if the Modelica model contains several different models within the same package, then in order to build the specific model, in second argument, user must put the package name with dot(.) followed by specific model name.
-        ex: myModel = ModelicaSystem("ModelicaModel.mo", "modelName")
+    def __init__(
+            self,
+            fileName: Optional[str | os.PathLike] = None,
+            modelName: Optional[str] = None,
+            lmodel: Optional[list[str | tuple[str, str]]] = None,
+            commandLineOptions: Optional[str] = None,
+            variableFilter: Optional[str] = None,
+            customBuildDirectory: Optional[str | os.PathLike] = None,
+            verbose: bool = True,
+            raiseerrors: bool = False,
+            omhome: Optional[str] = None,
+            session: Optional[OMCSessionBase] = None
+            ):
+        """Initialize, load and build a model.
+
+        The constructor loads the model file and builds it, generating exe and
+        xml files, etc.
+
+        Args:
+            fileName: Path to the model file. Either absolute or relative to
+              the current working directory.
+            modelName: The name of the model class. If it is contained within
+              a package, "PackageName.ModelName" should be used.
+            lmodel: List of libraries to be loaded before the model itself is
+              loaded. Two formats are supported for the list elements:
+              lmodel=["Modelica"] for just the library name
+              and lmodel=[("Modelica","3.2.3")] for specifying both the name
+              and the version.
+            commandLineOptions: String with extra command line options to be
+              provided to omc via setCommandLineOptions().
+            variableFilter: A regular expression. Only variables fully
+              matching the regexp will be stored in the result file.
+              Leaving it unspecified is equivalent to ".*".
+            customBuildDirectory: Path to a directory to be used for temporary
+              files like the model executable. If left unspecified, a tmp
+              directory will be created.
+            verbose: If True, enable verbose logging.
+            raiseerrors: If True, raise exceptions instead of just logging
+              OpenModelica errors.
+            omhome: OPENMODELICAHOME value to be used when creating the OMC
+              session.
+            session: OMC session to be used. If unspecified, a new session
+              will be created.
+
+        Examples:
+            mod = ModelicaSystem("ModelicaModel.mo", "modelName")
+            mod = ModelicaSystem("ModelicaModel.mo", "modelName", ["Modelica"])
+            mod = ModelicaSystem("ModelicaModel.mo", "modelName", [("Modelica","3.2.3"), "PowerSystems"])
         """
         if fileName is None and modelName is None and not lmodel:  # all None
             raise Exception("Cannot create ModelicaSystem object without any arguments")
@@ -445,14 +482,27 @@ class ModelicaSystem:
                         raise ModelicaSystemError(f"OM error: {i} is not continuous")
                 return valuelist
 
-    def getParameters(self, names=None):  # 5
-        """
-        This method returns dict. The key is parameter names and value is corresponding parameter value.
-        If name is None then the function will return dict which contain all parameter names as key and value as corresponding values.
-        usage:
-        >>> getParameters()
-        >>> getParameters("Name1")
-        >>> getParameters(["Name1","Name2"])
+    def getParameters(self, names: Optional[str | list[str]] = None) -> dict[str, str] | list[str]:  # 5
+        """Get parameter values.
+
+        Args:
+            names: Either None (default), a string with the parameter name,
+              or a list of parameter name strings.
+        Returns:
+            If `names` is None, a dict in the format
+            {parameter_name: parameter_value} is returned.
+            If `names` is a string, a single element list is returned.
+            If `names` is a list, a list with one value for each parameter name
+            in names is returned.
+            In all cases, parameter values are returned as strings.
+
+        Examples:
+            >>> mod.getParameters()
+            {'Name1': '1.23', 'Name2': '4.56'}
+            >>> mod.getParameters("Name1")
+            ['1.23']
+            >>> mod.getParameters(["Name1","Name2"])
+            ['1.23', '4.56']
         """
         if names is None:
             return self.paramlist
@@ -461,24 +511,32 @@ class ModelicaSystem:
         elif isinstance(names, list):
             return ([self.paramlist.get(x, "NotExist") for x in names])
 
-    def getlinearParameters(self, names=None):  # 5
-        """
-        This method returns dict. The key is parameter names and value is corresponding parameter value.
-        If *name is None then the function will return dict which contain all parameter names as key and value as corresponding values. eg., getParameters()
-        Otherwise variable number of arguments can be passed as parameter name in string format separated by commas. eg., getParameters('paraName1', 'paraName2')
-        """
-        if names is None:
-            return self.linearparameters
-        elif isinstance(names, str):
-            return [self.linearparameters.get(names, "NotExist")]
-        else:
-            return [self.linearparameters.get(x, "NotExist") for x in names]
+    def getInputs(self, names: Optional[str | list[str]] = None) -> dict | list:  # 6
+        """Get input values.
 
-    def getInputs(self, names=None):  # 6
-        """
-        This method returns dict. The key is input names and value is corresponding input value.
-        If *name is None then the function will return dict which contain all input names as key and value as corresponding values. eg., getInputs()
-        Otherwise variable number of arguments can be passed as input name in string format separated by commas. eg., getInputs('iName1', 'iName2')
+        Args:
+            names: Either None (default), a string with the input name,
+              or a list of input name strings.
+        Returns:
+            If `names` is None, a dict in the format
+            {input_name: input_value} is returned.
+            If `names` is a string, a single element list [input_value] is
+            returned.
+            If `names` is a list, a list with one value for each input name
+            in names is returned: [input1_values, input2_values, ...].
+            In all cases, input values are returned as a list of tuples,
+            where the first element in the tuple is the time and the second
+            element is the input value.
+
+        Examples:
+            >>> mod.getInputs()
+            {'Name1': [(0.0, 0.0), (1.0, 1.0)], 'Name2': None}
+            >>> mod.getInputs("Name1")
+            [[(0.0, 0.0), (1.0, 1.0)]]
+            >>> mod.getInputs(["Name1","Name2"])
+            [[(0.0, 0.0), (1.0, 1.0)], None]
+            >>> mod.getInputs("ThisInputDoesNotExist")
+            ['NotExist']
         """
         if names is None:
             return self.inputlist
@@ -487,14 +545,42 @@ class ModelicaSystem:
         elif isinstance(names, list):
             return ([self.inputlist.get(x, "NotExist") for x in names])
 
-    def getOutputs(self, names=None):  # 7
-        """
-        This method returns dict. The key is output names and value is corresponding output value.
-        If name is None then the function will return dict which contain all output names as key and value as corresponding values. eg., getOutputs()
-        usage:
-        >>> getOutputs()
-        >>> getOutputs("Name1")
-        >>> getOutputs(["Name1","Name2"])
+    def getOutputs(self, names: Optional[str | list[str]] = None):  # 7
+        """Get output values.
+
+        If called before simulate(), the initial values are returned as
+        strings. If called after simulate(), the final values (at stopTime)
+        are returned as numpy.float64.
+
+        Args:
+            names: Either None (default), a string with the output name,
+              or a list of output name strings.
+        Returns:
+            If `names` is None, a dict in the format
+            {output_name: output_value} is returned.
+            If `names` is a string, a single element list [output_value] is
+            returned.
+            If `names` is a list, a list with one value for each output name
+            in names is returned: [output1_value, output2_value, ...].
+
+        Examples:
+            Before simulate():
+            >>> mod.getOutputs()
+            {'out1': '-0.4', 'out2': '1.2'}
+            >>> mod.getOutputs("out1")
+            ['-0.4']
+            >>> mod.getOutputs(["out1","out2"])
+            ['-0.4', '1.2']
+            >>> mod.getOutputs("ThisOutputDoesNotExist")
+            ['NotExist']
+
+            After simulate():
+            >>> mod.getOutputs()
+            {'out1': np.float64(-0.1234), 'out2': np.float64(2.1)}
+            >>> mod.getOutputs("out1")
+            [np.float64(-0.1234)]
+            >>> mod.getOutputs(["out1","out2"])
+            [np.float64(-0.1234), np.float64(2.1)]
         """
         if not self.simulationFlag:
             if names is None:
@@ -854,112 +940,52 @@ class ModelicaSystem:
             else:
                 ModelicaSystemError('Error!!! Value must be in tuple format')
 
-    # To create csv file for inputs
-    def createCSVData(self):
-        sl = []  # Actual timestamps
-        skip = False
+    def createCSVData(self) -> None:
+        start_time: float = float(self.simulateOptions["startTime"])
+        stop_time: float = float(self.simulateOptions["stopTime"])
 
-        # check for NONE in input list and replace with proper data (e.g) [(startTime, 0.0), (stopTime, 0.0)]
-        tmpinputlist = {}
-        for key, value in self.inputlist.items():
-            if value is None:
-                tmpinputlist[key] = [(float(self.simulateOptions["startTime"]), 0.0),
-                                     (float(self.simulateOptions["stopTime"]), 0.0)]
+        # Replace None inputs with a default constant zero signal
+        inputs: dict[str, list[tuple[float, float]]] = {}
+        for input_name, input_signal in self.inputlist.items():
+            if input_signal is None:
+                inputs[input_name] = [(start_time, 0.0), (stop_time, 0.0)]
             else:
-                tmpinputlist[key] = value
+                inputs[input_name] = input_signal
 
-        inp = list(tmpinputlist.values())
+        # Collect all unique timestamps across all input signals
+        all_times = np.array(
+            sorted({t for signal in inputs.values() for t, _ in signal}),
+            dtype=float
+        )
 
-        for i in inp:
-            cl = list()
-            el = list()
-            for t, x in i:
-                cl.append(t)
-            for i in cl:
-                if skip is True:
-                    skip = False
-                    continue
-                if i not in sl:
-                    el.append(i)
-                else:
-                    elem_no = cl.count(i)
-                    sl_no = sl.count(i)
-                    if elem_no == 2 and sl_no == 1:
-                        el.append(i)
-                        skip = True
-            sl = sl + el
+        # Interpolate missing values
+        interpolated_inputs: dict[str, np.ndarray] = {}
+        for signal_name, signal_values in inputs.items():
+            signal = np.array(signal_values)
+            interpolated_inputs[signal_name] = np.interp(
+                all_times,
+                signal[:, 0],  # times
+                signal[:, 1]  # values
+            )
 
-        sl.sort()
-        for t in sl:
-            for i in inp:
-                for ttt in [tt[0] for tt in i]:
-                    if t not in [tt[0] for tt in i]:
-                        i.append((t, '?'))
-        inpSortedList = list()
-        sortedList = list()
-        for i in inp:
-            sortedList = sorted(i, key=lambda x: x[0])
-            inpSortedList.append(sortedList)
-        for i in inpSortedList:
-            ind = 0
-            for t, x in i:
-                if x == '?':
-                    t1 = i[ind - 1][0]
-                    u1 = i[ind - 1][1]
-                    t2 = i[ind + 1][0]
-                    u2 = i[ind + 1][1]
-                    nex = 2
-                    while (u2 == '?'):
-                        u2 = i[ind + nex][1]
-                        t2 = i[ind + nex][0]
-                        nex += 1
-                    x = float(u1 + (u2 - u1) * (t - t1) / (t2 - t1))
-                    i[ind] = (t, x)
-                ind += 1
-        slSet = list()
-        slSet = set(sl)
-        for i in inpSortedList:
-            tempTime = list()
-            for (t, x) in i:
-                tempTime.append(t)
-            inSl = None
-            inI = None
-            for s in slSet:
-                inSl = sl.count(s)
-                inI = tempTime.count(s)
-                if inSl != inI:
-                    test = list()
-                    test = [(x, y) for x, y in i if x == s]
-                    i.append(test[0])
-        newInpList = list()
-        tempSorting = list()
-        for i in inpSortedList:
-            # i.sort() => just sorting might not work so need to sort according to 1st element of a tuple
-            tempSorting = sorted(i, key=lambda x: x[0])
-            newInpList.append(tempSorting)
+        # Write CSV file
+        input_names = list(interpolated_inputs.keys())
+        header = ['time'] + input_names + ['end']
 
-        interpolated_inputs_all = list()
-        for i in newInpList:
-            templist = list()
-            for (t, x) in i:
-                templist.append(x)
-            interpolated_inputs_all.append(templist)
+        csv_rows = [header]
+        for i, t in enumerate(all_times):
+            row = [
+                t,  # time
+                *(interpolated_inputs[name][i] for name in input_names),  # input values
+                0  # trailing 'end' column
+            ]
+            csv_rows.append(row)
 
-        name = ','.join(list(self.inputlist.keys()))
-        name = f'time,{name},end'
+        self.csvFile: str = (pathlib.Path(self.tempdir) / f'{self.modelName}.csv').as_posix()
 
-        a = ''
-        l = []
-        l.append(name)
-        for i in range(0, len(sl)):
-            a = f'{float(sl[i])},{",".join(str(float(inppp[i])) for inppp in interpolated_inputs_all)},0'
-            l.append(a)
-
-        self.csvFile = (pathlib.Path(self.tempdir) / f'{self.modelName}.csv').as_posix()
         with open(self.csvFile, "w", newline="") as f:
-            writer = csv.writer(f, delimiter='\n')
-            writer.writerow(l)
-        f.close()
+            writer = csv.writer(f)
+            writer.writerows(csv_rows)
 
     # to convert Modelica model to FMU
     def convertMo2Fmu(self, version="2.0", fmuType="me_cs", fileNamePrefix="<default>", includeResources=True):  # 19
