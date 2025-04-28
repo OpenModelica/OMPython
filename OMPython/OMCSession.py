@@ -320,7 +320,7 @@ class OMCSessionZMQ(OMCSessionBase):
         self._serverIPAddress = "127.0.0.1"
         self._interactivePort = None
         # FIXME: this code is not well written... need to be refactored
-        self._temp_dir = tempfile.gettempdir()
+        self._temp_dir = pathlib.Path(tempfile.gettempdir())
         # generate a random string for this session
         self._random_string = uuid.uuid4().hex
         # omc log file
@@ -345,7 +345,7 @@ class OMCSessionZMQ(OMCSessionBase):
         self._dockerNetwork = dockerNetwork
         self._create_omc_log_file("port")
         self._timeout = timeout
-        self._port_file = os.path.join("/tmp" if docker else self._temp_dir, self._port_file).replace("\\", "/")
+        self._port_file = ((pathlib.Path("/tmp") if docker else self._temp_dir) / self._port_file).as_posix()
         self._interactivePort = port
         # set omc executable path and args
         self._set_omc_command([
@@ -379,7 +379,7 @@ class OMCSessionZMQ(OMCSessionBase):
         else:
             log_filename = f"openmodelica.{self._currentUser}.{suffix}.{self._random_string}.log"
         # this file must be closed in the destructor
-        self._omc_log_file = open(pathlib.Path(self._temp_dir) / log_filename, "w+")
+        self._omc_log_file = open(self._temp_dir / log_filename, "w+")
 
     def _start_omc_process(self, timeout):
         if sys.platform == 'win32':
