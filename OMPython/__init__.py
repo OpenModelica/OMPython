@@ -37,11 +37,12 @@ __license__ = """
 """
 
 from OMPython.OMCSession import OMCSessionCmd, OMCSessionZMQ, OMCSessionException
-from OMPython.ModelicaSystem import ModelicaSystem, ModelicaSystemError, LinearizationResult
+from OMPython.ModelicaSystem import ModelicaSystem, ModelicaSystemCmd, ModelicaSystemError, LinearizationResult
 
 # global names imported if import 'from OMPython import *' is used
 __all__ = [
     'ModelicaSystem',
+    'ModelicaSystemCmd',
     'ModelicaSystemError',
     'LinearizationResult',
 
