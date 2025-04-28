@@ -189,6 +189,26 @@ class ModelicaSystemCmd:
         else:
             return pathlib.Path(tempdir) / modelName
 
+    def parse_simflags(self, simflags: str) -> dict:
+        # add old style simulation arguments
+        warnings.warn("The argument 'simflags' is depreciated and will be removed in future versions; "
+                      "please use 'simargs' instead", DeprecationWarning, stacklevel=2)
+
+        simargs = {}
+
+        args = [s for s in simflags.split(' ') if s]
+        for arg in args:
+            if arg[0] != '-':
+                raise ModelicaSystemError(f"Invalid simulation flag: {arg}")
+            arg = arg[1:]
+            parts = arg.split('=')
+            if len(parts) == 1:
+                simargs[parts[0]] = None
+            else:
+                simargs[parts[0]] = '='.join(parts[1:])
+
+        return simargs
+
 
 class ModelicaSystem:
     def __init__(
@@ -708,23 +728,8 @@ class ModelicaSystem:
         om_cmd.arg_set(key="r", val=self.resultfile)
 
         # allow runtime simulation flags from user input
-        # TODO: merge into ModelicaSystemCmd?
         if simflags is not None:
-            # add old style simulation arguments
-            warnings.warn("The argument simflags is depreciated and will be removed in future versions; "
-                          "please use simargs instead", DeprecationWarning, stacklevel=1)
-
-            args = [s for s in simflags.split(' ') if s]
-            for arg in args:
-                if arg[0] != '-':
-                    raise ModelicaSystemError(f"Invalid simulation flag: {arg}")
-                arg = arg[1:]
-                parts = arg.split('=')
-                if len(parts) == 1:
-                    val = None
-                else:
-                    val = '='.join(parts[1:])
-                om_cmd.arg_set(key=parts[0], val=val)
+            om_cmd.args_set(args=om_cmd.parse_simflags(simflags=simflags))
 
         if simargs:
             om_cmd.args_set(args=simargs)
@@ -1122,22 +1127,8 @@ class ModelicaSystem:
         om_cmd.arg_set(key="l", val=f"{lintime or self.linearOptions["stopTime"]}")
 
         # allow runtime simulation flags from user input
-        # TODO: merge into ModelicaSystemCmd?
         if simflags is not None:
-            # add old style simulation arguments
-            warnings.warn("The argument simflags is depreciated and will be removed in future versions; "
-                          "please use simargs instead", DeprecationWarning, stacklevel=1)
-
-            args = [s for s in simflags.split(' ') if s]
-            for arg in args:
-                if arg[0] != '-':
-                    raise ModelicaSystemError(f"Invalid simulation flag: {arg}")
-                parts = arg.split('=')
-                if len(parts) == 1:
-                    val = None
-                else:
-                    val = '='.join(parts[1:])
-                om_cmd.arg_set(key=parts[0], val=val)
+            om_cmd.args_set(args=om_cmd.parse_simflags(simflags=simflags))
 
         if simargs:
             om_cmd.args_set(args=simargs)
