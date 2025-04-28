@@ -61,7 +61,7 @@ equation
     y2 = phi + u1;
 end Pendulum;
 """)
-        mod = OMPython.ModelicaSystem(model_file.as_posix(), "Pendulum", ["Modelica"], raiseerrors=True)
+        mod = OMPython.ModelicaSystem(model_file.as_posix(), "Pendulum", ["Modelica"])
 
         d = mod.getLinearizationOptions()
         assert isinstance(d, dict)
