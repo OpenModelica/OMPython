@@ -100,7 +100,7 @@ end M;
         tmpdir = self.tmp / "tmpdir1"
         tmpdir.mkdir()
         m = OMPython.ModelicaSystem(filePath, "M", customBuildDirectory=tmpdir)
-        assert pathlib.Path(m.getWorkDirectory()).resolve() == tmpdir.resolve()
+        assert m.getWorkDirectory().resolve() == tmpdir.resolve()
         result_file = tmpdir / "a.mat"
         assert not result_file.exists()
         m.simulate(resultfile="a.mat")
