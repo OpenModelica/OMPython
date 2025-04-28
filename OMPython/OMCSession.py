@@ -90,12 +90,6 @@ class OMCSessionCmd:
         self._readonly = readonly
         self._omc_cache = {}
 
-    def execute(self, command):
-        warnings.warn("This function is depreciated and will be removed in future versions; "
-                      "please use sendExpression() instead", DeprecationWarning, stacklevel=1)
-
-        return self.sendExpression(command, parsed=False)
-
     def _ask(self, question: str, opt: Optional[list[str]] = None, parsed: Optional[bool] = True):
 
         if opt is None:
@@ -515,6 +509,12 @@ class OMCSessionZMQ:
         self._omc.setsockopt(zmq.LINGER, 0)  # Dismisses pending messages if closed
         self._omc.setsockopt(zmq.IMMEDIATE, True)  # Queue messages only to completed connections
         self._omc.connect(self._port)
+
+    def execute(self, command):
+        warnings.warn("This function is depreciated and will be removed in future versions; "
+                      "please use sendExpression() instead", DeprecationWarning, stacklevel=1)
+
+        return self.sendExpression(command, parsed=False)
 
     def sendExpression(self, command, parsed=True):
         p = self._omc_process.poll()  # check if process is running
