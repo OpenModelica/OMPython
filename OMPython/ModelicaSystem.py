@@ -34,6 +34,7 @@ __license__ = """
 
 import csv
 import logging
+import numbers
 import os
 import platform
 import re
@@ -128,7 +129,7 @@ class ModelicaSystemCmd:
         self._timeout = timeout
         self._args = {}
 
-    def arg_set(self, key: str, val: str = None) -> None:
+    def arg_set(self, key: str, val: str | dict = None) -> None:
         """
         Set one argument for the executeable model.
 
@@ -140,14 +141,26 @@ class ModelicaSystemCmd:
         if not isinstance(key, str):
             raise ModelicaSystemError(f"Invalid argument key: {repr(key)} (type: {type(key)})")
         key = key.strip()
-        if val is not None:
-            if not isinstance(val, str):
-                raise ModelicaSystemError(f"Invalid argument value for {repr(key)}: {repr(val)} (type: {type(val)})")
-            val = val.strip()
+        if val is None:
+            argval = None
+        elif isinstance(val, str):
+            argval = val.strip()
+        elif isinstance(val, numbers.Number):
+            argval = str(val)
+        elif key == 'override' and isinstance(val, dict):
+            argval = self._args['override'] if 'override' in self._args else {}
+            for overwrite_key in val:
+                if not isinstance(overwrite_key, str) or not isinstance(val[overwrite_key], (str, numbers.Number)):
+                    raise ModelicaSystemError("Invalid argument for 'override': "
+                                              f"{repr(overwrite_key)} = {repr(val[overwrite_key])}")
+                argval[overwrite_key] = val[overwrite_key]
+        else:
+            raise ModelicaSystemError(f"Invalid argument value for {repr(key)}: {repr(val)} (type: {type(val)})")
+
         if key in self._args:
-            logger.warning(f"Overwrite model executable argument: {repr(key)} = {repr(val)} "
+            logger.warning(f"Overwrite model executable argument: {repr(key)} = {repr(argval)} "
                            f"(was: {repr(self._args[key])})")
-        self._args[key] = val
+        self._args[key] = argval
 
     def args_set(self, args: dict) -> None:
         """
@@ -181,6 +194,9 @@ class ModelicaSystemCmd:
         for key in self._args:
             if self._args[key] is None:
                 cmdl.append(f"-{key}")
+            elif key == 'override' and isinstance(self._args[key], dict):
+                valstr = ','.join([f"{valkey}={str(self._args[key][valkey])}" for valkey in self._args[key]])
+                cmdl.append(f"-{key}={valstr}")
             else:
                 cmdl.append(f"-{key}={self._args[key]}")
 
@@ -251,8 +267,19 @@ class ModelicaSystemCmd:
             parts = arg.split('=')
             if len(parts) == 1:
                 simargs[parts[0]] = None
-            else:
-                simargs[parts[0]] = '='.join(parts[1:])
+            elif parts[0] == 'override':
+                override = '='.join(parts[1:])
+
+                simargs[parts[0]] = {}
+                for item in override.split(','):
+                    kv = item.split('=')
+                    if not (0 < len(kv) < 3):
+                        raise ModelicaSystemError(f"Invalide value for '-override': {override}")
+                    if kv[0]:
+                        try:
+                            simargs[parts[0]][kv[0]] = kv[1]
+                        except (KeyError, IndexError) as ex:
+                            raise ModelicaSystemError(f"Invalide value for '-override': {override}") from ex
 
         return simargs
 
