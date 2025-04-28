@@ -184,6 +184,9 @@ class ModelicaSystem:
         if lmodel is None:
             lmodel = []
 
+        if not isinstance(lmodel, list):
+            raise ModelicaSystemError(f"Invalid input type for lmodel: {type(lmodel)} - list expected!")
+
         self.xmlFile = None
         self.lmodel = lmodel  # may be needed if model is derived from other model
         self.modelName = modelName  # Model class name
