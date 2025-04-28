@@ -109,28 +109,69 @@ class LinearizationResult:
 
 
 class ModelicaSystemCmd:
+    """
+    Execute a simulation by running the comiled model.
+    """
 
-    def __init__(self, cmdpath: pathlib.Path, modelname: str, timeout: Optional[int] = None):
-        self.tempdir = cmdpath
-        self.modelName = modelname
-        self._exe_file = self.get_exe_file(tempdir=cmdpath, modelName=modelname)
-        if not self._exe_file.exists():
-            raise ModelicaSystemError(f"Application file path not found: {self._exe_file}")
+    def __init__(self, runpath: pathlib.Path, modelname: str, timeout: Optional[int] = None) -> None:
+        """
+        Initialisation
 
+        Parameters
+        ----------
+        runpath : pathlib.Path
+        modelname : str
+        timeout : Optional[int], None
+        """
+        self._runpath = pathlib.Path(runpath).resolve().absolute()
+        self._modelname = modelname
         self._timeout = timeout
         self._args = {}
 
-    def arg_set(self, key, val=None):
+        self._exe_file = self.get_exe_file(tempdir=runpath, modelname=modelname)
+        if not self._exe_file.exists():
+            raise ModelicaSystemError(f"Application file path not found: {self._exe_file}")
+
+    def arg_set(self, key: str, val: str = None) -> None:
+        """
+        Set one argument for the executeable model.
+
+        Parameters
+        ----------
+        key : str
+        val : str, None
+        """
+        if not isinstance(key, str):
+            raise ModelicaSystemError(f"Invalid argument key: {repr(key)} (type: {type(key)})")
         key = key.strip()
         if val is not None:
+            if not isinstance(val, str):
+                raise ModelicaSystemError(f"Invalid argument value for {repr(key)}: {repr(val)} (type: {type(val)})")
             val = val.strip()
+        if key in self._args:
+            logger.warning(f"Overwrite model executable argument: {repr(key)} = {repr(val)} "
+                           f"(was: {repr(self._args[key])})")
         self._args[key] = val
 
-    def args_set(self, args: dict):
+    def args_set(self, args: dict) -> None:
+        """
+        Define arguments for the model executable.
+
+        Parameters
+        ----------
+        args : dict
+        """
         for arg in args:
             self.arg_set(key=arg, val=args[arg])
 
-    def run(self):
+    def run(self) -> bool:
+        """
+        Run the requested simulation
+
+        Returns
+        -------
+            bool
+        """
 
         cmdl = [self._exe_file.as_posix()]
         for key in self._args:
@@ -139,57 +180,78 @@ class ModelicaSystemCmd:
             else:
                 cmdl.append(f"-{key}={self._args[key]}")
 
-        self._run_cmd(cmd=cmdl, timeout=self._timeout)
-
-        return True
-
-    def _run_cmd(self, cmd: list, timeout: Optional[int] = None):
-        logger.debug("Run OM command %s in %s", cmd, self.tempdir)
+        logger.debug("Run OM command %s in %s", repr(cmdl), self._runpath.as_posix())
 
         if platform.system() == "Windows":
-            dllPath = ""
+            path_dll = ""
 
             # set the process environment from the generated .bat file in windows which should have all the dependencies
-            batFilePath = pathlib.Path(self.tempdir) / f"{self.modelName}.bat"
-            if not batFilePath.exists():
-                ModelicaSystemError("Batch file (*.bat) does not exist " + str(batFilePath))
+            path_bat = self._runpath / f"{self._modelname}.bat"
+            if not path_bat.exists():
+                ModelicaSystemError("Batch file (*.bat) does not exist " + str(path_bat))
 
-            with open(batFilePath, 'r') as file:
+            with open(path_bat, 'r') as file:
                 for line in file:
                     match = re.match(r"^SET PATH=([^%]*)", line, re.IGNORECASE)
                     if match:
-                        dllPath = match.group(1).strip(';')  # Remove any trailing semicolons
+                        path_dll = match.group(1).strip(';')  # Remove any trailing semicolons
             my_env = os.environ.copy()
-            my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
+            my_env["PATH"] = path_dll + os.pathsep + my_env["PATH"]
         else:
             # TODO: how to handle path to resources of external libraries for any system not Windows?
             my_env = None
 
         try:
-            cmdres = subprocess.run(cmd, capture_output=True, text=True, env=my_env, cwd=self.tempdir,
-                                    timeout=timeout)
+            cmdres = subprocess.run(cmdl, capture_output=True, text=True, env=my_env, cwd=self._runpath,
+                                    timeout=self._timeout)
             stdout = cmdres.stdout.strip()
             stderr = cmdres.stderr.strip()
 
-            logger.debug("OM output for command %s:\n%s", cmd, stdout)
+            logger.debug("OM output for command %s:\n%s", cmdl, stdout)
 
             if cmdres.returncode != 0:
-                raise ModelicaSystemError(f"Error running command {cmd}: nonzero return code")
+                raise ModelicaSystemError(f"Error running command {cmdl}: nonzero return code")
             if stderr:
-                raise ModelicaSystemError(f"Error running command {cmd}: {stderr}")
+                raise ModelicaSystemError(f"Error running command {cmdl}: {stderr}")
         except subprocess.TimeoutExpired:
-            raise ModelicaSystemError(f"Timeout running command {repr(cmd)}")
+            raise ModelicaSystemError(f"Timeout running command {repr(cmdl)}")
         except Exception as ex:
-            raise ModelicaSystemError(f"Error running command {cmd}") from ex
+            raise ModelicaSystemError(f"Error running command {cmdl}") from ex
 
-    def get_exe_file(self, tempdir, modelName) -> pathlib.Path:
-        """Get path to model executable."""
+        return True
+
+    @staticmethod
+    def get_exe_file(tempdir: pathlib.Path, modelname: str) -> pathlib.Path:
+        """
+        Get path to model executable.
+
+        Parameters
+        ----------
+        tempdir : pathlib.Path
+        modelname : str
+
+        Returns
+        -------
+            pathlib.Path
+        """
         if platform.system() == "Windows":
-            return pathlib.Path(tempdir) / f"{modelName}.exe"
+            return pathlib.Path(tempdir) / f"{modelname}.exe"
         else:
-            return pathlib.Path(tempdir) / modelName
+            return pathlib.Path(tempdir) / modelname
 
-    def parse_simflags(self, simflags: str) -> dict:
+    @staticmethod
+    def parse_simflags(simflags: str) -> dict:
+        """
+        Parse a simflag definition; this is depreciated!
+
+        Parameters
+        ----------
+        simflags : str
+
+        Returns
+        -------
+            dict
+        """
         # add old style simulation arguments
         warnings.warn("The argument 'simflags' is depreciated and will be removed in future versions; "
                       "please use 'simargs' instead", DeprecationWarning, stacklevel=2)
@@ -716,7 +778,7 @@ class ModelicaSystem:
         >>> simulate(simargs={"noEventEmit": None, "noRestart": None, "override": "e=0.3,g=10"})  # using simargs
         """
 
-        om_cmd = ModelicaSystemCmd(cmdpath=pathlib.Path(self.tempdir), modelname=self.modelName, timeout=timeout)
+        om_cmd = ModelicaSystemCmd(runpath=pathlib.Path(self.tempdir), modelname=self.modelName, timeout=timeout)
 
         if resultfile is None:
             # default result file generated by OM
@@ -1102,7 +1164,7 @@ class ModelicaSystem:
             raise IOError("Linearization cannot be performed as the model is not build, "
                           "use ModelicaSystem() to build the model first")
 
-        om_cmd = ModelicaSystemCmd(cmdpath=pathlib.Path(self.tempdir), modelname=self.modelName, timeout=timeout)
+        om_cmd = ModelicaSystemCmd(runpath=pathlib.Path(self.tempdir), modelname=self.modelName, timeout=timeout)
 
         overrideLinearFile = pathlib.Path(self.tempdir) / f'{self.modelName}_override_linear.txt'
 
