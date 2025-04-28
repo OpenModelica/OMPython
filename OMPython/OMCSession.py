@@ -291,7 +291,7 @@ class OMCSessionCmd:
 
 class OMCSessionZMQ:
 
-    def __init__(self, readonly=False, timeout=10.00,
+    def __init__(self, timeout=10.00,
                  docker=None, dockerContainer=None, dockerExtraArgs=None, dockerOpenModelicaPath="omc",
                  dockerNetwork=None, port=None, omhome: str = None):
         if dockerExtraArgs is None:
