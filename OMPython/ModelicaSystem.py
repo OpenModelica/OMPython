@@ -46,7 +46,7 @@ import pathlib
 from dataclasses import dataclass
 from typing import Optional
 
-from OMPython.OMCSession import OMCSessionZMQ
+from OMPython.OMCSession import OMCSessionZMQ, OMCSessionException
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
@@ -327,8 +327,14 @@ class ModelicaSystem:
         self.xmlparse()
 
     def sendExpression(self, expr, parsed=True):
-        logger.debug("sendExpression(%r, %r)", expr, parsed)
-        return self.getconn.sendExpression(expr, parsed)
+        try:
+            retval = self.getconn.sendExpression(expr, parsed)
+        except OMCSessionException as ex:
+            raise ModelicaSystemError(f"Error executing {repr(expr)}") from ex
+
+        logger.debug(f"Result of executing {repr(expr)}: {repr(retval)}")
+
+        return retval
 
     # request to OMC
     def requestApi(self, apiName, entity=None, properties=None):  # 2
