@@ -90,9 +90,6 @@ class OMCSessionCmd:
         self._readonly = readonly
         self._omc_cache = {}
 
-    def sendExpression(self, command, parsed=True):
-        return self._session.sendExpression(command=command, parsed=parsed)
-
     def _ask(self, question: str, opt: Optional[list[str]] = None, parsed: Optional[bool] = True):
 
         if opt is None:
