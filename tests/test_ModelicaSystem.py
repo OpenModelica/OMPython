@@ -35,7 +35,7 @@ end M;
     def test_setParameters(self):
         omc = OMPython.OMCSessionZMQ()
         model_path = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels/"
-        mod = OMPython.ModelicaSystem(model_path + "BouncingBall.mo", "BouncingBall", raiseerrors=True)
+        mod = OMPython.ModelicaSystem(model_path + "BouncingBall.mo", "BouncingBall")
 
         # method 1
         mod.setParameters("e=1.234")
@@ -59,7 +59,7 @@ end M;
     def test_setSimulationOptions(self):
         omc = OMPython.OMCSessionZMQ()
         model_path = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels/"
-        mod = OMPython.ModelicaSystem(model_path + "BouncingBall.mo", "BouncingBall", raiseerrors=True)
+        mod = OMPython.ModelicaSystem(model_path + "BouncingBall.mo", "BouncingBall")
 
         # method 1
         mod.setSimulationOptions("stopTime=1.234")
@@ -89,7 +89,7 @@ end M;
             model_relative = str(model_file)
             assert "/" not in model_relative
 
-            mod = OMPython.ModelicaSystem(model_relative, "M", raiseerrors=True)
+            mod = OMPython.ModelicaSystem(model_relative, "M")
             assert float(mod.getParameters("a")[0]) == -1
         finally:
             # clean up the temporary file
@@ -99,8 +99,7 @@ end M;
         filePath = (self.tmp / "M.mo").as_posix()
         tmpdir = self.tmp / "tmpdir1"
         tmpdir.mkdir()
-        m = OMPython.ModelicaSystem(filePath, "M", raiseerrors=True,
-                                    customBuildDirectory=tmpdir)
+        m = OMPython.ModelicaSystem(filePath, "M", customBuildDirectory=tmpdir)
         assert pathlib.Path(m.getWorkDirectory()).resolve() == tmpdir.resolve()
         result_file = tmpdir / "a.mat"
         assert not result_file.exists()
@@ -109,7 +108,7 @@ end M;
 
     def test_getSolutions(self):
         filePath = (self.tmp / "M.mo").as_posix()
-        mod = OMPython.ModelicaSystem(filePath, "M", raiseerrors=True)
+        mod = OMPython.ModelicaSystem(filePath, "M")
         x0 = 1
         a = -1
         tau = -1 / a
@@ -145,7 +144,7 @@ equation
   y = der(x);
 end M_getters;
 """)
-        mod = OMPython.ModelicaSystem(model_file.as_posix(), "M_getters", raiseerrors=True)
+        mod = OMPython.ModelicaSystem(model_file.as_posix(), "M_getters")
 
         q = mod.getQuantities()
         assert isinstance(q, list)
@@ -323,7 +322,7 @@ equation
   y = x;
 end M_input;
 """)
-        mod = OMPython.ModelicaSystem(model_file.as_posix(), "M_input", raiseerrors=True)
+        mod = OMPython.ModelicaSystem(model_file.as_posix(), "M_input")
 
         mod.setSimulationOptions("stopTime=1.0")
 
