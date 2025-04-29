@@ -1232,7 +1232,7 @@ class ModelicaSystem:
             self.csvFile = self.createCSVData()
             om_cmd.arg_set(key="csvInput", val=self.csvFile.as_posix())
 
-        om_cmd.arg_set(key="l", val=f"{lintime or self.linearOptions["stopTime"]}")
+        om_cmd.arg_set(key="l", val=str(lintime or self.linearOptions["stopTime"]))
 
         # allow runtime simulation flags from user input
         if simflags is not None:
