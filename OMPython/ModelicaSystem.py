@@ -320,8 +320,9 @@ class ModelicaSystem:
                 raise ModelicaSystemError(f"Error running command {cmd}: {stderr}")
             if self._verbose and stdout:
                 logger.info("OM output for command %s:\n%s", cmd, stdout)
-            p.wait()
-            p.terminate()
+            # check process returncode, some errors don't print to stderr
+            if p.wait():
+                raise ModelicaSystemError(f"Error running command {cmd}: nonzero returncode")
         except Exception as e:
             raise ModelicaSystemError(f"Exception {type(e)} running command {cmd}: {e}")
 
@@ -736,7 +737,7 @@ class ModelicaSystem:
             raise Exception(f"Error: Application file path not found: {exe_file}")
 
         cmd = exe_file.as_posix() + override + csvinput + r + simflags
-        cmd = cmd.split(" ")
+        cmd = [s for s in cmd.split(' ') if s]
         self._run_cmd(cmd=cmd)
         self.simulationFlag = True
 
@@ -1114,7 +1115,7 @@ class ModelicaSystem:
             raise Exception(f"Error: Application file path not found: {exe_file}")
         else:
             cmd = exe_file.as_posix() + linruntime + override + csvinput + simflags
-            cmd = cmd.split(' ')
+            cmd = [s for s in cmd.split(' ') if s]
             self._run_cmd(cmd=cmd)
 
         # code to get the matrix and linear inputs, outputs and states
