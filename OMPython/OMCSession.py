@@ -59,7 +59,7 @@ from OMPython.OMParser import om_parser_basic
 logger = logging.getLogger(__name__)
 
 
-class DummyPopen():
+class DummyPopen:
     def __init__(self, pid):
         self.pid = pid
         self.process = psutil.Process(pid)
