@@ -107,8 +107,6 @@ class OMCSessionCmd:
             if p in self._omc_cache:
                 return self._omc_cache[p]
 
-        logger.debug('OMC ask: %s (parsed=%s)', expression, parsed)
-
         try:
             res = self._session.sendExpression(expression, parsed=parsed)
         except OMCSessionException as ex:
@@ -532,6 +530,8 @@ class OMCSessionZMQ:
 
         if self._omc is None:
             raise OMCSessionException("No OMC running. Create a new instance of OMCSessionZMQ!")
+
+        logger.debug("sendExpression(%r, parsed=%r)", command, parsed)
 
         attempts = 0
         while True:
