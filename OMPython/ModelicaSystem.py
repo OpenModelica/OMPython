@@ -395,19 +395,11 @@ class ModelicaSystem:
             scalar["changeable"] = sv.get('isValueChangeable')
             scalar["aliasvariable"] = sv.get('aliasVariable')
             ch = list(sv)
-            start = None
-            min = None
-            max = None
-            unit = None
             for att in ch:
-                start = att.get('start')
-                min = att.get('min')
-                max = att.get('max')
-                unit = att.get('unit')
-            scalar["start"] = start
-            scalar["min"] = min
-            scalar["max"] = max
-            scalar["unit"] = unit
+                scalar["start"] = att.get('start')
+                scalar["min"] = att.get('min')
+                scalar["max"] = att.get('max')
+                scalar["unit"] = att.get('unit')
 
             if scalar["variability"] == "parameter":
                 if scalar["name"] in self.overridevariables:
@@ -437,6 +429,8 @@ class ModelicaSystem:
             return [x for x in self.quantitiesList if x["name"] == names]
         elif isinstance(names, list):
             return [x for y in names for x in self.quantitiesList if x["name"] == y]
+
+        raise ModelicaSystemError("Unhandled input for getQuantities()")
 
     def getContinuous(self, names=None):  # 4
         """
@@ -482,6 +476,8 @@ class ModelicaSystem:
                         raise ModelicaSystemError(f"OM error: {i} is not continuous")
                 return valuelist
 
+        raise ModelicaSystemError("Unhandled input for getContinous()")
+
     def getParameters(self, names: Optional[str | list[str]] = None) -> dict[str, str] | list[str]:  # 5
         """Get parameter values.
 
@@ -509,7 +505,9 @@ class ModelicaSystem:
         elif isinstance(names, str):
             return [self.paramlist.get(names, "NotExist")]
         elif isinstance(names, list):
-            return ([self.paramlist.get(x, "NotExist") for x in names])
+            return [self.paramlist.get(x, "NotExist") for x in names]
+
+        raise ModelicaSystemError("Unhandled input for getParameters()")
 
     def getInputs(self, names: Optional[str | list[str]] = None) -> dict | list:  # 6
         """Get input values.
@@ -543,7 +541,9 @@ class ModelicaSystem:
         elif isinstance(names, str):
             return [self.inputlist.get(names, "NotExist")]
         elif isinstance(names, list):
-            return ([self.inputlist.get(x, "NotExist") for x in names])
+            return [self.inputlist.get(x, "NotExist") for x in names]
+
+        raise ModelicaSystemError("Unhandled input for getInputs()")
 
     def getOutputs(self, names: Optional[str | list[str]] = None):  # 7
         """Get output values.
@@ -588,7 +588,7 @@ class ModelicaSystem:
             elif isinstance(names, str):
                 return [self.outputlist.get(names, "NotExist")]
             else:
-                return ([self.outputlist.get(x, "NotExist") for x in names])
+                return [self.outputlist.get(x, "NotExist") for x in names]
         else:
             if names is None:
                 for i in self.outputlist:
@@ -601,7 +601,7 @@ class ModelicaSystem:
                     self.outputlist[names] = value[0][-1]
                     return [self.outputlist.get(names)]
                 else:
-                    return (names, " is not Output")
+                    return names, " is not Output"
             elif isinstance(names, list):
                 valuelist = []
                 for i in names:
@@ -610,8 +610,10 @@ class ModelicaSystem:
                         self.outputlist[i] = value[0][-1]
                         valuelist.append(value[0][-1])
                     else:
-                        return (i, "is not Output")
+                        return i, "is not Output"
                 return valuelist
+
+        raise ModelicaSystemError("Unhandled input for getOutputs()")
 
     def getSimulationOptions(self, names=None):  # 8
         """
@@ -627,7 +629,9 @@ class ModelicaSystem:
         elif isinstance(names, str):
             return [self.simulateOptions.get(names, "NotExist")]
         elif isinstance(names, list):
-            return ([self.simulateOptions.get(x, "NotExist") for x in names])
+            return [self.simulateOptions.get(x, "NotExist") for x in names]
+
+        raise ModelicaSystemError("Unhandled input for getSimulationOptions()")
 
     def getLinearizationOptions(self, names=None):  # 9
         """
@@ -643,7 +647,9 @@ class ModelicaSystem:
         elif isinstance(names, str):
             return [self.linearOptions.get(names, "NotExist")]
         elif isinstance(names, list):
-            return ([self.linearOptions.get(x, "NotExist") for x in names])
+            return [self.linearOptions.get(x, "NotExist") for x in names]
+
+        raise ModelicaSystemError("Unhandled input for getLinearizationOptions()")
 
     def getOptimizationOptions(self, names=None):  # 10
         """
@@ -657,7 +663,9 @@ class ModelicaSystem:
         elif isinstance(names, str):
             return [self.optimizeOptions.get(names, "NotExist")]
         elif isinstance(names, list):
-            return ([self.optimizeOptions.get(x, "NotExist") for x in names])
+            return [self.optimizeOptions.get(x, "NotExist") for x in names]
+
+        raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
     def get_exe_file(self) -> pathlib.Path:
         """Get path to model executable."""
@@ -752,40 +760,39 @@ class ModelicaSystem:
 
         # check for result file exits
         if not os.path.exists(resFile):
-            errstr = f"Error: Result file does not exist {resFile}"
-            self._raise_error(errstr=errstr)
-            return
+            raise ModelicaSystemError(f"Result file does not exist {resFile}")
         resultVars = self.sendExpression(f'readSimulationResultVars("{resFile}")')
         self.sendExpression("closeSimulationResultFile()")
         if varList is None:
             return resultVars
         elif isinstance(varList, str):
             if varList not in resultVars and varList != "time":
-                self._raise_error(errstr=f'!!! {varList} does not exist')
-                return
+                raise ModelicaSystemError(f"Requested data {repr(varList)} does not exist")
             res = self.sendExpression(f'readSimulationResult("{resFile}", {{{varList}}})')
             npRes = np.array(res)
             self.sendExpression("closeSimulationResultFile()")
             return npRes
         elif isinstance(varList, list):
-            # varList, = varList
-            for v in varList:
-                if v == "time":
+            for var in varList:
+                if var == "time":
                     continue
-                if v not in resultVars:
-                    self._raise_error(errstr=f'!!! {v} does not exist')
-                    return
+                if var not in resultVars:
+                    raise ModelicaSystemError(f"Requested data {repr(var)} does not exist")
             variables = ",".join(varList)
             res = self.sendExpression(f'readSimulationResult("{resFile}",{{{variables}}})')
             npRes = np.array(res)
             self.sendExpression("closeSimulationResultFile()")
             return npRes
 
+        raise ModelicaSystemError("Unhandled input for getSolutions()")
+
     def strip_space(self, name):
         if isinstance(name, str):
             return name.replace(" ", "")
         elif isinstance(name, list):
             return [x.replace(" ", "") for x in name]
+
+        raise ModelicaSystemError("Unhandled input for strip_space()")
 
     def setMethodHelper(self, args1, args2, args3, args4=None):
         """
@@ -811,7 +818,8 @@ class ModelicaSystem:
                 return True
 
             else:
-                self._raise_error(errstr=f'"{value[0]}" is not a {args3} variable')
+                raise ModelicaSystemError("Unhandled case in setMethodHelper.apply_single() - "
+                                          f"{repr(value[0])} is not a {repr(args3)} variable")
 
         result = []
         if isinstance(args1, str):
@@ -847,7 +855,7 @@ class ModelicaSystem:
 
     def isParameterChangeable(self, name, value):
         q = self.getQuantities(name)
-        if (q[0]["changeable"] == "false"):
+        if q[0]["changeable"] == "false":
             if self._verbose:
                 logger.info("setParameters() failed : It is not possible to set "
                             f'the following signal "{name}", It seems to be structural, final, '
@@ -916,10 +924,10 @@ class ModelicaSystem:
                 value = var.split("=")
                 if value[0] in self.inputlist:
                     tmpvalue = eval(value[1])
-                    if (isinstance(tmpvalue, int) or isinstance(tmpvalue, float)):
+                    if isinstance(tmpvalue, int) or isinstance(tmpvalue, float):
                         self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])),
                                                     (float(self.simulateOptions["stopTime"]), float(value[1]))]
-                    elif (isinstance(tmpvalue, list)):
+                    elif isinstance(tmpvalue, list):
                         self.checkValidInputs(tmpvalue)
                         self.inputlist[value[0]] = tmpvalue
                     self.inputFlag = True
