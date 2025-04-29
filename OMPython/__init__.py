@@ -36,31 +36,14 @@ __license__ = """
  CONDITIONS OF OSMC-PL.
 """
 
-import logging
-
 from OMPython.OMCSession import OMCSessionBase, OMCSessionZMQ
-from OMPython.ModelicaSystem import ModelicaSystem, ModelicaSystemError
-
-# Logger Defined
-logger = logging.getLogger('OMPython')
-logger.setLevel(logging.DEBUG)
-# create console handler with a higher log level
-logger_console_handler = logging.StreamHandler()
-logger_console_handler.setLevel(logging.INFO)
-
-# create formatter and add it to the handlers
-logger_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger_console_handler.setFormatter(logger_formatter)
-
-# add the handlers to the logger
-logger.addHandler(logger_console_handler)
-logger.setLevel(logging.WARNING)
-
+from OMPython.ModelicaSystem import ModelicaSystem, ModelicaSystemError, LinearizationResult
 
 # global names imported if import 'from OMPython import *' is used
 __all__ = [
     'ModelicaSystem',
     'ModelicaSystemError',
+    'LinearizationResult',
 
     'OMCSessionZMQ',
     'OMCSessionBase',

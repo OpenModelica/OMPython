@@ -71,7 +71,7 @@ end Pendulum;
         mod.setLinearizationOptions("stopTime=0.02")
         assert mod.getLinearizationOptions("stopTime") == ["0.02"]
 
-        mod.setInputs(["u1=0", "u2=0"])
+        mod.setInputs(["u1=10", "u2=0"])
         [A, B, C, D] = mod.linearize()
         g = float(mod.getParameters("g")[0])
         l = float(mod.getParameters("l")[0])
@@ -82,3 +82,27 @@ end Pendulum;
         assert np.isclose(B, [[0, 0], [0, 1]]).all()
         assert np.isclose(C, [[0.5, 1], [0, 1]]).all()
         assert np.isclose(D, [[1, 0], [1, 0]]).all()
+
+        # test LinearizationResult
+        result = mod.linearize()
+        assert result[0] == A
+        assert result[1] == B
+        assert result[2] == C
+        assert result[3] == D
+        with self.assertRaises(KeyError):
+            result[4]
+
+        A2, B2, C2, D2 = result
+        assert A2 == A
+        assert B2 == B
+        assert C2 == C
+        assert D2 == D
+
+        assert result.n == 2
+        assert result.m == 2
+        assert result.p == 2
+        assert np.isclose(result.x0, [0, np.pi]).all()
+        assert np.isclose(result.u0, [10, 0]).all()
+        assert result.stateVars == ["omega", "phi"]
+        assert result.inputVars == ["u1", "u2"]
+        assert result.outputVars == ["y1", "y2"]
