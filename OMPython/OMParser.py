@@ -894,7 +894,7 @@ def check_for_values(string):
     return result
 
 
-# TODO: hack to be able to use one entry point wich also resets the (global) variable results
+# TODO: hack to be able to use one entry point which also resets the (global) variable results
 #       this should be checked such that the content of this file can be used as class with correct handling of
 #       variable usage
 def om_parser_basic(string: str):
