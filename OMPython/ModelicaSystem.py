@@ -1094,8 +1094,7 @@ class ModelicaSystem:
             linearFile = pathlib.Path(f'linear_{self.modelName}.py')
 
         if not linearFile.exists():
-            errormsg = self.sendExpression("getErrorString()")
-            raise ModelicaSystemError(f"Linearization failed: {linearFile} not found: {errormsg}")
+            raise ModelicaSystemError(f"Linearization failed: {linearFile} not found!")
 
         # this function is called from the generated python code linearized_model.py at runtime,
         # to improve the performance by directly reading the matrices A, B, C and D from the julia code and avoid building the linearized modelica model
