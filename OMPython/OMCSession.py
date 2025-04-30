@@ -34,13 +34,14 @@ __license__ = """
  CONDITIONS OF OSMC-PL.
 """
 
-import shutil
 import getpass
-import logging
 import json
+import logging
 import os
 import pathlib
 import psutil
+import pyparsing
+import shutil
 import signal
 import subprocess
 import sys
@@ -48,9 +49,8 @@ import tempfile
 import time
 from typing import Optional
 import uuid
-import pyparsing
-import zmq
 import warnings
+import zmq
 
 # TODO: replace this with the new parser
 from OMPython.OMTypedParser import parseString as om_parser_typed
