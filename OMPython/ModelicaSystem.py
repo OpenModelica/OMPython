@@ -490,7 +490,7 @@ class ModelicaSystem:
             varFilter = f'variableFilter="{self.variableFilter}"'
         else:
             varFilter = 'variableFilter=".*"'
-        logger.debug("varFilter=%s", varFilter)
+
         buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
         logger.debug("OM model build result: %s", buildModelResult)
 
