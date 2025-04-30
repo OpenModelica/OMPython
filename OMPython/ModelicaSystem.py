@@ -420,7 +420,7 @@ class ModelicaSystem:
                     try:
                         value = self.getSolutions(i)
                         self.continuouslist[i] = value[0][-1]
-                    except OMCSessionException as ex:
+                    except Exception as ex:
                         raise ModelicaSystemError(f"{i} could not be computed") from ex
                 return self.continuouslist
 
