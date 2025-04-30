@@ -128,23 +128,6 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
 
         return res
 
-    def _ask_with_fallback(self, question: str, opt: str = None):
-        """
-        Version of ask() with OMTypedParser as fallback for OMParser which is used in ask() => sendExpression() if
-        parsed is set to True.
-        """
-        try:
-            # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
-            return self.ask(question=question, opt=opt)
-        except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s', ex.msg)
-            result = self.ask(question=question, opt=opt, parsed=False)
-            try:
-                return om_parser_basic(result)
-            except (TypeError, UnboundLocalError) as ex:
-                logger.warning('OMParser error: %s', ex)
-                return result
-
     # TODO: Open Modelica Compiler API functions. Would be nice to generate these.
     def loadFile(self, filename):
         return self.ask('loadFile', f'"{filename}"')
@@ -253,15 +236,13 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         return self.ask('getComponentModifierNames', f'{className}, {componentName}')
 
     def getComponentModifierValue(self, className, componentName):
-        return self._ask_with_fallback(question='getComponentModifierValue',
-                                       opt=f'{className}, {componentName}')
+        return self.ask(question='getComponentModifierValue', opt=f'{className}, {componentName}')
 
     def getExtendsModifierNames(self, className, componentName):
         return self.ask('getExtendsModifierNames', f'{className}, {componentName}')
 
     def getExtendsModifierValue(self, className, extendsName, modifierName):
-        return self._ask_with_fallback(question='getExtendsModifierValue',
-                                       opt=f'{className}, {extendsName}, {modifierName}')
+        return self.ask(question='getExtendsModifierValue', opt=f'{className}, {extendsName}, {modifierName}')
 
     def getNthComponentModification(self, className, comp_id):
         # FIXME: OMPython exception Results KeyError exception
@@ -564,7 +545,14 @@ class OMCSessionZMQ(OMCSessionBase):
         else:
             result = self._omc.recv_string()
             if parsed is True:
-                answer = om_parser_typed(result)
-                return answer
+                try:
+                    return om_parser_typed(result)
+                except pyparsing.ParseException as ex:
+                    logger.warning('OMTypedParser error: %s. Returning the basic parser result.', ex.msg)
+                    try:
+                        return om_parser_basic(result)
+                    except (TypeError, UnboundLocalError) as ex:
+                        logger.warning('OMParser error: %s. Returning the unparsed result.', ex)
+                        return result
             else:
                 return result
