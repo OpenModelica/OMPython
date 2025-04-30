@@ -265,14 +265,12 @@ class OMCSessionCmd:
     # end getClassNames;
     def getClassNames(self, className=None, recursive=False, qualified=False, sort=False, builtin=False,
                       showProtected=False):
-        value = self._ask(question='getClassNames',
-                          opt=[className] if className else [] + [f'recursive={str(recursive).lower()}',
-                                                                  f'qualified={str(qualified).lower()}',
-                                                                  f'sort={str(sort).lower()}',
-                                                                  f'builtin={str(builtin).lower()}',
-                                                                  f'showProtected={str(showProtected).lower()}']
-                          )
-        return value
+        opt = [className] if className else [] + [f'recursive={str(recursive).lower()}',
+                                                  f'qualified={str(qualified).lower()}',
+                                                  f'sort={str(sort).lower()}',
+                                                  f'builtin={str(builtin).lower()}',
+                                                  f'showProtected={str(showProtected).lower()}']
+        return self._ask(question='getClassNames', opt=opt)
 
 
 class OMCSessionZMQ:
