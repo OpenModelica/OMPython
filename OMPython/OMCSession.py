@@ -253,17 +253,15 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         return self.ask('getComponentModifierNames', f'{className}, {componentName}')
 
     def getComponentModifierValue(self, className, componentName):
-        result = self._ask_with_fallback(question='getComponentModifierValue',
-                                         opt=f'{className}, {componentName}')
-        return result[2:]
+        return self._ask_with_fallback(question='getComponentModifierValue',
+                                       opt=f'{className}, {componentName}')
 
     def getExtendsModifierNames(self, className, componentName):
         return self.ask('getExtendsModifierNames', f'{className}, {componentName}')
 
     def getExtendsModifierValue(self, className, extendsName, modifierName):
-        result = self._ask_with_fallback(question='getExtendsModifierValue',
-                                         opt=f'{className}, {extendsName}, {modifierName}')
-        return result[2:]
+        return self._ask_with_fallback(question='getExtendsModifierValue',
+                                       opt=f'{className}, {extendsName}, {modifierName}')
 
     def getNthComponentModification(self, className, comp_id):
         # FIXME: OMPython exception Results KeyError exception
