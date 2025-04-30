@@ -33,21 +33,21 @@ __license__ = """
 """
 
 import csv
+from dataclasses import dataclass
+import importlib
 import logging
 import numbers
+import numpy as np
 import os
+import pathlib
 import platform
 import re
 import subprocess
 import tempfile
-import xml.etree.ElementTree as ET
-import numpy as np
-import importlib
-import pathlib
-from dataclasses import dataclass
 import textwrap
 from typing import Optional
 import warnings
+import xml.etree.ElementTree as ET
 
 from OMPython.OMCSession import OMCSessionZMQ, OMCSessionException
 
