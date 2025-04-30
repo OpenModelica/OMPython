@@ -44,6 +44,7 @@ import numpy as np
 import importlib
 import pathlib
 from dataclasses import dataclass
+import textwrap
 from typing import Optional
 
 from OMPython.OMCSession import OMCSessionZMQ, OMCSessionException
@@ -337,7 +338,7 @@ class ModelicaSystem:
         except OMCSessionException as ex:
             raise ModelicaSystemError(f"Error executing {repr(expr)}") from ex
 
-        logger.debug(f"Result of executing {repr(expr)}: {repr(retval)}")
+        logger.debug(f"Result of executing {repr(expr)}: {textwrap.shorten(repr(retval), width=100)}")
 
         return retval
 
