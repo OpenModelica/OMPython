@@ -114,7 +114,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         elif isinstance(opt, list):
             expression = f"{question}({','.join([str(x) for x in opt])})"
         else:
-            raise Exception(f"Invalid definition of options for {repr(question)}: {repr(opt)}")
+            raise OMCSessionException(f"Invalid definition of options for {repr(question)}: {repr(opt)}")
 
         p = (expression, parsed)
 
@@ -127,9 +127,8 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
 
         try:
             res = self.sendExpression(expression, parsed=parsed)
-        except OMCSessionException:
-            logger.error("OMC failed: %s, %s, parsed=%s", question, opt, parsed)
-            raise
+        except OMCSessionException as ex:
+            raise OMCSessionException("OMC _ask() failed: %s (parsed=%s)", expression, parsed) from ex
 
         # save response
         self._omc_cache[p] = res
