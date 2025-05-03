@@ -253,14 +253,14 @@ class ModelicaSystemCmd:
             stderr = cmdres.stderr.strip()
             returncode = cmdres.returncode
 
-            logger.debug("OM output for command %s:\n%s", cmdl, stdout)
+            logger.debug("OM output for command %s:\n%s", repr(cmdl), stdout)
 
             if stderr:
-                raise ModelicaSystemError(f"Error running command {cmdl}: {stderr}")
+                raise ModelicaSystemError(f"Error running command {repr(cmdl)}: {stderr}")
         except subprocess.TimeoutExpired:
             raise ModelicaSystemError(f"Timeout running command {repr(cmdl)}")
         except Exception as ex:
-            raise ModelicaSystemError(f"Error running command {cmdl}") from ex
+            raise ModelicaSystemError(f"Error running command {repr(cmdl)}") from ex
 
         return returncode
 
