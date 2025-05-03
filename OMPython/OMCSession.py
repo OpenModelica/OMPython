@@ -51,8 +51,8 @@ import zmq
 import warnings
 
 # TODO: replace this with the new parser
-from OMPython import OMTypedParser
-from OMPython import OMParser
+from OMPython.OMTypedParser import parseString as om_parser_typed
+from OMPython.OMParser import om_parser_basic
 
 
 # define logger using the current module name as ID
@@ -84,9 +84,6 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
     def __init__(self, readonly=False):
         self._readonly = readonly
         self._omc_cache = {}
-
-    def clearOMParserResult(self):
-        OMParser.result = {}
 
     def execute(self, command):
         warnings.warn("This function is depreciated and will be removed in future versions; "
@@ -201,7 +198,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             return self.ask('getClassComment', className)
         except pyparsing.ParseException as ex:
             logger.warning("Method 'getClassComment' failed for %s", className)
-            logger.warning('OMTypedParser error: %s', ex.message)
+            logger.warning('OMTypedParser error: %s', ex.msg)
             return 'No description available'
 
     def getNthComponent(self, className, comp_id):
@@ -236,44 +233,20 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         try:
             return self.ask('getParameterValue', f'{className}, {parameterName}')
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s', ex.message)
+            logger.warning('OMTypedParser error: %s', ex.msg)
             return ""
 
     def getComponentModifierNames(self, className, componentName):
         return self.ask('getComponentModifierNames', f'{className}, {componentName}')
 
     def getComponentModifierValue(self, className, componentName):
-        try:
-            # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
-            return self.ask('getComponentModifierValue', f'{className}, {componentName}')
-        except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s', ex.message)
-            result = self.ask('getComponentModifierValue', f'{className}, {componentName}', parsed=False)
-            try:
-                answer = OMParser.check_for_values(result)
-                OMParser.result = {}
-                return answer[2:]
-            except (TypeError, UnboundLocalError) as ex:
-                logger.warning('OMParser error: %s', ex)
-                return result
+        return self.ask(question='getComponentModifierValue', opt=f'{className}, {componentName}')
 
     def getExtendsModifierNames(self, className, componentName):
         return self.ask('getExtendsModifierNames', f'{className}, {componentName}')
 
     def getExtendsModifierValue(self, className, extendsName, modifierName):
-        try:
-            # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
-            return self.ask('getExtendsModifierValue', f'{className}, {extendsName}, {modifierName}')
-        except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s', ex.message)
-            result = self.ask('getExtendsModifierValue', f'{className}, {extendsName}, {modifierName}', parsed=False)
-            try:
-                answer = OMParser.check_for_values(result)
-                OMParser.result = {}
-                return answer[2:]
-            except (TypeError, UnboundLocalError) as ex:
-                logger.warning('OMParser error: %s', ex)
-                return result
+        return self.ask(question='getExtendsModifierValue', opt=f'{className}, {extendsName}, {modifierName}')
 
     def getNthComponentModification(self, className, comp_id):
         # FIXME: OMPython exception Results KeyError exception
@@ -327,7 +300,7 @@ class OMCSessionZMQ(OMCSessionBase):
         self._serverIPAddress = "127.0.0.1"
         self._interactivePort = None
         # FIXME: this code is not well written... need to be refactored
-        self._temp_dir = tempfile.gettempdir()
+        self._temp_dir = pathlib.Path(tempfile.gettempdir())
         # generate a random string for this session
         self._random_string = uuid.uuid4().hex
         # omc log file
@@ -352,7 +325,7 @@ class OMCSessionZMQ(OMCSessionBase):
         self._dockerNetwork = dockerNetwork
         self._create_omc_log_file("port")
         self._timeout = timeout
-        self._port_file = os.path.join("/tmp" if docker else self._temp_dir, self._port_file).replace("\\", "/")
+        self._port_file = ((pathlib.Path("/tmp") if docker else self._temp_dir) / self._port_file).as_posix()
         self._interactivePort = port
         # set omc executable path and args
         self._set_omc_command([
@@ -386,7 +359,7 @@ class OMCSessionZMQ(OMCSessionBase):
         else:
             log_filename = f"openmodelica.{self._currentUser}.{suffix}.{self._random_string}.log"
         # this file must be closed in the destructor
-        self._omc_log_file = open(pathlib.Path(self._temp_dir) / log_filename, "w+")
+        self._omc_log_file = open(self._temp_dir / log_filename, "w+")
 
     def _start_omc_process(self, timeout):
         if sys.platform == 'win32':
@@ -581,7 +554,14 @@ class OMCSessionZMQ(OMCSessionBase):
         else:
             result = self._omc.recv_string()
             if parsed is True:
-                answer = OMTypedParser.parseString(result)
-                return answer
+                try:
+                    return om_parser_typed(result)
+                except pyparsing.ParseException as ex:
+                    logger.warning('OMTypedParser error: %s. Returning the basic parser result.', ex.msg)
+                    try:
+                        return om_parser_basic(result)
+                    except (TypeError, UnboundLocalError) as ex:
+                        logger.warning('OMParser error: %s. Returning the unparsed result.', ex)
+                        return result
             else:
                 return result
