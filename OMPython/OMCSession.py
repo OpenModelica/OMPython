@@ -51,8 +51,8 @@ import zmq
 import warnings
 
 # TODO: replace this with the new parser
-from OMPython import OMTypedParser
-from OMPython import OMParser
+from OMPython.OMTypedParser import parseString as om_parser_typed
+from OMPython.OMParser import om_parser_basic
 
 
 # define logger using the current module name as ID
@@ -80,9 +80,6 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
     def __init__(self, readonly=False):
         self._readonly = readonly
         self._omc_cache = {}
-
-    def clearOMParserResult(self):
-        OMParser.result = {}
 
     def execute(self, command):
         warnings.warn("This function is depreciated and will be removed in future versions; "
@@ -197,7 +194,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             return self.ask('getClassComment', className)
         except pyparsing.ParseException as ex:
             logger.warning("Method 'getClassComment' failed for %s", className)
-            logger.warning('OMTypedParser error: %s', ex.message)
+            logger.warning('OMTypedParser error: %s', ex.msg)
             return 'No description available'
 
     def getNthComponent(self, className, comp_id):
@@ -232,44 +229,20 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         try:
             return self.ask('getParameterValue', f'{className}, {parameterName}')
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s', ex.message)
+            logger.warning('OMTypedParser error: %s', ex.msg)
             return ""
 
     def getComponentModifierNames(self, className, componentName):
         return self.ask('getComponentModifierNames', f'{className}, {componentName}')
 
     def getComponentModifierValue(self, className, componentName):
-        try:
-            # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
-            return self.ask('getComponentModifierValue', f'{className}, {componentName}')
-        except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s', ex.message)
-            result = self.ask('getComponentModifierValue', f'{className}, {componentName}', parsed=False)
-            try:
-                answer = OMParser.check_for_values(result)
-                OMParser.result = {}
-                return answer[2:]
-            except (TypeError, UnboundLocalError) as ex:
-                logger.warning('OMParser error: %s', ex)
-                return result
+        return self.ask(question='getComponentModifierValue', opt=f'{className}, {componentName}')
 
     def getExtendsModifierNames(self, className, componentName):
         return self.ask('getExtendsModifierNames', f'{className}, {componentName}')
 
     def getExtendsModifierValue(self, className, extendsName, modifierName):
-        try:
-            # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
-            return self.ask('getExtendsModifierValue', f'{className}, {extendsName}, {modifierName}')
-        except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s', ex.message)
-            result = self.ask('getExtendsModifierValue', f'{className}, {extendsName}, {modifierName}', parsed=False)
-            try:
-                answer = OMParser.check_for_values(result)
-                OMParser.result = {}
-                return answer[2:]
-            except (TypeError, UnboundLocalError) as ex:
-                logger.warning('OMParser error: %s', ex)
-                return result
+        return self.ask(question='getExtendsModifierValue', opt=f'{className}, {extendsName}, {modifierName}')
 
     def getNthComponentModification(self, className, comp_id):
         # FIXME: OMPython exception Results KeyError exception
@@ -572,7 +545,14 @@ class OMCSessionZMQ(OMCSessionBase):
         else:
             result = self._omc.recv_string()
             if parsed is True:
-                answer = OMTypedParser.parseString(result)
-                return answer
+                try:
+                    return om_parser_typed(result)
+                except pyparsing.ParseException as ex:
+                    logger.warning('OMTypedParser error: %s. Returning the basic parser result.', ex.msg)
+                    try:
+                        return om_parser_basic(result)
+                    except (TypeError, UnboundLocalError) as ex:
+                        logger.warning('OMParser error: %s. Returning the unparsed result.', ex)
+                        return result
             else:
                 return result
