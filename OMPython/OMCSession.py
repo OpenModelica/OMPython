@@ -51,8 +51,8 @@ import zmq
 import warnings
 
 # TODO: replace this with the new parser
-from OMPython import OMTypedParser
-from OMPython import OMParser
+from OMPython.OMTypedParser import parseString as om_parser_typed
+from OMPython.OMParser import om_parser_basic
 
 
 # define logger using the current module name as ID
@@ -75,14 +75,15 @@ class DummyPopen():
         return self.process.wait(timeout=timeout)
 
 
+class OMCSessionException(Exception):
+    pass
+
+
 class OMCSessionBase(metaclass=abc.ABCMeta):
 
     def __init__(self, readonly=False):
         self._readonly = readonly
         self._omc_cache = {}
-
-    def clearOMParserResult(self):
-        OMParser.result = {}
 
     def execute(self, command):
         warnings.warn("This function is depreciated and will be removed in future versions; "
@@ -122,7 +123,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
 
         try:
             res = self.sendExpression(expression, parsed=parsed)
-        except Exception:
+        except OMCSessionException:
             logger.error("OMC failed: %s, %s, parsed=%s", question, opt, parsed)
             raise
 
@@ -197,7 +198,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             return self.ask('getClassComment', className)
         except pyparsing.ParseException as ex:
             logger.warning("Method 'getClassComment' failed for %s", className)
-            logger.warning('OMTypedParser error: %s', ex.message)
+            logger.warning('OMTypedParser error: %s', ex.msg)
             return 'No description available'
 
     def getNthComponent(self, className, comp_id):
@@ -232,44 +233,20 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         try:
             return self.ask('getParameterValue', f'{className}, {parameterName}')
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s', ex.message)
+            logger.warning('OMTypedParser error: %s', ex.msg)
             return ""
 
     def getComponentModifierNames(self, className, componentName):
         return self.ask('getComponentModifierNames', f'{className}, {componentName}')
 
     def getComponentModifierValue(self, className, componentName):
-        try:
-            # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
-            return self.ask('getComponentModifierValue', f'{className}, {componentName}')
-        except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s', ex.message)
-            result = self.ask('getComponentModifierValue', f'{className}, {componentName}', parsed=False)
-            try:
-                answer = OMParser.check_for_values(result)
-                OMParser.result = {}
-                return answer[2:]
-            except (TypeError, UnboundLocalError) as ex:
-                logger.warning('OMParser error: %s', ex)
-                return result
+        return self.ask(question='getComponentModifierValue', opt=f'{className}, {componentName}')
 
     def getExtendsModifierNames(self, className, componentName):
         return self.ask('getExtendsModifierNames', f'{className}, {componentName}')
 
     def getExtendsModifierValue(self, className, extendsName, modifierName):
-        try:
-            # FIXME: OMPython exception UnboundLocalError exception for 'Modelica.Fluid.Machines.ControlledPump'
-            return self.ask('getExtendsModifierValue', f'{className}, {extendsName}, {modifierName}')
-        except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s', ex.message)
-            result = self.ask('getExtendsModifierValue', f'{className}, {extendsName}, {modifierName}', parsed=False)
-            try:
-                answer = OMParser.check_for_values(result)
-                OMParser.result = {}
-                return answer[2:]
-            except (TypeError, UnboundLocalError) as ex:
-                logger.warning('OMParser error: %s', ex)
-                return result
+        return self.ask(question='getExtendsModifierValue', opt=f'{className}, {extendsName}, {modifierName}')
 
     def getNthComponentModification(self, className, comp_id):
         # FIXME: OMPython exception Results KeyError exception
@@ -323,7 +300,7 @@ class OMCSessionZMQ(OMCSessionBase):
         self._serverIPAddress = "127.0.0.1"
         self._interactivePort = None
         # FIXME: this code is not well written... need to be refactored
-        self._temp_dir = tempfile.gettempdir()
+        self._temp_dir = pathlib.Path(tempfile.gettempdir())
         # generate a random string for this session
         self._random_string = uuid.uuid4().hex
         # omc log file
@@ -348,7 +325,7 @@ class OMCSessionZMQ(OMCSessionBase):
         self._dockerNetwork = dockerNetwork
         self._create_omc_log_file("port")
         self._timeout = timeout
-        self._port_file = os.path.join("/tmp" if docker else self._temp_dir, self._port_file).replace("\\", "/")
+        self._port_file = ((pathlib.Path("/tmp") if docker else self._temp_dir) / self._port_file).as_posix()
         self._interactivePort = port
         # set omc executable path and args
         self._set_omc_command([
@@ -364,14 +341,15 @@ class OMCSessionZMQ(OMCSessionBase):
     def __del__(self):
         try:
             self.sendExpression("quit()")
-        except Exception:
+        except OMCSessionException:
             pass
         self._omc_log_file.close()
         try:
             self._omc_process.wait(timeout=2.0)
-        except Exception:
+        except subprocess.TimeoutExpired:
             if self._omc_process:
-                logger.warning("OMC did not exit after being sent the quit() command; killing the process with pid=%s", self._omc_process.pid)
+                logger.warning("OMC did not exit after being sent the quit() command; "
+                               "killing the process with pid=%s", self._omc_process.pid)
                 self._omc_process.kill()
                 self._omc_process.wait()
 
@@ -381,7 +359,7 @@ class OMCSessionZMQ(OMCSessionBase):
         else:
             log_filename = f"openmodelica.{self._currentUser}.{suffix}.{self._random_string}.log"
         # this file must be closed in the destructor
-        self._omc_log_file = open(pathlib.Path(self._temp_dir) / log_filename, "w+")
+        self._omc_log_file = open(self._temp_dir / log_filename, "w+")
 
     def _start_omc_process(self, timeout):
         if sys.platform == 'win32':
@@ -401,18 +379,19 @@ class OMCSessionZMQ(OMCSessionBase):
                 try:
                     with open(self._dockerCidFile, "r") as fin:
                         self._dockerCid = fin.read().strip()
-                except Exception:
+                except IOError:
                     pass
                 if self._dockerCid:
                     break
                 time.sleep(timeout / 40.0)
             try:
                 os.remove(self._dockerCidFile)
-            except Exception:
+            except FileNotFoundError:
                 pass
             if self._dockerCid is None:
                 logger.error("Docker did not start. Log-file says:\n%s" % (open(self._omc_log_file.name).read()))
-                raise Exception("Docker did not start (timeout=%f might be too short especially if you did not docker pull the image before this command)." % timeout)
+                raise OMCSessionException("Docker did not start (timeout=%f might be too short especially if you did "
+                                          "not docker pull the image before this command)." % timeout)
 
         dockerTop = None
         if self._docker or self._dockerContainer:
@@ -429,17 +408,16 @@ class OMCSessionZMQ(OMCSessionBase):
                         try:
                             self._omc_process = DummyPopen(int(columns[1]))
                         except psutil.NoSuchProcess:
-                            raise Exception(
-                                f"Could not find PID {dockerTop} - is this a docker instance spawned without --pid=host?\n"
-                                f"Log-file says:\n{open(self._omc_log_file.name).read()}")
+                            raise OMCSessionException(
+                                f"Could not find PID {dockerTop} - is this a docker instance spawned "
+                                f"without --pid=host?\nLog-file says:\n{open(self._omc_log_file.name).read()}")
                         break
                 if self._omc_process is not None:
                     break
                 time.sleep(timeout / 40.0)
             if self._omc_process is None:
-
-                raise Exception("Docker top did not contain omc process %s:\n%s\nLog-file says:\n%s"
-                                % (self._random_string, dockerTop, open(self._omc_log_file.name).read()))
+                raise OMCSessionException("Docker top did not contain omc process %s:\n%s\nLog-file says:\n%s"
+                                          % (self._random_string, dockerTop, open(self._omc_log_file.name).read()))
         return self._omc_process
 
     def _getuid(self):
@@ -460,7 +438,9 @@ class OMCSessionZMQ(OMCSessionBase):
         if (self._docker or self._dockerContainer) and sys.platform == "win32":
             extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
             if not self._interactivePort:
-                raise Exception("docker on Windows requires knowing which port to connect to. For dockerContainer=..., the container needs to have already manually exposed this port when it was started (-p 127.0.0.1:n:n) or you get an error later.")
+                raise OMCSessionException("docker on Windows requires knowing which port to connect to. For "
+                                          "dockerContainer=..., the container needs to have already manually exposed "
+                                          "this port when it was started (-p 127.0.0.1:n:n) or you get an error later.")
         else:
             extraFlags = []
         if self._docker:
@@ -473,7 +453,7 @@ class OMCSessionZMQ(OMCSessionBase):
                 dockerNetworkStr = []
                 extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
             else:
-                raise Exception('dockerNetwork was set to %s, but only \"host\" or \"separate\" is allowed')
+                raise OMCSessionException('dockerNetwork was set to %s, but only \"host\" or \"separate\" is allowed')
             self._dockerCidFile = self._omc_log_file.name + ".docker.cid"
             omcCommand = ["docker", "run", "--cidfile", self._dockerCidFile, "--rm", "--env", "USER=%s" % self._currentUser, "--user", str(self._getuid())] + self._dockerExtraArgs + dockerNetworkStr + [self._docker, self._dockerOpenModelicaPath]
         elif self._dockerContainer:
@@ -503,7 +483,7 @@ class OMCSessionZMQ(OMCSessionBase):
         if path_to_omc is not None:
             return pathlib.Path(path_to_omc).parents[1]
 
-        raise ValueError("Cannot find OpenModelica executable, please install from openmodelica.org")
+        raise OMCSessionException("Cannot find OpenModelica executable, please install from openmodelica.org")
 
     def _get_omc_path(self) -> pathlib.Path:
         return self.omhome / "bin" / "omc"
@@ -516,9 +496,10 @@ class OMCSessionZMQ(OMCSessionBase):
         while True:
             if self._dockerCid:
                 try:
-                    self._port = subprocess.check_output(["docker", "exec", self._dockerCid, "cat", self._port_file], stderr=subprocess.DEVNULL).decode().strip()
+                    self._port = subprocess.check_output(["docker", "exec", self._dockerCid, "cat", self._port_file],
+                                                         stderr=subprocess.DEVNULL).decode().strip()
                     break
-                except Exception:
+                except subprocess.CalledProcessError:
                     pass
             else:
                 if os.path.isfile(self._port_file):
@@ -533,7 +514,8 @@ class OMCSessionZMQ(OMCSessionBase):
                 name = self._omc_log_file.name
                 self._omc_log_file.close()
                 logger.error("OMC Server did not start. Please start it! Log-file says:\n%s" % open(name).read())
-                raise Exception(f"OMC Server did not start (timeout={timeout}). Could not open file {self._port_file}")
+                raise OMCSessionException(f"OMC Server did not start (timeout={timeout}). "
+                                          "Could not open file {self._port_file}")
             time.sleep(timeout / 80.0)
 
         self._port = self._port.replace("0.0.0.0", self._serverIPAddress)
@@ -549,7 +531,7 @@ class OMCSessionZMQ(OMCSessionBase):
     def sendExpression(self, command, parsed=True):
         p = self._omc_process.poll()  # check if process is running
         if p is not None:
-            raise Exception("Process Exited, No connection with OMC. Create a new instance of OMCSessionZMQ")
+            raise OMCSessionException("Process Exited, No connection with OMC. Create a new instance of OMCSessionZMQ!")
 
         attempts = 0
         while True:
@@ -563,7 +545,7 @@ class OMCSessionZMQ(OMCSessionBase):
                 self._omc_log_file.seek(0)
                 log = self._omc_log_file.read()
                 self._omc_log_file.close()
-                raise Exception(f"No connection with OMC (timeout={self._timeout}). Log-file says: \n{log}")
+                raise OMCSessionException(f"No connection with OMC (timeout={self._timeout}). Log-file says: \n{log}")
             time.sleep(self._timeout / 50.0)
         if command == "quit()":
             self._omc.close()
@@ -572,7 +554,14 @@ class OMCSessionZMQ(OMCSessionBase):
         else:
             result = self._omc.recv_string()
             if parsed is True:
-                answer = OMTypedParser.parseString(result)
-                return answer
+                try:
+                    return om_parser_typed(result)
+                except pyparsing.ParseException as ex:
+                    logger.warning('OMTypedParser error: %s. Returning the basic parser result.', ex.msg)
+                    try:
+                        return om_parser_basic(result)
+                    except (TypeError, UnboundLocalError) as ex:
+                        logger.warning('OMParser error: %s. Returning the unparsed result.', ex)
+                        return result
             else:
                 return result
