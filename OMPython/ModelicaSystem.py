@@ -315,7 +315,7 @@ class ModelicaSystem:
             stdout = cmdres.stdout.strip()
             stderr = cmdres.stderr.strip()
             if cmdres.returncode != 0:
-                raise ModelicaSystemError(f"Error running command {cmd}: nonzero return code")
+                raise ModelicaSystemError(f"Error running command {cmd}: return code = {cmdres.returncode}")
             if stderr:
                 raise ModelicaSystemError(f"Error running command {cmd}: {stderr}")
             if self._verbose and stdout:
