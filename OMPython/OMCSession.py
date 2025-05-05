@@ -112,7 +112,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         if opt is None:
             expression = question
         elif isinstance(opt, list):
-            expression = f"{question}({','.join(opt)})"
+            expression = f"{question}({','.join([str(x) for x in opt])})"
         else:
             raise Exception(f"Invalid definition of options for {repr(question)}: {repr(opt)}")
 
