@@ -504,7 +504,7 @@ class OMCSessionZMQ:
                 self._omc_log_file.close()
                 logger.error("OMC Server did not start. Please start it! Log-file says:\n%s" % open(name).read())
                 raise OMCSessionException(f"OMC Server did not start (timeout={timeout}). "
-                                          "Could not open file {self._port_file}")
+                                          f"Could not open file {self._port_file}")
             time.sleep(timeout / 80.0)
 
         self._port = self._port.replace("0.0.0.0", self._serverIPAddress)
