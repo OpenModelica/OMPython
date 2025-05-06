@@ -276,7 +276,7 @@ class OMCSessionZMQ:
         if dockerExtraArgs is None:
             dockerExtraArgs = []
 
-        self.omhome = self._get_omhome(omhome=omhome)
+        self._omhome = self._get_omhome(omhome=omhome)
 
         self._omc_process = None
         self._omc_command = None
@@ -349,7 +349,7 @@ class OMCSessionZMQ:
 
     def _start_omc_process(self, timeout):
         if sys.platform == 'win32':
-            omhome_bin = (self.omhome / "bin").as_posix()
+            omhome_bin = (self._omhome / "bin").as_posix()
             my_env = os.environ.copy()
             my_env["PATH"] = omhome_bin + os.pathsep + my_env["PATH"]
             self._omc_process = subprocess.Popen(self._omc_command, stdout=self._omc_log_file,
@@ -484,7 +484,7 @@ class OMCSessionZMQ:
         raise OMCSessionException("Cannot find OpenModelica executable, please install from openmodelica.org")
 
     def _get_omc_path(self) -> pathlib.Path:
-        return self.omhome / "bin" / "omc"
+        return self._omhome / "bin" / "omc"
 
     def _connect_to_omc(self, timeout):
         self._omc_zeromq_uri = "file:///" + self._port_file
