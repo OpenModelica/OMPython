@@ -116,8 +116,6 @@ class ModelicaSystem:
             commandLineOptions: Optional[str] = None,
             variableFilter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
-            verbose: bool = True,
-            raiseerrors: bool = False,
             omhome: Optional[str] = None,
             session: Optional[OMCSessionBase] = None
             ):
@@ -144,9 +142,6 @@ class ModelicaSystem:
             customBuildDirectory: Path to a directory to be used for temporary
               files like the model executable. If left unspecified, a tmp
               directory will be created.
-            verbose: If True, enable verbose logging.
-            raiseerrors: If True, raise exceptions instead of just logging
-              OpenModelica errors.
             omhome: OPENMODELICAHOME value to be used when creating the OMC
               session.
             session: OMC session to be used. If unspecified, a new session
@@ -158,7 +153,7 @@ class ModelicaSystem:
             mod = ModelicaSystem("ModelicaModel.mo", "modelName", [("Modelica","3.2.3"), "PowerSystems"])
         """
         if fileName is None and modelName is None and not lmodel:  # all None
-            raise Exception("Cannot create ModelicaSystem object without any arguments")
+            raise ModelicaSystemError("Cannot create ModelicaSystem object without any arguments")
 
         self.quantitiesList = []
         self.paramlist = {}
@@ -176,22 +171,21 @@ class ModelicaSystem:
         self.linearstates = []  # linearization  states list
         self.tempdir = ""
 
-        self._verbose = verbose
-
         if session is not None:
+            if not isinstance(session, OMCSessionZMQ):
+                raise ModelicaSystemError("Invalid session data provided!")
             self.getconn = session
         else:
             self.getconn = OMCSessionZMQ(omhome=omhome)
-
-        # needed for properly deleting the session
-        self._omc_log_file = self.getconn._omc_log_file
-        self._omc_process = self.getconn._omc_process
 
         # set commandLineOptions if provided by users
         self.setCommandLineOptions(commandLineOptions=commandLineOptions)
 
         if lmodel is None:
             lmodel = []
+
+        if not isinstance(lmodel, list):
+            raise ModelicaSystemError(f"Invalid input type for lmodel: {type(lmodel)} - list expected!")
 
         self.xmlFile = None
         self.lmodel = lmodel  # may be needed if model is derived from other model
@@ -204,10 +198,8 @@ class ModelicaSystem:
         self.resultfile = ""  # for storing result file
         self.variableFilter = variableFilter
 
-        self._raiseerrors = raiseerrors
-
-        if fileName is not None and not self.fileName.is_file():  # if file does not exist
-            raise IOError(f"File Error: {self.fileName} does not exist!!!")
+        if self.fileName is not None and not self.fileName.is_file():  # if file does not exist
+            raise IOError(f"{self.fileName} does not exist!")
 
         # set default command Line Options for linearization as
         # linearize() will use the simulation executable and runtime
@@ -217,13 +209,13 @@ class ModelicaSystem:
 
         self.setTempDirectory(customBuildDirectory)
 
-        if fileName is not None:
-            self.loadLibrary()
-            self.loadFile()
+        if self.fileName is not None:
+            self.loadLibrary(lmodel=self.lmodel)
+            self.loadFile(fileName=self.fileName)
 
         # allow directly loading models from MSL without fileName
-        if fileName is None and modelName is not None:
-            self.loadLibrary()
+        elif fileName is None and modelName is not None:
+            self.loadLibrary(lmodel=self.lmodel)
 
         self.buildModel(variableFilter)
 
@@ -232,42 +224,35 @@ class ModelicaSystem:
         if commandLineOptions is None:
             return
         exp = f'setCommandLineOptions("{commandLineOptions}")'
-        if not self.sendExpression(exp):
-            self._check_error()
+        self.sendExpression(exp)
 
-    def loadFile(self):
+    def loadFile(self, fileName: pathlib.Path):
         # load file
-        loadMsg = self.sendExpression(f'loadFile("{self.fileName.as_posix()}")')
-        # Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
-        if self._verbose or not loadMsg:
-            self._check_error()
+        self.sendExpression(f'loadFile("{fileName.as_posix()}")')
 
     # for loading file/package, loading model and building model
-    def loadLibrary(self):
+    def loadLibrary(self, lmodel: list):
         # load Modelica standard libraries or Modelica files if needed
-        for element in self.lmodel:
+        for element in lmodel:
             if element is not None:
                 if isinstance(element, str):
                     if element.endswith(".mo"):
                         apiCall = "loadFile"
                     else:
                         apiCall = "loadModel"
-                    result = self.requestApi(apiCall, element)
+                    self.requestApi(apiCall, element)
                 elif isinstance(element, tuple):
                     if not element[1]:
-                        libname = f"loadModel({element[0]})"
+                        expr_load_lib = f"loadModel({element[0]})"
                     else:
-                        libname = f'loadModel({element[0]}, {{"{element[1]}"}})'
-                    result = self.sendExpression(libname)
+                        expr_load_lib = f'loadModel({element[0]}, {{"{element[1]}"}})'
+                    self.sendExpression(expr_load_lib)
                 else:
                     raise ModelicaSystemError("loadLibrary() failed, Unknown type detected: "
                                               f"{element} is of type {type(element)}, "
                                               "The following patterns are supported:\n"
                                               '1)["Modelica"]\n'
                                               '2)[("Modelica","3.2.3"), "PowerSystems"]\n')
-                # Show notification or warnings to the user when verbose=True OR if some error occurred i.e., not result
-                if self._verbose or not result:
-                    self._check_error()
 
     def setTempDirectory(self, customBuildDirectory):
         # create a unique temp directory for each session and build the model in that directory
@@ -281,7 +266,7 @@ class ModelicaSystem:
                 raise IOError(self.tempdir, " cannot be created")
 
         logger.info("Define tempdir as %s", self.tempdir)
-        exp = f'cd("{pathlib.Path(self.tempdir).as_posix()}")'
+        exp = f'cd("{pathlib.Path(self.tempdir).absolute().as_posix()}")'
         self.sendExpression(exp)
 
     def getWorkDirectory(self):
@@ -296,7 +281,7 @@ class ModelicaSystem:
             # set the process environment from the generated .bat file in windows which should have all the dependencies
             batFilePath = pathlib.Path(self.tempdir) / f"{self.modelName}.bat"
             if not batFilePath.exists():
-                ModelicaSystemError("Batch file (*.bat) does not exist " + batFilePath)
+                ModelicaSystemError("Batch file (*.bat) does not exist " + str(batFilePath))
 
             with open(batFilePath, 'r') as file:
                 for line in file:
@@ -314,28 +299,17 @@ class ModelicaSystem:
                                     timeout=timeout)
             stdout = cmdres.stdout.strip()
             stderr = cmdres.stderr.strip()
+
+            logger.debug("OM output for command %s:\n%s", cmd, stdout)
+
             if cmdres.returncode != 0:
                 raise ModelicaSystemError(f"Error running command {cmd}: return code = {cmdres.returncode}")
             if stderr:
                 raise ModelicaSystemError(f"Error running command {cmd}: {stderr}")
-            if self._verbose and stdout:
-                logger.info("OM output for command %s:\n%s", cmd, stdout)
         except subprocess.TimeoutExpired:
             raise ModelicaSystemError(f"Timeout running command {repr(cmd)}")
-        except Exception as e:
-            raise ModelicaSystemError(f"Exception {type(e)} running command {cmd}: {e}")
-
-    def _check_error(self):
-        errstr = self.sendExpression("getErrorString()")
-        if not errstr:
-            return
-        self._raise_error(errstr=errstr)
-
-    def _raise_error(self, errstr: str):
-        if self._raiseerrors:
-            raise ModelicaSystemError(f"OM error: {errstr}")
-        else:
-            logger.error(errstr)
+        except Exception as ex:
+            raise ModelicaSystemError(f"Error running command {cmd}") from ex
 
     def buildModel(self, variableFilter=None):
         if variableFilter is not None:
@@ -347,9 +321,7 @@ class ModelicaSystem:
             varFilter = 'variableFilter=".*"'
         logger.debug("varFilter=%s", varFilter)
         buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
-        if self._verbose:
-            logger.info("OM model build result: %s", buildModelResult)
-        self._check_error()
+        logger.debug("OM model build result: %s", buildModelResult)
 
         self.xmlFile = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
         self.xmlparse()
@@ -369,17 +341,12 @@ class ModelicaSystem:
                 exp = f'{apiName}({entity})'
         else:
             exp = f'{apiName}()'
-        try:
-            res = self.sendExpression(exp)
-        except Exception as e:
-            self._raise_error(errstr=f"Exception {type(e)} raised: {e}")
-            res = None
-        return res
+
+        return self.sendExpression(exp)
 
     def xmlparse(self):
         if not self.xmlFile.exists():
-            self._raise_error(errstr=f"XML file not generated: {self.xmlFile}")
-            return
+            ModelicaSystemError(f"XML file not generated: {self.xmlFile}")
 
         tree = ET.parse(self.xmlFile)
         rootCQ = tree.getroot()
@@ -453,8 +420,8 @@ class ModelicaSystem:
                     try:
                         value = self.getSolutions(i)
                         self.continuouslist[i] = value[0][-1]
-                    except Exception:
-                        raise ModelicaSystemError(f"OM error: {i} could not be computed")
+                    except Exception as ex:
+                        raise ModelicaSystemError(f"{i} could not be computed") from ex
                 return self.continuouslist
 
             elif isinstance(names, str):
@@ -463,7 +430,7 @@ class ModelicaSystem:
                     self.continuouslist[names] = value[0][-1]
                     return [self.continuouslist.get(names)]
                 else:
-                    raise ModelicaSystemError(f"OM error: {names} is not continuous")
+                    raise ModelicaSystemError(f"{names} is not continuous")
 
             elif isinstance(names, list):
                 valuelist = []
@@ -473,7 +440,7 @@ class ModelicaSystem:
                         self.continuouslist[i] = value[0][-1]
                         valuelist.append(value[0][-1])
                     else:
-                        raise ModelicaSystemError(f"OM error: {i} is not continuous")
+                        raise ModelicaSystemError(f"{i} is not continuous")
                 return valuelist
 
         raise ModelicaSystemError("Unhandled input for getContinous()")
@@ -683,14 +650,14 @@ class ModelicaSystem:
         >>> simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10")  # set runtime simulation flags
         """
         if resultfile is None:
-            r = ""
+            # default result file generated by OM
             self.resultfile = (pathlib.Path(self.tempdir) / f"{self.modelName}_res.mat").as_posix()
+        elif os.path.exists(resultfile):
+            self.resultfile = resultfile
         else:
-            if os.path.exists(resultfile):
-                self.resultfile = resultfile
-            else:
-                self.resultfile = (pathlib.Path(self.tempdir) / resultfile).as_posix()
-            r = " -r=" + self.resultfile
+            self.resultfile = (pathlib.Path(self.tempdir) / resultfile).as_posix()
+        # always define the resultfile to use
+        resultfileflag = " -r=" + self.resultfile
 
         # allow runtime simulation flags from user input
         if simflags is None:
@@ -719,23 +686,19 @@ class ModelicaSystem:
                     self.inputlist[i] = [(float(self.simulateOptions["startTime"]), 0.0),
                                          (float(self.simulateOptions["stopTime"]), 0.0)]
                 if float(self.simulateOptions["startTime"]) != val[0][0]:
-                    errstr = f"!!! startTime not matched for Input {i}"
-                    self._raise_error(errstr=errstr)
-                    return
+                    raise ModelicaSystemError(f"startTime not matched for Input {i}!")
                 if float(self.simulateOptions["stopTime"]) != val[-1][0]:
-                    errstr = f"!!! stopTime not matched for Input {i}"
-                    self._raise_error(errstr=errstr)
-                    return
-            self.createCSVData()  # create csv file
-            csvinput = " -csvInput=" + self.csvFile
+                    raise ModelicaSystemError(f"stopTime not matched for Input {i}!")
+            self.csvFile = self.createCSVData()  # create csv file
+            csvinput = " -csvInput=" + self.csvFile.as_posix()
         else:
             csvinput = ""
 
         exe_file = self.get_exe_file()
         if not exe_file.exists():
-            raise Exception(f"Error: Application file path not found: {exe_file}")
+            raise ModelicaSystemError(f"Application file path not found: {exe_file}")
 
-        cmd = exe_file.as_posix() + override + csvinput + r + simflags
+        cmd = exe_file.as_posix() + override + csvinput + resultfileflag + simflags
         cmd = [s for s in cmd.split(' ') if s]
         self._run_cmd(cmd=cmd, timeout=timeout)
         self.simulationFlag = True
@@ -786,7 +749,8 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getSolutions()")
 
-    def strip_space(self, name):
+    @staticmethod
+    def _strip_space(name):
         if isinstance(name, str):
             return name.replace(" ", "")
         elif isinstance(name, list):
@@ -803,7 +767,7 @@ class ModelicaSystem:
         args4 - dict() which stores the new override variables list,
         """
         def apply_single(args1):
-            args1 = self.strip_space(args1)
+            args1 = self._strip_space(args1)
             value = args1.split("=")
             if value[0] in args2:
                 if args3 == "parameter" and self.isParameterChangeable(value[0], value[1]):
@@ -827,7 +791,7 @@ class ModelicaSystem:
 
         elif isinstance(args1, list):
             result = []
-            args1 = self.strip_space(args1)
+            args1 = self._strip_space(args1)
             for var in args1:
                 result.append(apply_single(var))
 
@@ -856,12 +820,10 @@ class ModelicaSystem:
     def isParameterChangeable(self, name, value):
         q = self.getQuantities(name)
         if q[0]["changeable"] == "false":
-            if self._verbose:
-                logger.info("setParameters() failed : It is not possible to set "
-                            f'the following signal "{name}", It seems to be structural, final, '
-                            "protected or evaluated or has a non-constant binding, use sendExpression("
-                            f"setParameterValue({self.modelName}, {name}, {value}), "
-                            "parsed=false) and rebuild the model using buildModel() API")
+            logger.verbose(f"setParameters() failed : It is not possible to set the following signal {repr(name)}. "
+                           "It seems to be structural, final, protected or evaluated or has a non-constant binding, "
+                           f"use sendExpression(\"setParameterValue({self.modelName}, {name}, {value})\", "
+                           "parsed=False) and rebuild the model using buildModel() API")
             return False
         return True
 
@@ -904,7 +866,7 @@ class ModelicaSystem:
         >>> setInputs(["Name1=value1","Name2=value2"])
         """
         if isinstance(name, str):
-            name = self.strip_space(name)
+            name = self._strip_space(name)
             value = name.split("=")
             if value[0] in self.inputlist:
                 tmpvalue = eval(value[1])
@@ -916,10 +878,9 @@ class ModelicaSystem:
                     self.inputlist[value[0]] = tmpvalue
                 self.inputFlag = True
             else:
-                errstr = value[0] + " is not an input"
-                self._raise_error(errstr=errstr)
+                raise ModelicaSystemError(f"{value[0]} is not an input")
         elif isinstance(name, list):
-            name = self.strip_space(name)
+            name = self._strip_space(name)
             for var in name:
                 value = var.split("=")
                 if value[0] in self.inputlist:
@@ -932,8 +893,7 @@ class ModelicaSystem:
                         self.inputlist[value[0]] = tmpvalue
                     self.inputFlag = True
                 else:
-                    errstr = value[0] + " is not an input"
-                    self._raise_error(errstr=errstr)
+                    raise ModelicaSystemError(f"{value[0]} is not an input!")
 
     def checkValidInputs(self, name):
         if name != sorted(name, key=lambda x: x[0]):
@@ -948,7 +908,7 @@ class ModelicaSystem:
             else:
                 ModelicaSystemError('Error!!! Value must be in tuple format')
 
-    def createCSVData(self) -> None:
+    def createCSVData(self) -> pathlib.Path:
         start_time: float = float(self.simulateOptions["startTime"])
         stop_time: float = float(self.simulateOptions["stopTime"])
 
@@ -989,11 +949,13 @@ class ModelicaSystem:
             ]
             csv_rows.append(row)
 
-        self.csvFile: str = (pathlib.Path(self.tempdir) / f'{self.modelName}.csv').as_posix()
+        csvFile = pathlib.Path(self.tempdir) / f'{self.modelName}.csv'
 
-        with open(self.csvFile, "w", newline="") as f:
+        with open(csvFile, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerows(csv_rows)
+
+        return csvFile
 
     # to convert Modelica model to FMU
     def convertMo2Fmu(self, version="2.0", fmuType="me_cs", fileNamePrefix="<default>", includeResources=True):  # 19
@@ -1017,7 +979,7 @@ class ModelicaSystem:
 
         # report proper error message
         if not os.path.exists(fmu):
-            self._check_error()
+            raise ModelicaSystemError(f"Missing FMU file: {fmu}")
 
         return fmu
 
@@ -1034,7 +996,7 @@ class ModelicaSystem:
 
         # report proper error message
         if not os.path.exists(fileName):
-            self._check_error()
+            raise ModelicaSystemError(f"Missing file {fileName}")
 
         return fileName
 
@@ -1050,7 +1012,6 @@ class ModelicaSystem:
         properties = ','.join(f"{key}={val}" for key, val in self.optimizeOptions.items())
         self.setCommandLineOptions("-g=Optimica")
         optimizeResult = self.requestApi('optimize', cName, properties)
-        self._check_error()
 
         return optimizeResult
 
@@ -1097,8 +1058,8 @@ class ModelicaSystem:
                     for l in tupleList:
                         if l[0] < float(self.simulateOptions["startTime"]):
                             raise ModelicaSystemError('Input time value is less than simulation startTime')
-            self.createCSVData()
-            csvinput = " -csvInput=" + self.csvFile
+            self.csvFile = self.createCSVData()
+            csvinput = " -csvInput=" + self.csvFile.as_posix()
         else:
             csvinput = ""
 
@@ -1113,7 +1074,7 @@ class ModelicaSystem:
             simflags = " " + simflags
 
         if not exe_file.exists():
-            raise Exception(f"Error: Application file path not found: {exe_file}")
+            raise ModelicaSystemError(f"Application file path not found: {exe_file}")
         else:
             cmd = exe_file.as_posix() + linruntime + override + csvinput + simflags
             cmd = [s for s in cmd.split(' ') if s]
@@ -1143,8 +1104,8 @@ class ModelicaSystem:
             self.linearstates = stateVars
             return LinearizationResult(n, m, p, A, B, C, D, x0, u0, stateVars,
                                        inputVars, outputVars)
-        except ModuleNotFoundError:
-            raise Exception("ModuleNotFoundError: No module named 'linearized_model'")
+        except ModuleNotFoundError as ex:
+            raise ModelicaSystemError("No module named 'linearized_model'") from ex
 
     def getLinearInputs(self):
         """
