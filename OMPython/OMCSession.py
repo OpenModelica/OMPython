@@ -57,7 +57,6 @@ import zmq
 from OMPython.OMTypedParser import parseString as om_parser_typed
 from OMPython.OMParser import om_parser_basic
 
-
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
 
@@ -314,11 +313,9 @@ class OMCSessionZMQ:
         self._port_file = ((pathlib.Path("/tmp") if docker else self._temp_dir) / self._port_file).as_posix()
         self._interactivePort = port
         # set omc executable path and args
-        self._set_omc_command([
-                               "--interactive=zmq",
-                               "--locale=C",
-                               f"-z={self._random_string}"
-                               ])
+        self._set_omc_command(omc_path_and_args_list=["--interactive=zmq",
+                                                      "--locale=C",
+                                                      f"-z={self._random_string}"])
         # start up omc executable, which is waiting for the ZMQ connection
         self._start_omc_process(timeout)
         # connect to the running omc instance using ZMQ
@@ -385,7 +382,8 @@ class OMCSessionZMQ:
         dockerTop = None
         if self._docker or self._dockerContainer:
             if self._dockerNetwork == "separate":
-                self._serverIPAddress = json.loads(subprocess.check_output(["docker", "inspect", self._dockerCid]).decode().strip())[0]["NetworkSettings"]["IPAddress"]
+                output = subprocess.check_output(["docker", "inspect", self._dockerCid]).decode().strip()
+                self._serverIPAddress = json.loads(output)[0]["NetworkSettings"]["IPAddress"]
             for i in range(0, 40):
                 if sys.platform == 'win32':
                     break
@@ -444,9 +442,20 @@ class OMCSessionZMQ:
             else:
                 raise OMCSessionException('dockerNetwork was set to %s, but only \"host\" or \"separate\" is allowed')
             self._dockerCidFile = self._omc_log_file.name + ".docker.cid"
-            omcCommand = ["docker", "run", "--cidfile", self._dockerCidFile, "--rm", "--env", "USER=%s" % self._currentUser, "--user", str(self._getuid())] + self._dockerExtraArgs + dockerNetworkStr + [self._docker, self._dockerOpenModelicaPath]
+            omcCommand = (["docker", "run",
+                           "--cidfile", self._dockerCidFile,
+                           "--rm",
+                           "--env", "USER=%s" % self._currentUser,
+                           "--user", str(self._getuid())]
+                          + self._dockerExtraArgs
+                          + dockerNetworkStr
+                          + [self._docker, self._dockerOpenModelicaPath])
         elif self._dockerContainer:
-            omcCommand = ["docker", "exec", "--env", "USER=%s" % self._currentUser, "--user", str(self._getuid())] + self._dockerExtraArgs + [self._dockerContainer, self._dockerOpenModelicaPath]
+            omcCommand = (["docker", "exec",
+                           "--env", "USER=%s" % self._currentUser,
+                           "--user", str(self._getuid())]
+                          + self._dockerExtraArgs
+                          + [self._dockerContainer, self._dockerOpenModelicaPath])
             self._dockerCid = self._dockerContainer
         else:
             omcCommand = [str(self._get_omc_path())]
@@ -508,7 +517,8 @@ class OMCSessionZMQ:
             time.sleep(timeout / 80.0)
 
         self._port = self._port.replace("0.0.0.0", self._serverIPAddress)
-        logger.info(f"OMC Server is up and running at {self._omc_zeromq_uri} pid={self._omc_process.pid} cid={self._dockerCid}")
+        logger.info(f"OMC Server is up and running at {self._omc_zeromq_uri} "
+                    f"pid={self._omc_process.pid} cid={self._dockerCid}")
 
         # Create the ZeroMQ socket and connect to OMC server
         context = zmq.Context.instance()
