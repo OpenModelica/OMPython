@@ -117,7 +117,7 @@ class ModelicaSystem:
             variableFilter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
-            session: Optional[OMCSessionBase] = None,
+            session: Optional[OMCSessionZMQ] = None,
             build: Optional[bool] = True
             ):
         """Initialize, load and build a model.
