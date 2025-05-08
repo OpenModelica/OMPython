@@ -148,7 +148,7 @@ class ModelicaSystem:
             session: OMC session to be used. If unspecified, a new session
               will be created.
             build: Boolean controlling whether or not the model should be
-              built when constructor is called. If False, the constructor 
+              built when constructor is called. If False, the constructor
               simply loads the model without compiling.
 
         Examples:
@@ -220,7 +220,7 @@ class ModelicaSystem:
         # allow directly loading models from MSL without fileName
         elif fileName is None and modelName is not None:
             self.loadLibrary(lmodel=self.lmodel)
-        
+
         if build:
             self.buildModel(variableFilter)
 
