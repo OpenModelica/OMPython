@@ -3,6 +3,8 @@
 Definition of an OMC session.
 """
 
+from __future__ import annotations
+
 __license__ = """
  This file is part of OpenModelica.
 
@@ -32,23 +34,23 @@ __license__ = """
  CONDITIONS OF OSMC-PL.
 """
 
-import shutil
-import abc
 import getpass
-import logging
 import json
+import logging
 import os
 import pathlib
 import psutil
+import pyparsing
+import shutil
 import signal
 import subprocess
 import sys
 import tempfile
 import time
+from typing import Optional
 import uuid
-import pyparsing
-import zmq
 import warnings
+import zmq
 
 # TODO: replace this with the new parser
 from OMPython.OMTypedParser import parseString as om_parser_typed
@@ -59,7 +61,7 @@ from OMPython.OMParser import om_parser_basic
 logger = logging.getLogger(__name__)
 
 
-class DummyPopen():
+class DummyPopen:
     def __init__(self, pid):
         self.pid = pid
         self.process = psutil.Process(pid)
@@ -79,53 +81,38 @@ class OMCSessionException(Exception):
     pass
 
 
-class OMCSessionBase(metaclass=abc.ABCMeta):
+class OMCSessionCmd:
 
-    def __init__(self, readonly=False):
+    def __init__(self, session: OMCSessionZMQ, readonly: Optional[bool] = False):
+        if not isinstance(session, OMCSessionZMQ):
+            raise OMCSessionException("Invalid session definition!")
+        self._session = session
         self._readonly = readonly
         self._omc_cache = {}
 
-    def execute(self, command):
-        warnings.warn("This function is depreciated and will be removed in future versions; "
-                      "please use sendExpression() instead", DeprecationWarning, stacklevel=1)
-
-        return self.sendExpression(command, parsed=False)
-
-    @abc.abstractmethod
     def sendExpression(self, command, parsed=True):
-        """
-        Sends an expression to the OpenModelica. The return type is parsed as if the
-        expression was part of the typed OpenModelica API (see ModelicaBuiltin.mo).
-        * Integer and Real are returned as Python numbers
-        * Strings, enumerations, and typenames are returned as Python strings
-        * Arrays, tuples, and MetaModelica lists are returned as tuples
-        * Records are returned as dicts (the name of the record is lost)
-        * Booleans are returned as True or False
-        * NONE() is returned as None
-        * SOME(value) is returned as value
-        """
-        pass
+        return self._session.sendExpression(command=command, parsed=parsed)
 
-    def ask(self, question, opt=None, parsed=True):
-        p = (question, opt, parsed)
+    def _ask(self, question: str, opt: Optional[list[str]] = None, parsed: Optional[bool] = True):
+
+        if opt is None:
+            expression = question
+        elif isinstance(opt, list):
+            expression = f"{question}({','.join(opt)})"
+        else:
+            raise OMCSessionException(f"Invalid definition of options for {repr(question)}: {repr(opt)}")
+
+        p = (expression, parsed)
 
         if self._readonly and question != 'getErrorString':
             # can use cache if readonly
             if p in self._omc_cache:
                 return self._omc_cache[p]
 
-        if opt:
-            expression = f'{question}({opt})'
-        else:
-            expression = question
-
-        logger.debug('OMC ask: %s  - parsed: %s', expression, parsed)
-
         try:
-            res = self.sendExpression(expression, parsed=parsed)
-        except OMCSessionException:
-            logger.error("OMC failed: %s, %s, parsed=%s", question, opt, parsed)
-            raise
+            res = self._session.sendExpression(expression, parsed=parsed)
+        except OMCSessionException as ex:
+            raise OMCSessionException("OMC _ask() failed: %s (parsed=%s)", expression, parsed) from ex
 
         # save response
         self._omc_cache[p] = res
@@ -134,126 +121,133 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
 
     # TODO: Open Modelica Compiler API functions. Would be nice to generate these.
     def loadFile(self, filename):
-        return self.ask('loadFile', f'"{filename}"')
+        return self._ask(question='loadFile', opt=[f'"{filename}"'])
 
     def loadModel(self, className):
-        return self.ask('loadModel', className)
+        return self._ask(question='loadModel', opt=[className])
 
     def isModel(self, className):
-        return self.ask('isModel', className)
+        return self._ask(question='isModel', opt=[className])
 
     def isPackage(self, className):
-        return self.ask('isPackage', className)
+        return self._ask(question='isPackage', opt=[className])
 
     def isPrimitive(self, className):
-        return self.ask('isPrimitive', className)
+        return self._ask(question='isPrimitive', opt=[className])
 
     def isConnector(self, className):
-        return self.ask('isConnector', className)
+        return self._ask(question='isConnector', opt=[className])
 
     def isRecord(self, className):
-        return self.ask('isRecord', className)
+        return self._ask(question='isRecord', opt=[className])
 
     def isBlock(self, className):
-        return self.ask('isBlock', className)
+        return self._ask(question='isBlock', opt=[className])
 
     def isType(self, className):
-        return self.ask('isType', className)
+        return self._ask(question='isType', opt=[className])
 
     def isFunction(self, className):
-        return self.ask('isFunction', className)
+        return self._ask(question='isFunction', opt=[className])
 
     def isClass(self, className):
-        return self.ask('isClass', className)
+        return self._ask(question='isClass', opt=[className])
 
     def isParameter(self, className):
-        return self.ask('isParameter', className)
+        return self._ask(question='isParameter', opt=[className])
 
     def isConstant(self, className):
-        return self.ask('isConstant', className)
+        return self._ask(question='isConstant', opt=[className])
 
     def isProtected(self, className):
-        return self.ask('isProtected', className)
+        return self._ask(question='isProtected', opt=[className])
 
     def getPackages(self, className="AllLoadedClasses"):
-        return self.ask('getPackages', className)
+        return self._ask(question='getPackages', opt=[className])
 
     def getClassRestriction(self, className):
-        return self.ask('getClassRestriction', className)
+        return self._ask(question='getClassRestriction', opt=[className])
 
     def getDerivedClassModifierNames(self, className):
-        return self.ask('getDerivedClassModifierNames', className)
+        return self._ask(question='getDerivedClassModifierNames', opt=[className])
 
     def getDerivedClassModifierValue(self, className, modifierName):
-        return self.ask('getDerivedClassModifierValue', f'{className}, {modifierName}')
+        return self._ask(question='getDerivedClassModifierValue', opt=[className, modifierName])
 
     def typeNameStrings(self, className):
-        return self.ask('typeNameStrings', className)
+        return self._ask(question='typeNameStrings', opt=[className])
 
     def getComponents(self, className):
-        return self.ask('getComponents', className)
+        return self._ask(question='getComponents', opt=[className])
 
     def getClassComment(self, className):
         try:
-            return self.ask('getClassComment', className)
+            return self._ask(question='getClassComment', opt=[className])
         except pyparsing.ParseException as ex:
-            logger.warning("Method 'getClassComment' failed for %s", className)
-            logger.warning('OMTypedParser error: %s', ex.msg)
+            logger.warning("Method 'getClassComment(%s)' failed; OMTypedParser error: %s",
+                           className, ex.msg)
             return 'No description available'
+        except OMCSessionException:
+            raise
 
     def getNthComponent(self, className, comp_id):
         """ returns with (type, name, description) """
-        return self.ask('getNthComponent', f'{className}, {comp_id}')
+        return self._ask(question='getNthComponent', opt=[className, comp_id])
 
     def getNthComponentAnnotation(self, className, comp_id):
-        return self.ask('getNthComponentAnnotation', f'{className}, {comp_id}')
+        return self._ask(question='getNthComponentAnnotation', opt=[className, comp_id])
 
     def getImportCount(self, className):
-        return self.ask('getImportCount', className)
+        return self._ask(question='getImportCount', opt=[className])
 
     def getNthImport(self, className, importNumber):
         # [Path, id, kind]
-        return self.ask('getNthImport', f'{className}, {importNumber}')
+        return self._ask(question='getNthImport', opt=[className, importNumber])
 
     def getInheritanceCount(self, className):
-        return self.ask('getInheritanceCount', className)
+        return self._ask(question='getInheritanceCount', opt=[className])
 
     def getNthInheritedClass(self, className, inheritanceDepth):
-        return self.ask('getNthInheritedClass', f'{className}, {inheritanceDepth}')
+        return self._ask(question='getNthInheritedClass', opt=[className, inheritanceDepth])
 
     def getParameterNames(self, className):
         try:
-            return self.ask('getParameterNames', className)
+            return self._ask(question='getParameterNames', opt=[className])
         except KeyError as ex:
             logger.warning('OMPython error: %s', ex)
             # FIXME: OMC returns with a different structure for empty parameter set
             return []
+        except OMCSessionException:
+            raise
 
     def getParameterValue(self, className, parameterName):
         try:
-            return self.ask('getParameterValue', f'{className}, {parameterName}')
+            return self._ask(question='getParameterValue', opt=[className, parameterName])
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s', ex.msg)
+            logger.warning("Method 'getParameterValue(%s, %s)' failed; OMTypedParser error: %s",
+                           className, parameterName, ex.msg)
             return ""
+        except OMCSessionException:
+            raise
 
     def getComponentModifierNames(self, className, componentName):
-        return self.ask('getComponentModifierNames', f'{className}, {componentName}')
+        return self._ask(question='getComponentModifierNames', opt=[className, componentName])
 
     def getComponentModifierValue(self, className, componentName):
-        return self.ask(question='getComponentModifierValue', opt=f'{className}, {componentName}')
+        return self._ask(question='getComponentModifierValue', opt=[className, componentName])
 
     def getExtendsModifierNames(self, className, componentName):
-        return self.ask('getExtendsModifierNames', f'{className}, {componentName}')
+        return self._ask(question='getExtendsModifierNames', opt=[className, componentName])
 
     def getExtendsModifierValue(self, className, extendsName, modifierName):
-        return self.ask(question='getExtendsModifierValue', opt=f'{className}, {extendsName}, {modifierName}')
+        return self._ask(question='getExtendsModifierValue', opt=[className, extendsName, modifierName])
 
     def getNthComponentModification(self, className, comp_id):
         # FIXME: OMPython exception Results KeyError exception
 
         # get {$Code(....)} field
         # \{\$Code\((\S*\s*)*\)\}
-        value = self.ask('getNthComponentModification', f'{className}, {comp_id}', parsed=False)
+        value = self._ask(question='getNthComponentModification', opt=[className, comp_id], parsed=False)
         value = value.replace("{$Code(", "")
         return value[:-3]
         # return self.re_Code.findall(value)
@@ -269,27 +263,21 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
     # end getClassNames;
     def getClassNames(self, className=None, recursive=False, qualified=False, sort=False, builtin=False,
                       showProtected=False):
-        value = self.ask(
-            'getClassNames',
-            (f'{className}, ' if className else '') +
-            f'recursive={str(recursive).lower()}, '
-            f'qualified={str(qualified).lower()}, '
-            f'sort={str(sort).lower()}, '
-            f'builtin={str(builtin).lower()}, '
-            f'showProtected={str(showProtected).lower()}'
-        )
-        return value
+        opt = [className] if className else [] + [f'recursive={str(recursive).lower()}',
+                                                  f'qualified={str(qualified).lower()}',
+                                                  f'sort={str(sort).lower()}',
+                                                  f'builtin={str(builtin).lower()}',
+                                                  f'showProtected={str(showProtected).lower()}']
+        return self._ask(question='getClassNames', opt=opt)
 
 
-class OMCSessionZMQ(OMCSessionBase):
+class OMCSessionZMQ:
 
-    def __init__(self, readonly=False, timeout=10.00,
+    def __init__(self, timeout=10.00,
                  docker=None, dockerContainer=None, dockerExtraArgs=None, dockerOpenModelicaPath="omc",
                  dockerNetwork=None, port=None, omhome: str = None):
         if dockerExtraArgs is None:
             dockerExtraArgs = []
-
-        super().__init__(readonly=readonly)
 
         self.omhome = self._get_omhome(omhome=omhome)
 
@@ -528,10 +516,18 @@ class OMCSessionZMQ(OMCSessionBase):
         self._omc.setsockopt(zmq.IMMEDIATE, True)  # Queue messages only to completed connections
         self._omc.connect(self._port)
 
+    def execute(self, command):
+        warnings.warn("This function is depreciated and will be removed in future versions; "
+                      "please use sendExpression() instead", DeprecationWarning, stacklevel=1)
+
+        return self.sendExpression(command, parsed=False)
+
     def sendExpression(self, command, parsed=True):
         p = self._omc_process.poll()  # check if process is running
         if p is not None:
             raise OMCSessionException("Process Exited, No connection with OMC. Create a new instance of OMCSessionZMQ!")
+
+        logger.debug("sendExpression(%r, parsed=%r)", command, parsed)
 
         attempts = 0
         while True:
@@ -553,6 +549,17 @@ class OMCSessionZMQ(OMCSessionBase):
             return None
         else:
             result = self._omc.recv_string()
+
+            # allways check for error
+            self._omc.send_string("getErrorString()", flags=zmq.NOBLOCK)
+            error_raw = self._omc.recv_string()
+            error_str = om_parser_typed(error_raw)
+            if error_str:
+                if "Error" in error_str:
+                    raise OMCSessionException(f"OM Error for 'sendExpression({command}, {parsed})': {error_str}")
+                else:
+                    logger.warning(f"[OM]: {error_str}")
+
             if parsed is True:
                 try:
                     return om_parser_typed(result)
