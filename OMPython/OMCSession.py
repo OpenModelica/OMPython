@@ -617,7 +617,6 @@ class OMCSessionZMQ:
                     try:
                         return om_parser_basic(result)
                     except (TypeError, UnboundLocalError) as ex:
-                        logger.warning('OMParser error: %s. Returning the unparsed result.', ex)
-                        return result
+                        raise OMCSessionException("Cannot parse OMC result") from ex
             else:
                 return result
