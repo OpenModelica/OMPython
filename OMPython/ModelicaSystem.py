@@ -117,7 +117,8 @@ class ModelicaSystem:
             variableFilter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
-            session: Optional[OMCSessionBase] = None
+            session: Optional[OMCSessionBase] = None,
+            build: Optional[bool] = True
             ):
         """Initialize, load and build a model.
 
@@ -146,6 +147,9 @@ class ModelicaSystem:
               session.
             session: OMC session to be used. If unspecified, a new session
               will be created.
+            build: Boolean controlling whether or not the model should be
+              built when constructor is called. If False, the constructor
+              simply loads the model without compiling.
 
         Examples:
             mod = ModelicaSystem("ModelicaModel.mo", "modelName")
@@ -217,7 +221,8 @@ class ModelicaSystem:
         elif fileName is None and modelName is not None:
             self.loadLibrary(lmodel=self.lmodel)
 
-        self.buildModel(variableFilter)
+        if build:
+            self.buildModel(variableFilter)
 
     def setCommandLineOptions(self, commandLineOptions: str):
         # set commandLineOptions if provided by users
