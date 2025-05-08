@@ -221,7 +221,7 @@ class ModelicaSystem:
         elif fileName is None and modelName is not None:
             self.loadLibrary(lmodel=self.lmodel)
         
-        if build :
+        if build:
             self.buildModel(variableFilter)
 
     def setCommandLineOptions(self, commandLineOptions: str):
