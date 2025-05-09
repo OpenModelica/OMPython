@@ -316,7 +316,7 @@ class OMCSessionZMQ:
         # start up omc executable, which is waiting for the ZMQ connection
         self._start_omc_process(timeout)
         # connect to the running omc instance using ZMQ
-        self._connect_to_omc(timeout)
+        self._omc_port = self._connect_to_omc(timeout)
 
         self._re_log_entries = None
         self._re_log_raw = None
@@ -485,16 +485,16 @@ class OMCSessionZMQ:
     def _get_omc_path(self) -> pathlib.Path:
         return self._omhome / "bin" / "omc"
 
-    def _connect_to_omc(self, timeout):
-        self._omc_zeromq_uri = "file:///" + self._port_file
+    def _connect_to_omc(self, timeout) -> str:
+        omc_zeromq_uri = "file:///" + self._port_file
         # See if the omc server is running
         attempts = 0
-        self._port = None
+        port = None
         while True:
             if self._dockerCid:
                 try:
-                    self._port = subprocess.check_output(["docker", "exec", self._dockerCid, "cat", self._port_file],
-                                                         stderr=subprocess.DEVNULL).decode().strip()
+                    port = subprocess.check_output(["docker", "exec", self._dockerCid, "cat", self._port_file],
+                                                   stderr=subprocess.DEVNULL).decode().strip()
                     break
                 except subprocess.CalledProcessError:
                     pass
@@ -502,7 +502,7 @@ class OMCSessionZMQ:
                 if os.path.isfile(self._port_file):
                     # Read the port file
                     with open(self._port_file, 'r') as f_p:
-                        self._port = f_p.readline()
+                        port = f_p.readline()
                     os.remove(self._port_file)
                     break
 
@@ -515,8 +515,8 @@ class OMCSessionZMQ:
                                           f"Could not open file {self._port_file}")
             time.sleep(timeout / 80.0)
 
-        self._port = self._port.replace("0.0.0.0", self._serverIPAddress)
-        logger.info(f"OMC Server is up and running at {self._omc_zeromq_uri} "
+        port = port.replace("0.0.0.0", self._serverIPAddress)
+        logger.info(f"OMC Server is up and running at {omc_zeromq_uri} "
                     f"pid={self._omc_process.pid} cid={self._dockerCid}")
 
         # Create the ZeroMQ socket and connect to OMC server
@@ -524,7 +524,9 @@ class OMCSessionZMQ:
         self._omc = context.socket(zmq.REQ)
         self._omc.setsockopt(zmq.LINGER, 0)  # Dismisses pending messages if closed
         self._omc.setsockopt(zmq.IMMEDIATE, True)  # Queue messages only to completed connections
-        self._omc.connect(self._port)
+        self._omc.connect(port)
+
+        return port
 
     def execute(self, command):
         warnings.warn("This function is depreciated and will be removed in future versions; "
