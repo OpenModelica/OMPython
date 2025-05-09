@@ -314,7 +314,7 @@ class OMCSessionZMQ:
                                                       "--locale=C",
                                                       f"-z={self._random_string}"])
         # start up omc executable, which is waiting for the ZMQ connection
-        self._start_omc_process(timeout)
+        self._omc_process = self._start_omc_process(timeout)
         # connect to the running omc instance using ZMQ
         self._omc_port = self._connect_to_omc(timeout)
 
@@ -346,19 +346,19 @@ class OMCSessionZMQ:
 
         return omc_log_file
 
-    def _start_omc_process(self, timeout):
+    def _start_omc_process(self, timeout):  # output?
         if sys.platform == 'win32':
             omhome_bin = (self._omhome / "bin").as_posix()
             my_env = os.environ.copy()
             my_env["PATH"] = omhome_bin + os.pathsep + my_env["PATH"]
-            self._omc_process = subprocess.Popen(self._omc_command, stdout=self._omc_log_file,
-                                                 stderr=self._omc_log_file, env=my_env)
+            omc_process = subprocess.Popen(self._omc_command, stdout=self._omc_log_file,
+                                           stderr=self._omc_log_file, env=my_env)
         else:
             # set the user environment variable so omc running from wsgi has the same user as OMPython
             my_env = os.environ.copy()
             my_env["USER"] = self._currentUser
-            self._omc_process = subprocess.Popen(self._omc_command, stdout=self._omc_log_file,
-                                                 stderr=self._omc_log_file, env=my_env)
+            omc_process = subprocess.Popen(self._omc_command, stdout=self._omc_log_file,
+                                           stderr=self._omc_log_file, env=my_env)
         if self._docker:
             for i in range(0, 40):
                 try:
@@ -387,24 +387,24 @@ class OMCSessionZMQ:
                 if sys.platform == 'win32':
                     break
                 dockerTop = subprocess.check_output(["docker", "top", self._dockerCid]).decode().strip()
-                self._omc_process = None
+                omc_process = None
                 for line in dockerTop.split("\n"):
                     columns = line.split()
                     if self._random_string in line:
                         try:
-                            self._omc_process = DummyPopen(int(columns[1]))
+                            omc_process = DummyPopen(int(columns[1]))
                         except psutil.NoSuchProcess:
                             raise OMCSessionException(
                                 f"Could not find PID {dockerTop} - is this a docker instance spawned "
                                 f"without --pid=host?\nLog-file says:\n{open(self._omc_log_file.name).read()}")
                         break
-                if self._omc_process is not None:
+                if omc_process is not None:
                     break
                 time.sleep(timeout / 40.0)
-            if self._omc_process is None:
+            if omc_process is None:
                 raise OMCSessionException("Docker top did not contain omc process %s:\n%s\nLog-file says:\n%s"
                                           % (self._random_string, dockerTop, open(self._omc_log_file.name).read()))
-        return self._omc_process
+        return omc_process
 
     def _getuid(self):
         """
