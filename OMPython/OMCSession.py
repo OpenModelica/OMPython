@@ -284,7 +284,6 @@ class OMCSessionZMQ:
         self._dockerCid = None
         self._serverIPAddress = "127.0.0.1"
         self._interactivePort = None
-        # FIXME: this code is not well written... need to be refactored
         self._temp_dir = pathlib.Path(tempfile.gettempdir())
         # generate a random string for this session
         self._random_string = uuid.uuid4().hex
