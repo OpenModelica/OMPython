@@ -295,11 +295,6 @@ class OMCSessionZMQ:
             # We are running as a uid not existing in the password database... Pretend we are nobody
             self._currentUser = "nobody"
 
-        # Locating and using the IOR
-        if sys.platform != 'win32' or docker or dockerContainer:
-            self._port_file = "openmodelica." + self._currentUser + ".port." + self._random_string
-        else:
-            self._port_file = "openmodelica.port." + self._random_string
         self._docker = docker
         self._dockerContainer = dockerContainer
         self._dockerExtraArgs = dockerExtraArgs
@@ -307,7 +302,12 @@ class OMCSessionZMQ:
         self._dockerNetwork = dockerNetwork
         self._omc_log_file = self._create_omc_log_file("port")
         self._timeout = timeout
-        self._port_file = ((pathlib.Path("/tmp") if docker else self._temp_dir) / self._port_file).as_posix()
+        # Locating and using the IOR
+        if sys.platform != 'win32' or docker or dockerContainer:
+            port_file = "openmodelica." + self._currentUser + ".port." + self._random_string
+        else:
+            port_file = "openmodelica.port." + self._random_string
+        self._port_file = ((pathlib.Path("/tmp") if docker else self._temp_dir) / port_file).as_posix()
         self._interactivePort = port
         # set omc executable path and args
         self._set_omc_command(omc_path_and_args_list=["--interactive=zmq",
