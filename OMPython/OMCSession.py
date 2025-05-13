@@ -3,6 +3,8 @@
 Definition of an OMC session.
 """
 
+from __future__ import annotations
+
 __license__ = """
  This file is part of OpenModelica.
 
@@ -33,7 +35,6 @@ __license__ = """
 """
 
 import shutil
-import abc
 import getpass
 import logging
 import json
@@ -80,32 +81,14 @@ class OMCSessionException(Exception):
     pass
 
 
-class OMCSessionBase(metaclass=abc.ABCMeta):
+class OMCSessionCmd:
 
-    def __init__(self, readonly=False):
+    def __init__(self, session: OMCSessionZMQ, readonly: Optional[bool] = False):
+        if not isinstance(session, OMCSessionZMQ):
+            raise OMCSessionException("Invalid session definition!")
+        self._session = session
         self._readonly = readonly
         self._omc_cache = {}
-
-    def execute(self, command):
-        warnings.warn("This function is depreciated and will be removed in future versions; "
-                      "please use sendExpression() instead", DeprecationWarning, stacklevel=1)
-
-        return self.sendExpression(command, parsed=False)
-
-    @abc.abstractmethod
-    def sendExpression(self, command, parsed=True):
-        """
-        Sends an expression to the OpenModelica. The return type is parsed as if the
-        expression was part of the typed OpenModelica API (see ModelicaBuiltin.mo).
-        * Integer and Real are returned as Python numbers
-        * Strings, enumerations, and typenames are returned as Python strings
-        * Arrays, tuples, and MetaModelica lists are returned as tuples
-        * Records are returned as dicts (the name of the record is lost)
-        * Booleans are returned as True or False
-        * NONE() is returned as None
-        * SOME(value) is returned as value
-        """
-        pass
 
     def _ask(self, question: str, opt: Optional[list[str]] = None, parsed: Optional[bool] = True):
 
@@ -114,7 +97,7 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         elif isinstance(opt, list):
             expression = f"{question}({','.join([str(x) for x in opt])})"
         else:
-            raise Exception(f"Invalid definition of options for {repr(question)}: {repr(opt)}")
+            raise OMCSessionException(f"Invalid definition of options for {repr(question)}: {repr(opt)}")
 
         p = (expression, parsed)
 
@@ -126,10 +109,9 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         logger.debug('OMC ask: %s (parsed=%s)', expression, parsed)
 
         try:
-            res = self.sendExpression(expression, parsed=parsed)
-        except OMCSessionException:
-            logger.error("OMC failed: %s, %s, parsed=%s", question, opt, parsed)
-            raise
+            res = self._session.sendExpression(expression, parsed=parsed)
+        except OMCSessionException as ex:
+            raise OMCSessionException("OMC _ask() failed: %s (parsed=%s)", expression, parsed) from ex
 
         # save response
         self._omc_cache[p] = res
@@ -201,9 +183,11 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
         try:
             return self._ask(question='getClassComment', opt=[className])
         except pyparsing.ParseException as ex:
-            logger.warning("Method 'getClassComment' failed for %s", className)
-            logger.warning('OMTypedParser error: %s', ex.msg)
+            logger.warning("Method 'getClassComment(%s)' failed; OMTypedParser error: %s",
+                           className, ex.msg)
             return 'No description available'
+        except OMCSessionException:
+            raise
 
     def getNthComponent(self, className, comp_id):
         """ returns with (type, name, description) """
@@ -232,13 +216,18 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
             logger.warning('OMPython error: %s', ex)
             # FIXME: OMC returns with a different structure for empty parameter set
             return []
+        except OMCSessionException:
+            raise
 
     def getParameterValue(self, className, parameterName):
         try:
             return self._ask(question='getParameterValue', opt=[className, parameterName])
         except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s', ex.msg)
+            logger.warning("Method 'getParameterValue(%s, %s)' failed; OMTypedParser error: %s",
+                           className, parameterName, ex.msg)
             return ""
+        except OMCSessionException:
+            raise
 
     def getComponentModifierNames(self, className, componentName):
         return self._ask(question='getComponentModifierNames', opt=[className, componentName])
@@ -273,25 +262,21 @@ class OMCSessionBase(metaclass=abc.ABCMeta):
     # end getClassNames;
     def getClassNames(self, className=None, recursive=False, qualified=False, sort=False, builtin=False,
                       showProtected=False):
-        value = self._ask(question='getClassNames',
-                          opt=[className] if className else [] + [f'recursive={str(recursive).lower()}',
-                                                                  f'qualified={str(qualified).lower()}',
-                                                                  f'sort={str(sort).lower()}',
-                                                                  f'builtin={str(builtin).lower()}',
-                                                                  f'showProtected={str(showProtected).lower()}']
-                          )
-        return value
+        opt = [className] if className else [] + [f'recursive={str(recursive).lower()}',
+                                                  f'qualified={str(qualified).lower()}',
+                                                  f'sort={str(sort).lower()}',
+                                                  f'builtin={str(builtin).lower()}',
+                                                  f'showProtected={str(showProtected).lower()}']
+        return self._ask(question='getClassNames', opt=opt)
 
 
-class OMCSessionZMQ(OMCSessionBase):
+class OMCSessionZMQ:
 
-    def __init__(self, readonly=False, timeout=10.00,
+    def __init__(self, timeout=10.00,
                  docker=None, dockerContainer=None, dockerExtraArgs=None, dockerOpenModelicaPath="omc",
                  dockerNetwork=None, port=None, omhome: str = None):
         if dockerExtraArgs is None:
             dockerExtraArgs = []
-
-        super().__init__(readonly=readonly)
 
         self.omhome = self._get_omhome(omhome=omhome)
 
@@ -530,10 +515,19 @@ class OMCSessionZMQ(OMCSessionBase):
         self._omc.setsockopt(zmq.IMMEDIATE, True)  # Queue messages only to completed connections
         self._omc.connect(self._port)
 
+    def execute(self, command):
+        warnings.warn("This function is depreciated and will be removed in future versions; "
+                      "please use sendExpression() instead", DeprecationWarning, stacklevel=1)
+
+        return self.sendExpression(command, parsed=False)
+
     def sendExpression(self, command, parsed=True):
         p = self._omc_process.poll()  # check if process is running
         if p is not None:
             raise OMCSessionException("Process Exited, No connection with OMC. Create a new instance of OMCSessionZMQ!")
+
+        if self._omc is None:
+            raise OMCSessionException("No OMC running. Create a new instance of OMCSessionZMQ!")
 
         attempts = 0
         while True:
