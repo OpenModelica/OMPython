@@ -526,6 +526,9 @@ class OMCSessionZMQ:
         if p is not None:
             raise OMCSessionException("Process Exited, No connection with OMC. Create a new instance of OMCSessionZMQ!")
 
+        if self._omc is None:
+            raise OMCSessionException("No OMC running. Create a new instance of OMCSessionZMQ!")
+
         attempts = 0
         while True:
             try:
