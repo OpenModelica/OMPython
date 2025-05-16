@@ -360,13 +360,13 @@ end M_input;
         assert np.isclose(y[-1], 1.0)
 
         # let's try some edge cases
-        mod.setInputs("u1=[(-0.5, 0.0), (1.0, 1)]")
         # unmatched startTime
         with self.assertRaises(OMPython.ModelicaSystemError):
+            mod.setInputs("u1=[(-0.5, 0.0), (1.0, 1)]")
             mod.simulate()
         # unmatched stopTime
-        mod.setInputs("u1=[(0.0, 0.0), (0.5, 1)]")
         with self.assertRaises(OMPython.ModelicaSystemError):
+            mod.setInputs("u1=[(0.0, 0.0), (0.5, 1)]")
             mod.simulate()
 
         # Let's use both inputs, but each one with different number of of

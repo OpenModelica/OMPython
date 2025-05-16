@@ -286,7 +286,7 @@ class ModelicaSystem:
             # set the process environment from the generated .bat file in windows which should have all the dependencies
             batFilePath = pathlib.Path(self.tempdir) / f"{self.modelName}.bat"
             if not batFilePath.exists():
-                ModelicaSystemError("Batch file (*.bat) does not exist " + str(batFilePath))
+                raise ModelicaSystemError("Batch file (*.bat) does not exist " + str(batFilePath))
 
             with open(batFilePath, 'r') as file:
                 for line in file:
@@ -351,7 +351,7 @@ class ModelicaSystem:
 
     def xmlparse(self):
         if not self.xmlFile.exists():
-            ModelicaSystemError(f"XML file not generated: {self.xmlFile}")
+            raise ModelicaSystemError(f"XML file not generated: {self.xmlFile}")
 
         tree = ET.parse(self.xmlFile)
         rootCQ = tree.getroot()
@@ -907,11 +907,11 @@ class ModelicaSystem:
             if isinstance(l, tuple):
                 # if l[0] < float(self.simValuesList[0]):
                 if l[0] < float(self.simulateOptions["startTime"]):
-                    ModelicaSystemError('Input time value is less than simulation startTime')
+                    raise ModelicaSystemError('Input time value is less than simulation startTime')
                 if len(l) != 2:
-                    ModelicaSystemError(f'Value for {l} is in incorrect format!')
+                    raise ModelicaSystemError(f'Value for {l} is in incorrect format!')
             else:
-                ModelicaSystemError('Error!!! Value must be in tuple format')
+                raise ModelicaSystemError('Error!!! Value must be in tuple format')
 
     def createCSVData(self) -> pathlib.Path:
         start_time: float = float(self.simulateOptions["startTime"])
