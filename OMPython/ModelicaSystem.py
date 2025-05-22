@@ -322,8 +322,8 @@ class ModelicaSystem:
             customBuildDirectory: Optional[str | os.PathLike | pathlib.Path] = None,
             omhome: Optional[str] = None,
             session: Optional[OMCSessionZMQ] = None,
-            build: Optional[bool] = True
-            ):
+            build: Optional[bool] = True,
+    ) -> None:
         """Initialize, load and build a model.
 
         The constructor loads the model file and builds it, generating exe and
@@ -401,8 +401,8 @@ class ModelicaSystem:
         self.inputFlag = False  # for model with input quantity
         self.simulationFlag = False  # if the model is simulated?
         self.outputFlag = False
-        self.csvFile = ''  # for storing inputs condition
-        self.resultfile = None  # for storing result file
+        self.csvFile: Optional[pathlib.Path] = None  # for storing inputs condition
+        self.resultfile: Optional[pathlib.Path] = None  # for storing result file
         self.variableFilter = variableFilter
 
         if self.fileName is not None and not self.fileName.is_file():  # if file does not exist
@@ -427,7 +427,7 @@ class ModelicaSystem:
         if build:
             self.buildModel(variableFilter)
 
-    def setCommandLineOptions(self, commandLineOptions: str):
+    def setCommandLineOptions(self, commandLineOptions: Optional[str] = None):
         # set commandLineOptions if provided by users
         if commandLineOptions is None:
             return
@@ -462,7 +462,7 @@ class ModelicaSystem:
                                               '1)["Modelica"]\n'
                                               '2)[("Modelica","3.2.3"), "PowerSystems"]\n')
 
-    def setTempDirectory(self, customBuildDirectory) -> pathlib.Path:
+    def setTempDirectory(self, customBuildDirectory: Optional[str | os.PathLike | pathlib.Path] = None) -> pathlib.Path:
         # create a unique temp directory for each session and build the model in that directory
         if customBuildDirectory is not None:
             if not os.path.exists(customBuildDirectory):
@@ -482,7 +482,7 @@ class ModelicaSystem:
     def getWorkDirectory(self) -> pathlib.Path:
         return self.tempdir
 
-    def buildModel(self, variableFilter=None):
+    def buildModel(self, variableFilter: Optional[str] = None):
         if variableFilter is not None:
             self.variableFilter = variableFilter
 
@@ -497,7 +497,7 @@ class ModelicaSystem:
         self.xmlFile = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
         self.xmlparse()
 
-    def sendExpression(self, expr, parsed=True):
+    def sendExpression(self, expr: str, parsed: bool = True):
         try:
             retval = self.getconn.sendExpression(expr, parsed)
         except OMCSessionException as ex:
