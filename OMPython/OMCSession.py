@@ -48,7 +48,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Optional
+from typing import Any, Optional
 import uuid
 import warnings
 import zmq
@@ -83,14 +83,14 @@ class OMCSessionException(Exception):
 
 class OMCSessionCmd:
 
-    def __init__(self, session: OMCSessionZMQ, readonly: Optional[bool] = False):
+    def __init__(self, session: OMCSessionZMQ, readonly: bool = False):
         if not isinstance(session, OMCSessionZMQ):
             raise OMCSessionException("Invalid session definition!")
         self._session = session
         self._readonly = readonly
-        self._omc_cache = {}
+        self._omc_cache: dict[tuple[str, bool], Any] = {}
 
-    def _ask(self, question: str, opt: Optional[list[str]] = None, parsed: Optional[bool] = True):
+    def _ask(self, question: str, opt: Optional[list[str]] = None, parsed: bool = True):
 
         if opt is None:
             expression = question
@@ -270,9 +270,15 @@ class OMCSessionCmd:
 
 class OMCSessionZMQ:
 
-    def __init__(self, timeout=10.00,
-                 docker=None, dockerContainer=None, dockerExtraArgs=None, dockerOpenModelicaPath="omc",
-                 dockerNetwork=None, port=None, omhome: str = None):
+    def __init__(self,
+                 timeout: float = 10.00,
+                 docker: Optional[str] = None,
+                 dockerContainer: Optional[int] = None,
+                 dockerExtraArgs: Optional[list] = None,
+                 dockerOpenModelicaPath: str = "omc",
+                 dockerNetwork: Optional[str] = None,
+                 port: Optional[int] = None,
+                 omhome: Optional[str] = None):
         if dockerExtraArgs is None:
             dockerExtraArgs = []
 
@@ -280,8 +286,8 @@ class OMCSessionZMQ:
 
         self._omc_process = None
         self._omc_command = None
-        self._omc = None
-        self._dockerCid = None
+        self._omc: Optional[Any] = None
+        self._dockerCid: Optional[int] = None
         self._serverIPAddress = "127.0.0.1"
         self._interactivePort = None
         self._temp_dir = pathlib.Path(tempfile.gettempdir())
@@ -465,7 +471,7 @@ class OMCSessionZMQ:
 
         return omc_command
 
-    def _get_omhome(self, omhome: str = None):
+    def _get_omhome(self, omhome: Optional[str] = None):
         # use the provided path
         if omhome is not None:
             return pathlib.Path(omhome)
@@ -493,7 +499,9 @@ class OMCSessionZMQ:
         while True:
             if self._dockerCid:
                 try:
-                    port = subprocess.check_output(["docker", "exec", self._dockerCid, "cat", self._port_file],
+                    port = subprocess.check_output(args=["docker",
+                                                         "exec", str(self._dockerCid),
+                                                         "cat", str(self._port_file)],
                                                    stderr=subprocess.DEVNULL).decode().strip()
                     break
                 except subprocess.CalledProcessError:
@@ -517,7 +525,7 @@ class OMCSessionZMQ:
 
         port = port.replace("0.0.0.0", self._serverIPAddress)
         logger.info(f"OMC Server is up and running at {omc_zeromq_uri} "
-                    f"pid={self._omc_process.pid} cid={self._dockerCid}")
+                    f"pid={self._omc_process.pid if self._omc_process else '?'} cid={self._dockerCid}")
 
         # Create the ZeroMQ socket and connect to OMC server
         context = zmq.Context.instance()
