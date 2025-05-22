@@ -112,7 +112,7 @@ class LinearizationResult:
 
 class ModelicaSystemCmd:
     """
-    Execute a simulation by running the comiled model.
+    Execute a simulation by running the compiled model.
     """
 
     def __init__(self, runpath: pathlib.Path, modelname: str, timeout: Optional[int] = None) -> None:
