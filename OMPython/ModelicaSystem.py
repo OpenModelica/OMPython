@@ -128,7 +128,8 @@ class ModelicaSystemCmd:
         self._runpath = pathlib.Path(runpath).resolve().absolute()
         self._modelname = modelname
         self._timeout = timeout
-        self._args = {}
+        self._args: dict[str, str | None] = {}
+        self._arg_override: dict[str, str] = {}
 
     def arg_set(self, key: str, val: Optional[str | dict] = None) -> None:
         """
@@ -149,12 +150,13 @@ class ModelicaSystemCmd:
         elif isinstance(val, numbers.Number):
             argval = str(val)
         elif key == 'override' and isinstance(val, dict):
-            argval = self._args['override'] if 'override' in self._args else {}
-            for overwrite_key in val:
-                if not isinstance(overwrite_key, str) or not isinstance(val[overwrite_key], (str, numbers.Number)):
+            for okey in val:
+                if not isinstance(okey, str) or not isinstance(val[okey], (str, numbers.Number)):
                     raise ModelicaSystemError("Invalid argument for 'override': "
-                                              f"{repr(overwrite_key)} = {repr(val[overwrite_key])}")
-                argval[overwrite_key] = val[overwrite_key]
+                                              f"{repr(okey)} = {repr(val[okey])}")
+                self._arg_override[okey] = val[okey]
+
+            argval = ','.join([f"{okey}={str(self._arg_override[okey])}" for okey in self._arg_override])
         else:
             raise ModelicaSystemError(f"Invalid argument value for {repr(key)}: {repr(val)} (type: {type(val)})")
 
@@ -207,9 +209,6 @@ class ModelicaSystemCmd:
         for key in self._args:
             if self._args[key] is None:
                 cmdl.append(f"-{key}")
-            elif key == 'override' and isinstance(self._args[key], dict):
-                valstr = ','.join([f"{valkey}={str(self._args[key][valkey])}" for valkey in self._args[key]])
-                cmdl.append(f"-{key}={valstr}")
             else:
                 cmdl.append(f"-{key}={self._args[key]}")
 
@@ -282,7 +281,7 @@ class ModelicaSystemCmd:
         warnings.warn("The argument 'simflags' is depreciated and will be removed in future versions; "
                       "please use 'simargs' instead", DeprecationWarning, stacklevel=2)
 
-        simargs = {}
+        simargs: dict[str, Optional[str | dict[str, str]]] = {}
 
         args = [s for s in simflags.split(' ') if s]
         for arg in args:
@@ -295,16 +294,18 @@ class ModelicaSystemCmd:
             elif parts[0] == 'override':
                 override = '='.join(parts[1:])
 
-                simargs[parts[0]] = {}
+                override_dict = {}
                 for item in override.split(','):
                     kv = item.split('=')
                     if not (0 < len(kv) < 3):
-                        raise ModelicaSystemError(f"Invalide value for '-override': {override}")
+                        raise ModelicaSystemError(f"Invalid value for '-override': {override}")
                     if kv[0]:
                         try:
-                            simargs[parts[0]][kv[0]] = kv[1]
+                            override_dict[kv[0]] = kv[1]
                         except (KeyError, IndexError) as ex:
-                            raise ModelicaSystemError(f"Invalide value for '-override': {override}") from ex
+                            raise ModelicaSystemError(f"Invalid value for '-override': {override}") from ex
+
+                simargs[parts[0]] = override_dict
 
         return simargs
 
