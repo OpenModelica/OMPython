@@ -130,7 +130,7 @@ class ModelicaSystemCmd:
         self._timeout = timeout
         self._args = {}
 
-    def arg_set(self, key: str, val: str | dict = None) -> None:
+    def arg_set(self, key: str, val: Optional[str | dict] = None) -> None:
         """
         Set one argument for the executable model.
 
