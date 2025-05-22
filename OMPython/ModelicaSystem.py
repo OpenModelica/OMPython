@@ -132,7 +132,7 @@ class ModelicaSystemCmd:
 
     def arg_set(self, key: str, val: str | dict = None) -> None:
         """
-        Set one argument for the executeable model.
+        Set one argument for the executable model.
 
         Parameters
         ----------
