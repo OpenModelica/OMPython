@@ -165,13 +165,13 @@ class ModelicaSystemCmd:
                            f"(was: {repr(self._args[key])})")
         self._args[key] = argval
 
-    def args_set(self, args: dict) -> None:
+    def args_set(self, args: dict[str, Optional[str | dict[str, str]]]) -> None:
         """
         Define arguments for the model executable.
 
         Parameters
         ----------
-        args : dict
+        args : dict[str, Optional[str | dict[str, str]]]
         """
         for arg in args:
             self.arg_set(key=arg, val=args[arg])
@@ -265,7 +265,7 @@ class ModelicaSystemCmd:
         return returncode
 
     @staticmethod
-    def parse_simflags(simflags: str) -> dict:
+    def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, str]]]:
         """
         Parse a simflag definition; this is depreciated!
 
@@ -812,7 +812,7 @@ class ModelicaSystem:
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
     def simulate(self, resultfile: Optional[str] = None, simflags: Optional[str] = None,
-                 simargs: Optional[dict[str, str | None]] = None,
+                 simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
                  timeout: Optional[int] = None):  # 11
         """
         This method simulates model according to the simulation options.
@@ -1193,7 +1193,7 @@ class ModelicaSystem:
         return optimizeResult
 
     def linearize(self, lintime: Optional[float] = None, simflags: Optional[str] = None,
-                  simargs: Optional[dict[str, str | None]] = None,
+                  simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
                   timeout: Optional[int] = None) -> LinearizationResult:
         """Linearize the model according to linearOptions.
 
