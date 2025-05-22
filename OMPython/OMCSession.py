@@ -41,6 +41,7 @@ import json
 import os
 import pathlib
 import psutil
+import re
 import signal
 import subprocess
 import sys
@@ -325,6 +326,9 @@ class OMCSessionZMQ:
         # connect to the running omc instance using ZMQ
         self._connect_to_omc(timeout)
 
+        self._re_log_entries = None
+        self._re_log_raw = None
+
     def __del__(self):
         try:
             self.sendExpression("quit()")
@@ -549,6 +553,62 @@ class OMCSessionZMQ:
             return None
         else:
             result = self._omc.recv_string()
+
+            if command == "getErrorString()":
+                # no error handling if 'getErrorString()' is called
+                pass
+            elif command == "getMessagesStringInternal()":
+                # no error handling if 'getMessagesStringInternal()' is called; parsing NOT possible!
+                if parsed:
+                    logger.warning("Result of 'getMessagesStringInternal()' cannot be parsed - set parsed to False!")
+                    parsed = False
+            else:
+                # allways check for error
+                self._omc.send_string('getMessagesStringInternal()', flags=zmq.NOBLOCK)
+                error_raw = self._omc.recv_string()
+                # run error handling only if there is something to check
+                if error_raw != "{}\n":
+                    if not self._re_log_entries:
+                        self._re_log_entries = re.compile(pattern=r'record OpenModelica\.Scripting\.ErrorMessage'
+                                                                  '(.*?)'
+                                                                  r'end OpenModelica\.Scripting\.ErrorMessage;',
+                                                          flags=re.MULTILINE | re.DOTALL)
+                    if not self._re_log_raw:
+                        self._re_log_raw = re.compile(
+                            pattern=r"\s+message = \"(.*?)\",\n"  # message
+                                    r"\s+kind = .OpenModelica.Scripting.ErrorKind.(.*?),\n"  # kind
+                                    r"\s+level = .OpenModelica.Scripting.ErrorLevel.(.*?),\n"  # level
+                                    r"\s+id = (.*?)"  # id
+                                    "(,\n|\n)",  # end marker
+                            flags=re.MULTILINE | re.DOTALL)
+
+                    # extract all ErrorMessage records
+                    log_entries = self._re_log_entries.findall(string=error_raw)
+                    for log_entry in reversed(log_entries):
+                        log_raw = self._re_log_raw.findall(string=log_entry)
+                        if len(log_raw) != 1 or len(log_raw[0]) != 5:
+                            logger.warning("Invalid ErrorMessage record returned by 'getMessagesStringInternal()':"
+                                           f" {repr(log_entry)}!")
+
+                        log_message = log_raw[0][0].encode().decode('unicode_escape')
+                        log_kind = log_raw[0][1]
+                        log_level = log_raw[0][2]
+                        log_id = log_raw[0][3]
+
+                        msg = (f"[OMC log for 'sendExpression({command}, {parsed})']: "
+                               f"[{log_kind}:{log_level}:{log_id}] {log_message}")
+
+                        # response according to the used log level
+                        # see: https://build.openmodelica.org/Documentation/OpenModelica.Scripting.ErrorLevel.html
+                        if log_level == 'error':
+                            raise OMCSessionException(msg)
+                        elif log_level == 'warning':
+                            logger.warning(msg)
+                        elif log_level == 'notification':
+                            logger.info(msg)
+                        else:  # internal
+                            logger.debug(msg)
+
             if parsed is True:
                 try:
                     return om_parser_typed(result)
@@ -557,7 +617,6 @@ class OMCSessionZMQ:
                     try:
                         return om_parser_basic(result)
                     except (TypeError, UnboundLocalError) as ex:
-                        logger.warning('OMParser error: %s. Returning the unparsed result.', ex)
-                        return result
+                        raise OMCSessionException("Cannot parse OMC result") from ex
             else:
                 return result

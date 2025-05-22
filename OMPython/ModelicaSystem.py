@@ -44,9 +44,10 @@ import numpy as np
 import importlib
 import pathlib
 from dataclasses import dataclass
+import textwrap
 from typing import Optional
 
-from OMPython.OMCSession import OMCSessionZMQ
+from OMPython.OMCSession import OMCSessionZMQ, OMCSessionException
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
@@ -332,8 +333,14 @@ class ModelicaSystem:
         self.xmlparse()
 
     def sendExpression(self, expr, parsed=True):
-        logger.debug("sendExpression(%r, %r)", expr, parsed)
-        return self.getconn.sendExpression(expr, parsed)
+        try:
+            retval = self.getconn.sendExpression(expr, parsed)
+        except OMCSessionException as ex:
+            raise ModelicaSystemError(f"Error executing {repr(expr)}") from ex
+
+        logger.debug(f"Result of executing {repr(expr)}: {textwrap.shorten(repr(retval), width=100)}")
+
+        return retval
 
     # request to OMC
     def requestApi(self, apiName, entity=None, properties=None):  # 2
@@ -425,7 +432,7 @@ class ModelicaSystem:
                     try:
                         value = self.getSolutions(i)
                         self.continuouslist[i] = value[0][-1]
-                    except Exception as ex:
+                    except OMCSessionException as ex:
                         raise ModelicaSystemError(f"{i} could not be computed") from ex
                 return self.continuouslist
 
@@ -1093,8 +1100,7 @@ class ModelicaSystem:
             linearFile = pathlib.Path(f'linear_{self.modelName}.py')
 
         if not linearFile.exists():
-            errormsg = self.sendExpression("getErrorString()")
-            raise ModelicaSystemError(f"Linearization failed: {linearFile} not found: {errormsg}")
+            raise ModelicaSystemError(f"Linearization failed: {linearFile} not found!")
 
         # this function is called from the generated python code linearized_model.py at runtime,
         # to improve the performance by directly reading the matrices A, B, C and D from the julia code and avoid building the linearized modelica model
