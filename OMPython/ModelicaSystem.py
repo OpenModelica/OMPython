@@ -269,6 +269,8 @@ class ModelicaSystemCmd:
         """
         Parse a simflag definition; this is depreciated!
 
+        The return data can be used as input for self.args_set().
+
         Parameters
         ----------
         simflags : str
@@ -277,7 +279,6 @@ class ModelicaSystemCmd:
         -------
             dict
         """
-        # add old style simulation arguments
         warnings.warn("The argument 'simflags' is depreciated and will be removed in future versions; "
                       "please use 'simargs' instead", DeprecationWarning, stacklevel=2)
 
