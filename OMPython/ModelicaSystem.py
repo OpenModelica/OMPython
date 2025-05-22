@@ -522,7 +522,7 @@ class ModelicaSystem:
         return self.sendExpression(exp)
 
     def xmlparse(self):
-        if not self.xmlFile.exists():
+        if not self.xmlFile.is_file():
             raise ModelicaSystemError(f"XML file not generated: {self.xmlFile}")
 
         tree = ET.parse(self.xmlFile)
