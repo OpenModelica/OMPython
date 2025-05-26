@@ -25,3 +25,14 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
+
+  - repo: https://github.com/pre-commit/mirrors-mypy.git
+    rev: "v1.15.0"
+    hooks:
+      - id: mypy
+        args: []
+        exclude: tests/
+        additional_dependencies:
+          - pyparsing
+          - types-psutil
+          - pyzmq
