@@ -53,6 +53,15 @@ online.
   - Submit bugs through the [OpenModelica GitHub issues](https://github.com/OpenModelica/OMPython/issues/new).
   - [Pull requests](https://github.com/OpenModelica/OMPython/pulls) are welcome.
 
+
+## Development
+It is recommended to set up [`pre-commit`](https://pre-commit.com/) to
+automatically run linters:
+```sh
+# cd to the root of the repository
+pre-commit install
+```
+
 ## Contact
 
   - Adeel Asghar, <adeel.asghar@liu.se>
