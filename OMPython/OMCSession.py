@@ -333,10 +333,8 @@ class OMCSessionZMQ:
                 pass
             attempts += 1
             if attempts >= 50:
-                self._omc_filehandle_log.seek(0)
-                log = self._omc_filehandle_log.read()
-                self._omc_filehandle_log.close()
-                raise OMCSessionException(f"No connection with OMC (timeout={self._timeout}). Log-file says: \n{log}")
+                raise OMCSessionException(f"No connection with OMC (timeout={self._timeout}). "
+                                          f"Log-file says: \n{self.omc_process.get_log()}")
             time.sleep(self._timeout / 50.0)
         if command == "quit()":
             self.omc_zmq.close()
@@ -448,6 +446,17 @@ class OMCProcess:
             raise OMCSessionException(f"Invalid port to connect to OMC process: {self._omc_port}")
         return self._omc_port
 
+    def get_log(self) -> str:
+        # self._omc_filehandle_log.seek(0)
+        # log = self._omc_filehandle_log.read()
+        # self._omc_filehandle_log.close()
+
+        # TODO: handle log; close log at this point? what about the process, etc?
+
+        log = 'unknown'
+
+        return log
+
 
 class OMCProcessDummy(OMCProcess):
 
@@ -513,6 +522,17 @@ class OMCProcessLocal(OMCProcess):
                                "killing the process with pid=%s", self._omc_process.pid)
                 self._omc_process.kill()
                 self._omc_process.wait()
+
+    def get_log(self) -> str:
+        if self._omc_filehandle_log is not None:
+            self._omc_filehandle_log.seek(0)
+            log = self._omc_filehandle_log.read()
+            # TODO: close file here or keep it open?
+            # self._omc_filehandle_log.close()
+        else:
+            log = '(not available)'
+
+        return log
 
     @staticmethod
     def _filename_port(current_user: str, random_str: str) -> str:
