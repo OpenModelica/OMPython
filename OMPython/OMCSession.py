@@ -280,31 +280,31 @@ class OMCSessionZMQ:
             omc_process = OMCProcessLocal(omhome=omhome, timeout=timeout)
         elif not isinstance(omc_process, OMCProcess):
             raise OMCSessionException("Invalid definition of the OMC process!")
-        self._omc_process = omc_process
-
-        # variables to store compiled re expressions use in self.sendExpression()
-        self._re_log_entries = None
-        self._re_log_raw = None
+        self.omc_process = omc_process
 
         # Create the ZeroMQ socket and connect to OMC server
         context = zmq.Context.instance()
         omc = context.socket(zmq.REQ)
         omc.setsockopt(zmq.LINGER, 0)  # Dismisses pending messages if closed
         omc.setsockopt(zmq.IMMEDIATE, True)  # Queue messages only to completed connections
-        omc.connect(self._omc_process.get_port())
+        omc.connect(self.omc_process.get_port())
 
-        self._omc = omc
+        self.omc_zmq = omc
+
+        # variables to store compiled re expressions use in self.sendExpression()
+        self._re_log_entries = None
+        self._re_log_raw = None
 
     def __del__(self):
-        if self._omc:
+        if self.omc_zmq:
             try:
                 self.sendExpression("quit()")
             except OMCSessionException:
                 pass
 
-            del self._omc
+            del self.omc_zmq
 
-        self._omc = None
+        self.omc_zmq = None
 
     def execute(self, command):
         warnings.warn("This function is depreciated and will be removed in future versions; "
@@ -313,11 +313,11 @@ class OMCSessionZMQ:
         return self.sendExpression(command, parsed=False)
 
     def sendExpression(self, command, parsed=True):
-        p = self._omc_process.poll()  # check if process is running
+        p = self.omc_process.poll()  # check if process is running
         if p is not None:
             raise OMCSessionException("Process Exited, No connection with OMC. Create a new instance of OMCSessionZMQ!")
 
-        if self._omc is None:
+        if self.omc_zmq is None:
             raise OMCSessionException("No OMC running. Create a new instance of OMCSessionZMQ!")
 
         logger.debug("sendExpression(%r, parsed=%r)", command, parsed)
@@ -325,7 +325,7 @@ class OMCSessionZMQ:
         attempts = 0
         while True:
             try:
-                self._omc.send_string(str(command), flags=zmq.NOBLOCK)
+                self.omc_zmq.send_string(str(command), flags=zmq.NOBLOCK)
                 break
             except zmq.error.Again:
                 pass
@@ -337,11 +337,11 @@ class OMCSessionZMQ:
                 raise OMCSessionException(f"No connection with OMC (timeout={self._timeout}). Log-file says: \n{log}")
             time.sleep(self._timeout / 50.0)
         if command == "quit()":
-            self._omc.close()
-            self._omc = None
+            self.omc_zmq.close()
+            self.omc_zmq = None
             return None
         else:
-            result = self._omc.recv_string()
+            result = self.omc_zmq.recv_string()
 
             if command == "getErrorString()":
                 # no error handling if 'getErrorString()' is called
@@ -353,8 +353,8 @@ class OMCSessionZMQ:
                     parsed = False
             else:
                 # allways check for error
-                self._omc.send_string('getMessagesStringInternal()', flags=zmq.NOBLOCK)
-                error_raw = self._omc.recv_string()
+                self.omc_zmq.send_string('getMessagesStringInternal()', flags=zmq.NOBLOCK)
+                error_raw = self.omc_zmq.recv_string()
                 # run error handling only if there is something to check
                 if error_raw != "{}\n":
                     if not self._re_log_entries:
