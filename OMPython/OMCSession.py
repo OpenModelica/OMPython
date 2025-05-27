@@ -306,13 +306,13 @@ class OMCSessionZMQ:
 
         self.omc_zmq = None
 
-    def execute(self, command):
+    def execute(self, command: str):
         warnings.warn("This function is depreciated and will be removed in future versions; "
                       "please use sendExpression() instead", DeprecationWarning, stacklevel=1)
 
         return self.sendExpression(command, parsed=False)
 
-    def sendExpression(self, command, parsed=True):
+    def sendExpression(self, command: str, parsed: bool = True):
         p = self.omc_process.poll()  # check if process is running
         if p is not None:
             raise OMCSessionException("Process Exited, No connection with OMC. Create a new instance of OMCSessionZMQ!")
