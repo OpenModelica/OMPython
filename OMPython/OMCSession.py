@@ -276,6 +276,8 @@ class OMCSessionZMQ:
                  omhome: Optional[str] = None,
                  omc_process: Optional[OMCProcess] = None):
 
+        self._timeout = timeout
+
         if omc_process is None:
             omc_process = OMCProcessLocal(omhome=omhome, timeout=timeout)
         elif not isinstance(omc_process, OMCProcess):
