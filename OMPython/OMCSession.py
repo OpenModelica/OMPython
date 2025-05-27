@@ -273,170 +273,38 @@ class OMCSessionZMQ:
 
     def __init__(self,
                  timeout: float = 10.00,
-                 omhome: Optional[str] = None):
+                 omhome: Optional[str] = None,
+                 omc_process: Optional[OMCProcess] = None):
 
-        # store variables
-        self._omhome = self._omc_home_get(omhome=omhome)
-        self._timeout = timeout
+        if omc_process is None:
+            omc_process = OMCProcessLocal(omhome=omhome, timeout=timeout)
+        elif not isinstance(omc_process, OMCProcess):
+            raise OMCSessionException("Invalid definition of the OMC process!")
+        self._omc_process = omc_process
 
         # variables to store compiled re expressions use in self.sendExpression()
         self._re_log_entries = None
         self._re_log_raw = None
-
-        # generate a random string for this session
-        self._random_string = uuid.uuid4().hex
-        try:
-            self._currentUser = getpass.getuser()
-            if not self._currentUser:
-                self._currentUser = "nobody"
-        except KeyError:
-            # We are running as a uid not existing in the password database... Pretend we are nobody
-            self._currentUser = "nobody"
-
-        # Locating and using the IOR
-        self._temp_dir = pathlib.Path(tempfile.gettempdir())
-        self._omc_file_port = self._temp_dir / self._filename_port(current_user=self._currentUser,
-                                                                   random_str=self._random_string)
-
-        if sys.platform == 'win32':
-            filename_log = f"openmodelica.port.{self._random_string}.log"
-        else:
-            filename_log = f"openmodelica.{self._currentUser}.port.{self._random_string}.log"
-        self._omc_file_log = self._temp_dir / filename_log
-        # this file must be closed in the destructor
-        self._omc_filehandle_log: Optional[io.TextIOWrapper] = None
-        try:
-            self._omc_filehandle_log = open(self._temp_dir / filename_log, "w+")
-        except OSError as ex:
-            raise OMCSessionException(f"Cannot open log file {self._omc_file_log}.") from ex
-
-        # set omc executable path and args
-        self._omc_command = self._omc_command_get(omc_path_and_args_list=["--locale=C",
-                                                                          "--interactive=zmq",
-                                                                          f"-z={self._random_string}"])
-        # start up omc executable, which is waiting for the ZMQ connection
-        self._omc_process = self._omc_process_get(timeout)
-        # connect to the running omc instance using ZMQ
-        self._omc_port = self._omc_port_get(timeout)
 
         # Create the ZeroMQ socket and connect to OMC server
         context = zmq.Context.instance()
         omc = context.socket(zmq.REQ)
         omc.setsockopt(zmq.LINGER, 0)  # Dismisses pending messages if closed
         omc.setsockopt(zmq.IMMEDIATE, True)  # Queue messages only to completed connections
-        omc.connect(self._omc_port)
+        omc.connect(self._omc_process.get_port())
 
         self._omc = omc
 
     def __del__(self):
-        try:
-            self.sendExpression("quit()")
-        except OMCSessionException:
-            pass
+        if self._omc:
+            try:
+                self.sendExpression("quit()")
+            except OMCSessionException:
+                pass
 
-        if self._omc_filehandle_log is not None:
-            self._omc_filehandle_log.close()
+            del self._omc
 
-        try:
-            self._omc_process.wait(timeout=2.0)
-        except subprocess.TimeoutExpired:
-            if self._omc_process:
-                logger.warning("OMC did not exit after being sent the quit() command; "
-                               "killing the process with pid=%s", self._omc_process.pid)
-                self._omc_process.kill()
-                self._omc_process.wait()
-
-    @staticmethod
-    def _filename_port(current_user: str, random_str: str) -> str:
-        if sys.platform != 'win32':
-            filename = f"openmodelica.{current_user}.port.{random_str}"
-        else:
-            filename = f"openmodelica.port.{random_str}"
-
-        return filename
-
-    def _omc_process_get(self, timeout):  # output?
-        my_env = os.environ.copy()
-
-        if sys.platform == 'win32':
-            omhome_bin = (self._omhome / "bin").as_posix()
-            my_env["PATH"] = omhome_bin + os.pathsep + my_env["PATH"]
-        else:
-            # set the user environment variable so omc running from wsgi has the same user as OMPython
-            my_env["USER"] = self._currentUser
-
-        omc_process = subprocess.Popen(self._omc_command, stdout=self._omc_filehandle_log,
-                                       stderr=self._omc_filehandle_log, env=my_env)
-        return omc_process
-
-    def _omc_command_get(self, omc_path_and_args_list) -> list:
-        """
-        Define the command that will be called by the subprocess module.
-        """
-        omc_command_base = [str(self._omc_path_get())]
-
-        omc_command = omc_command_base + omc_path_and_args_list
-
-        return omc_command
-
-    @staticmethod
-    def _omc_home_get(omhome: Optional[str] = None):
-        # use the provided path
-        if omhome is not None:
-            return pathlib.Path(omhome)
-
-        # check the environment variable
-        omhome = os.environ.get('OPENMODELICAHOME')
-        if omhome is not None:
-            return pathlib.Path(omhome)
-
-        # Get the path to the OMC executable, if not installed this will be None
-        path_to_omc = shutil.which("omc")
-        if path_to_omc is not None:
-            return pathlib.Path(path_to_omc).parents[1]
-
-        raise OMCSessionException("Cannot find OpenModelica executable, please install from openmodelica.org")
-
-    def _omc_path_get(self) -> pathlib.Path:
-        return self._omhome / "bin" / "omc"
-
-    def _omc_port_get(self, timeout) -> str:
-        omc_zeromq_uri = "file:///" + self._omc_file_port.as_posix()
-        # See if the omc server is running
-        attempts = 0
-        while True:
-            port = self._omc_port_get_main()
-            if port is not None:
-                break
-
-            attempts += 1
-            if attempts == 80.0:
-                if self._omc_filehandle_log is not None:
-                    name = self._omc_filehandle_log.name
-                    self._omc_filehandle_log.close()
-                    self._omc_filehandle_log = None
-                    log_content = open(name).read()
-                else:
-                    log_content = '(missing log file)'
-                raise OMCSessionException(f"OMC Server did not start (timeout={timeout}). "
-                                          f"Could not open file {self._omc_file_port.as_posix()}. "
-                                          f"Log-file says:\n{log_content}")
-            time.sleep(timeout / 80.0)
-
-        logger.info(f"OMC Server is up and running at {omc_zeromq_uri} "
-                    f"pid={self._omc_process.pid if self._omc_process else '?'}")
-
-        return port
-
-    def _omc_port_get_main(self) -> Optional[str]:
-        port = None
-        if self._omc_file_port.is_file():
-            # Read the port file
-            with open(self._omc_file_port, 'r') as f_p:
-                port = f_p.readline()
-            self._omc_file_port.unlink()
-
-        return port
+        self._omc = None
 
     def execute(self, command):
         warnings.warn("This function is depreciated and will be removed in future versions; "
@@ -541,6 +409,182 @@ class OMCSessionZMQ:
                         raise OMCSessionException("Cannot parse OMC result") from ex
             else:
                 return result
+
+
+class OMCProcess:
+
+    def __init__(self,
+                 timeout: float = 10.00,
+                 omhome: Optional[str] = None):
+
+        # store variables
+        self._omhome = self._omc_home_get(omhome=omhome)
+        self._timeout = timeout
+
+        self._omc_port: Optional[str] = None
+
+    @staticmethod
+    def _omc_home_get(omhome: Optional[str] = None):
+        # use the provided path
+        if omhome is not None:
+            return pathlib.Path(omhome)
+
+        # check the environment variable
+        omhome = os.environ.get('OPENMODELICAHOME')
+        if omhome is not None:
+            return pathlib.Path(omhome)
+
+        # Get the path to the OMC executable, if not installed this will be None
+        path_to_omc = shutil.which("omc")
+        if path_to_omc is not None:
+            return pathlib.Path(path_to_omc).parents[1]
+
+        raise OMCSessionException("Cannot find OpenModelica executable, please install from openmodelica.org")
+
+    def get_port(self) -> str:
+        if not isinstance(self._omc_port, str):
+            raise OMCSessionException(f"Invalid port to connect to OMC process: {self._omc_port}")
+        return self._omc_port
+
+
+class OMCProcessDummy(OMCProcess):
+
+    def __init__(self,
+                 omc_port: str):
+        super().__init__()
+        self._omc_port = omc_port
+
+
+class OMCProcessLocal(OMCProcess):
+
+    def __init__(self,
+                 timeout: float = 10.00,
+                 omhome: Optional[str] = None):
+
+        super().__init__(timeout=timeout, omhome=omhome)
+
+        # generate a random string for this session
+        self._random_string = uuid.uuid4().hex
+        try:
+            self._currentUser = getpass.getuser()
+            if not self._currentUser:
+                self._currentUser = "nobody"
+        except KeyError:
+            # We are running as a uid not existing in the password database... Pretend we are nobody
+            self._currentUser = "nobody"
+
+        # Locating and using the IOR
+        self._temp_dir = pathlib.Path(tempfile.gettempdir())
+        self._omc_file_port = self._temp_dir / self._filename_port(current_user=self._currentUser,
+                                                                   random_str=self._random_string)
+
+        if sys.platform == 'win32':
+            filename_log = f"openmodelica.port.{self._random_string}.log"
+        else:
+            filename_log = f"openmodelica.{self._currentUser}.port.{self._random_string}.log"
+        self._omc_file_log = self._temp_dir / filename_log
+        # this file must be closed in the destructor
+        self._omc_filehandle_log: Optional[io.TextIOWrapper] = None
+        try:
+            self._omc_filehandle_log = open(self._temp_dir / filename_log, "w+")
+        except OSError as ex:
+            raise OMCSessionException(f"Cannot open log file {self._omc_file_log}.") from ex
+
+        # set omc executable path and args
+        self._omc_command = self._omc_command_get(omc_path_and_args_list=["--locale=C",
+                                                                          "--interactive=zmq",
+                                                                          f"-z={self._random_string}"])
+        # start up omc executable, which is waiting for the ZMQ connection
+        self._omc_process = self._omc_process_get(timeout)
+        # connect to the running omc instance using ZMQ
+        self._omc_port = self._omc_port_get(timeout)
+
+    def __del__(self):
+        if self._omc_filehandle_log is not None:
+            self._omc_filehandle_log.close()
+
+        try:
+            self._omc_process.wait(timeout=2.0)
+        except subprocess.TimeoutExpired:
+            if self._omc_process:
+                logger.warning("OMC did not exit after being sent the quit() command; "
+                               "killing the process with pid=%s", self._omc_process.pid)
+                self._omc_process.kill()
+                self._omc_process.wait()
+
+    @staticmethod
+    def _filename_port(current_user: str, random_str: str) -> str:
+        if sys.platform != 'win32':
+            filename = f"openmodelica.{current_user}.port.{random_str}"
+        else:
+            filename = f"openmodelica.port.{random_str}"
+
+        return filename
+
+    def _omc_process_get(self, timeout):  # output?
+        my_env = os.environ.copy()
+
+        if sys.platform == 'win32':
+            omhome_bin = (self._omhome / "bin").as_posix()
+            my_env["PATH"] = omhome_bin + os.pathsep + my_env["PATH"]
+        else:
+            # set the user environment variable so omc running from wsgi has the same user as OMPython
+            my_env["USER"] = self._currentUser
+
+        omc_process = subprocess.Popen(self._omc_command, stdout=self._omc_filehandle_log,
+                                       stderr=self._omc_filehandle_log, env=my_env)
+        return omc_process
+
+    def _omc_command_get(self, omc_path_and_args_list) -> list:
+        """
+        Define the command that will be called by the subprocess module.
+        """
+        omc_command_base = [str(self._omc_path_get())]
+
+        omc_command = omc_command_base + omc_path_and_args_list
+
+        return omc_command
+
+    def _omc_path_get(self) -> pathlib.Path:
+        return self._omhome / "bin" / "omc"
+
+    def _omc_port_get(self, timeout) -> str:
+        omc_zeromq_uri = "file:///" + self._omc_file_port.as_posix()
+        # See if the omc server is running
+        attempts = 0
+        while True:
+            port = self._omc_port_get_main()
+            if port is not None:
+                break
+
+            attempts += 1
+            if attempts == 80.0:
+                if self._omc_filehandle_log is not None:
+                    name = self._omc_filehandle_log.name
+                    self._omc_filehandle_log.close()
+                    self._omc_filehandle_log = None
+                    log_content = open(name).read()
+                else:
+                    log_content = '(missing log file)'
+                raise OMCSessionException(f"OMC Server did not start (timeout={timeout}). "
+                                          f"Could not open file {self._omc_file_port.as_posix()}. "
+                                          f"Log-file says:\n{log_content}")
+            time.sleep(timeout / 80.0)
+
+        logger.info(f"OMC Server is up and running at {omc_zeromq_uri} "
+                    f"pid={self._omc_process.pid if self._omc_process else '?'}")
+
+        return port
+
+    def _omc_port_get_main(self) -> Optional[str]:
+        port = None
+        if self._omc_file_port.is_file():
+            # Read the port file
+            with open(self._omc_file_port, 'r') as f_p:
+                port = f_p.readline()
+            self._omc_file_port.unlink()
+
+        return port
 
 
 # noinspection PyPep8Naming
