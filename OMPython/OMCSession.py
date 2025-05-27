@@ -291,11 +291,11 @@ class OMCSessionZMQ:
         omc.setsockopt(zmq.IMMEDIATE, True)  # Queue messages only to completed connections
         omc.connect(self.omc_process.get_port())
 
-        self.omc_zmq = omc
+        self.omc_zmq: Optional[zmq.Socket[bytes]] = omc
 
         # variables to store compiled re expressions use in self.sendExpression()
-        self._re_log_entries = None
-        self._re_log_raw = None
+        self._re_log_entries: Optional[re.Pattern[str]] = None
+        self._re_log_raw: Optional[re.Pattern[str]] = None
 
     def __del__(self):
         if self.omc_zmq:
