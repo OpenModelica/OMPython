@@ -37,3 +37,17 @@ def test_str():
 
 def test_UnStringable():
     pass
+
+
+def test_everything():
+    # this test used to be in OMTypedParser.py's main()
+    testdata = """
+   (1.0,{{1,true,3},{"4\\"
+",5.9,6,NONE ( )},record ABC
+  startTime = ErrorLevel.warning,
+  'stop*Time' = SOME(1.0)
+end ABC;})
+    """
+    expected = (1.0, ((1, True, 3), ('4"\n', 5.9, 6, None), {"'stop*Time'": 1.0, 'startTime': 'ErrorLevel.warning'}))
+    results = typeCheck(testdata)
+    assert results == expected
