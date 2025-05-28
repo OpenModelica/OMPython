@@ -610,7 +610,7 @@ class OMCProcessLocal(OMCProcess):
 
 
 # noinspection PyPep8Naming
-class OMCSessionZMQDocker(OMCSessionZMQ):
+class OMCProcessDocker(OMCProcessLocal):
 
     def __init__(self,
                  timeout: float = 10.00,
