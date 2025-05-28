@@ -57,7 +57,7 @@ def test_setParameters():
 def test_setSimulationOptions():
     omc = OMPython.OMCSessionZMQ()
     model_path = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels/"
-    mod = OMPython.ModelicaSystem(model_path + "BouncingBall.mo", "BouncingBall")
+    mod = OMPython.ModelicaSystem(fileName=model_path + "BouncingBall.mo", modelName="BouncingBall")
 
     # method 1
     mod.setSimulationOptions("stopTime=1.234")
@@ -88,7 +88,7 @@ def test_relative_path(model_firstorder):
         model_relative = str(model_file)
         assert "/" not in model_relative
 
-        mod = OMPython.ModelicaSystem(model_relative, "M")
+        mod = OMPython.ModelicaSystem(fileName=model_relative, modelName="M")
         assert float(mod.getParameters("a")[0]) == -1
     finally:
         model_file.unlink()  # clean up the temporary file
@@ -145,7 +145,7 @@ der(x) = x*a + b;
 y = der(x);
 end M_getters;
 """)
-    mod = OMPython.ModelicaSystem(model_file.as_posix(), "M_getters")
+    mod = OMPython.ModelicaSystem(fileName=model_file.as_posix(), modelName="M_getters")
 
     q = mod.getQuantities()
     assert isinstance(q, list)
@@ -324,7 +324,7 @@ der(x) = u1 + u2;
 y = x;
 end M_input;
 """)
-    mod = OMPython.ModelicaSystem(model_file.as_posix(), "M_input")
+    mod = OMPython.ModelicaSystem(fileName=model_file.as_posix(), modelName="M_input")
 
     mod.setSimulationOptions("stopTime=1.0")
 
