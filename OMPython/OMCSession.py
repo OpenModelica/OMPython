@@ -315,10 +315,6 @@ class OMCSessionZMQ:
         return self.sendExpression(command, parsed=False)
 
     def sendExpression(self, command: str, parsed: bool = True):
-        p = self.omc_process.poll()  # check if process is running
-        if p is not None:
-            raise OMCSessionException("Process Exited, No connection with OMC. Create a new instance of OMCSessionZMQ!")
-
         if self.omc_zmq is None:
             raise OMCSessionException("No OMC running. Create a new instance of OMCSessionZMQ!")
 
