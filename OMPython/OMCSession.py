@@ -310,9 +310,9 @@ class OMCSessionZMQ:
         self._port_file = ((pathlib.Path("/tmp") if docker else self._temp_dir) / port_file).as_posix()
         self._interactivePort = port
         # set omc executable path and args
-        self._set_omc_command(omc_path_and_args_list=["--interactive=zmq",
-                                                      "--locale=C",
-                                                      f"-z={self._random_string}"])
+        self._omc_command = self._set_omc_command(omc_path_and_args_list=["--interactive=zmq",
+                                                                          "--locale=C",
+                                                                          f"-z={self._random_string}"])
         # start up omc executable, which is waiting for the ZMQ connection
         self._omc_process = self._start_omc_process(timeout)
         # connect to the running omc instance using ZMQ
@@ -414,7 +414,7 @@ class OMCSessionZMQ:
         """
         return 1000 if sys.platform == 'win32' else os.getuid()
 
-    def _set_omc_command(self, omc_path_and_args_list):
+    def _set_omc_command(self, omc_path_and_args_list) -> list:
         """Define the command that will be called by the subprocess module.
 
         On Windows, use the list input style of the subprocess module to
@@ -461,9 +461,9 @@ class OMCSessionZMQ:
         if self._interactivePort:
             extraFlags = extraFlags + ["--interactivePort=%d" % int(self._interactivePort)]
 
-        self._omc_command = omcCommand + omc_path_and_args_list + extraFlags
+        omc_command = omcCommand + omc_path_and_args_list + extraFlags
 
-        return self._omc_command
+        return omc_command
 
     def _get_omhome(self, omhome: str = None):
         # use the provided path
