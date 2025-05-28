@@ -1214,6 +1214,14 @@ class ModelicaSystem:
               compatibility, because linearize() used to return `[A, B, C, D]`.
         """
 
+        # replacement for depreciated importlib.load_module()
+        def load_module_from_path(module_name, file_path):
+            spec = importlib.util.spec_from_file_location(module_name, file_path)
+            module_def = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module_def)
+
+            return module_def
+
         if self.xmlFile is None:
             raise IOError("Linearization cannot be performed as the model is not build, "
                           "use ModelicaSystem() to build the model first")
@@ -1271,7 +1279,8 @@ class ModelicaSystem:
         try:
             # do not add the linearfile directory to path, as multiple execution of linearization will always use the first added path, instead execute the file
             # https://github.com/OpenModelica/OMPython/issues/196
-            module = importlib.machinery.SourceFileLoader("linearized_model", linearFile.as_posix()).load_module()
+            module = load_module_from_path(module_name="linearized_model", file_path=linearFile.as_posix())
+
             result = module.linearized_model()
             (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
             self.linearinputs = inputVars
