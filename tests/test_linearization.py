@@ -31,7 +31,7 @@ end linearTest;
 
     def test_example(self):
         filePath = (self.tmp / "linearTest.mo").as_posix()
-        mod = OMPython.ModelicaSystem(filePath, "linearTest")
+        mod = OMPython.ModelicaSystem(fileName=filePath, modelName="linearTest")
         [A, B, C, D] = mod.linearize()
         expected_matrixA = [[-3, 2, 0, 0], [-7, 0, -5, 1], [-1, 0, -1, 4], [0, 1, -1, 5]]
         assert A == expected_matrixA, f"Matrix does not match the expected value. Got: {A}, Expected: {expected_matrixA}"
@@ -61,7 +61,7 @@ equation
     y2 = phi + u1;
 end Pendulum;
 """)
-        mod = OMPython.ModelicaSystem(model_file.as_posix(), "Pendulum", ["Modelica"])
+        mod = OMPython.ModelicaSystem(fileName=model_file.as_posix(), modelName="Pendulum", lmodel=["Modelica"])
 
         d = mod.getLinearizationOptions()
         assert isinstance(d, dict)
