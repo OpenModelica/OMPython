@@ -49,5 +49,6 @@ __all__ = [
     'OMCSessionCmd',
     'OMCSessionException',
     'OMCSessionZMQ',
+    'OMCProcessDummy',
     'OMCProcessDocker',
 ]
