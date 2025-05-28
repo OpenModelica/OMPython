@@ -5,7 +5,7 @@ import os
 
 
 # do not change the prefix class name, the class name should have prefix "Test"
-# according to the documenation of pytest
+# according to the documentation of pytest
 class Test_FMIRegression:
 
     def buildModelFMU(self, modelName):
