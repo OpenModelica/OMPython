@@ -33,8 +33,9 @@
 """
 
 import sys
+from typing import Dict, Any
 
-result = dict()
+result: Dict[str, Any] = dict()
 
 inner_sets = []
 next_set_list = []
