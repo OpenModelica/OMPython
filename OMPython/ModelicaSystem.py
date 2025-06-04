@@ -56,6 +56,9 @@ logger = logging.getLogger(__name__)
 
 
 class ModelicaSystemError(Exception):
+    """
+    Exception used in ModelicaSystem and ModelicaSystemCmd classes.
+    """
     pass
 
 
