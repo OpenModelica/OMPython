@@ -666,11 +666,13 @@ class OMCProcessDocker(OMCProcessLocal):
 
         if self._docker:
             if sys.platform == "win32":
-                if self._interactivePort is not None and isinstance(self._interactivePort, int):
+                if isinstance(self._interactivePort, str):
                     p = int(self._interactivePort)
-                    dockerNetworkStr = ["-p", "127.0.0.1:%d:%d" % (p, p)]
+                elif isinstance(self._interactivePort, int):
+                    p = self._interactivePort
                 else:
                     raise OMCSessionException("Missing or invalid interactive port!")
+                dockerNetworkStr = ["-p", "127.0.0.1:%d:%d" % (p, p)]
             elif self._dockerNetwork == "host" or self._dockerNetwork is None:
                 dockerNetworkStr = ["--network=host"]
             elif self._dockerNetwork == "separate":
