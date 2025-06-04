@@ -49,7 +49,7 @@ from typing import Optional
 import warnings
 import xml.etree.ElementTree as ET
 
-from OMPython.OMCSession import OMCSessionZMQ, OMCSessionException
+from OMPython.OMCSession import OMCSessionException, OMCSessionZMQ
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
