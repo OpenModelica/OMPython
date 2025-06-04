@@ -251,7 +251,7 @@ class ModelicaSystemCmd:
 
         try:
             cmdres = subprocess.run(cmdl, capture_output=True, text=True, env=my_env, cwd=self._runpath,
-                                    timeout=self._timeout)
+                                    timeout=self._timeout, check=True)
             stdout = cmdres.stdout.strip()
             stderr = cmdres.stderr.strip()
             returncode = cmdres.returncode
