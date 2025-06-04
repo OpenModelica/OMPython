@@ -325,7 +325,7 @@ class ModelicaSystem:
             customBuildDirectory: Optional[str | os.PathLike | pathlib.Path] = None,
             omhome: Optional[str] = None,
             session: Optional[OMCSessionZMQ] = None,
-            build: Optional[bool] = True,
+            build: bool = True,
     ) -> None:
         """Initialize, load and build a model.
 
