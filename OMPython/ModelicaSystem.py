@@ -1050,7 +1050,7 @@ class ModelicaSystem:
             value = name.split("=")
             if value[0] in self.inputlist:
                 tmpvalue = eval(value[1])
-                if isinstance(tmpvalue, int) or isinstance(tmpvalue, float):
+                if isinstance(tmpvalue, (int, float)):
                     self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])),
                                                 (float(self.simulateOptions["stopTime"]), float(value[1]))]
                 elif isinstance(tmpvalue, list):
@@ -1065,7 +1065,7 @@ class ModelicaSystem:
                 value = var.split("=")
                 if value[0] in self.inputlist:
                     tmpvalue = eval(value[1])
-                    if isinstance(tmpvalue, int) or isinstance(tmpvalue, float):
+                    if isinstance(tmpvalue, (int, float)):
                         self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])),
                                                     (float(self.simulateOptions["stopTime"]), float(value[1]))]
                     elif isinstance(tmpvalue, list):
