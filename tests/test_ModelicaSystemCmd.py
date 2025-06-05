@@ -23,7 +23,7 @@ equation
   der(x) = x*a;
 end M;
                    """)
-        self.mod = OMPython.ModelicaSystem(self.model.as_posix(), "M")
+        self.mod = OMPython.ModelicaSystem(fileName=self.model.as_posix(), modelName="M")
 
     def __del__(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
