@@ -46,6 +46,35 @@ end M;"""
         self.assertEqual('HelloWorld!', self.om.sendExpression('"HelloWorld!"', parsed=True))
         self.clean()
 
+    def test_omcprocessdummy_execute(self):
+        port = self.om.omc_process.get_port()
+        omcp = OMPython.OMCProcessDummy(omc_port=port)
+
+        # run 1
+        om1 = OMPython.OMCSessionZMQ(omc_process=omcp)
+        self.assertEqual('"HelloWorld!"\n', om1.sendExpression('"HelloWorld!"', parsed=False))
+
+        # run 2
+        om2 = OMPython.OMCSessionZMQ(omc_process=omcp)
+        self.assertEqual('"HelloWorld!"\n', om2.sendExpression('"HelloWorld!"', parsed=False))
+
+        del om1
+        del om2
+
+        self.clean()
+
+    def test_omcprocessdummy_simulate(self):
+        port = self.om.omc_process.get_port()
+        omcp = OMPython.OMCProcessDummy(omc_port=port)
+
+        om = OMPython.OMCSessionZMQ(omc_process=omcp)
+        self.assertEqual(True, om.sendExpression('loadString("%s")' % self.simpleModel))
+        om.sendExpression('res:=simulate(M, stopTime=2.0)')
+        self.assertNotEqual("", om.sendExpression('res.resultFile'))
+        del om
+
+        self.clean()
+
 
 if __name__ == '__main__':
     unittest.main()
