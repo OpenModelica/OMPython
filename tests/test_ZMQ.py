@@ -1,51 +1,42 @@
 import OMPython
-import unittest
-import tempfile
-import shutil
+import pathlib
 import os
+import pytest
 
 
-class ZMQTester(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(ZMQTester, self).__init__(*args, **kwargs)
-        self.simpleModel = """model M
+@pytest.fixture
+def model_time_str():
+    return """model M
   Real r = time;
-end M;"""
-        self.tmp = tempfile.mkdtemp(prefix='tmpOMPython.tests')
-        self.origDir = os.getcwd()
-        os.chdir(self.tmp)
-        self.om = OMPython.OMCSessionZMQ()
-        os.chdir(self.origDir)
-
-    def __del__(self):
-        shutil.rmtree(self.tmp, ignore_errors=True)
-        del self.om
-
-    def clean(self):
-        del self.om
-        self.om = None
-
-    def testHelloWorld(self):
-        self.assertEqual("HelloWorld!", self.om.sendExpression('"HelloWorld!"'))
-        self.clean()
-
-    def testTranslate(self):
-        self.assertEqual(("M",), self.om.sendExpression(self.simpleModel))
-        self.assertEqual(True, self.om.sendExpression('translateModel(M)'))
-        self.clean()
-
-    def testSimulate(self):
-        self.assertEqual(True, self.om.sendExpression('loadString("%s")' % self.simpleModel))
-        self.om.sendExpression('res:=simulate(M, stopTime=2.0)')
-        self.assertNotEqual("", self.om.sendExpression('res.resultFile'))
-        self.clean()
-
-    def test_execute(self):
-        self.assertEqual('"HelloWorld!"\n', self.om.execute('"HelloWorld!"'))
-        self.assertEqual('"HelloWorld!"\n', self.om.sendExpression('"HelloWorld!"', parsed=False))
-        self.assertEqual('HelloWorld!', self.om.sendExpression('"HelloWorld!"', parsed=True))
-        self.clean()
+end M;
+"""
 
 
-if __name__ == '__main__':
-    unittest.main()
+@pytest.fixture
+def om(tmp_path):
+    origDir = pathlib.Path.cwd()
+    os.chdir(tmp_path)
+    om = OMPython.OMCSessionZMQ()
+    os.chdir(origDir)
+    return om
+
+
+def testHelloWorld(om):
+    assert om.sendExpression('"HelloWorld!"') == "HelloWorld!"
+
+
+def test_Translate(om, model_time_str):
+    assert om.sendExpression(model_time_str) == ("M",)
+    assert om.sendExpression('translateModel(M)') is True
+
+
+def test_Simulate(om, model_time_str):
+    assert om.sendExpression(f'loadString("{model_time_str}")') is True
+    om.sendExpression('res:=simulate(M, stopTime=2.0)')
+    assert om.sendExpression('res.resultFile')
+
+
+def test_execute(om):
+    assert om.execute('"HelloWorld!"') == '"HelloWorld!"\n'
+    assert om.sendExpression('"HelloWorld!"', parsed=False) == '"HelloWorld!"\n'
+    assert om.sendExpression('"HelloWorld!"', parsed=True) == 'HelloWorld!'
