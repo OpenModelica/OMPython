@@ -582,7 +582,7 @@ class OMCSessionZMQ:
                     logger.warning("Result of 'getMessagesStringInternal()' cannot be parsed - set parsed to False!")
                     parsed = False
             else:
-                # allways check for error
+                # always check for error
                 self._omc.send_string('getMessagesStringInternal()', flags=zmq.NOBLOCK)
                 error_raw = self._omc.recv_string()
                 # run error handling only if there is something to check

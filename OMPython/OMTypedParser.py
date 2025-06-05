@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 __author__ = "Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-19, and Martin Sjölund"
 __license__ = """
