@@ -314,8 +314,8 @@ class ModelicaSystemCmd:
 class ModelicaSystem:
     def __init__(
             self,
-            modelName: str,
             fileName: Optional[str | os.PathLike | pathlib.Path] = None,
+            modelName: Optional[str] = None,
             lmodel: Optional[list[str | tuple[str, str]]] = None,
             commandLineOptions: Optional[str] = None,
             variableFilter: Optional[str] = None,
@@ -330,10 +330,10 @@ class ModelicaSystem:
         xml files, etc.
 
         Args:
-            modelName: The name of the model class. If it is contained within
-              a package, "PackageName.ModelName" should be used.
             fileName: Path to the model file. Either absolute or relative to
               the current working directory.
+            modelName: The name of the model class. If it is contained within
+              a package, "PackageName.ModelName" should be used.
             lmodel: List of libraries to be loaded before the model itself is
               loaded. Two formats are supported for the list elements:
               lmodel=["Modelica"] for just the library name
@@ -360,8 +360,12 @@ class ModelicaSystem:
             mod = ModelicaSystem("ModelicaModel.mo", "modelName", ["Modelica"])
             mod = ModelicaSystem("ModelicaModel.mo", "modelName", [("Modelica","3.2.3"), "PowerSystems"])
         """
+
         if fileName is None and modelName is None and not lmodel:  # all None
             raise ModelicaSystemError("Cannot create ModelicaSystem object without any arguments")
+
+        if modelName is None:
+            raise ModelicaSystemError("A modelname must be provided (argument modelName)!")
 
         self.quantitiesList = []
         self.paramlist = {}
@@ -421,7 +425,7 @@ class ModelicaSystem:
             self.loadFile(fileName=self.fileName)
 
         # allow directly loading models from MSL without fileName
-        else:
+        elif fileName is None and modelName is not None:
             self.loadLibrary(lmodel=self.lmodel)
 
         if build:
