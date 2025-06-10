@@ -571,9 +571,11 @@ class ModelicaSystem:
         """
         if names is None:
             return self.quantitiesList
-        elif isinstance(names, str):
+
+        if isinstance(names, str):
             return [x for x in self.quantitiesList if x["name"] == names]
-        elif isinstance(names, list):
+
+        if isinstance(names, list):
             return [x for y in names for x in self.quantitiesList if x["name"] == y]
 
         raise ModelicaSystemError("Unhandled input for getQuantities()")
@@ -589,9 +591,11 @@ class ModelicaSystem:
         if not self.simulationFlag:
             if names is None:
                 return self.continuouslist
-            elif isinstance(names, str):
+
+            if isinstance(names, str):
                 return [self.continuouslist.get(names, "NotExist")]
-            elif isinstance(names, list):
+
+            if isinstance(names, list):
                 return [self.continuouslist.get(x, "NotExist") for x in names]
         else:
             if names is None:
@@ -603,7 +607,7 @@ class ModelicaSystem:
                         raise ModelicaSystemError(f"{i} could not be computed") from ex
                 return self.continuouslist
 
-            elif isinstance(names, str):
+            if isinstance(names, str):
                 if names in self.continuouslist:
                     value = self.getSolutions(names)
                     self.continuouslist[names] = value[0][-1]
@@ -611,7 +615,7 @@ class ModelicaSystem:
                 else:
                     raise ModelicaSystemError(f"{names} is not continuous")
 
-            elif isinstance(names, list):
+            if isinstance(names, list):
                 valuelist = []
                 for i in names:
                     if i in self.continuouslist:
@@ -907,14 +911,16 @@ class ModelicaSystem:
         self.sendExpression("closeSimulationResultFile()")
         if varList is None:
             return resultVars
-        elif isinstance(varList, str):
+
+        if isinstance(varList, str):
             if varList not in resultVars and varList != "time":
                 raise ModelicaSystemError(f"Requested data {repr(varList)} does not exist")
             res = self.sendExpression(f'readSimulationResult("{resFile}", {{{varList}}})')
             npRes = np.array(res)
             self.sendExpression("closeSimulationResultFile()")
             return npRes
-        elif isinstance(varList, list):
+
+        if isinstance(varList, list):
             for var in varList:
                 if var == "time":
                     continue
@@ -932,7 +938,8 @@ class ModelicaSystem:
     def _strip_space(name):
         if isinstance(name, str):
             return name.replace(" ", "")
-        elif isinstance(name, list):
+
+        if isinstance(name, list):
             return [x.replace(" ", "") for x in name]
 
         raise ModelicaSystemError("Unhandled input for strip_space()")
