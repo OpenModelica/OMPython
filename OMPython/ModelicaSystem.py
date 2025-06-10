@@ -59,7 +59,6 @@ class ModelicaSystemError(Exception):
     """
     Exception used in ModelicaSystem and ModelicaSystemCmd classes.
     """
-    pass
 
 
 @dataclass
@@ -260,8 +259,8 @@ class ModelicaSystemCmd:
 
             if stderr:
                 raise ModelicaSystemError(f"Error running command {repr(cmdl)}: {stderr}")
-        except subprocess.TimeoutExpired:
-            raise ModelicaSystemError(f"Timeout running command {repr(cmdl)}")
+        except subprocess.TimeoutExpired as ex:
+            raise ModelicaSystemError(f"Timeout running command {repr(cmdl)}") from ex
         except subprocess.CalledProcessError as ex:
             raise ModelicaSystemError(f"Error running command {repr(cmdl)}") from ex
 
@@ -301,7 +300,7 @@ class ModelicaSystemCmd:
                 override_dict = {}
                 for item in override.split(','):
                     kv = item.split('=')
-                    if not (0 < len(kv) < 3):
+                    if not 0 < len(kv) < 3:
                         raise ModelicaSystemError(f"Invalid value for '-override': {override}")
                     if kv[0]:
                         try:
