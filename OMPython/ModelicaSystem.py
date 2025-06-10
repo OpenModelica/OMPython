@@ -238,8 +238,8 @@ class ModelicaSystemCmd:
             if not path_bat.exists():
                 raise ModelicaSystemError("Batch file (*.bat) does not exist " + str(path_bat))
 
-            with open(path_bat, 'r') as file:
-                for line in file:
+            with open(file=path_bat, mode='r', encoding='utf-8') as fh:
+                for line in fh:
                     match = re.match(r"^SET PATH=([^%]*)", line, re.IGNORECASE)
                     if match:
                         path_dll = match.group(1).strip(';')  # Remove any trailing semicolons
@@ -850,9 +850,9 @@ class ModelicaSystem:
             tmpdict = self.overridevariables.copy()
             tmpdict.update(self.simoptionsoverride)
             # write to override file
-            with open(overrideFile, "w") as file:
+            with open(file=overrideFile, mode="w", encoding="utf-8") as fh:
                 for key, value in tmpdict.items():
-                    file.write(f"{key}={value}\n")
+                    fh.write(f"{key}={value}\n")
 
             om_cmd.arg_set(key="overrideFile", val=overrideFile.as_posix())
 
@@ -1131,8 +1131,8 @@ class ModelicaSystem:
 
         csvFile = self.tempdir / f'{self.modelName}.csv'
 
-        with open(csvFile, "w", newline="") as f:
-            writer = csv.writer(f)
+        with open(file=csvFile, mode="w", encoding="utf-8", newline="") as fh:
+            writer = csv.writer(fh)
             writer.writerows(csv_rows)
 
         return csvFile
@@ -1233,11 +1233,11 @@ class ModelicaSystem:
 
         overrideLinearFile = self.tempdir / f'{self.modelName}_override_linear.txt'
 
-        with open(overrideLinearFile, "w") as file:
+        with open(file=overrideLinearFile, mode="w", encoding="utf-8") as fh:
             for key, value in self.overridevariables.items():
-                file.write(f"{key}={value}\n")
+                fh.write(f"{key}={value}\n")
             for key, value in self.linearOptions.items():
-                file.write(f"{key}={value}\n")
+                fh.write(f"{key}={value}\n")
 
         om_cmd.arg_set(key="overrideFile", val=overrideLinearFile.as_posix())
 
