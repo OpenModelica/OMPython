@@ -322,8 +322,8 @@ class ModelicaSystem:
             customBuildDirectory: Optional[str | os.PathLike | pathlib.Path] = None,
             omhome: Optional[str] = None,
             session: Optional[OMCSessionZMQ] = None,
-            build: Optional[bool] = True
-            ):
+            build: Optional[bool] = True,
+    ) -> None:
         """Initialize, load and build a model.
 
         The constructor loads the model file and builds it, generating exe and
@@ -401,8 +401,8 @@ class ModelicaSystem:
         self.inputFlag = False  # for model with input quantity
         self.simulationFlag = False  # if the model is simulated?
         self.outputFlag = False
-        self.csvFile = ''  # for storing inputs condition
-        self.resultfile = None  # for storing result file
+        self.csvFile: Optional[pathlib.Path] = None  # for storing inputs condition
+        self.resultfile: Optional[pathlib.Path] = None  # for storing result file
         self.variableFilter = variableFilter
 
         if self.fileName is not None and not self.fileName.is_file():  # if file does not exist
@@ -427,7 +427,7 @@ class ModelicaSystem:
         if build:
             self.buildModel(variableFilter)
 
-    def setCommandLineOptions(self, commandLineOptions: str):
+    def setCommandLineOptions(self, commandLineOptions: Optional[str] = None):
         # set commandLineOptions if provided by users
         if commandLineOptions is None:
             return
@@ -462,7 +462,7 @@ class ModelicaSystem:
                                               '1)["Modelica"]\n'
                                               '2)[("Modelica","3.2.3"), "PowerSystems"]\n')
 
-    def setTempDirectory(self, customBuildDirectory) -> pathlib.Path:
+    def setTempDirectory(self, customBuildDirectory: Optional[str | os.PathLike | pathlib.Path] = None) -> pathlib.Path:
         # create a unique temp directory for each session and build the model in that directory
         if customBuildDirectory is not None:
             if not os.path.exists(customBuildDirectory):
@@ -482,7 +482,7 @@ class ModelicaSystem:
     def getWorkDirectory(self) -> pathlib.Path:
         return self.tempdir
 
-    def buildModel(self, variableFilter=None):
+    def buildModel(self, variableFilter: Optional[str] = None):
         if variableFilter is not None:
             self.variableFilter = variableFilter
 
@@ -490,14 +490,14 @@ class ModelicaSystem:
             varFilter = f'variableFilter="{self.variableFilter}"'
         else:
             varFilter = 'variableFilter=".*"'
-        logger.debug("varFilter=%s", varFilter)
+
         buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
         logger.debug("OM model build result: %s", buildModelResult)
 
         self.xmlFile = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
         self.xmlparse()
 
-    def sendExpression(self, expr, parsed=True):
+    def sendExpression(self, expr: str, parsed: bool = True):
         try:
             retval = self.getconn.sendExpression(expr, parsed)
         except OMCSessionException as ex:
@@ -522,7 +522,7 @@ class ModelicaSystem:
         return self.sendExpression(exp)
 
     def xmlparse(self):
-        if not self.xmlFile.exists():
+        if not self.xmlFile.is_file():
             raise ModelicaSystemError(f"XML file not generated: {self.xmlFile}")
 
         tree = ET.parse(self.xmlFile)
@@ -597,7 +597,7 @@ class ModelicaSystem:
                     try:
                         value = self.getSolutions(i)
                         self.continuouslist[i] = value[0][-1]
-                    except OMCSessionException as ex:
+                    except (OMCSessionException, ModelicaSystemError) as ex:
                         raise ModelicaSystemError(f"{i} could not be computed") from ex
                 return self.continuouslist
 
@@ -999,8 +999,8 @@ class ModelicaSystem:
         if q[0]["changeable"] == "false":
             logger.verbose(f"setParameters() failed : It is not possible to set the following signal {repr(name)}. "
                            "It seems to be structural, final, protected or evaluated or has a non-constant binding, "
-                           f"use sendExpression(\"setParameterValue({self.modelName}, {name}, {value})\", "
-                           "parsed=False) and rebuild the model using buildModel() API")
+                           f"use sendExpression(\"setParameterValue({self.modelName}, {name}, {value})\") "
+                           "and rebuild the model using buildModel() API")
             return False
         return True
 
