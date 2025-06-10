@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 __author__ = "Anand Kalaiarasi Ganeson, ganan642@student.liu.se, 2012-03-19, and Martin Sjölund"
 __license__ = """
@@ -51,8 +50,6 @@ from pyparsing import (
     infixNotation,
     opAssoc,
 )
-
-import sys
 
 
 def convertNumbers(s, l, toks):
@@ -142,22 +139,3 @@ def parseString(string):
     if len(res) == 0:
         return
     return res[0]
-
-
-if __name__ == "__main__":
-    testdata = """
-   (1.0,{{1,true,3},{"4\\"
-",5.9,6,NONE ( )},record ABC
-  startTime = ErrorLevel.warning,
-  'stop*Time' = SOME(1.0)
-end ABC;})
-    """
-    expected = (1.0, ((1, True, 3), ('4"\n', 5.9, 6, None), {"'stop*Time'": 1.0, 'startTime': 'ErrorLevel.warning'}))
-    results = parseString(testdata)
-    if results != expected:
-        print("Results:", results)
-        print("Expected:", expected)
-        print("Failed")
-        sys.exit(1)
-    print("Matches expected output")
-    print(type(results), repr(results))
