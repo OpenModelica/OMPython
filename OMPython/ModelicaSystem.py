@@ -577,7 +577,10 @@ class ModelicaSystem:
             return self.quantitiesList
 
         if isinstance(names, str):
-            return [x for x in self.quantitiesList if x["name"] == names]
+            r = [x for x in self.quantitiesList if x["name"] == names]
+            if r == []:
+                raise KeyError(names)
+            return r
 
         if isinstance(names, list):
             return [x for y in names for x in self.quantitiesList if x["name"] == y]
@@ -597,10 +600,10 @@ class ModelicaSystem:
                 return self.continuouslist
 
             if isinstance(names, str):
-                return [self.continuouslist.get(names, "NotExist")]
+                return [self.continuouslist[names]]
 
             if isinstance(names, list):
-                return [self.continuouslist.get(x, "NotExist") for x in names]
+                return [self.continuouslist[x] for x in names]
         else:
             if names is None:
                 for i in self.continuouslist:
@@ -615,7 +618,7 @@ class ModelicaSystem:
                 if names in self.continuouslist:
                     value = self.getSolutions(names)
                     self.continuouslist[names] = value[0][-1]
-                    return [self.continuouslist.get(names)]
+                    return [self.continuouslist[names]]
                 else:
                     raise ModelicaSystemError(f"{names} is not continuous")
 
@@ -657,9 +660,9 @@ class ModelicaSystem:
         if names is None:
             return self.paramlist
         elif isinstance(names, str):
-            return [self.paramlist.get(names, "NotExist")]
+            return [self.paramlist[names]]
         elif isinstance(names, list):
-            return [self.paramlist.get(x, "NotExist") for x in names]
+            return [self.paramlist[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getParameters()")
 
@@ -687,15 +690,13 @@ class ModelicaSystem:
             [[(0.0, 0.0), (1.0, 1.0)]]
             >>> mod.getInputs(["Name1","Name2"])
             [[(0.0, 0.0), (1.0, 1.0)], None]
-            >>> mod.getInputs("ThisInputDoesNotExist")
-            ['NotExist']
         """
         if names is None:
             return self.inputlist
         elif isinstance(names, str):
-            return [self.inputlist.get(names, "NotExist")]
+            return [self.inputlist[names]]
         elif isinstance(names, list):
-            return [self.inputlist.get(x, "NotExist") for x in names]
+            return [self.inputlist[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getInputs()")
 
@@ -725,8 +726,6 @@ class ModelicaSystem:
             ['-0.4']
             >>> mod.getOutputs(["out1","out2"])
             ['-0.4', '1.2']
-            >>> mod.getOutputs("ThisOutputDoesNotExist")
-            ['NotExist']
 
             After simulate():
             >>> mod.getOutputs()
@@ -740,9 +739,9 @@ class ModelicaSystem:
             if names is None:
                 return self.outputlist
             elif isinstance(names, str):
-                return [self.outputlist.get(names, "NotExist")]
+                return [self.outputlist[names]]
             else:
-                return [self.outputlist.get(x, "NotExist") for x in names]
+                return [self.outputlist[x] for x in names]
         else:
             if names is None:
                 for i in self.outputlist:
@@ -753,9 +752,9 @@ class ModelicaSystem:
                 if names in self.outputlist:
                     value = self.getSolutions(names)
                     self.outputlist[names] = value[0][-1]
-                    return [self.outputlist.get(names)]
+                    return [self.outputlist[names]]
                 else:
-                    return names, " is not Output"
+                    raise KeyError(names)
             elif isinstance(names, list):
                 valuelist = []
                 for i in names:
@@ -764,7 +763,7 @@ class ModelicaSystem:
                         self.outputlist[i] = value[0][-1]
                         valuelist.append(value[0][-1])
                     else:
-                        return i, "is not Output"
+                        raise KeyError(i)
                 return valuelist
 
         raise ModelicaSystemError("Unhandled input for getOutputs()")
@@ -781,9 +780,9 @@ class ModelicaSystem:
         if names is None:
             return self.simulateOptions
         elif isinstance(names, str):
-            return [self.simulateOptions.get(names, "NotExist")]
+            return [self.simulateOptions[names]]
         elif isinstance(names, list):
-            return [self.simulateOptions.get(x, "NotExist") for x in names]
+            return [self.simulateOptions[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getSimulationOptions()")
 
@@ -799,9 +798,9 @@ class ModelicaSystem:
         if names is None:
             return self.linearOptions
         elif isinstance(names, str):
-            return [self.linearOptions.get(names, "NotExist")]
+            return [self.linearOptions[names]]
         elif isinstance(names, list):
-            return [self.linearOptions.get(x, "NotExist") for x in names]
+            return [self.linearOptions[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getLinearizationOptions()")
 
@@ -815,9 +814,9 @@ class ModelicaSystem:
         if names is None:
             return self.optimizeOptions
         elif isinstance(names, str):
-            return [self.optimizeOptions.get(names, "NotExist")]
+            return [self.optimizeOptions[names]]
         elif isinstance(names, list):
-            return [self.optimizeOptions.get(x, "NotExist") for x in names]
+            return [self.optimizeOptions[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 

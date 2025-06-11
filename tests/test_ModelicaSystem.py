@@ -43,6 +43,8 @@ def test_setParameters():
         "e": "1.234",
         "g": "321.0",
     }
+    with pytest.raises(KeyError):
+        mod.getParameters("thisParameterDoesNotExist")
 
     # method 2
     mod.setParameters(["e=21.3", "g=0.12"])
@@ -52,6 +54,8 @@ def test_setParameters():
     }
     assert mod.getParameters(["e", "g"]) == ["21.3", "0.12"]
     assert mod.getParameters(["g", "e"]) == ["0.12", "21.3"]
+    with pytest.raises(KeyError):
+        mod.getParameters(["g", "thisParameterDoesNotExist"])
 
 
 def test_setSimulationOptions():
@@ -69,6 +73,8 @@ def test_setSimulationOptions():
     assert isinstance(d, dict)
     assert d["stopTime"] == "1.234"
     assert d["tolerance"] == "1.1e-08"
+    with pytest.raises(KeyError):
+        mod.getSimulationOptions("thisOptionDoesNotExist")
 
     # method 2
     mod.setSimulationOptions(["stopTime=2.1", "tolerance=1.2e-08"])
@@ -125,7 +131,7 @@ def test_getSolutions(model_firstorder):
     assert "x" in sol_names
     assert "der(x)" in sol_names
     with pytest.raises(OMPython.ModelicaSystemError):
-        mod.getSolutions("t")  # variable 't' does not exist
+        mod.getSolutions("thisVariableDoesNotExist")
     assert np.isclose(t[0], 0), "time does not start at 0"
     assert np.isclose(t[-1], stopTime), "time does not end at stopTime"
     x_analytical = x0 * np.exp(a*t)
@@ -262,11 +268,18 @@ end M_getters;
         },
     ]
 
+    with pytest.raises(KeyError):
+        mod.getQuantities("thisQuantityDoesNotExist")
+
     assert mod.getInputs() == {}
+    with pytest.raises(KeyError):
+        mod.getInputs("thisInputDoesNotExist")
     # getOutputs before simulate()
     assert mod.getOutputs() == {'y': '-0.4'}
     assert mod.getOutputs("y") == ["-0.4"]
     assert mod.getOutputs(["y", "y"]) == ["-0.4", "-0.4"]
+    with pytest.raises(KeyError):
+        mod.getOutputs("thisOutputDoesNotExist")
 
     # getContinuous before simulate():
     assert mod.getContinuous() == {
@@ -276,7 +289,8 @@ end M_getters;
     }
     assert mod.getContinuous("y") == ['-0.4']
     assert mod.getContinuous(["y", "x"]) == ['-0.4', '1.0']
-    assert mod.getContinuous("a") == ["NotExist"]  # a is a parameter
+    with pytest.raises(KeyError):
+        mod.getContinuous("a")  # a is a parameter
 
     stopTime = 1.0
     a = -0.5
@@ -293,6 +307,8 @@ end M_getters;
     assert np.isclose(d["y"], dx_analytical, 1e-4)
     assert mod.getOutputs("y") == [d["y"]]
     assert mod.getOutputs(["y", "y"]) == [d["y"], d["y"]]
+    with pytest.raises(KeyError):
+        mod.getOutputs("thisOutputDoesNotExist")
 
     # getContinuous after simulate() should return values at end of simulation:
     with pytest.raises(OMPython.ModelicaSystemError):
@@ -306,6 +322,9 @@ end M_getters;
     assert np.isclose(d["y"], dx_analytical, 1e-4)
     assert mod.getContinuous("x") == [d["x"]]
     assert mod.getContinuous(["y", "x"]) == [d["y"], d["x"]]
+
+    with pytest.raises(OMPython.ModelicaSystemError):
+        mod.getContinuous("a")  # a is a parameter
 
     with pytest.raises(OMPython.ModelicaSystemError):
         mod.setSimulationOptions("thisOptionDoesNotExist=3")
