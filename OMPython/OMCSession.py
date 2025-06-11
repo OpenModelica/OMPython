@@ -289,7 +289,6 @@ class OMCSessionZMQ:
         self._omc: Optional[Any] = None
         self._dockerCid: Optional[int] = None
         self._serverIPAddress = "127.0.0.1"
-        self._interactivePort = None
         self._temp_dir = pathlib.Path(tempfile.gettempdir())
         # generate a random string for this session
         self._random_string = uuid.uuid4().hex
@@ -437,6 +436,7 @@ class OMCSessionZMQ:
             extraFlags = []
         if self._docker:
             if sys.platform == "win32":
+                assert self._interactivePort is not None  # mypy complained
                 p = int(self._interactivePort)
                 dockerNetworkStr = ["-p", "127.0.0.1:%d:%d" % (p, p)]
             elif self._dockerNetwork == "host" or self._dockerNetwork is None:
@@ -582,7 +582,7 @@ class OMCSessionZMQ:
                     logger.warning("Result of 'getMessagesStringInternal()' cannot be parsed - set parsed to False!")
                     parsed = False
             else:
-                # allways check for error
+                # always check for error
                 self._omc.send_string('getMessagesStringInternal()', flags=zmq.NOBLOCK)
                 error_raw = self._omc.recv_string()
                 # run error handling only if there is something to check

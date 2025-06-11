@@ -107,9 +107,11 @@ arrayDimension = infixNotation(
 omcRecord = Forward()
 omcValue = Forward()
 
-TRUE = Keyword("true").setParseAction(replaceWith(True))
-FALSE = Keyword("false").setParseAction(replaceWith(False))
-NONE = (Keyword("NONE") + Suppress("(") + Suppress(")")).setParseAction(replaceWith(None))
+# pyparsing's replace_with (and thus replaceWith) has incorrect type
+# annotation: https://github.com/pyparsing/pyparsing/issues/602
+TRUE = Keyword("true").setParseAction(replaceWith(True))  # type: ignore
+FALSE = Keyword("false").setParseAction(replaceWith(False))  # type: ignore
+NONE = (Keyword("NONE") + Suppress("(") + Suppress(")")).setParseAction(replaceWith(None))  # type: ignore
 SOME = (Suppress(Keyword("SOME")) + Suppress("(") + omcValue + Suppress(")"))
 
 omcString = QuotedString(quoteChar='"', escChar='\\', multiline=True).setParseAction(convertString)
