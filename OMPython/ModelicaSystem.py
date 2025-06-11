@@ -472,12 +472,12 @@ class ModelicaSystem:
         # create a unique temp directory for each session and build the model in that directory
         if customBuildDirectory is not None:
             if not os.path.exists(customBuildDirectory):
-                raise IOError(customBuildDirectory, " does not exist")
+                raise IOError(f"{customBuildDirectory} does not exist")
             tempdir = pathlib.Path(customBuildDirectory)
         else:
             tempdir = pathlib.Path(tempfile.mkdtemp())
             if not tempdir.is_dir():
-                raise IOError(tempdir, " cannot be created")
+                raise IOError(f"{tempdir} could not be created")
 
         logger.info("Define tempdir as %s", tempdir)
         exp = f'cd("{tempdir.absolute().as_posix()}")'
@@ -1235,8 +1235,10 @@ class ModelicaSystem:
             return module_def
 
         if self.xmlFile is None:
-            raise IOError("Linearization cannot be performed as the model is not build, "
-                          "use ModelicaSystem() to build the model first")
+            raise ModelicaSystemError(
+                "Linearization cannot be performed as the model is not build, "
+                "use ModelicaSystem() to build the model first"
+            )
 
         om_cmd = ModelicaSystemCmd(runpath=self.tempdir, modelname=self.modelName, timeout=timeout)
 
