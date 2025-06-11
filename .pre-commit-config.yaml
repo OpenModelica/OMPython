@@ -36,3 +36,4 @@ repos:
           - pyparsing
           - types-psutil
           - pyzmq
+          - numpy
