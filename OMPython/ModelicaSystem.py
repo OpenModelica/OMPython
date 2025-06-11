@@ -316,7 +316,7 @@ class ModelicaSystemCmd:
 class ModelicaSystem:
     def __init__(
             self,
-            fileName: Optional[str | os.PathLike] = None,
+            fileName: Optional[str | os.PathLike | pathlib.Path] = None,
             modelName: Optional[str] = None,
             lmodel: Optional[list[str | tuple[str, str]]] = None,
             commandLineOptions: Optional[str] = None,
@@ -362,8 +362,12 @@ class ModelicaSystem:
             mod = ModelicaSystem("ModelicaModel.mo", "modelName", ["Modelica"])
             mod = ModelicaSystem("ModelicaModel.mo", "modelName", [("Modelica","3.2.3"), "PowerSystems"])
         """
+
         if fileName is None and modelName is None and not lmodel:  # all None
             raise ModelicaSystemError("Cannot create ModelicaSystem object without any arguments")
+
+        if modelName is None:
+            raise ModelicaSystemError("A modelname must be provided (argument modelName)!")
 
         self.quantitiesList = []
         self.paramlist = {}
