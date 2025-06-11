@@ -16,7 +16,7 @@ end M;
 
 
 def test_simflags(model_firstorder):
-    mod = OMPython.ModelicaSystem(model_firstorder.as_posix(), "M")
+    mod = OMPython.ModelicaSystem(fileName=model_firstorder.as_posix(), modelName="M")
     mscmd = OMPython.ModelicaSystemCmd(runpath=mod.tempdir, modelname=mod.modelName)
     mscmd.args_set({
         "noEventEmit": None,

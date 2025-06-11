@@ -55,7 +55,7 @@ y1 = y2 + 0.5*omega;
 y2 = phi + u1;
 end Pendulum;
 """)
-    mod = OMPython.ModelicaSystem(model_file.as_posix(), "Pendulum", ["Modelica"])
+    mod = OMPython.ModelicaSystem(fileName=model_file.as_posix(), modelName="Pendulum", lmodel=["Modelica"])
 
     d = mod.getLinearizationOptions()
     assert isinstance(d, dict)
