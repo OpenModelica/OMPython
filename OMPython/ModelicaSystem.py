@@ -565,13 +565,48 @@ class ModelicaSystem:
 
             self.quantitiesList.append(scalar)
 
-    def getQuantities(self, names=None):  # 3
+    def getQuantities(self, names: Optional[str | list[str]] = None) -> list[dict]:
         """
-        This method returns list of dictionaries. It displays details of quantities such as name, value, changeable, and description, where changeable means  if value for corresponding quantity name is changeable or not. It can be called :
-        usage:
-        >>> getQuantities()
-        >>> getQuantities("Name1")
-        >>> getQuantities(["Name1","Name2"])
+        This method returns list of dictionaries. It displays details of
+        quantities such as name, value, changeable, and description.
+
+        Examples:
+            >>> mod.getQuantities()
+            [
+              {
+                'alias': 'noAlias',
+                'aliasvariable': None,
+                'causality': 'local',
+                'changeable': 'true',
+                'description': None,
+                'max': None,
+                'min': None,
+                'name': 'x',
+                'start': '1.0',
+                'unit': None,
+                'variability': 'continuous',
+              },
+              {
+                'name': 'der(x)',
+                # ...
+              },
+              # ...
+            ]
+
+            >>> getQuantities("y")
+            [{
+              'name': 'y', # ...
+            }]
+
+            >>> getQuantities(["y","x"])
+            [
+              {
+                'name': 'y', # ...
+              },
+              {
+                'name': 'x', # ...
+              }
+            ]
         """
         if names is None:
             return self.quantitiesList
