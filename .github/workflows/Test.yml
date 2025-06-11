@@ -38,16 +38,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install . pytest pytest-md pytest-emoji flake8
+          pip install . pytest pytest-md pytest-emoji pre-commit
 
       - name: Set timezone
         uses: szenius/set-timezone@v2.0
         with:
           timezoneLinux: 'Europe/Berlin'
 
-      - name: Lint with flake8
-        run: |
-          flake8 . --count --statistics
+      - name: Run pre-commit linters
+        run: 'pre-commit run --all-files'
 
       - name: Run pytest
         uses: pavelzw/pytest-action@v2
