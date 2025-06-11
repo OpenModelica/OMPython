@@ -49,14 +49,16 @@ from typing import Optional
 import warnings
 import xml.etree.ElementTree as ET
 
-from OMPython.OMCSession import OMCSessionZMQ, OMCSessionException
+from OMPython.OMCSession import OMCSessionException, OMCSessionZMQ
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
 
 
 class ModelicaSystemError(Exception):
-    pass
+    """
+    Exception used in ModelicaSystem and ModelicaSystemCmd classes.
+    """
 
 
 @dataclass
@@ -235,8 +237,8 @@ class ModelicaSystemCmd:
             if not path_bat.exists():
                 raise ModelicaSystemError("Batch file (*.bat) does not exist " + str(path_bat))
 
-            with open(path_bat, 'r') as file:
-                for line in file:
+            with open(file=path_bat, mode='r', encoding='utf-8') as fh:
+                for line in fh:
                     match = re.match(r"^SET PATH=([^%]*)", line, re.IGNORECASE)
                     if match:
                         path_dll = match.group(1).strip(';')  # Remove any trailing semicolons
@@ -248,7 +250,7 @@ class ModelicaSystemCmd:
 
         try:
             cmdres = subprocess.run(cmdl, capture_output=True, text=True, env=my_env, cwd=self._runpath,
-                                    timeout=self._timeout)
+                                    timeout=self._timeout, check=True)
             stdout = cmdres.stdout.strip()
             stderr = cmdres.stderr.strip()
             returncode = cmdres.returncode
@@ -257,8 +259,8 @@ class ModelicaSystemCmd:
 
             if stderr:
                 raise ModelicaSystemError(f"Error running command {repr(cmdl)}: {stderr}")
-        except subprocess.TimeoutExpired:
-            raise ModelicaSystemError(f"Timeout running command {repr(cmdl)}")
+        except subprocess.TimeoutExpired as ex:
+            raise ModelicaSystemError(f"Timeout running command {repr(cmdl)}") from ex
         except subprocess.CalledProcessError as ex:
             raise ModelicaSystemError(f"Error running command {repr(cmdl)}") from ex
 
@@ -298,7 +300,7 @@ class ModelicaSystemCmd:
                 override_dict = {}
                 for item in override.split(','):
                     kv = item.split('=')
-                    if not (0 < len(kv) < 3):
+                    if not 0 < len(kv) < 3:
                         raise ModelicaSystemError(f"Invalid value for '-override': {override}")
                     if kv[0]:
                         try:
@@ -322,7 +324,7 @@ class ModelicaSystem:
             customBuildDirectory: Optional[str | os.PathLike | pathlib.Path] = None,
             omhome: Optional[str] = None,
             session: Optional[OMCSessionZMQ] = None,
-            build: Optional[bool] = True,
+            build: bool = True,
     ) -> None:
         """Initialize, load and build a model.
 
@@ -573,9 +575,11 @@ class ModelicaSystem:
         """
         if names is None:
             return self.quantitiesList
-        elif isinstance(names, str):
+
+        if isinstance(names, str):
             return [x for x in self.quantitiesList if x["name"] == names]
-        elif isinstance(names, list):
+
+        if isinstance(names, list):
             return [x for y in names for x in self.quantitiesList if x["name"] == y]
 
         raise ModelicaSystemError("Unhandled input for getQuantities()")
@@ -591,9 +595,11 @@ class ModelicaSystem:
         if not self.simulationFlag:
             if names is None:
                 return self.continuouslist
-            elif isinstance(names, str):
+
+            if isinstance(names, str):
                 return [self.continuouslist.get(names, "NotExist")]
-            elif isinstance(names, list):
+
+            if isinstance(names, list):
                 return [self.continuouslist.get(x, "NotExist") for x in names]
         else:
             if names is None:
@@ -605,7 +611,7 @@ class ModelicaSystem:
                         raise ModelicaSystemError(f"{i} could not be computed") from ex
                 return self.continuouslist
 
-            elif isinstance(names, str):
+            if isinstance(names, str):
                 if names in self.continuouslist:
                     value = self.getSolutions(names)
                     self.continuouslist[names] = value[0][-1]
@@ -613,7 +619,7 @@ class ModelicaSystem:
                 else:
                     raise ModelicaSystemError(f"{names} is not continuous")
 
-            elif isinstance(names, list):
+            if isinstance(names, list):
                 valuelist = []
                 for i in names:
                     if i in self.continuouslist:
@@ -851,9 +857,9 @@ class ModelicaSystem:
             tmpdict = self.overridevariables.copy()
             tmpdict.update(self.simoptionsoverride)
             # write to override file
-            with open(overrideFile, "w") as file:
+            with open(file=overrideFile, mode="w", encoding="utf-8") as fh:
                 for key, value in tmpdict.items():
-                    file.write(f"{key}={value}\n")
+                    fh.write(f"{key}={value}\n")
 
             om_cmd.arg_set(key="overrideFile", val=overrideFile.as_posix())
 
@@ -909,14 +915,16 @@ class ModelicaSystem:
         self.sendExpression("closeSimulationResultFile()")
         if varList is None:
             return resultVars
-        elif isinstance(varList, str):
+
+        if isinstance(varList, str):
             if varList not in resultVars and varList != "time":
                 raise ModelicaSystemError(f"Requested data {repr(varList)} does not exist")
             res = self.sendExpression(f'readSimulationResult("{resFile}", {{{varList}}})')
             npRes = np.array(res)
             self.sendExpression("closeSimulationResultFile()")
             return npRes
-        elif isinstance(varList, list):
+
+        if isinstance(varList, list):
             for var in varList:
                 if var == "time":
                     continue
@@ -934,7 +942,8 @@ class ModelicaSystem:
     def _strip_space(name):
         if isinstance(name, str):
             return name.replace(" ", "")
-        elif isinstance(name, list):
+
+        if isinstance(name, list):
             return [x.replace(" ", "") for x in name]
 
         raise ModelicaSystemError("Unhandled input for strip_space()")
@@ -1051,7 +1060,7 @@ class ModelicaSystem:
             value = name.split("=")
             if value[0] in self.inputlist:
                 tmpvalue = eval(value[1])
-                if isinstance(tmpvalue, int) or isinstance(tmpvalue, float):
+                if isinstance(tmpvalue, (int, float)):
                     self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])),
                                                 (float(self.simulateOptions["stopTime"]), float(value[1]))]
                 elif isinstance(tmpvalue, list):
@@ -1066,7 +1075,7 @@ class ModelicaSystem:
                 value = var.split("=")
                 if value[0] in self.inputlist:
                     tmpvalue = eval(value[1])
-                    if isinstance(tmpvalue, int) or isinstance(tmpvalue, float):
+                    if isinstance(tmpvalue, (int, float)):
                         self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])),
                                                     (float(self.simulateOptions["stopTime"]), float(value[1]))]
                     elif isinstance(tmpvalue, list):
@@ -1132,8 +1141,8 @@ class ModelicaSystem:
 
         csvFile = self.tempdir / f'{self.modelName}.csv'
 
-        with open(csvFile, "w", newline="") as f:
-            writer = csv.writer(f)
+        with open(file=csvFile, mode="w", encoding="utf-8", newline="") as fh:
+            writer = csv.writer(fh)
             writer.writerows(csv_rows)
 
         return csvFile
@@ -1234,11 +1243,11 @@ class ModelicaSystem:
 
         overrideLinearFile = self.tempdir / f'{self.modelName}_override_linear.txt'
 
-        with open(overrideLinearFile, "w") as file:
+        with open(file=overrideLinearFile, mode="w", encoding="utf-8") as fh:
             for key, value in self.overridevariables.items():
-                file.write(f"{key}={value}\n")
+                fh.write(f"{key}={value}\n")
             for key, value in self.linearOptions.items():
-                file.write(f"{key}={value}\n")
+                fh.write(f"{key}={value}\n")
 
         om_cmd.arg_set(key="overrideFile", val=overrideLinearFile.as_posix())
 
