@@ -611,8 +611,7 @@ class OMCProcessDockerHelper:
     @staticmethod
     def _omc_process_docker(dockerCid: str, random_string: str, timeout: float) -> Optional[DummyPopen]:
         if sys.platform == 'win32':
-            # TODO: how to handle docker on win32 systems?
-            return None
+            raise NotImplementedError("Docker not supported on win32!")
 
         docker_process = None
         for idx in range(0, 40):
