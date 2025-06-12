@@ -324,7 +324,7 @@ class OMCSessionZMQ:
 
     def execute(self, command: str):
         warnings.warn("This function is depreciated and will be removed in future versions; "
-                      "please use sendExpression() instead", DeprecationWarning, stacklevel=1)
+                      "please use sendExpression() instead", DeprecationWarning, stacklevel=2)
 
         return self.sendExpression(command, parsed=False)
 
