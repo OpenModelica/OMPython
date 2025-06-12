@@ -577,7 +577,7 @@ class OMCProcessLocal(OMCProcess):
                 # Read the port file
                 with open(file=omc_file_port, mode='r', encoding="utf-8") as f_p:
                     port = f_p.readline()
-                omc_file_port.unlink()
+                break
 
             if port is not None:
                 break
@@ -801,10 +801,6 @@ class OMCProcessDocker(OMCProcess, OMCProcessDockerHelper):
             if self._dockerCid:
                 break
             time.sleep(self._timeout / 40.0)
-
-        # file no longer needed
-        self._dockerCidFile.unlink()
-        self._dockerCidFile = None
 
         if self._dockerCid is None:
             logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
