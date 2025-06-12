@@ -431,7 +431,9 @@ class OMCProcess:
     def __init__(
             self,
             timeout: float = 10.00,
+            **kwargs,
     ) -> None:
+        super().__init__(**kwargs)
 
         # store variables
         self._timeout = timeout
@@ -598,7 +600,9 @@ class OMCProcessLocal(OMCProcess):
 
 class OMCProcessDockerHelper:
 
-    def __init__(self) -> None:
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
         self._dockerExtraArgs: list = []
         self._dockerOpenModelicaPath: Optional[str] = None
         self._dockerNetwork: Optional[str] = None
@@ -655,7 +659,7 @@ class OMCProcessDockerHelper:
         return self._dockerCid
 
 
-class OMCProcessDocker(OMCProcess, OMCProcessDockerHelper):
+class OMCProcessDocker(OMCProcessDockerHelper, OMCProcess):
 
     def __init__(
             self,
@@ -830,7 +834,7 @@ class OMCProcessDocker(OMCProcess, OMCProcessDockerHelper):
         return omc_process, docker_process
 
 
-class OMCProcessDockerContainer(OMCProcess, OMCProcessDockerHelper):
+class OMCProcessDockerContainer(OMCProcessDockerHelper, OMCProcess):
 
     def __init__(
             self,
