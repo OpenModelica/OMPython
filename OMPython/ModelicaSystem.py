@@ -269,17 +269,9 @@ class ModelicaSystemCmd:
     @staticmethod
     def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, str]]]:
         """
-        Parse a simflag definition; this is depreciated!
+        Parse a simflag definition; this is deprecated!
 
         The return data can be used as input for self.args_set().
-
-        Parameters
-        ----------
-        simflags : str
-
-        Returns
-        -------
-            dict
         """
         warnings.warn("The argument 'simflags' is depreciated and will be removed in future versions; "
                       "please use 'simargs' instead", DeprecationWarning, stacklevel=2)
