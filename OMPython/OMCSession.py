@@ -649,6 +649,12 @@ class OMCProcessDockerHelper:
 
         return None
 
+    def get_docker_container_id(self) -> str:
+        if not isinstance(self._dockerCid, str):
+            raise OMCSessionException(f"Invalid docker container ID: {self._dockerCid}!")
+
+        return self._dockerCid
+
 
 class OMCProcessDocker(OMCProcess, OMCProcessDockerHelper):
 
