@@ -36,6 +36,7 @@ __license__ = """
 
 import getpass
 import io
+import json
 import logging
 import os
 import pathlib
@@ -640,6 +641,13 @@ class OMCProcessDockerHelper:
         so uid does not matter as long as it is not the root user.
         """
         return 1000 if sys.platform == 'win32' else os.getuid()
+
+    def get_server_address(self) -> Optional[str]:
+        if self._dockerNetwork == "separate" and isinstance(self._dockerCid, str):
+            output = subprocess.check_output(["docker", "inspect", self._dockerCid]).decode().strip()
+            return json.loads(output)[0]["NetworkSettings"]["IPAddress"]
+
+        return None
 
 
 class OMCProcessDocker(OMCProcess, OMCProcessDockerHelper):
