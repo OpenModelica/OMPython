@@ -403,7 +403,7 @@ class ModelicaSystem:
         self._simulationFlag = False  # if the model is simulated?
         self._csvFile: Optional[pathlib.Path] = None  # for storing inputs condition
         self._resultfile: Optional[pathlib.Path] = None  # for storing result file
-        self.variableFilter = variableFilter
+        self._variableFilter = variableFilter
 
         if self._fileName is not None and not self._fileName.is_file():  # if file does not exist
             raise IOError(f"{self._fileName} does not exist!")
@@ -484,10 +484,10 @@ class ModelicaSystem:
 
     def buildModel(self, variableFilter: Optional[str] = None):
         if variableFilter is not None:
-            self.variableFilter = variableFilter
+            self._variableFilter = variableFilter
 
-        if self.variableFilter is not None:
-            varFilter = f'variableFilter="{self.variableFilter}"'
+        if self._variableFilter is not None:
+            varFilter = f'variableFilter="{self._variableFilter}"'
         else:
             varFilter = 'variableFilter=".*"'
 
