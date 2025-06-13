@@ -386,7 +386,7 @@ class ModelicaSystem:
                                  'tolerance': 1e-8}
         self._linearinputs: list[str] = []  # linearization input list
         self._linearoutputs: list[str] = []  # linearization output list
-        self.linearstates: list[str] = []  # linearization states list
+        self._linearstates: list[str] = []  # linearization states list
 
         if session is not None:
             if not isinstance(session, OMCSessionZMQ):
@@ -1347,7 +1347,7 @@ class ModelicaSystem:
             (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
             self._linearinputs = inputVars
             self._linearoutputs = outputVars
-            self.linearstates = stateVars
+            self._linearstates = stateVars
             return LinearizationResult(n, m, p, A, B, C, D, x0, u0, stateVars,
                                        inputVars, outputVars)
         except ModuleNotFoundError as ex:
@@ -1375,4 +1375,4 @@ class ModelicaSystem:
         usage
         >>> getLinearStates()
         """
-        return self.linearstates
+        return self._linearstates
