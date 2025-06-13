@@ -113,9 +113,7 @@ class LinearizationResult:
 
 
 class ModelicaSystemCmd:
-    """
-    Execute a simulation by running the compiled model.
-    """
+    """A compiled model executable."""
 
     def __init__(self, runpath: pathlib.Path, modelname: str, timeout: Optional[float] = None) -> None:
         self._runpath = pathlib.Path(runpath).resolve().absolute()
@@ -860,10 +858,10 @@ class ModelicaSystem:
 
         Args:
             resultfile: Path to a custom result file
-            simflags: String of space separated simulation runtime flags.
+            simflags: String of extra command line flags for the model binary.
               This argument is deprecated, use simargs instead.
             simargs: Dict with simulation runtime flags.
-            timeout: Execution timeout in seconds.
+            timeout: Maximum execution time in seconds.
 
         Examples:
             mod.simulate()
@@ -1260,10 +1258,10 @@ class ModelicaSystem:
 
         Args:
             lintime: Override "stopTime" value.
-            simflags: A string of extra command line flags for the model
-              binary. - depreciated in favor of simargs
+            simflags: String of extra command line flags for the model binary.
+              This argument is deprecated, use simargs instead.
             simargs: A dict with command line flags and possible options; example: "simargs={'csvInput': 'a.csv'}"
-            timeout: Execution timeout in seconds.
+            timeout: Maximum execution time in seconds.
 
         Returns:
             A LinearizationResult object is returned. This allows several
