@@ -700,10 +700,8 @@ class OMCProcessDocker(OMCProcessDockerHelper, OMCProcess):
 
         self._interactivePort = port
 
-        self._dockerCidFile: Optional[pathlib.Path] = None
-
         # start up omc executable in docker container waiting for the ZMQ connection
-        self._omc_process, self._docker_process = self._omc_docker_start()
+        self._omc_process, self._docker_process, self._dockerCid = self._omc_docker_start()
         # connect to the running omc instance using ZMQ
         self._omc_port = self._omc_port_get()
 
@@ -723,7 +721,11 @@ class OMCProcessDocker(OMCProcessDockerHelper, OMCProcess):
             finally:
                 self._docker_process = None
 
-    def _omc_command_docker(self, omc_path_and_args_list) -> list:
+    def _omc_command_docker(
+            self,
+            omc_path_and_args_list: list[str],
+            docker_cid_file: pathlib.Path,
+    ) -> list:
         """
         Define the command that will be called by the subprocess module.
         """
@@ -753,13 +755,11 @@ class OMCProcessDocker(OMCProcessDockerHelper, OMCProcess):
             raise OMCSessionException(f'dockerNetwork was set to {self._dockerNetwork}, '
                                       'but only \"host\" or \"separate\" is allowed')
 
-        self._dockerCidFile = self._temp_dir / (self._omc_filebase + ".docker.cid")
-
         if isinstance(self._interactivePort, int):
             extraFlags = extraFlags + [f"--interactivePort={int(self._interactivePort)}"]
 
         omc_command = (["docker", "run",
-                        "--cidfile", self._dockerCidFile.as_posix(),
+                        "--cidfile", docker_cid_file.as_posix(),
                         "--rm",
                         "--env", f"USER={self._currentUser}",
                         "--user", str(self._getuid())]
@@ -806,46 +806,51 @@ class OMCProcessDocker(OMCProcessDockerHelper, OMCProcess):
 
         return port
 
-    def _omc_docker_start(self) -> Tuple[subprocess.Popen, DummyPopen]:
+    def _omc_docker_start(self) -> Tuple[subprocess.Popen, DummyPopen, str]:
         my_env = os.environ.copy()
         my_env["USER"] = self._currentUser
 
-        omc_command = self._omc_command_docker(omc_path_and_args_list=["--locale=C",
-                                                                       "--interactive=zmq",
-                                                                       f"-z={self._random_string}"])
+        docker_cid_file = self._temp_dir / (self._omc_filebase + ".docker.cid")
+
+        omc_command = self._omc_command_docker(
+            omc_path_and_args_list=["--locale=C",
+                                    "--interactive=zmq",
+                                    f"-z={self._random_string}"],
+            docker_cid_file=docker_cid_file,
+        )
 
         omc_process = subprocess.Popen(omc_command,
                                        stdout=self._omc_loghandle,
                                        stderr=self._omc_loghandle,
                                        env=my_env)
 
-        if not isinstance(self._dockerCidFile, pathlib.Path):
-            raise OMCSessionException(f"Invalid content for docker container ID file path: {self._dockerCidFile}")
+        if not isinstance(docker_cid_file, pathlib.Path):
+            raise OMCSessionException(f"Invalid content for docker container ID file path: {docker_cid_file}")
 
+        docker_cid = None
         for idx in range(0, 40):
             try:
-                with open(file=self._dockerCidFile, mode="r", encoding="utf-8") as fh:
-                    content = fh.read().strip()
-                    self._dockerCid = content
+                with open(file=docker_cid_file, mode="r", encoding="utf-8") as fh:
+                    docker_cid = fh.read().strip()
             except IOError:
                 pass
-            if self._dockerCid:
+            if docker_cid:
                 break
             time.sleep(self._timeout / 40.0)
 
-        if self._dockerCid is None:
+        if docker_cid is None:
             logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
             raise OMCSessionException(f"Docker did not start (timeout={self._timeout} might be too short "
                                       "especially if you did not docker pull the image before this command).")
 
-        docker_process = self._omc_process_docker(dockerCid=self._dockerCid,
+        docker_process = self._omc_process_docker(dockerCid=docker_cid,
                                                   random_string=self._random_string,
                                                   timeout=self._timeout)
         if docker_process is None:
             raise OMCSessionException(f"Docker top did not contain omc process {self._random_string}. "
                                       f"Log-file says:\n{self.get_log()}")
 
-        return omc_process, docker_process
+        return omc_process, docker_process, docker_cid
 
 
 class OMCProcessDockerContainer(OMCProcessDockerHelper, OMCProcess):
