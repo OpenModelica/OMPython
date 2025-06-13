@@ -705,7 +705,7 @@ class ModelicaSystem:
         raise ModelicaSystemError("Unhandled input for getParameters()")
 
     def getInputs(self, names: Optional[str | list[str]] = None) -> dict | list:  # 6
-        """Get input values.
+        """Get values of input signals.
 
         Args:
             names: Either None (default), a string with the input name,
@@ -739,7 +739,7 @@ class ModelicaSystem:
         raise ModelicaSystemError("Unhandled input for getInputs()")
 
     def getOutputs(self, names: Optional[str | list[str]] = None):  # 7
-        """Get output values.
+        """Get values of output signals.
 
         If called before simulate(), the initial values are returned as
         strings. If called after simulate(), the final values (at stopTime)
@@ -858,16 +858,27 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
-    def simulate(self, resultfile: Optional[str] = None, simflags: Optional[str] = None,
+    def simulate(self,
+                 resultfile: Optional[str] = None,
+                 simflags: Optional[str] = None,
                  simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
-                 timeout: Optional[int] = None):  # 11
-        """
-        This method simulates model according to the simulation options.
-        usage
-        >>> simulate()
-        >>> simulate(resultfile="a.mat")
-        >>> simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10")  # set runtime simulation flags
-        >>> simulate(simargs={"noEventEmit": None, "noRestart": None, "override": "e=0.3,g=10"})  # using simargs
+                 timeout: Optional[int] = None) -> None:
+        """Simulate the model according to simulation options.
+
+        See setSimulationOptions().
+
+        Args:
+            resultfile: Path to a custom result file
+            simflags: String of space separated simulation runtime flags.
+              This argument is deprecated, use simargs instead.
+            simargs: Dict with simulation runtime flags.
+            timeout: Execution timeout in seconds.
+
+        Examples:
+            mod.simulate()
+            mod.simulate(resultfile="a.mat")
+            mod.simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10")  # set runtime simulation flags, deprecated
+            mod.simulate(simargs={"noEventEmit": None, "noRestart": None, "override": "e=0.3,g=10"})  # using simargs
         """
 
         om_cmd = ModelicaSystemCmd(runpath=self._tempdir, modelname=self._modelName, timeout=timeout)
@@ -993,8 +1004,8 @@ class ModelicaSystem:
         raise ModelicaSystemError("Unhandled input for strip_space()")
 
     def _setMethodHelper(self, args1, args2, args3, args4=None):
-        """
-        Helper function for setParameter(),setContinuous(),setSimulationOptions(),setLinearizationOption(),setOptimizationOption()
+        """Helper function for setters.
+
         args1 - string or list of string given by user
         args2 - dict() containing the values of different variables(eg:, parameter,continuous,simulation parameters)
         args3 - function name (eg; continuous, parameter, simulation, linearization,optimization)
@@ -1261,7 +1272,7 @@ class ModelicaSystem:
             simflags: A string of extra command line flags for the model
               binary. - depreciated in favor of simargs
             simargs: A dict with command line flags and possible options; example: "simargs={'csvInput': 'a.csv'}"
-            timeout: Possible timeout for the execution of OM.
+            timeout: Execution timeout in seconds.
 
         Returns:
             A LinearizationResult object is returned. This allows several
@@ -1353,13 +1364,13 @@ class ModelicaSystem:
             raise ModelicaSystemError("No module named 'linearized_model'") from ex
 
     def getLinearInputs(self) -> list[str]:
-        """Return names of input variables of the linearized model."""
+        """Get names of input variables of the linearized model."""
         return self._linearinputs
 
     def getLinearOutputs(self) -> list[str]:
-        """Return names of output variables of the linearized model."""
+        """Get names of output variables of the linearized model."""
         return self._linearoutputs
 
     def getLinearStates(self) -> list[str]:
-        """Return names of state variables of the linearized model."""
+        """Get names of state variables of the linearized model."""
         return self._linearstates
