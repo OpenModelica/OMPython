@@ -647,6 +647,40 @@ class OMCProcessDockerHelper(OMCProcess):
         # Windows, hence the type: ignore comment.
         return 1000 if sys.platform == 'win32' else os.getuid()  # type: ignore
 
+    def _omc_port_get(self) -> str:
+        port = None
+
+        if not isinstance(self._dockerCid, str):
+            raise OMCSessionException(f"Invalid docker container ID: {self._dockerCid}")
+
+        # See if the omc server is running
+        attempts = 0
+        while True:
+            omc_portfile_path = self._get_portfile_path()
+            if omc_portfile_path is not None:
+                try:
+                    output = subprocess.check_output(args=["docker",
+                                                           "exec", self._dockerCid,
+                                                           "cat", omc_portfile_path.as_posix()],
+                                                     stderr=subprocess.DEVNULL)
+                    port = output.decode().strip()
+                except subprocess.CalledProcessError:
+                    pass
+
+            if port is not None:
+                break
+
+            attempts += 1
+            if attempts == 80.0:
+                raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}). "
+                                          f"Could not open port file {omc_portfile_path}. "
+                                          f"Log-file says:\n{self.get_log()}")
+            time.sleep(self._timeout / 80.0)
+
+        logger.info(f"Docker based OMC Server is up and running at port {port}")
+
+        return port
+
     def get_server_address(self) -> Optional[str]:
         if self._dockerNetwork == "separate" and isinstance(self._dockerCid, str):
             output = subprocess.check_output(["docker", "inspect", self._dockerCid]).decode().strip()
@@ -761,41 +795,6 @@ class OMCProcessDocker(OMCProcessDockerHelper):
 
         return omc_command
 
-    def _omc_port_get(self) -> str:
-        port = None
-
-        if not isinstance(self._dockerCid, str):
-            raise OMCSessionException(f"Invalid docker container ID: {self._dockerCid}")
-
-        # See if the omc server is running
-        attempts = 0
-        while True:
-            omc_portfile_path = self._get_portfile_path()
-            if omc_portfile_path is not None:
-                try:
-                    output = subprocess.check_output(args=["docker",
-                                                           "exec", self._dockerCid,
-                                                           "cat", omc_portfile_path.as_posix()],
-                                                     stderr=subprocess.DEVNULL)
-                    port = output.decode().strip()
-                except subprocess.CalledProcessError:
-                    pass
-
-            if port is not None:
-                break
-
-            attempts += 1
-            if attempts == 80.0:
-                raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}). "
-                                          f"Could not open port file {omc_portfile_path}. "
-                                          f"Log-file says:\n{self.get_log()}")
-            time.sleep(self._timeout / 80.0)
-
-        logger.info(f"OMC Server is up and running at port {port} "
-                    f"pid={self._omc_process.pid if isinstance(self._omc_process, subprocess.Popen) else '?'}")
-
-        return port
-
     def _omc_docker_start(self) -> Tuple[subprocess.Popen, DummyPopen, str]:
         my_env = os.environ.copy()
 
@@ -906,40 +905,6 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
                        + extraFlags)
 
         return omc_command
-
-    def _omc_port_get(self) -> str:
-        port = None
-
-        if not isinstance(self._dockerCid, str):
-            raise OMCSessionException(f"Invalid docker container ID: {self._dockerCid}")
-
-        # See if the omc server is running
-        attempts = 0
-        while True:
-            omc_portfile_path = self._get_portfile_path()
-            if omc_portfile_path is not None:
-                try:
-                    output = subprocess.check_output(args=["docker",
-                                                           "exec", self._dockerCid,
-                                                           "cat", omc_portfile_path.as_posix()],
-                                                     stderr=subprocess.DEVNULL)
-                    port = output.decode().strip()
-                except subprocess.CalledProcessError:
-                    pass
-
-            if port is not None:
-                break
-
-            attempts += 1
-            if attempts == 80.0:
-                raise OMCSessionException(f"Docker container based OMC Server did not start (timeout={self._timeout}). "
-                                          f"Could not open port file {omc_portfile_path}. "
-                                          f"Log-file says:\n{self.get_log()}")
-            time.sleep(self._timeout / 80.0)
-
-        logger.info(f"DockerContainer based OMC Server is up and running at port {port}")
-
-        return port
 
     def _omc_docker_start(self) -> Tuple[subprocess.Popen, DummyPopen]:
         my_env = os.environ.copy()
