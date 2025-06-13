@@ -979,7 +979,7 @@ class OMCProcessWSL(OMCProcess):
     def __init__(
             self,
             timeout: float = 10.00,
-            omhome: Optional[str] = None,
+            wsl_omc: str = 'omc',
             wsl_distribution: Optional[str] = None,
             wsl_user: Optional[str] = None,
     ) -> None:
@@ -995,7 +995,7 @@ class OMCProcessWSL(OMCProcess):
         self._wsl_cmd += ['--']
 
         # where to find OpenModelica
-        self._omhome = omhome
+        self._wsl_omc = wsl_omc
         # start up omc executable, which is waiting for the ZMQ connection
         self._omc_process = self._omc_process_get()
         # connect to the running omc instance using ZMQ
@@ -1004,12 +1004,8 @@ class OMCProcessWSL(OMCProcess):
     def _omc_process_get(self) -> subprocess.Popen:
         my_env = os.environ.copy()
 
-        omc_path = 'omc'
-        if self._omhome is not None:
-            omc_path = f"{self._omhome}/{omc_path}"
-
         omc_command = self._wsl_cmd + [
-            omc_path,
+            self._wsl_omc,
             "--locale=C",
             "--interactive=zmq",
             f"-z={self._random_string}"]
@@ -1030,8 +1026,10 @@ class OMCProcessWSL(OMCProcess):
             try:
                 omc_portfile_path = self._get_portfile_path()
                 if omc_portfile_path is not None:
-                    output = subprocess.check_output(args=self._wsl_cmd + ["cat", omc_portfile_path.as_posix()],
-                                                     stderr=subprocess.DEVNULL)
+                    output = subprocess.check_output(
+                        args=self._wsl_cmd + ["cat", omc_portfile_path.as_posix()],
+                        stderr=subprocess.DEVNULL,
+                    )
                     port = output.decode().strip()
             except subprocess.CalledProcessError:
                 pass
