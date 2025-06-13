@@ -400,7 +400,7 @@ class ModelicaSystem:
         self._modelName = modelName  # Model class name
         self._fileName = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
         self._inputFlag = False  # for model with input quantity
-        self.simulationFlag = False  # if the model is simulated?
+        self._simulationFlag = False  # if the model is simulated?
         self.outputFlag = False
         self.csvFile: Optional[pathlib.Path] = None  # for storing inputs condition
         self.resultfile: Optional[pathlib.Path] = None  # for storing result file
@@ -587,7 +587,7 @@ class ModelicaSystem:
         >>> getContinuous("Name1")
         >>> getContinuous(["Name1","Name2"])
         """
-        if not self.simulationFlag:
+        if not self._simulationFlag:
             if names is None:
                 return self._continuouslist
 
@@ -731,7 +731,7 @@ class ModelicaSystem:
             >>> mod.getOutputs(["out1","out2"])
             [np.float64(-0.1234), np.float64(2.1)]
         """
-        if not self.simulationFlag:
+        if not self._simulationFlag:
             if names is None:
                 return self._outputlist
             elif isinstance(names, str):
@@ -883,7 +883,7 @@ class ModelicaSystem:
         if returncode != 0 and self.resultfile.is_file():
             logger.warning(f"Return code = {returncode} but result file exists!")
 
-        self.simulationFlag = True
+        self._simulationFlag = True
 
     # to extract simulation results
     def getSolutions(self, varList=None, resultfile=None):  # 12
@@ -1272,7 +1272,7 @@ class ModelicaSystem:
         if returncode != 0:
             raise ModelicaSystemError(f"Linearize failed with return code: {returncode}")
 
-        self.simulationFlag = True
+        self._simulationFlag = True
 
         # code to get the matrix and linear inputs, outputs and states
         linearFile = self.tempdir / "linearized_model.py"
