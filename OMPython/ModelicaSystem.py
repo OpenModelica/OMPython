@@ -380,7 +380,7 @@ class ModelicaSystem:
         self._continuouslist: dict[str, Any] = {}
         self._simulateOptions: dict[str, str] = {}
         self._overridevariables: dict[str, str] = {}
-        self.simoptionsoverride: dict[str, str] = {}
+        self._simoptionsoverride: dict[str, str] = {}
         self.linearOptions = {'startTime': 0.0, 'stopTime': 1.0, 'stepSize': 0.002, 'tolerance': 1e-8}
         self.optimizeOptions = {'startTime': 0.0, 'stopTime': 1.0, 'numberOfIntervals': 500, 'stepSize': 0.002,
                                 'tolerance': 1e-8}
@@ -891,9 +891,9 @@ class ModelicaSystem:
             om_cmd.args_set(args=simargs)
 
         overrideFile = self.tempdir / f"{self.modelName}_override.txt"
-        if self._overridevariables or self.simoptionsoverride:
+        if self._overridevariables or self._simoptionsoverride:
             tmpdict = self._overridevariables.copy()
-            tmpdict.update(self.simoptionsoverride)
+            tmpdict.update(self._simoptionsoverride)
             # write to override file
             with open(file=overrideFile, mode="w", encoding="utf-8") as fh:
                 for key, value in tmpdict.items():
@@ -1070,7 +1070,7 @@ class ModelicaSystem:
         >>> setSimulationOptions("Name=value")
         >>> setSimulationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(simOptions, self._simulateOptions, "simulation-option", self.simoptionsoverride)
+        return self.setMethodHelper(simOptions, self._simulateOptions, "simulation-option", self._simoptionsoverride)
 
     def setLinearizationOptions(self, linearizationOptions):  # 18
         """
