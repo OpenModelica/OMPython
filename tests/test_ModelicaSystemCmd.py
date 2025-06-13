@@ -18,7 +18,7 @@ end M;
 @pytest.fixture
 def mscmd_firstorder(model_firstorder):
     mod = OMPython.ModelicaSystem(fileName=model_firstorder.as_posix(), modelName="M")
-    mscmd = OMPython.ModelicaSystemCmd(runpath=mod.tempdir, modelname=mod._modelName)
+    mscmd = OMPython.ModelicaSystemCmd(runpath=mod.getWorkDirectory(), modelname=mod._modelName)
     return mscmd
 
 
