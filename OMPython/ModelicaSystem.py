@@ -1353,26 +1353,14 @@ class ModelicaSystem:
         except ModuleNotFoundError as ex:
             raise ModelicaSystemError("No module named 'linearized_model'") from ex
 
-    def getLinearInputs(self):
-        """
-        function which returns the LinearInputs after Linearization is performed
-        usage
-        >>> getLinearInputs()
-        """
+    def getLinearInputs(self) -> list[str]:
+        """Return names of input variables of the linearized model."""
         return self._linearinputs
 
-    def getLinearOutputs(self):
-        """
-        function which returns the LinearInputs after Linearization is performed
-        usage
-        >>> getLinearOutputs()
-        """
+    def getLinearOutputs(self) -> list[str]:
+        """Return names of output variables of the linearized model."""
         return self._linearoutputs
 
-    def getLinearStates(self):
-        """
-        function which returns the LinearInputs after Linearization is performed
-        usage
-        >>> getLinearStates()
-        """
+    def getLinearStates(self) -> list[str]:
+        """Return names of state variables of the linearized model."""
         return self._linearstates
