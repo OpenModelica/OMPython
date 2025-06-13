@@ -40,3 +40,30 @@ def test_execute(om):
     assert om.execute('"HelloWorld!"') == '"HelloWorld!"\n'
     assert om.sendExpression('"HelloWorld!"', parsed=False) == '"HelloWorld!"\n'
     assert om.sendExpression('"HelloWorld!"', parsed=True) == 'HelloWorld!'
+
+
+def test_omcprocessport_execute(om):
+    port = om.omc_process.get_port()
+    omcp = OMPython.OMCProcessPort(omc_port=port)
+
+    # run 1
+    om1 = OMPython.OMCSessionZMQ(omc_process=omcp)
+    assert om1.sendExpression('"HelloWorld!"', parsed=False) == '"HelloWorld!"\n'
+
+    # run 2
+    om2 = OMPython.OMCSessionZMQ(omc_process=omcp)
+    assert om2.sendExpression('"HelloWorld!"', parsed=False) == '"HelloWorld!"\n'
+
+    del om1
+    del om2
+
+
+def test_omcprocessport_simulate(om, model_time_str):
+    port = om.omc_process.get_port()
+    omcp = OMPython.OMCProcessPort(omc_port=port)
+
+    om = OMPython.OMCSessionZMQ(omc_process=omcp)
+    assert om.sendExpression(f'loadString("{model_time_str}")') is True
+    om.sendExpression('res:=simulate(M, stopTime=2.0)')
+    assert om.sendExpression('res.resultFile') != ""
+    del om
