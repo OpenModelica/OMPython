@@ -942,7 +942,7 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for strip_space()")
 
-    def setMethodHelper(self, args1, args2, args3, args4=None):
+    def _setMethodHelper(self, args1, args2, args3, args4=None):
         """
         Helper function for setParameter(),setContinuous(),setSimulationOptions(),setLinearizationOption(),setOptimizationOption()
         args1 - string or list of string given by user
@@ -966,7 +966,7 @@ class ModelicaSystem:
                 return True
 
             else:
-                raise ModelicaSystemError("Unhandled case in setMethodHelper.apply_single() - "
+                raise ModelicaSystemError("Unhandled case in _setMethodHelper.apply_single() - "
                                           f"{repr(value[0])} is not a {repr(args3)} variable")
 
         result = []
@@ -989,7 +989,7 @@ class ModelicaSystem:
         >>> setContinuous("Name=value")
         >>> setContinuous(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(cvals, self._continuouslist, "continuous", self._overridevariables)
+        return self._setMethodHelper(cvals, self._continuouslist, "continuous", self._overridevariables)
 
     def setParameters(self, pvals):  # 14
         """
@@ -999,7 +999,7 @@ class ModelicaSystem:
         >>> setParameters("Name=value")
         >>> setParameters(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(pvals, self._paramlist, "parameter", self._overridevariables)
+        return self._setMethodHelper(pvals, self._paramlist, "parameter", self._overridevariables)
 
     def isParameterChangeable(self, name, value):
         q = self.getQuantities(name)
@@ -1019,7 +1019,7 @@ class ModelicaSystem:
         >>> setSimulationOptions("Name=value")
         >>> setSimulationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(simOptions, self._simulateOptions, "simulation-option", self._simoptionsoverride)
+        return self._setMethodHelper(simOptions, self._simulateOptions, "simulation-option", self._simoptionsoverride)
 
     def setLinearizationOptions(self, linearizationOptions):  # 18
         """
@@ -1029,7 +1029,7 @@ class ModelicaSystem:
         >>> setLinearizationOptions("Name=value")
         >>> setLinearizationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(linearizationOptions, self._linearOptions, "Linearization-option", None)
+        return self._setMethodHelper(linearizationOptions, self._linearOptions, "Linearization-option", None)
 
     def setOptimizationOptions(self, optimizationOptions):  # 17
         """
@@ -1039,7 +1039,7 @@ class ModelicaSystem:
         >>> setOptimizationOptions("Name=value")
         >>> setOptimizationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(optimizationOptions, self._optimizeOptions, "optimization-option", None)
+        return self._setMethodHelper(optimizationOptions, self._optimizeOptions, "optimization-option", None)
 
     def setInputs(self, name):  # 15
         """
