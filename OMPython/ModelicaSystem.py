@@ -457,7 +457,7 @@ class ModelicaSystem:
                         apiCall = "loadFile"
                     else:
                         apiCall = "loadModel"
-                    self.requestApi(apiCall, element)
+                    self._requestApi(apiCall, element)
                 elif isinstance(element, tuple):
                     if not element[1]:
                         expr_load_lib = f"loadModel({element[0]})"
@@ -500,7 +500,7 @@ class ModelicaSystem:
         else:
             varFilter = 'variableFilter=".*"'
 
-        buildModelResult = self.requestApi("buildModel", self._modelName, properties=varFilter)
+        buildModelResult = self._requestApi("buildModel", self._modelName, properties=varFilter)
         logger.debug("OM model build result: %s", buildModelResult)
 
         self._xmlFile = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
@@ -517,7 +517,7 @@ class ModelicaSystem:
         return retval
 
     # request to OMC
-    def requestApi(self, apiName, entity=None, properties=None):  # 2
+    def _requestApi(self, apiName, entity=None, properties=None):  # 2
         if entity is not None and properties is not None:
             exp = f'{apiName}({entity}, {properties})'
         elif entity is not None and properties is None:
@@ -1209,7 +1209,7 @@ class ModelicaSystem:
         else:
             includeResourcesStr = "false"
         properties = f'version="{version}", fmuType="{fmuType}", fileNamePrefix="{fileNamePrefix}", includeResources={includeResourcesStr}'
-        fmu = self.requestApi('buildModelFMU', self._modelName, properties)
+        fmu = self._requestApi('buildModelFMU', self._modelName, properties)
 
         # report proper error message
         if not os.path.exists(fmu):
@@ -1226,7 +1226,7 @@ class ModelicaSystem:
         >>> convertFmu2Mo("c:/BouncingBall.Fmu")
         """
 
-        fileName = self.requestApi('importFMU', fmuName)
+        fileName = self._requestApi('importFMU', fmuName)
 
         # report proper error message
         if not os.path.exists(fileName):
@@ -1245,7 +1245,7 @@ class ModelicaSystem:
         cName = self._modelName
         properties = ','.join(f"{key}={val}" for key, val in self._optimizeOptions.items())
         self.setCommandLineOptions("-g=Optimica")
-        optimizeResult = self.requestApi('optimize', cName, properties)
+        optimizeResult = self._requestApi('optimize', cName, properties)
 
         return optimizeResult
 
