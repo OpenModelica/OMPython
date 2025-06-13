@@ -724,7 +724,7 @@ class OMCProcessDocker(OMCProcessDockerHelper):
         self._interactivePort = port
 
         # start up omc executable in docker container waiting for the ZMQ connection
-        self._omc_process, self._docker_process, self._dockerCid = self._omc_docker_start()
+        self._omc_process, self._docker_process, self._dockerCid = self._docker_omc_start()
         # connect to the running omc instance using ZMQ
         self._omc_port = self._omc_port_get()
 
@@ -744,7 +744,7 @@ class OMCProcessDocker(OMCProcessDockerHelper):
             finally:
                 self._docker_process = None
 
-    def _omc_command_docker(
+    def _docker_omc_cmd(
             self,
             omc_path_and_args_list: list[str],
             docker_cid_file: pathlib.Path,
@@ -795,12 +795,12 @@ class OMCProcessDocker(OMCProcessDockerHelper):
 
         return omc_command
 
-    def _omc_docker_start(self) -> Tuple[subprocess.Popen, DummyPopen, str]:
+    def _docker_omc_start(self) -> Tuple[subprocess.Popen, DummyPopen, str]:
         my_env = os.environ.copy()
 
         docker_cid_file = self._temp_dir / (self._omc_filebase + ".docker.cid")
 
-        omc_command = self._omc_command_docker(
+        omc_command = self._docker_omc_cmd(
             omc_path_and_args_list=["--locale=C",
                                     "--interactive=zmq",
                                     f"-z={self._random_string}"],
@@ -868,7 +868,7 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
         self._interactivePort = port
 
         # start up omc executable in docker container waiting for the ZMQ connection
-        self._omc_process, self._docker_process = self._omc_docker_start()
+        self._omc_process, self._docker_process = self._docker_omc_start()
         # connect to the running omc instance using ZMQ
         self._omc_port = self._omc_port_get()
 
@@ -879,7 +879,7 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
         # docker container ID was provided - do NOT kill the docker process!
         self._docker_process = None
 
-    def _omc_command_docker(self, omc_path_and_args_list) -> list:
+    def _docker_omc_cmd(self, omc_path_and_args_list) -> list:
         """
         Define the command that will be called by the subprocess module.
         """
@@ -906,12 +906,14 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
 
         return omc_command
 
-    def _omc_docker_start(self) -> Tuple[subprocess.Popen, DummyPopen]:
+    def _docker_omc_start(self) -> Tuple[subprocess.Popen, DummyPopen]:
         my_env = os.environ.copy()
 
-        omc_command = self._omc_command_docker(omc_path_and_args_list=["--locale=C",
-                                                                       "--interactive=zmq",
-                                                                       f"-z={self._random_string}"])
+        omc_command = self._docker_omc_cmd(
+            omc_path_and_args_list=["--locale=C",
+                                    "--interactive=zmq",
+                                    f"-z={self._random_string}"],
+        )
 
         omc_process = subprocess.Popen(omc_command,
                                        stdout=self._omc_loghandle,
