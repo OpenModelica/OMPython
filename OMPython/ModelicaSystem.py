@@ -404,7 +404,7 @@ class ModelicaSystem:
         if not isinstance(lmodel, list):
             raise ModelicaSystemError(f"Invalid input type for lmodel: {type(lmodel)} - list expected!")
 
-        self.xmlFile = None
+        self._xmlFile = None
         self.lmodel = lmodel  # may be needed if model is derived from other model
         self.modelName = modelName  # Model class name
         self.fileName = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
@@ -504,7 +504,7 @@ class ModelicaSystem:
         buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
         logger.debug("OM model build result: %s", buildModelResult)
 
-        self.xmlFile = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
+        self._xmlFile = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
         self.xmlparse()
 
     def sendExpression(self, expr: str, parsed: bool = True):
@@ -532,10 +532,10 @@ class ModelicaSystem:
         return self.sendExpression(exp)
 
     def xmlparse(self):
-        if not self.xmlFile.is_file():
-            raise ModelicaSystemError(f"XML file not generated: {self.xmlFile}")
+        if not self._xmlFile.is_file():
+            raise ModelicaSystemError(f"XML file not generated: {self._xmlFile}")
 
-        tree = ET.parse(self.xmlFile)
+        tree = ET.parse(self._xmlFile)
         rootCQ = tree.getroot()
         for attr in rootCQ.iter('DefaultExperiment'):
             for key in ("startTime", "stopTime", "stepSize", "tolerance",
@@ -1282,7 +1282,7 @@ class ModelicaSystem:
 
             return module_def
 
-        if self.xmlFile is None:
+        if self._xmlFile is None:
             raise ModelicaSystemError(
                 "Linearization cannot be performed as the model is not build, "
                 "use ModelicaSystem() to build the model first"
