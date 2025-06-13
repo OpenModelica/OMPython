@@ -408,7 +408,7 @@ class ModelicaSystem:
         self._lmodel = lmodel  # may be needed if model is derived from other model
         self._modelName = modelName  # Model class name
         self._fileName = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
-        self.inputFlag = False  # for model with input quantity
+        self._inputFlag = False  # for model with input quantity
         self.simulationFlag = False  # if the model is simulated?
         self.outputFlag = False
         self.csvFile: Optional[pathlib.Path] = None  # for storing inputs condition
@@ -901,7 +901,7 @@ class ModelicaSystem:
 
             om_cmd.arg_set(key="overrideFile", val=overrideFile.as_posix())
 
-        if self.inputFlag:  # if model has input quantities
+        if self._inputFlag:  # if model has input quantities
             for i in self._inputlist:
                 val = self._inputlist[i]
                 if val is None:
@@ -1111,7 +1111,7 @@ class ModelicaSystem:
                 elif isinstance(tmpvalue, list):
                     self.checkValidInputs(tmpvalue)
                     self._inputlist[value[0]] = tmpvalue
-                self.inputFlag = True
+                self._inputFlag = True
             else:
                 raise ModelicaSystemError(f"{value[0]} is not an input")
         elif isinstance(name, list):
@@ -1126,7 +1126,7 @@ class ModelicaSystem:
                     elif isinstance(tmpvalue, list):
                         self.checkValidInputs(tmpvalue)
                         self._inputlist[value[0]] = tmpvalue
-                    self.inputFlag = True
+                    self._inputFlag = True
                 else:
                     raise ModelicaSystemError(f"{value[0]} is not an input!")
 
@@ -1300,7 +1300,7 @@ class ModelicaSystem:
 
         om_cmd.arg_set(key="overrideFile", val=overrideLinearFile.as_posix())
 
-        if self.inputFlag:
+        if self._inputFlag:
             nameVal = self.getInputs()
             for n in nameVal:
                 tupleList = nameVal.get(n)
