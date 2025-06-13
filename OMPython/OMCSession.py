@@ -601,14 +601,24 @@ class OMCProcessLocal(OMCProcess):
 
 class OMCProcessDockerHelper(OMCProcess):
 
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(
+            self,
+            timeout: float = 10.00,
+            dockerExtraArgs: Optional[list] = None,
+            dockerOpenModelicaPath: str = "omc",
+            dockerNetwork: Optional[str] = None,
+            port: Optional[int] = None,
+    ) -> None:
+        super().__init__(timeout=timeout)
 
-        self._dockerExtraArgs: list = []
-        self._dockerOpenModelicaPath: Optional[str] = None
-        self._dockerNetwork: Optional[str] = None
+        if dockerExtraArgs is None:
+            dockerExtraArgs = []
 
-        self._interactivePort: Optional[int] = None
+        self._dockerExtraArgs = dockerExtraArgs
+        self._dockerOpenModelicaPath = dockerOpenModelicaPath
+        self._dockerNetwork = dockerNetwork
+
+        self._interactivePort = port
 
         self._dockerCid: Optional[str] = None
         self._docker_process: Optional[DummyPopen] = None
@@ -707,21 +717,18 @@ class OMCProcessDocker(OMCProcessDockerHelper):
             port: Optional[int] = None,
     ) -> None:
 
-        super().__init__(timeout=timeout)
+        super().__init__(
+            timeout=timeout,
+            dockerExtraArgs=dockerExtraArgs,
+            dockerOpenModelicaPath=dockerOpenModelicaPath,
+            dockerNetwork=dockerNetwork,
+            port=port,
+        )
 
         if docker is None:
             raise OMCSessionException("Argument docker must be set!")
 
         self._docker = docker
-
-        if dockerExtraArgs is None:
-            dockerExtraArgs = []
-
-        self._dockerExtraArgs = dockerExtraArgs
-        self._dockerOpenModelicaPath = dockerOpenModelicaPath
-        self._dockerNetwork = dockerNetwork
-
-        self._interactivePort = port
 
         # start up omc executable in docker container waiting for the ZMQ connection
         self._omc_process, self._docker_process, self._dockerCid = self._docker_omc_start()
@@ -851,21 +858,18 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
             port: Optional[int] = None,
     ) -> None:
 
-        super().__init__(timeout=timeout)
+        super().__init__(
+            timeout=timeout,
+            dockerExtraArgs=dockerExtraArgs,
+            dockerOpenModelicaPath=dockerOpenModelicaPath,
+            dockerNetwork=dockerNetwork,
+            port=port,
+        )
 
         if not isinstance(dockerContainer, str):
             raise OMCSessionException("Argument dockerContainer must be set!")
 
         self._dockerCid = dockerContainer
-
-        if dockerExtraArgs is None:
-            dockerExtraArgs = []
-
-        self._dockerExtraArgs = dockerExtraArgs
-        self._dockerOpenModelicaPath = dockerOpenModelicaPath
-        self._dockerNetwork = dockerNetwork
-
-        self._interactivePort = port
 
         # start up omc executable in docker container waiting for the ZMQ connection
         self._omc_process, self._docker_process = self._docker_omc_start()
