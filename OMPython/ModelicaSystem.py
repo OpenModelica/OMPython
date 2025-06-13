@@ -49,7 +49,7 @@ from typing import Optional, Any
 import warnings
 import xml.etree.ElementTree as ET
 
-from OMPython.OMCSession import OMCSessionException, OMCSessionZMQ
+from OMPython.OMCSession import OMCSessionException, OMCSessionZMQ, OMCProcessLocal
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
@@ -323,7 +323,7 @@ class ModelicaSystem:
             variableFilter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike | pathlib.Path] = None,
             omhome: Optional[str] = None,
-            session: Optional[OMCSessionZMQ] = None,
+            omc_process: Optional[OMCProcessLocal] = None,
             build: bool = True,
     ) -> None:
         """Initialize, load and build a model.
@@ -351,8 +351,8 @@ class ModelicaSystem:
               directory will be created.
             omhome: OPENMODELICAHOME value to be used when creating the OMC
               session.
-            session: OMC session to be used. If unspecified, a new session
-              will be created.
+            omc_process: definition of a (local) OMC process to be used. If
+              unspecified, a new local session will be created.
             build: Boolean controlling whether or not the model should be
               built when constructor is called. If False, the constructor
               simply loads the model without compiling.
@@ -387,10 +387,10 @@ class ModelicaSystem:
         self.linearoutputs: list[str] = []  # linearization output list
         self.linearstates: list[str] = []  # linearization states list
 
-        if session is not None:
-            if not isinstance(session, OMCSessionZMQ):
-                raise ModelicaSystemError("Invalid session data provided!")
-            self.getconn = session
+        if omc_process is not None:
+            if not isinstance(omc_process, OMCProcessLocal):
+                raise ModelicaSystemError("Invalid (local) omc process definition provided!")
+            self.getconn = OMCSessionZMQ(omc_process=omc_process)
         else:
             self.getconn = OMCSessionZMQ(omhome=omhome)
 
