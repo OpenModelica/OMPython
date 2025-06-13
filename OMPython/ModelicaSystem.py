@@ -401,7 +401,6 @@ class ModelicaSystem:
         self._fileName = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
         self._inputFlag = False  # for model with input quantity
         self._simulationFlag = False  # if the model is simulated?
-        self.outputFlag = False
         self.csvFile: Optional[pathlib.Path] = None  # for storing inputs condition
         self.resultfile: Optional[pathlib.Path] = None  # for storing result file
         self.variableFilter = variableFilter
