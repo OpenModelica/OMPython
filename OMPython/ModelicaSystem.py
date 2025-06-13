@@ -504,7 +504,7 @@ class ModelicaSystem:
         logger.debug("OM model build result: %s", buildModelResult)
 
         self._xmlFile = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
-        self.xmlparse()
+        self._xmlparse()
 
     def sendExpression(self, expr: str, parsed: bool = True):
         try:
@@ -530,7 +530,7 @@ class ModelicaSystem:
 
         return self.sendExpression(exp)
 
-    def xmlparse(self):
+    def _xmlparse(self):
         if not self._xmlFile.is_file():
             raise ModelicaSystemError(f"XML file not generated: {self._xmlFile}")
 
