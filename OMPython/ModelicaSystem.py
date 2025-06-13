@@ -1108,7 +1108,7 @@ class ModelicaSystem:
                     self._inputlist[value[0]] = [(float(self._simulateOptions["startTime"]), float(value[1])),
                                                  (float(self._simulateOptions["stopTime"]), float(value[1]))]
                 elif isinstance(tmpvalue, list):
-                    self.checkValidInputs(tmpvalue)
+                    self._checkValidInputs(tmpvalue)
                     self._inputlist[value[0]] = tmpvalue
                 self._inputFlag = True
             else:
@@ -1123,13 +1123,13 @@ class ModelicaSystem:
                         self._inputlist[value[0]] = [(float(self._simulateOptions["startTime"]), float(value[1])),
                                                      (float(self._simulateOptions["stopTime"]), float(value[1]))]
                     elif isinstance(tmpvalue, list):
-                        self.checkValidInputs(tmpvalue)
+                        self._checkValidInputs(tmpvalue)
                         self._inputlist[value[0]] = tmpvalue
                     self._inputFlag = True
                 else:
                     raise ModelicaSystemError(f"{value[0]} is not an input!")
 
-    def checkValidInputs(self, name):
+    def _checkValidInputs(self, name):
         if name != sorted(name, key=lambda x: x[0]):
             raise ModelicaSystemError('Time value should be in increasing order')
         for l in name:
