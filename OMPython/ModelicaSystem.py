@@ -417,12 +417,12 @@ class ModelicaSystem:
         self._tempdir = self.setTempDirectory(customBuildDirectory)
 
         if self._fileName is not None:
-            self.loadLibrary(lmodel=self._lmodel)
+            self._loadLibrary(lmodel=self._lmodel)
             self._loadFile(fileName=self._fileName)
 
         # allow directly loading models from MSL without fileName
         elif fileName is None and modelName is not None:
-            self.loadLibrary(lmodel=self._lmodel)
+            self._loadLibrary(lmodel=self._lmodel)
 
         if build:
             self.buildModel(variableFilter)
@@ -439,7 +439,7 @@ class ModelicaSystem:
         self.sendExpression(f'loadFile("{fileName.as_posix()}")')
 
     # for loading file/package, loading model and building model
-    def loadLibrary(self, lmodel: list):
+    def _loadLibrary(self, lmodel: list):
         # load Modelica standard libraries or Modelica files if needed
         for element in lmodel:
             if element is not None:
