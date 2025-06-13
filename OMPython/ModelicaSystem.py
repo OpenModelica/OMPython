@@ -376,8 +376,8 @@ class ModelicaSystem:
         # _outputlist values are str before simulate(), but they can be
         # np.float64 after simulate().
         self._outputlist: dict[str, Any] = {}
-        # same for continuouslist
-        self.continuouslist: dict[str, Any] = {}
+        # same for _continuouslist
+        self._continuouslist: dict[str, Any] = {}
         self.simulateOptions: dict[str, str] = {}
         self.overridevariables: dict[str, str] = {}
         self.simoptionsoverride: dict[str, str] = {}
@@ -561,7 +561,7 @@ class ModelicaSystem:
                 else:
                     self._paramlist[scalar["name"]] = scalar["start"]
             if scalar["variability"] == "continuous":
-                self.continuouslist[scalar["name"]] = scalar["start"]
+                self._continuouslist[scalar["name"]] = scalar["start"]
             if scalar["causality"] == "input":
                 self._inputlist[scalar["name"]] = scalar["start"]
             if scalar["causality"] == "output":
@@ -636,37 +636,37 @@ class ModelicaSystem:
         """
         if not self.simulationFlag:
             if names is None:
-                return self.continuouslist
+                return self._continuouslist
 
             if isinstance(names, str):
-                return [self.continuouslist[names]]
+                return [self._continuouslist[names]]
 
             if isinstance(names, list):
-                return [self.continuouslist[x] for x in names]
+                return [self._continuouslist[x] for x in names]
         else:
             if names is None:
-                for i in self.continuouslist:
+                for i in self._continuouslist:
                     try:
                         value = self.getSolutions(i)
-                        self.continuouslist[i] = value[0][-1]
+                        self._continuouslist[i] = value[0][-1]
                     except (OMCSessionException, ModelicaSystemError) as ex:
                         raise ModelicaSystemError(f"{i} could not be computed") from ex
-                return self.continuouslist
+                return self._continuouslist
 
             if isinstance(names, str):
-                if names in self.continuouslist:
+                if names in self._continuouslist:
                     value = self.getSolutions(names)
-                    self.continuouslist[names] = value[0][-1]
-                    return [self.continuouslist[names]]
+                    self._continuouslist[names] = value[0][-1]
+                    return [self._continuouslist[names]]
                 else:
                     raise ModelicaSystemError(f"{names} is not continuous")
 
             if isinstance(names, list):
                 valuelist = []
                 for i in names:
-                    if i in self.continuouslist:
+                    if i in self._continuouslist:
                         value = self.getSolutions(i)
-                        self.continuouslist[i] = value[0][-1]
+                        self._continuouslist[i] = value[0][-1]
                         valuelist.append(value[0][-1])
                     else:
                         raise ModelicaSystemError(f"{i} is not continuous")
@@ -1040,7 +1040,7 @@ class ModelicaSystem:
         >>> setContinuous("Name=value")
         >>> setContinuous(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(cvals, self.continuouslist, "continuous", self.overridevariables)
+        return self.setMethodHelper(cvals, self._continuouslist, "continuous", self.overridevariables)
 
     def setParameters(self, pvals):  # 14
         """
