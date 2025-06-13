@@ -912,7 +912,7 @@ class ModelicaSystem:
                     raise ModelicaSystemError(f"startTime not matched for Input {i}!")
                 if float(self._simulateOptions["stopTime"]) != val[-1][0]:
                     raise ModelicaSystemError(f"stopTime not matched for Input {i}!")
-            self._csvFile = self.createCSVData()  # create csv file
+            self._csvFile = self._createCSVData()  # create csv file
 
             om_cmd.arg_set(key="csvInput", val=self._csvFile.as_posix())
 
@@ -1142,7 +1142,7 @@ class ModelicaSystem:
             else:
                 raise ModelicaSystemError('Error!!! Value must be in tuple format')
 
-    def createCSVData(self) -> pathlib.Path:
+    def _createCSVData(self) -> pathlib.Path:
         start_time: float = float(self._simulateOptions["startTime"])
         stop_time: float = float(self._simulateOptions["stopTime"])
 
@@ -1307,7 +1307,7 @@ class ModelicaSystem:
                     for l in tupleList:
                         if l[0] < float(self._simulateOptions["startTime"]):
                             raise ModelicaSystemError('Input time value is less than simulation startTime')
-            self._csvFile = self.createCSVData()
+            self._csvFile = self._createCSVData()
             om_cmd.arg_set(key="csvInput", val=self._csvFile.as_posix())
 
         om_cmd.arg_set(key="l", val=str(lintime or self._linearOptions["stopTime"]))
