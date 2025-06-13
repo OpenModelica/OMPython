@@ -950,14 +950,18 @@ class ModelicaSystem:
         >>> getSolutions(["Name1","Name2"],resultfile=""c:/a.mat"")
         """
         if resultfile is None:
-            resFile = self.resultfile.as_posix()
+            result_file = self.resultfile
         else:
-            resFile = resultfile
+            result_file = pathlib.Path(resultfile)
 
         # check for result file exits
-        if not os.path.exists(resFile):
-            raise ModelicaSystemError(f"Result file does not exist {resFile}")
-        resultVars = self.sendExpression(f'readSimulationResultVars("{resFile}")')
+        if not result_file.is_file():
+            raise ModelicaSystemError(f"Result file does not exist {result_file}")
+
+        # get absolute path
+        result_file = result_file.absolute()
+
+        resultVars = self.sendExpression(f'readSimulationResultVars("{result_file.as_posix()}")')
         self.sendExpression("closeSimulationResultFile()")
         if varList is None:
             return resultVars
@@ -965,7 +969,7 @@ class ModelicaSystem:
         if isinstance(varList, str):
             if varList not in resultVars and varList != "time":
                 raise ModelicaSystemError(f"Requested data {repr(varList)} does not exist")
-            res = self.sendExpression(f'readSimulationResult("{resFile}", {{{varList}}})')
+            res = self.sendExpression(f'readSimulationResult("{result_file.as_posix()}", {{{varList}}})')
             npRes = np.array(res)
             self.sendExpression("closeSimulationResultFile()")
             return npRes
@@ -977,7 +981,7 @@ class ModelicaSystem:
                 if var not in resultVars:
                     raise ModelicaSystemError(f"Requested data {repr(var)} does not exist")
             variables = ",".join(varList)
-            res = self.sendExpression(f'readSimulationResult("{resFile}",{{{variables}}})')
+            res = self.sendExpression(f'readSimulationResult("{result_file.as_posix()}",{{{variables}}})')
             npRes = np.array(res)
             self.sendExpression("closeSimulationResultFile()")
             return npRes
