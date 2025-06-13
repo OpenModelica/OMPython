@@ -382,9 +382,9 @@ class ModelicaSystem:
         if session is not None:
             if not isinstance(session, OMCSessionZMQ):
                 raise ModelicaSystemError("Invalid session data provided!")
-            self.getconn = session
+            self._getconn = session
         else:
-            self.getconn = OMCSessionZMQ(omhome=omhome)
+            self._getconn = OMCSessionZMQ(omhome=omhome)
 
         # set commandLineOptions if provided by users
         self.setCommandLineOptions(commandLineOptions=commandLineOptions)
@@ -499,7 +499,7 @@ class ModelicaSystem:
 
     def sendExpression(self, expr: str, parsed: bool = True):
         try:
-            retval = self.getconn.sendExpression(expr, parsed)
+            retval = self._getconn.sendExpression(expr, parsed)
         except OMCSessionException as ex:
             raise ModelicaSystemError(f"Error executing {repr(expr)}") from ex
 
