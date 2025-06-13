@@ -410,7 +410,7 @@ class ModelicaSystem:
         self._fileName = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
         self._inputFlag = False  # for model with input quantity
         self._simulationFlag = False  # if the model is simulated?
-        self.csvFile: Optional[pathlib.Path] = None  # for storing inputs condition
+        self._csvFile: Optional[pathlib.Path] = None  # for storing inputs condition
         self.resultfile: Optional[pathlib.Path] = None  # for storing result file
         self.variableFilter = variableFilter
 
@@ -912,9 +912,9 @@ class ModelicaSystem:
                     raise ModelicaSystemError(f"startTime not matched for Input {i}!")
                 if float(self._simulateOptions["stopTime"]) != val[-1][0]:
                     raise ModelicaSystemError(f"stopTime not matched for Input {i}!")
-            self.csvFile = self.createCSVData()  # create csv file
+            self._csvFile = self.createCSVData()  # create csv file
 
-            om_cmd.arg_set(key="csvInput", val=self.csvFile.as_posix())
+            om_cmd.arg_set(key="csvInput", val=self._csvFile.as_posix())
 
         # delete resultfile ...
         if self.resultfile.is_file():
@@ -1307,8 +1307,8 @@ class ModelicaSystem:
                     for l in tupleList:
                         if l[0] < float(self._simulateOptions["startTime"]):
                             raise ModelicaSystemError('Input time value is less than simulation startTime')
-            self.csvFile = self.createCSVData()
-            om_cmd.arg_set(key="csvInput", val=self.csvFile.as_posix())
+            self._csvFile = self.createCSVData()
+            om_cmd.arg_set(key="csvInput", val=self._csvFile.as_posix())
 
         om_cmd.arg_set(key="l", val=str(lintime or self._linearOptions["stopTime"]))
 
