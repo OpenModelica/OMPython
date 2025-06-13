@@ -418,7 +418,7 @@ class ModelicaSystem:
 
         if self._fileName is not None:
             self.loadLibrary(lmodel=self._lmodel)
-            self.loadFile(fileName=self._fileName)
+            self._loadFile(fileName=self._fileName)
 
         # allow directly loading models from MSL without fileName
         elif fileName is None and modelName is not None:
@@ -434,7 +434,7 @@ class ModelicaSystem:
         exp = f'setCommandLineOptions("{commandLineOptions}")'
         self.sendExpression(exp)
 
-    def loadFile(self, fileName: pathlib.Path):
+    def _loadFile(self, fileName: pathlib.Path):
         # load file
         self.sendExpression(f'loadFile("{fileName.as_posix()}")')
 
