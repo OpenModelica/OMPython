@@ -117,16 +117,7 @@ class ModelicaSystemCmd:
     Execute a simulation by running the compiled model.
     """
 
-    def __init__(self, runpath: pathlib.Path, modelname: str, timeout: Optional[int] = None) -> None:
-        """
-        Initialisation
-
-        Parameters
-        ----------
-        runpath : pathlib.Path
-        modelname : str
-        timeout : Optional[int], None
-        """
+    def __init__(self, runpath: pathlib.Path, modelname: str, timeout: Optional[float] = None) -> None:
         self._runpath = pathlib.Path(runpath).resolve().absolute()
         self._modelname = modelname
         self._timeout = timeout
@@ -862,7 +853,7 @@ class ModelicaSystem:
                  resultfile: Optional[str] = None,
                  simflags: Optional[str] = None,
                  simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
-                 timeout: Optional[int] = None) -> None:
+                 timeout: Optional[float] = None) -> None:
         """Simulate the model according to simulation options.
 
         See setSimulationOptions().
@@ -1262,7 +1253,7 @@ class ModelicaSystem:
 
     def linearize(self, lintime: Optional[float] = None, simflags: Optional[str] = None,
                   simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
-                  timeout: Optional[int] = None) -> LinearizationResult:
+                  timeout: Optional[float] = None) -> LinearizationResult:
         """Linearize the model according to linearization options.
 
         See setLinearizationOptions.
