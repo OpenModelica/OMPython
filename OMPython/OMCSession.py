@@ -456,16 +456,13 @@ class OMCProcess:
             self._currentUser = "nobody"
 
         # omc port and log file
-        if sys.platform == 'win32':
-            self._omc_file_port = f"openmodelica.port.{self._random_string}"
-        else:
-            self._omc_file_port = f"openmodelica.{self._currentUser}.port.{self._random_string}"
+        self._omc_filebase = f"openmodelica.{self._random_string}"
 
         # get a temporary directory
         self._temp_dir = pathlib.Path(tempfile.gettempdir())
 
         # setup log file - this file must be closed in the destructor
-        logfile = self._temp_dir / (self._omc_file_port + '.log')
+        logfile = self._temp_dir / (self._omc_filebase + ".log")
         self._omc_loghandle: Optional[io.TextIOWrapper] = None
         try:
             self._omc_loghandle = open(file=logfile, mode="w+", encoding="utf-8")
@@ -756,7 +753,7 @@ class OMCProcessDocker(OMCProcessDockerHelper, OMCProcess):
             raise OMCSessionException(f'dockerNetwork was set to {self._dockerNetwork}, '
                                       'but only \"host\" or \"separate\" is allowed')
 
-        self._dockerCidFile = self._temp_dir / (self._omc_file_port + ".docker.cid")
+        self._dockerCidFile = self._temp_dir / (self._omc_filebase + ".docker.cid")
 
         if isinstance(self._interactivePort, int):
             extraFlags = extraFlags + [f"--interactivePort={int(self._interactivePort)}"]
