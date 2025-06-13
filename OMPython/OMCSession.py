@@ -623,7 +623,7 @@ class OMCProcessDockerHelper(OMCProcess):
         self._dockerCid: Optional[str] = None
         self._docker_process: Optional[DummyPopen] = None
 
-    def _omc_process_docker(self) -> Optional[DummyPopen]:
+    def _docker_process_get(self) -> Optional[DummyPopen]:
         if sys.platform == 'win32':
             raise NotImplementedError("Docker not supported on win32!")
 
@@ -838,7 +838,7 @@ class OMCProcessDocker(OMCProcessDockerHelper):
             raise OMCSessionException(f"Docker did not start (timeout={self._timeout} might be too short "
                                       "especially if you did not docker pull the image before this command).")
 
-        docker_process = self._omc_process_docker()
+        docker_process = self._docker_process_get()
         if docker_process is None:
             raise OMCSessionException(f"Docker top did not contain omc process {self._random_string}. "
                                       f"Log-file says:\n{self.get_log()}")
@@ -926,7 +926,7 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
 
         docker_process = None
         if isinstance(self._dockerCid, str):
-            docker_process = self._omc_process_docker()
+            docker_process = self._docker_process_get()
 
         if docker_process is None:
             raise OMCSessionException(f"Docker top did not contain omc process {self._random_string} "
