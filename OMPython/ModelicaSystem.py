@@ -396,7 +396,7 @@ class ModelicaSystem:
             raise ModelicaSystemError(f"Invalid input type for lmodel: {type(lmodel)} - list expected!")
 
         self._xmlFile = None
-        self.lmodel = lmodel  # may be needed if model is derived from other model
+        self._lmodel = lmodel  # may be needed if model is derived from other model
         self.modelName = modelName  # Model class name
         self.fileName = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
         self.inputFlag = False  # for model with input quantity
@@ -418,12 +418,12 @@ class ModelicaSystem:
         self.tempdir = self.setTempDirectory(customBuildDirectory)
 
         if self.fileName is not None:
-            self.loadLibrary(lmodel=self.lmodel)
+            self.loadLibrary(lmodel=self._lmodel)
             self.loadFile(fileName=self.fileName)
 
         # allow directly loading models from MSL without fileName
         elif fileName is None and modelName is not None:
-            self.loadLibrary(lmodel=self.lmodel)
+            self.loadLibrary(lmodel=self._lmodel)
 
         if build:
             self.buildModel(variableFilter)
