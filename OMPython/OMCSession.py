@@ -34,7 +34,6 @@ __license__ = """
  CONDITIONS OF OSMC-PL.
 """
 
-import getpass
 import io
 import json
 import logging
@@ -446,15 +445,6 @@ class OMCProcess:
         # generate a random string for this session
         self._random_string = uuid.uuid4().hex
 
-        # get a user ID
-        try:
-            self._currentUser = getpass.getuser()
-            if not self._currentUser:
-                self._currentUser = "nobody"
-        except KeyError:
-            # We are running as a uid not existing in the password database... Pretend we are nobody
-            self._currentUser = "nobody"
-
         # omc port and log file
         self._omc_filebase = f"openmodelica.{self._random_string}"
 
@@ -758,11 +748,12 @@ class OMCProcessDocker(OMCProcessDockerHelper, OMCProcess):
         if isinstance(self._interactivePort, int):
             extraFlags = extraFlags + [f"--interactivePort={int(self._interactivePort)}"]
 
-        omc_command = (["docker", "run",
-                        "--cidfile", docker_cid_file.as_posix(),
-                        "--rm",
-                        "--env", f"USER={self._currentUser}",
-                        "--user", str(self._getuid())]
+        omc_command = ([
+                           "docker", "run",
+                           "--cidfile", docker_cid_file.as_posix(),
+                           "--rm",
+                           "--user", str(self._getuid()),
+                       ]
                        + self._dockerExtraArgs
                        + dockerNetworkStr
                        + [self._docker, self._dockerOpenModelicaPath]
@@ -808,7 +799,6 @@ class OMCProcessDocker(OMCProcessDockerHelper, OMCProcess):
 
     def _omc_docker_start(self) -> Tuple[subprocess.Popen, DummyPopen, str]:
         my_env = os.environ.copy()
-        my_env["USER"] = self._currentUser
 
         docker_cid_file = self._temp_dir / (self._omc_filebase + ".docker.cid")
 
@@ -909,9 +899,10 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper, OMCProcess):
         if isinstance(self._interactivePort, int):
             extraFlags = extraFlags + [f"--interactivePort={int(self._interactivePort)}"]
 
-        omc_command = (["docker", "exec",
-                        "--env", f"USER={self._currentUser}",
-                        "--user", str(self._getuid())]
+        omc_command = ([
+                           "docker", "exec",
+                           "--user", str(self._getuid()),
+                       ]
                        + self._dockerExtraArgs
                        + [self._dockerCid, self._dockerOpenModelicaPath]
                        + omc_path_and_args_list
@@ -955,7 +946,6 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper, OMCProcess):
 
     def _omc_docker_start(self) -> Tuple[subprocess.Popen, DummyPopen]:
         my_env = os.environ.copy()
-        my_env["USER"] = self._currentUser
 
         omc_command = self._omc_command_docker(omc_path_and_args_list=["--locale=C",
                                                                        "--interactive=zmq",
