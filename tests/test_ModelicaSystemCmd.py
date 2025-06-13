@@ -15,18 +15,26 @@ end M;
     return mod
 
 
-def test_simflags(model_firstorder):
+@pytest.fixture
+def mscmd_firstorder(model_firstorder):
     mod = OMPython.ModelicaSystem(fileName=model_firstorder.as_posix(), modelName="M")
-    mscmd = OMPython.ModelicaSystemCmd(runpath=mod.tempdir, modelname=mod.modelName)
+    mscmd = OMPython.ModelicaSystemCmd(runpath=mod.tempdir, modelname=mod._modelName)
+    return mscmd
+
+
+def test_simflags(mscmd_firstorder):
+    mscmd = mscmd_firstorder
+
     mscmd.args_set({
         "noEventEmit": None,
-        "noRestart": None,
         "override": {'b': 2}
     })
+
     mscmd.args_set(args=mscmd.parse_simflags(simflags="-noEventEmit -noRestart -override=a=1,x=3"))
 
     assert mscmd.get_cmd() == [
         mscmd.get_exe().as_posix(),
-        '-noEventEmit', '-noRestart',
-        '-override=b=2,a=1,x=3'
+        '-noEventEmit',
+        '-override=b=2,a=1,x=3',
+        '-noRestart',
     ]
