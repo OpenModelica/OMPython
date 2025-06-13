@@ -869,7 +869,7 @@ class ModelicaSystem:
             mod.simulate()
             mod.simulate(resultfile="a.mat")
             mod.simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10")  # set runtime simulation flags, deprecated
-            mod.simulate(simargs={"noEventEmit": None, "noRestart": None, "override": "e=0.3,g=10"})  # using simargs
+            mod.simulate(simargs={"noEventEmit": None, "noRestart": None, "override": "override": {"e": 0.3, "g": 10}})  # using simargs
         """
 
         om_cmd = ModelicaSystemCmd(runpath=self._tempdir, modelname=self._modelName, timeout=timeout)
