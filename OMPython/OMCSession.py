@@ -613,18 +613,17 @@ class OMCProcessDockerHelper(OMCProcess):
         self._dockerCid: Optional[str] = None
         self._docker_process: Optional[DummyPopen] = None
 
-    @staticmethod
-    def _omc_process_docker(dockerCid: str, random_string: str, timeout: float) -> Optional[DummyPopen]:
+    def _omc_process_docker(self) -> Optional[DummyPopen]:
         if sys.platform == 'win32':
             raise NotImplementedError("Docker not supported on win32!")
 
         docker_process = None
         for idx in range(0, 40):
-            dockerTop = subprocess.check_output(["docker", "top", dockerCid]).decode().strip()
+            dockerTop = subprocess.check_output(["docker", "top", self._dockerCid]).decode().strip()
             docker_process = None
             for line in dockerTop.split("\n"):
                 columns = line.split()
-                if random_string in line:
+                if self._random_string in line:
                     try:
                         docker_process = DummyPopen(int(columns[1]))
                     except psutil.NoSuchProcess as ex:
@@ -633,7 +632,7 @@ class OMCProcessDockerHelper(OMCProcess):
 
             if docker_process is not None:
                 break
-            time.sleep(timeout / 40.0)
+            time.sleep(self._timeout / 40.0)
 
         return docker_process
 
@@ -833,9 +832,7 @@ class OMCProcessDocker(OMCProcessDockerHelper):
             raise OMCSessionException(f"Docker did not start (timeout={self._timeout} might be too short "
                                       "especially if you did not docker pull the image before this command).")
 
-        docker_process = self._omc_process_docker(dockerCid=docker_cid,
-                                                  random_string=self._random_string,
-                                                  timeout=self._timeout)
+        docker_process = self._omc_process_docker()
         if docker_process is None:
             raise OMCSessionException(f"Docker top did not contain omc process {self._random_string}. "
                                       f"Log-file says:\n{self.get_log()}")
@@ -958,9 +955,7 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
 
         docker_process = None
         if isinstance(self._dockerCid, str):
-            docker_process = self._omc_process_docker(dockerCid=self._dockerCid,
-                                                      random_string=self._random_string,
-                                                      timeout=self._timeout)
+            docker_process = self._omc_process_docker()
 
         if docker_process is None:
             raise OMCSessionException(f"Docker top did not contain omc process {self._random_string} "
