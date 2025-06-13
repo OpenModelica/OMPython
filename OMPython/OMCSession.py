@@ -599,7 +599,7 @@ class OMCProcessLocal(OMCProcess):
         return port
 
 
-class OMCProcessDockerHelper:
+class OMCProcessDockerHelper(OMCProcess):
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -662,7 +662,7 @@ class OMCProcessDockerHelper:
         return self._dockerCid
 
 
-class OMCProcessDocker(OMCProcessDockerHelper, OMCProcess):
+class OMCProcessDocker(OMCProcessDockerHelper):
 
     def __init__(
             self,
@@ -843,7 +843,7 @@ class OMCProcessDocker(OMCProcessDockerHelper, OMCProcess):
         return omc_process, docker_process, docker_cid
 
 
-class OMCProcessDockerContainer(OMCProcessDockerHelper, OMCProcess):
+class OMCProcessDockerContainer(OMCProcessDockerHelper):
 
     def __init__(
             self,
