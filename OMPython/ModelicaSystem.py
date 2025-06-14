@@ -880,12 +880,31 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getLinearizationOptions()")
 
-    def getOptimizationOptions(self, names=None):  # 10
-        """
-        usage:
-        >>> getOptimizationOptions()
-        >>> getOptimizationOptions("Name1")
-        >>> getOptimizationOptions(["Name1","Name2"])
+    def getOptimizationOptions(self, names: Optional[str | list[str]] = None) -> dict | list:
+        """Get simulation options used for optimization.
+
+        Args:
+            names: Either None (default), a string with the optimization option
+              name, or a list of option name strings.
+
+        Returns:
+            If `names` is None, a dict in the format
+            {option_name: option_value} is returned.
+            If `names` is a string, a single element list [option_value] is
+            returned.
+            If `names` is a list, a list with one value for each option name
+            in names is returned: [option1_value, option2_value, ...].
+            Some option values are returned as float when first initialized,
+            but always as strings after setOptimizationOptions is used to
+            change them.
+
+        Examples:
+            >>> mod.getOptimizationOptions()
+            {'startTime': 0.0, 'stopTime': 1.0, 'numberOfIntervals': 500, 'stepSize': 0.002, 'tolerance': 1e-08}
+            >>> mod.getOptimizationOptions("stopTime")
+            [1.0]
+            >>> mod.getOptimizationOptions(["tolerance", "stopTime"])
+            [1e-08, 1.0]
         """
         if names is None:
             return self._optimizeOptions
