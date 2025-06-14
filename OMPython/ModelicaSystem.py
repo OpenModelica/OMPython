@@ -1323,13 +1323,32 @@ class ModelicaSystem:
 
         return fileName
 
-    # to optimize model
-    def optimize(self):  # 21
-        """
-        This method optimizes model according to the optimized options. It can be called:
-        only without any arguments
-        usage
-        >>> optimize()
+    def optimize(self) -> dict[str, Any]:
+        """Perform model-based optimization.
+
+        Optimization options set by setOptimizationOptions() are used.
+
+        Returns:
+            A dict with various values is returned. One of these values is the
+            path to the result file.
+
+        Examples:
+            >>> mod.optimize()
+            {'messages': 'LOG_SUCCESS | info | The initialization finished successfully without homotopy method. ...'
+             'resultFile': '/tmp/tmp68guvjhs/BangBang2021_res.mat',
+             'simulationOptions': 'startTime = 0.0, stopTime = 1.0, numberOfIntervals = '
+                                  "1000, tolerance = 1e-8, method = 'optimization', "
+                                  "fileNamePrefix = 'BangBang2021', options = '', "
+                                  "outputFormat = 'mat', variableFilter = '.*', cflags = "
+                                  "'', simflags = '-s=\\'optimization\\' "
+                                  "-optimizerNP=\\'1\\''",
+             'timeBackend': 0.008684897,
+             'timeCompile': 0.7546678929999999,
+             'timeFrontend': 0.045438053000000006,
+             'timeSimCode': 0.0018537170000000002,
+             'timeSimulation': 0.266354356,
+             'timeTemplates': 0.002007785,
+             'timeTotal': 1.079097854}
         """
         cName = self._modelName
         properties = ','.join(f"{key}={val}" for key, val in self._optimizeOptions.items())
