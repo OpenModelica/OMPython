@@ -1002,20 +1002,41 @@ class ModelicaSystem:
 
         self._simulationFlag = True
 
-    # to extract simulation results
-    def getSolutions(self, varList=None, resultfile=None):  # 12
-        """
-        This method returns tuple of numpy arrays. It can be called:
-            •with a list of quantities name in string format as argument: it returns the simulation results of the corresponding names in the same order. Here it supports Python unpacking depending upon the number of variables assigned.
-        usage:
-        >>> getSolutions()
-        >>> getSolutions("Name1")
-        >>> getSolutions(["Name1","Name2"])
-        >>> getSolutions(resultfile="c:/a.mat")
-        >>> getSolutions("Name1",resultfile=""c:/a.mat"")
-        >>> getSolutions(["Name1","Name2"],resultfile=""c:/a.mat"")
+    def getSolutions(self, varList: Optional[str | list[str]] = None, resultfile: Optional[str] = None) -> tuple[str] | np.ndarray:
+        """Extract simulation results from a result data file.
+
+        Args:
+            varList: Names of variables to be extracted. Either unspecified to
+              get names of available variables, or a single variable name
+              as a string, or a list of variable names.
+            resultfile: Path to the result file. If unspecified, the result
+              file created by simulate() is used.
+
+        Returns:
+            If varList is None, a tuple with names of all variables
+            is returned.
+            If varList is a string, a 1D numpy array is returned.
+            If varList is a list, a 2D numpy array is returned.
+
+        Examples:
+            >>> mod.getSolutions()
+            ('a', 'der(x)', 'time', 'x')
+            >>> mod.getSolutions("x")
+            np.array([[1.        , 0.90483742, 0.81873075]])
+            >>> mod.getSolutions(["x", "der(x)"])
+            np.array([[1.        , 0.90483742 , 0.81873075],
+                      [-1.       , -0.90483742, -0.81873075]])
+            >>> mod.getSolutions(resultfile="c:/a.mat")
+            ('a', 'der(x)', 'time', 'x')
+            >>> mod.getSolutions("x", resultfile="c:/a.mat")
+            np.array([[1.        , 0.90483742, 0.81873075]])
+            >>> mod.getSolutions(["x", "der(x)"], resultfile="c:/a.mat")
+            np.array([[1.        , 0.90483742 , 0.81873075],
+                      [-1.       , -0.90483742, -0.81873075]])
         """
         if resultfile is None:
+            if self._resultfile is None:
+                raise ModelicaSystemError("No result file found. Run simulate() first.")
             result_file = self._resultfile
         else:
             result_file = pathlib.Path(resultfile)
