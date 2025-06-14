@@ -812,14 +812,29 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getOutputs()")
 
-    def getSimulationOptions(self, names=None):  # 8
-        """
-        This method returns dict. The key is simulation option names and value is corresponding simulation option value.
-        If name is None then the function will return dict which contain all simulation option names as key and value as corresponding values. eg., getSimulationOptions()
-        usage:
-        >>> getSimulationOptions()
-        >>> getSimulationOptions("Name1")
-        >>> getSimulationOptions(["Name1","Name2"])
+    def getSimulationOptions(self, names: Optional[str | list[str]] = None) -> dict[str, str] | list[str]:
+        """Get simulation options such as stopTime and tolerance.
+
+        Args:
+            names: Either None (default), a string with the simulation option
+              name, or a list of option name strings.
+
+        Returns:
+            If `names` is None, a dict in the format
+            {option_name: option_value} is returned.
+            If `names` is a string, a single element list [option_value] is
+            returned.
+            If `names` is a list, a list with one value for each option name
+            in names is returned: [option1_value, option2_value, ...].
+            Option values are always returned as strings.
+
+        Examples:
+            >>> mod.getSimulationOptions()
+            {'startTime': '0', 'stopTime': '1.234', 'stepSize': '0.002', 'tolerance': '1.1e-08', 'solver': 'dassl', 'outputFormat': 'mat'}
+            >>> mod.getSimulationOptions("stopTime")
+            ['1.234']
+            >>> mod.getSimulationOptions(["tolerance", "stopTime"])
+            ['1.1e-08', '1.234']
         """
         if names is None:
             return self._simulateOptions
