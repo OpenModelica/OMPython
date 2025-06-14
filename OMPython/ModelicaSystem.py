@@ -1280,15 +1280,22 @@ class ModelicaSystem:
 
         return csvFile
 
-    # to convert Modelica model to FMU
-    def convertMo2Fmu(self, version="2.0", fmuType="me_cs", fileNamePrefix="<default>", includeResources=True):  # 19
-        """
-        This method is used to generate FMU from the given Modelica model. It creates "modelName.fmu" in the current working directory. It can be called:
-        with no arguments
-        with arguments of https://build.openmodelica.org/Documentation/OpenModelica.Scripting.translateModelFMU.html
-        usage
-        >>> convertMo2Fmu()
-        >>> convertMo2Fmu(version="2.0", fmuType="me|cs|me_cs", fileNamePrefix="<default>", includeResources=True)
+    def convertMo2Fmu(self, version: str = "2.0", fmuType: str = "me_cs",
+                      fileNamePrefix: str = "<default>",
+                      includeResources: bool = True) -> str:
+        """Translate the model into a Functional Mockup Unit.
+
+        Args:
+            See https://build.openmodelica.org/Documentation/OpenModelica.Scripting.translateModelFMU.html
+
+        Returns:
+            str: Path to the created '*.fmu' file.
+
+        Examples:
+            >>> mod.convertMo2Fmu()
+            '/tmp/tmpmhfx9umo/CauerLowPassAnalog.fmu'
+            >>> mod.convertMo2Fmu(version="2.0", fmuType="me|cs|me_cs", fileNamePrefix="<default>", includeResources=True)
+            '/tmp/tmpmhfx9umo/CauerLowPassAnalog.fmu'
         """
 
         if fileNamePrefix == "<default>":
