@@ -604,13 +604,40 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getQuantities()")
 
-    def getContinuous(self, names=None):  # 4
-        """
-        This method returns dict. The key is continuous names and value is corresponding continuous value.
-        usage:
-        >>> getContinuous()
-        >>> getContinuous("Name1")
-        >>> getContinuous(["Name1","Name2"])
+    def getContinuous(self, names: Optional[str | list[str]] = None):
+        """Get values of continuous signals.
+
+        If called before simulate(), the initial values are returned as
+        strings (or None). If called after simulate(), the final values (at
+        stopTime) are returned as numpy.float64.
+
+        Args:
+            names: Either None (default), a string with the continuous signal
+              name, or a list of signal name strings.
+        Returns:
+            If `names` is None, a dict in the format
+            {signal_name: signal_value} is returned.
+            If `names` is a string, a single element list [signal_value] is
+            returned.
+            If `names` is a list, a list with one value for each signal name
+            in names is returned: [signal1_value, signal2_value, ...].
+
+        Examples:
+            Before simulate():
+            >>> mod.getContinuous()
+            {'x': '1.0', 'der(x)': None, 'y': '-0.4'}
+            >>> mod.getContinuous("y")
+            ['-0.4']
+            >>> mod.getContinuous(["y","x"])
+            ['-0.4', '1.0']
+
+            After simulate():
+            >>> mod.getContinuous()
+            {'x': np.float64(0.68), 'der(x)': np.float64(-0.24), 'y': np.float64(-0.24)}
+            >>> mod.getContinuous("x")
+            [np.float64(0.68)]
+            >>> mod.getOutputs(["y","x"])
+            [np.float64(-0.24), np.float64(0.68)]
         """
         if not self._simulationFlag:
             if names is None:
