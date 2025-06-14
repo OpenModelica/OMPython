@@ -45,7 +45,7 @@ import re
 import subprocess
 import tempfile
 import textwrap
-from typing import Optional
+from typing import Optional, Any
 import warnings
 import xml.etree.ElementTree as ET
 
@@ -113,20 +113,9 @@ class LinearizationResult:
 
 
 class ModelicaSystemCmd:
-    """
-    Execute a simulation by running the compiled model.
-    """
+    """A compiled model executable."""
 
-    def __init__(self, runpath: pathlib.Path, modelname: str, timeout: Optional[int] = None) -> None:
-        """
-        Initialisation
-
-        Parameters
-        ----------
-        runpath : pathlib.Path
-        modelname : str
-        timeout : Optional[int], None
-        """
+    def __init__(self, runpath: pathlib.Path, modelname: str, timeout: Optional[float] = None) -> None:
         self._runpath = pathlib.Path(runpath).resolve().absolute()
         self._modelname = modelname
         self._timeout = timeout
@@ -179,13 +168,7 @@ class ModelicaSystemCmd:
             self.arg_set(key=arg, val=args[arg])
 
     def get_exe(self) -> pathlib.Path:
-        """
-        Get the path to the executable / complied model.
-
-        Returns
-        -------
-            pathlib.Path
-        """
+        """Get the path to the compiled model executable."""
         if platform.system() == "Windows":
             path_exe = self._runpath / f"{self._modelname}.exe"
         else:
@@ -197,12 +180,9 @@ class ModelicaSystemCmd:
         return path_exe
 
     def get_cmd(self) -> list:
-        """
-        Run the requested simulation
+        """Get a list with the path to the executable and all command line args.
 
-        Returns
-        -------
-            list
+        This can later be used as an argument for subprocess.run().
         """
 
         path_exe = self.get_exe()
@@ -217,12 +197,11 @@ class ModelicaSystemCmd:
         return cmdl
 
     def run(self) -> int:
-        """
-        Run the requested simulation
+        """Run the requested simulation.
 
         Returns
         -------
-            int
+            Subprocess return code (0 on success).
         """
 
         cmdl: list = self.get_cmd()
@@ -269,17 +248,9 @@ class ModelicaSystemCmd:
     @staticmethod
     def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, str]]]:
         """
-        Parse a simflag definition; this is depreciated!
+        Parse a simflag definition; this is deprecated!
 
         The return data can be used as input for self.args_set().
-
-        Parameters
-        ----------
-        simflags : str
-
-        Returns
-        -------
-            dict
         """
         warnings.warn("The argument 'simflags' is depreciated and will be removed in future versions; "
                       "please use 'simargs' instead", DeprecationWarning, stacklevel=2)
@@ -369,27 +340,30 @@ class ModelicaSystem:
         if modelName is None:
             raise ModelicaSystemError("A modelname must be provided (argument modelName)!")
 
-        self.quantitiesList = []
-        self.paramlist = {}
-        self.inputlist = {}
-        self.outputlist = {}
-        self.continuouslist = {}
-        self.simulateOptions = {}
-        self.overridevariables = {}
-        self.simoptionsoverride = {}
-        self.linearOptions = {'startTime': 0.0, 'stopTime': 1.0, 'stepSize': 0.002, 'tolerance': 1e-8}
-        self.optimizeOptions = {'startTime': 0.0, 'stopTime': 1.0, 'numberOfIntervals': 500, 'stepSize': 0.002,
-                                'tolerance': 1e-8}
-        self.linearinputs = []  # linearization input list
-        self.linearoutputs = []  # linearization output list
-        self.linearstates = []  # linearization  states list
+        self._quantitiesList: list[dict[str, Any]] = []
+        self._paramlist: dict[str, str] = {}  # even numerical values are stored as str
+        self._inputlist: dict[str, list | None] = {}
+        # _outputlist values are str before simulate(), but they can be
+        # np.float64 after simulate().
+        self._outputlist: dict[str, Any] = {}
+        # same for _continuouslist
+        self._continuouslist: dict[str, Any] = {}
+        self._simulateOptions: dict[str, str] = {}
+        self._overridevariables: dict[str, str] = {}
+        self._simoptionsoverride: dict[str, str] = {}
+        self._linearOptions = {'startTime': 0.0, 'stopTime': 1.0, 'stepSize': 0.002, 'tolerance': 1e-8}
+        self._optimizeOptions = {'startTime': 0.0, 'stopTime': 1.0, 'numberOfIntervals': 500, 'stepSize': 0.002,
+                                 'tolerance': 1e-8}
+        self._linearinputs: list[str] = []  # linearization input list
+        self._linearoutputs: list[str] = []  # linearization output list
+        self._linearstates: list[str] = []  # linearization states list
 
         if session is not None:
             if not isinstance(session, OMCSessionZMQ):
                 raise ModelicaSystemError("Invalid session data provided!")
-            self.getconn = session
+            self._getconn = session
         else:
-            self.getconn = OMCSessionZMQ(omhome=omhome)
+            self._getconn = OMCSessionZMQ(omhome=omhome)
 
         # set commandLineOptions if provided by users
         self.setCommandLineOptions(commandLineOptions=commandLineOptions)
@@ -400,19 +374,18 @@ class ModelicaSystem:
         if not isinstance(lmodel, list):
             raise ModelicaSystemError(f"Invalid input type for lmodel: {type(lmodel)} - list expected!")
 
-        self.xmlFile = None
-        self.lmodel = lmodel  # may be needed if model is derived from other model
-        self.modelName = modelName  # Model class name
-        self.fileName = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
-        self.inputFlag = False  # for model with input quantity
-        self.simulationFlag = False  # if the model is simulated?
-        self.outputFlag = False
-        self.csvFile: Optional[pathlib.Path] = None  # for storing inputs condition
-        self.resultfile: Optional[pathlib.Path] = None  # for storing result file
-        self.variableFilter = variableFilter
+        self._xmlFile = None
+        self._lmodel = lmodel  # may be needed if model is derived from other model
+        self._modelName = modelName  # Model class name
+        self._fileName = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
+        self._inputFlag = False  # for model with input quantity
+        self._simulationFlag = False  # if the model is simulated?
+        self._csvFile: Optional[pathlib.Path] = None  # for storing inputs condition
+        self._resultfile: Optional[pathlib.Path] = None  # for storing result file
+        self._variableFilter = variableFilter
 
-        if self.fileName is not None and not self.fileName.is_file():  # if file does not exist
-            raise IOError(f"{self.fileName} does not exist!")
+        if self._fileName is not None and not self._fileName.is_file():  # if file does not exist
+            raise IOError(f"{self._fileName} does not exist!")
 
         # set default command Line Options for linearization as
         # linearize() will use the simulation executable and runtime
@@ -420,15 +393,15 @@ class ModelicaSystem:
         self.setCommandLineOptions("--linearizationDumpLanguage=python")
         self.setCommandLineOptions("--generateSymbolicLinearization")
 
-        self.tempdir = self.setTempDirectory(customBuildDirectory)
+        self._tempdir = self.setTempDirectory(customBuildDirectory)
 
-        if self.fileName is not None:
-            self.loadLibrary(lmodel=self.lmodel)
-            self.loadFile(fileName=self.fileName)
+        if self._fileName is not None:
+            self._loadLibrary(lmodel=self._lmodel)
+            self._loadFile(fileName=self._fileName)
 
         # allow directly loading models from MSL without fileName
         elif fileName is None and modelName is not None:
-            self.loadLibrary(lmodel=self.lmodel)
+            self._loadLibrary(lmodel=self._lmodel)
 
         if build:
             self.buildModel(variableFilter)
@@ -440,12 +413,12 @@ class ModelicaSystem:
         exp = f'setCommandLineOptions("{commandLineOptions}")'
         self.sendExpression(exp)
 
-    def loadFile(self, fileName: pathlib.Path):
+    def _loadFile(self, fileName: pathlib.Path):
         # load file
         self.sendExpression(f'loadFile("{fileName.as_posix()}")')
 
     # for loading file/package, loading model and building model
-    def loadLibrary(self, lmodel: list):
+    def _loadLibrary(self, lmodel: list):
         # load Modelica standard libraries or Modelica files if needed
         for element in lmodel:
             if element is not None:
@@ -454,7 +427,7 @@ class ModelicaSystem:
                         apiCall = "loadFile"
                     else:
                         apiCall = "loadModel"
-                    self.requestApi(apiCall, element)
+                    self._requestApi(apiCall, element)
                 elif isinstance(element, tuple):
                     if not element[1]:
                         expr_load_lib = f"loadModel({element[0]})"
@@ -486,26 +459,26 @@ class ModelicaSystem:
         return tempdir
 
     def getWorkDirectory(self) -> pathlib.Path:
-        return self.tempdir
+        return self._tempdir
 
     def buildModel(self, variableFilter: Optional[str] = None):
         if variableFilter is not None:
-            self.variableFilter = variableFilter
+            self._variableFilter = variableFilter
 
-        if self.variableFilter is not None:
-            varFilter = f'variableFilter="{self.variableFilter}"'
+        if self._variableFilter is not None:
+            varFilter = f'variableFilter="{self._variableFilter}"'
         else:
             varFilter = 'variableFilter=".*"'
 
-        buildModelResult = self.requestApi("buildModel", self.modelName, properties=varFilter)
+        buildModelResult = self._requestApi("buildModel", self._modelName, properties=varFilter)
         logger.debug("OM model build result: %s", buildModelResult)
 
-        self.xmlFile = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
-        self.xmlparse()
+        self._xmlFile = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
+        self._xmlparse()
 
     def sendExpression(self, expr: str, parsed: bool = True):
         try:
-            retval = self.getconn.sendExpression(expr, parsed)
+            retval = self._getconn.sendExpression(expr, parsed)
         except OMCSessionException as ex:
             raise ModelicaSystemError(f"Error executing {repr(expr)}") from ex
 
@@ -514,7 +487,7 @@ class ModelicaSystem:
         return retval
 
     # request to OMC
-    def requestApi(self, apiName, entity=None, properties=None):  # 2
+    def _requestApi(self, apiName, entity=None, properties=None):  # 2
         if entity is not None and properties is not None:
             exp = f'{apiName}({entity}, {properties})'
         elif entity is not None and properties is None:
@@ -527,16 +500,16 @@ class ModelicaSystem:
 
         return self.sendExpression(exp)
 
-    def xmlparse(self):
-        if not self.xmlFile.is_file():
-            raise ModelicaSystemError(f"XML file not generated: {self.xmlFile}")
+    def _xmlparse(self):
+        if not self._xmlFile.is_file():
+            raise ModelicaSystemError(f"XML file not generated: {self._xmlFile}")
 
-        tree = ET.parse(self.xmlFile)
+        tree = ET.parse(self._xmlFile)
         rootCQ = tree.getroot()
         for attr in rootCQ.iter('DefaultExperiment'):
             for key in ("startTime", "stopTime", "stepSize", "tolerance",
                         "solver", "outputFormat"):
-                self.simulateOptions[key] = attr.get(key)
+                self._simulateOptions[key] = attr.get(key)
 
         for sv in rootCQ.iter('ScalarVariable'):
             scalar = {}
@@ -552,18 +525,18 @@ class ModelicaSystem:
                 scalar["unit"] = att.get('unit')
 
             if scalar["variability"] == "parameter":
-                if scalar["name"] in self.overridevariables:
-                    self.paramlist[scalar["name"]] = self.overridevariables[scalar["name"]]
+                if scalar["name"] in self._overridevariables:
+                    self._paramlist[scalar["name"]] = self._overridevariables[scalar["name"]]
                 else:
-                    self.paramlist[scalar["name"]] = scalar["start"]
+                    self._paramlist[scalar["name"]] = scalar["start"]
             if scalar["variability"] == "continuous":
-                self.continuouslist[scalar["name"]] = scalar["start"]
+                self._continuouslist[scalar["name"]] = scalar["start"]
             if scalar["causality"] == "input":
-                self.inputlist[scalar["name"]] = scalar["start"]
+                self._inputlist[scalar["name"]] = scalar["start"]
             if scalar["causality"] == "output":
-                self.outputlist[scalar["name"]] = scalar["start"]
+                self._outputlist[scalar["name"]] = scalar["start"]
 
-            self.quantitiesList.append(scalar)
+            self._quantitiesList.append(scalar)
 
     def getQuantities(self, names=None):  # 3
         """
@@ -574,57 +547,84 @@ class ModelicaSystem:
         >>> getQuantities(["Name1","Name2"])
         """
         if names is None:
-            return self.quantitiesList
+            return self._quantitiesList
 
         if isinstance(names, str):
-            return [x for x in self.quantitiesList if x["name"] == names]
+            return [x for x in self._quantitiesList if x["name"] == names]
 
         if isinstance(names, list):
-            return [x for y in names for x in self.quantitiesList if x["name"] == y]
+            return [x for y in names for x in self._quantitiesList if x["name"] == y]
 
         raise ModelicaSystemError("Unhandled input for getQuantities()")
 
-    def getContinuous(self, names=None):  # 4
+    def getContinuous(self, names: Optional[str | list[str]] = None):
+        """Get values of continuous signals.
+
+        If called before simulate(), the initial values are returned as
+        strings (or None). If called after simulate(), the final values (at
+        stopTime) are returned as numpy.float64.
+
+        Args:
+            names: Either None (default), a string with the continuous signal
+              name, or a list of signal name strings.
+        Returns:
+            If `names` is None, a dict in the format
+            {signal_name: signal_value} is returned.
+            If `names` is a string, a single element list [signal_value] is
+            returned.
+            If `names` is a list, a list with one value for each signal name
+            in names is returned: [signal1_value, signal2_value, ...].
+
+        Examples:
+            Before simulate():
+            >>> mod.getContinuous()
+            {'x': '1.0', 'der(x)': None, 'y': '-0.4'}
+            >>> mod.getContinuous("y")
+            ['-0.4']
+            >>> mod.getContinuous(["y","x"])
+            ['-0.4', '1.0']
+
+            After simulate():
+            >>> mod.getContinuous()
+            {'x': np.float64(0.68), 'der(x)': np.float64(-0.24), 'y': np.float64(-0.24)}
+            >>> mod.getContinuous("x")
+            [np.float64(0.68)]
+            >>> mod.getOutputs(["y","x"])
+            [np.float64(-0.24), np.float64(0.68)]
         """
-        This method returns dict. The key is continuous names and value is corresponding continuous value.
-        usage:
-        >>> getContinuous()
-        >>> getContinuous("Name1")
-        >>> getContinuous(["Name1","Name2"])
-        """
-        if not self.simulationFlag:
+        if not self._simulationFlag:
             if names is None:
-                return self.continuouslist
+                return self._continuouslist
 
             if isinstance(names, str):
-                return [self.continuouslist.get(names, "NotExist")]
+                return [self._continuouslist.get(names, "NotExist")]
 
             if isinstance(names, list):
-                return [self.continuouslist.get(x, "NotExist") for x in names]
+                return [self._continuouslist.get(x, "NotExist") for x in names]
         else:
             if names is None:
-                for i in self.continuouslist:
+                for i in self._continuouslist:
                     try:
                         value = self.getSolutions(i)
-                        self.continuouslist[i] = value[0][-1]
+                        self._continuouslist[i] = value[0][-1]
                     except (OMCSessionException, ModelicaSystemError) as ex:
                         raise ModelicaSystemError(f"{i} could not be computed") from ex
-                return self.continuouslist
+                return self._continuouslist
 
             if isinstance(names, str):
-                if names in self.continuouslist:
+                if names in self._continuouslist:
                     value = self.getSolutions(names)
-                    self.continuouslist[names] = value[0][-1]
-                    return [self.continuouslist.get(names)]
+                    self._continuouslist[names] = value[0][-1]
+                    return [self._continuouslist.get(names)]
                 else:
                     raise ModelicaSystemError(f"{names} is not continuous")
 
             if isinstance(names, list):
                 valuelist = []
                 for i in names:
-                    if i in self.continuouslist:
+                    if i in self._continuouslist:
                         value = self.getSolutions(i)
-                        self.continuouslist[i] = value[0][-1]
+                        self._continuouslist[i] = value[0][-1]
                         valuelist.append(value[0][-1])
                     else:
                         raise ModelicaSystemError(f"{i} is not continuous")
@@ -655,16 +655,16 @@ class ModelicaSystem:
             ['1.23', '4.56']
         """
         if names is None:
-            return self.paramlist
+            return self._paramlist
         elif isinstance(names, str):
-            return [self.paramlist.get(names, "NotExist")]
+            return [self._paramlist.get(names, "NotExist")]
         elif isinstance(names, list):
-            return [self.paramlist.get(x, "NotExist") for x in names]
+            return [self._paramlist.get(x, "NotExist") for x in names]
 
         raise ModelicaSystemError("Unhandled input for getParameters()")
 
     def getInputs(self, names: Optional[str | list[str]] = None) -> dict | list:  # 6
-        """Get input values.
+        """Get values of input signals.
 
         Args:
             names: Either None (default), a string with the input name,
@@ -691,16 +691,16 @@ class ModelicaSystem:
             ['NotExist']
         """
         if names is None:
-            return self.inputlist
+            return self._inputlist
         elif isinstance(names, str):
-            return [self.inputlist.get(names, "NotExist")]
+            return [self._inputlist.get(names, "NotExist")]
         elif isinstance(names, list):
-            return [self.inputlist.get(x, "NotExist") for x in names]
+            return [self._inputlist.get(x, "NotExist") for x in names]
 
         raise ModelicaSystemError("Unhandled input for getInputs()")
 
     def getOutputs(self, names: Optional[str | list[str]] = None):  # 7
-        """Get output values.
+        """Get values of output signals.
 
         If called before simulate(), the initial values are returned as
         strings. If called after simulate(), the final values (at stopTime)
@@ -736,32 +736,32 @@ class ModelicaSystem:
             >>> mod.getOutputs(["out1","out2"])
             [np.float64(-0.1234), np.float64(2.1)]
         """
-        if not self.simulationFlag:
+        if not self._simulationFlag:
             if names is None:
-                return self.outputlist
+                return self._outputlist
             elif isinstance(names, str):
-                return [self.outputlist.get(names, "NotExist")]
+                return [self._outputlist.get(names, "NotExist")]
             else:
-                return [self.outputlist.get(x, "NotExist") for x in names]
+                return [self._outputlist.get(x, "NotExist") for x in names]
         else:
             if names is None:
-                for i in self.outputlist:
+                for i in self._outputlist:
                     value = self.getSolutions(i)
-                    self.outputlist[i] = value[0][-1]
-                return self.outputlist
+                    self._outputlist[i] = value[0][-1]
+                return self._outputlist
             elif isinstance(names, str):
-                if names in self.outputlist:
+                if names in self._outputlist:
                     value = self.getSolutions(names)
-                    self.outputlist[names] = value[0][-1]
-                    return [self.outputlist.get(names)]
+                    self._outputlist[names] = value[0][-1]
+                    return [self._outputlist.get(names)]
                 else:
                     return names, " is not Output"
             elif isinstance(names, list):
                 valuelist = []
                 for i in names:
-                    if i in self.outputlist:
+                    if i in self._outputlist:
                         value = self.getSolutions(i)
-                        self.outputlist[i] = value[0][-1]
+                        self._outputlist[i] = value[0][-1]
                         valuelist.append(value[0][-1])
                     else:
                         return i, "is not Output"
@@ -769,81 +769,143 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getOutputs()")
 
-    def getSimulationOptions(self, names=None):  # 8
-        """
-        This method returns dict. The key is simulation option names and value is corresponding simulation option value.
-        If name is None then the function will return dict which contain all simulation option names as key and value as corresponding values. eg., getSimulationOptions()
-        usage:
-        >>> getSimulationOptions()
-        >>> getSimulationOptions("Name1")
-        >>> getSimulationOptions(["Name1","Name2"])
+    def getSimulationOptions(self, names: Optional[str | list[str]] = None) -> dict[str, str] | list[str]:
+        """Get simulation options such as stopTime and tolerance.
+
+        Args:
+            names: Either None (default), a string with the simulation option
+              name, or a list of option name strings.
+
+        Returns:
+            If `names` is None, a dict in the format
+            {option_name: option_value} is returned.
+            If `names` is a string, a single element list [option_value] is
+            returned.
+            If `names` is a list, a list with one value for each option name
+            in names is returned: [option1_value, option2_value, ...].
+            Option values are always returned as strings.
+
+        Examples:
+            >>> mod.getSimulationOptions()
+            {'startTime': '0', 'stopTime': '1.234', 'stepSize': '0.002', 'tolerance': '1.1e-08', 'solver': 'dassl', 'outputFormat': 'mat'}
+            >>> mod.getSimulationOptions("stopTime")
+            ['1.234']
+            >>> mod.getSimulationOptions(["tolerance", "stopTime"])
+            ['1.1e-08', '1.234']
         """
         if names is None:
-            return self.simulateOptions
+            return self._simulateOptions
         elif isinstance(names, str):
-            return [self.simulateOptions.get(names, "NotExist")]
+            return [self._simulateOptions.get(names, "NotExist")]
         elif isinstance(names, list):
-            return [self.simulateOptions.get(x, "NotExist") for x in names]
+            return [self._simulateOptions.get(x, "NotExist") for x in names]
 
         raise ModelicaSystemError("Unhandled input for getSimulationOptions()")
 
-    def getLinearizationOptions(self, names=None):  # 9
-        """
-        This method returns dict. The key is linearize option names and value is corresponding linearize option value.
-        If name is None then the function will return dict which contain all linearize option names as key and value as corresponding values. eg., getLinearizationOptions()
-        usage:
-        >>> getLinearizationOptions()
-        >>> getLinearizationOptions("Name1")
-        >>> getLinearizationOptions(["Name1","Name2"])
+    def getLinearizationOptions(self, names: Optional[str | list[str]] = None) -> dict | list:
+        """Get simulation options used for linearization.
+
+        Args:
+            names: Either None (default), a string with the linearization option
+              name, or a list of option name strings.
+
+        Returns:
+            If `names` is None, a dict in the format
+            {option_name: option_value} is returned.
+            If `names` is a string, a single element list [option_value] is
+            returned.
+            If `names` is a list, a list with one value for each option name
+            in names is returned: [option1_value, option2_value, ...].
+            Some option values are returned as float when first initialized,
+            but always as strings after setLinearizationOptions is used to
+            change them.
+
+        Examples:
+            >>> mod.getLinearizationOptions()
+            {'startTime': 0.0, 'stopTime': 1.0, 'stepSize': 0.002, 'tolerance': 1e-08}
+            >>> mod.getLinearizationOptions("stopTime")
+            [1.0]
+            >>> mod.getLinearizationOptions(["tolerance", "stopTime"])
+            [1e-08, 1.0]
         """
         if names is None:
-            return self.linearOptions
+            return self._linearOptions
         elif isinstance(names, str):
-            return [self.linearOptions.get(names, "NotExist")]
+            return [self._linearOptions.get(names, "NotExist")]
         elif isinstance(names, list):
-            return [self.linearOptions.get(x, "NotExist") for x in names]
+            return [self._linearOptions.get(x, "NotExist") for x in names]
 
         raise ModelicaSystemError("Unhandled input for getLinearizationOptions()")
 
-    def getOptimizationOptions(self, names=None):  # 10
-        """
-        usage:
-        >>> getOptimizationOptions()
-        >>> getOptimizationOptions("Name1")
-        >>> getOptimizationOptions(["Name1","Name2"])
+    def getOptimizationOptions(self, names: Optional[str | list[str]] = None) -> dict | list:
+        """Get simulation options used for optimization.
+
+        Args:
+            names: Either None (default), a string with the optimization option
+              name, or a list of option name strings.
+
+        Returns:
+            If `names` is None, a dict in the format
+            {option_name: option_value} is returned.
+            If `names` is a string, a single element list [option_value] is
+            returned.
+            If `names` is a list, a list with one value for each option name
+            in names is returned: [option1_value, option2_value, ...].
+            Some option values are returned as float when first initialized,
+            but always as strings after setOptimizationOptions is used to
+            change them.
+
+        Examples:
+            >>> mod.getOptimizationOptions()
+            {'startTime': 0.0, 'stopTime': 1.0, 'numberOfIntervals': 500, 'stepSize': 0.002, 'tolerance': 1e-08}
+            >>> mod.getOptimizationOptions("stopTime")
+            [1.0]
+            >>> mod.getOptimizationOptions(["tolerance", "stopTime"])
+            [1e-08, 1.0]
         """
         if names is None:
-            return self.optimizeOptions
+            return self._optimizeOptions
         elif isinstance(names, str):
-            return [self.optimizeOptions.get(names, "NotExist")]
+            return [self._optimizeOptions.get(names, "NotExist")]
         elif isinstance(names, list):
-            return [self.optimizeOptions.get(x, "NotExist") for x in names]
+            return [self._optimizeOptions.get(x, "NotExist") for x in names]
 
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
-    def simulate(self, resultfile: Optional[str] = None, simflags: Optional[str] = None,
+    def simulate(self,
+                 resultfile: Optional[str] = None,
+                 simflags: Optional[str] = None,
                  simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
-                 timeout: Optional[int] = None):  # 11
-        """
-        This method simulates model according to the simulation options.
-        usage
-        >>> simulate()
-        >>> simulate(resultfile="a.mat")
-        >>> simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10")  # set runtime simulation flags
-        >>> simulate(simargs={"noEventEmit": None, "noRestart": None, "override": "e=0.3,g=10"})  # using simargs
+                 timeout: Optional[float] = None) -> None:
+        """Simulate the model according to simulation options.
+
+        See setSimulationOptions().
+
+        Args:
+            resultfile: Path to a custom result file
+            simflags: String of extra command line flags for the model binary.
+              This argument is deprecated, use simargs instead.
+            simargs: Dict with simulation runtime flags.
+            timeout: Maximum execution time in seconds.
+
+        Examples:
+            mod.simulate()
+            mod.simulate(resultfile="a.mat")
+            mod.simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10")  # set runtime simulation flags, deprecated
+            mod.simulate(simargs={"noEventEmit": None, "noRestart": None, "override": "override": {"e": 0.3, "g": 10}})  # using simargs
         """
 
-        om_cmd = ModelicaSystemCmd(runpath=self.tempdir, modelname=self.modelName, timeout=timeout)
+        om_cmd = ModelicaSystemCmd(runpath=self._tempdir, modelname=self._modelName, timeout=timeout)
 
         if resultfile is None:
             # default result file generated by OM
-            self.resultfile = self.tempdir / f"{self.modelName}_res.mat"
+            self._resultfile = self._tempdir / f"{self._modelName}_res.mat"
         elif os.path.exists(resultfile):
-            self.resultfile = pathlib.Path(resultfile)
+            self._resultfile = pathlib.Path(resultfile)
         else:
-            self.resultfile = self.tempdir / resultfile
+            self._resultfile = self._tempdir / resultfile
         # always define the resultfile to use
-        om_cmd.arg_set(key="r", val=self.resultfile.as_posix())
+        om_cmd.arg_set(key="r", val=self._resultfile.as_posix())
 
         # allow runtime simulation flags from user input
         if simflags is not None:
@@ -852,10 +914,10 @@ class ModelicaSystem:
         if simargs:
             om_cmd.args_set(args=simargs)
 
-        overrideFile = self.tempdir / f"{self.modelName}_override.txt"
-        if self.overridevariables or self.simoptionsoverride:
-            tmpdict = self.overridevariables.copy()
-            tmpdict.update(self.simoptionsoverride)
+        overrideFile = self._tempdir / f"{self._modelName}_override.txt"
+        if self._overridevariables or self._simoptionsoverride:
+            tmpdict = self._overridevariables.copy()
+            tmpdict.update(self._simoptionsoverride)
             # write to override file
             with open(file=overrideFile, mode="w", encoding="utf-8") as fh:
                 for key, value in tmpdict.items():
@@ -863,48 +925,69 @@ class ModelicaSystem:
 
             om_cmd.arg_set(key="overrideFile", val=overrideFile.as_posix())
 
-        if self.inputFlag:  # if model has input quantities
-            for i in self.inputlist:
-                val = self.inputlist[i]
+        if self._inputFlag:  # if model has input quantities
+            for i in self._inputlist:
+                val = self._inputlist[i]
                 if val is None:
-                    val = [(float(self.simulateOptions["startTime"]), 0.0),
-                           (float(self.simulateOptions["stopTime"]), 0.0)]
-                    self.inputlist[i] = [(float(self.simulateOptions["startTime"]), 0.0),
-                                         (float(self.simulateOptions["stopTime"]), 0.0)]
-                if float(self.simulateOptions["startTime"]) != val[0][0]:
+                    val = [(float(self._simulateOptions["startTime"]), 0.0),
+                           (float(self._simulateOptions["stopTime"]), 0.0)]
+                    self._inputlist[i] = [(float(self._simulateOptions["startTime"]), 0.0),
+                                          (float(self._simulateOptions["stopTime"]), 0.0)]
+                if float(self._simulateOptions["startTime"]) != val[0][0]:
                     raise ModelicaSystemError(f"startTime not matched for Input {i}!")
-                if float(self.simulateOptions["stopTime"]) != val[-1][0]:
+                if float(self._simulateOptions["stopTime"]) != val[-1][0]:
                     raise ModelicaSystemError(f"stopTime not matched for Input {i}!")
-            self.csvFile = self.createCSVData()  # create csv file
+            self._csvFile = self._createCSVData()  # create csv file
 
-            om_cmd.arg_set(key="csvInput", val=self.csvFile.as_posix())
+            om_cmd.arg_set(key="csvInput", val=self._csvFile.as_posix())
 
         # delete resultfile ...
-        if self.resultfile.is_file():
-            self.resultfile.unlink()
+        if self._resultfile.is_file():
+            self._resultfile.unlink()
         # ... run simulation ...
         returncode = om_cmd.run()
         # and check returncode *AND* resultfile
-        if returncode != 0 and self.resultfile.is_file():
+        if returncode != 0 and self._resultfile.is_file():
             logger.warning(f"Return code = {returncode} but result file exists!")
 
-        self.simulationFlag = True
+        self._simulationFlag = True
 
-    # to extract simulation results
-    def getSolutions(self, varList=None, resultfile=None):  # 12
-        """
-        This method returns tuple of numpy arrays. It can be called:
-            •with a list of quantities name in string format as argument: it returns the simulation results of the corresponding names in the same order. Here it supports Python unpacking depending upon the number of variables assigned.
-        usage:
-        >>> getSolutions()
-        >>> getSolutions("Name1")
-        >>> getSolutions(["Name1","Name2"])
-        >>> getSolutions(resultfile="c:/a.mat")
-        >>> getSolutions("Name1",resultfile=""c:/a.mat"")
-        >>> getSolutions(["Name1","Name2"],resultfile=""c:/a.mat"")
+    def getSolutions(self, varList: Optional[str | list[str]] = None, resultfile: Optional[str] = None) -> tuple[str] | np.ndarray:
+        """Extract simulation results from a result data file.
+
+        Args:
+            varList: Names of variables to be extracted. Either unspecified to
+              get names of available variables, or a single variable name
+              as a string, or a list of variable names.
+            resultfile: Path to the result file. If unspecified, the result
+              file created by simulate() is used.
+
+        Returns:
+            If varList is None, a tuple with names of all variables
+            is returned.
+            If varList is a string, a 1D numpy array is returned.
+            If varList is a list, a 2D numpy array is returned.
+
+        Examples:
+            >>> mod.getSolutions()
+            ('a', 'der(x)', 'time', 'x')
+            >>> mod.getSolutions("x")
+            np.array([[1.        , 0.90483742, 0.81873075]])
+            >>> mod.getSolutions(["x", "der(x)"])
+            np.array([[1.        , 0.90483742 , 0.81873075],
+                      [-1.       , -0.90483742, -0.81873075]])
+            >>> mod.getSolutions(resultfile="c:/a.mat")
+            ('a', 'der(x)', 'time', 'x')
+            >>> mod.getSolutions("x", resultfile="c:/a.mat")
+            np.array([[1.        , 0.90483742, 0.81873075]])
+            >>> mod.getSolutions(["x", "der(x)"], resultfile="c:/a.mat")
+            np.array([[1.        , 0.90483742 , 0.81873075],
+                      [-1.       , -0.90483742, -0.81873075]])
         """
         if resultfile is None:
-            resFile = self.resultfile.as_posix()
+            if self._resultfile is None:
+                raise ModelicaSystemError("No result file found. Run simulate() first.")
+            resFile = self._resultfile.as_posix()
         else:
             resFile = resultfile
 
@@ -948,9 +1031,9 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for strip_space()")
 
-    def setMethodHelper(self, args1, args2, args3, args4=None):
-        """
-        Helper function for setParameter(),setContinuous(),setSimulationOptions(),setLinearizationOption(),setOptimizationOption()
+    def _setMethodHelper(self, args1, args2, args3, args4=None):
+        """Helper function for setters.
+
         args1 - string or list of string given by user
         args2 - dict() containing the values of different variables(eg:, parameter,continuous,simulation parameters)
         args3 - function name (eg; continuous, parameter, simulation, linearization,optimization)
@@ -972,7 +1055,7 @@ class ModelicaSystem:
                 return True
 
             else:
-                raise ModelicaSystemError("Unhandled case in setMethodHelper.apply_single() - "
+                raise ModelicaSystemError("Unhandled case in _setMethodHelper.apply_single() - "
                                           f"{repr(value[0])} is not a {repr(args3)} variable")
 
         result = []
@@ -995,7 +1078,7 @@ class ModelicaSystem:
         >>> setContinuous("Name=value")
         >>> setContinuous(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(cvals, self.continuouslist, "continuous", self.overridevariables)
+        return self._setMethodHelper(cvals, self._continuouslist, "continuous", self._overridevariables)
 
     def setParameters(self, pvals):  # 14
         """
@@ -1005,14 +1088,14 @@ class ModelicaSystem:
         >>> setParameters("Name=value")
         >>> setParameters(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(pvals, self.paramlist, "parameter", self.overridevariables)
+        return self._setMethodHelper(pvals, self._paramlist, "parameter", self._overridevariables)
 
     def isParameterChangeable(self, name, value):
         q = self.getQuantities(name)
         if q[0]["changeable"] == "false":
             logger.verbose(f"setParameters() failed : It is not possible to set the following signal {repr(name)}. "
                            "It seems to be structural, final, protected or evaluated or has a non-constant binding, "
-                           f"use sendExpression(\"setParameterValue({self.modelName}, {name}, {value})\") "
+                           f"use sendExpression(\"setParameterValue({self._modelName}, {name}, {value})\") "
                            "and rebuild the model using buildModel() API")
             return False
         return True
@@ -1025,7 +1108,7 @@ class ModelicaSystem:
         >>> setSimulationOptions("Name=value")
         >>> setSimulationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(simOptions, self.simulateOptions, "simulation-option", self.simoptionsoverride)
+        return self._setMethodHelper(simOptions, self._simulateOptions, "simulation-option", self._simoptionsoverride)
 
     def setLinearizationOptions(self, linearizationOptions):  # 18
         """
@@ -1035,7 +1118,7 @@ class ModelicaSystem:
         >>> setLinearizationOptions("Name=value")
         >>> setLinearizationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(linearizationOptions, self.linearOptions, "Linearization-option", None)
+        return self._setMethodHelper(linearizationOptions, self._linearOptions, "Linearization-option", None)
 
     def setOptimizationOptions(self, optimizationOptions):  # 17
         """
@@ -1045,7 +1128,7 @@ class ModelicaSystem:
         >>> setOptimizationOptions("Name=value")
         >>> setOptimizationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(optimizationOptions, self.optimizeOptions, "optimization-option", None)
+        return self._setMethodHelper(optimizationOptions, self._optimizeOptions, "optimization-option", None)
 
     def setInputs(self, name):  # 15
         """
@@ -1058,53 +1141,53 @@ class ModelicaSystem:
         if isinstance(name, str):
             name = self._strip_space(name)
             value = name.split("=")
-            if value[0] in self.inputlist:
+            if value[0] in self._inputlist:
                 tmpvalue = eval(value[1])
                 if isinstance(tmpvalue, (int, float)):
-                    self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])),
-                                                (float(self.simulateOptions["stopTime"]), float(value[1]))]
+                    self._inputlist[value[0]] = [(float(self._simulateOptions["startTime"]), float(value[1])),
+                                                 (float(self._simulateOptions["stopTime"]), float(value[1]))]
                 elif isinstance(tmpvalue, list):
-                    self.checkValidInputs(tmpvalue)
-                    self.inputlist[value[0]] = tmpvalue
-                self.inputFlag = True
+                    self._checkValidInputs(tmpvalue)
+                    self._inputlist[value[0]] = tmpvalue
+                self._inputFlag = True
             else:
                 raise ModelicaSystemError(f"{value[0]} is not an input")
         elif isinstance(name, list):
             name = self._strip_space(name)
             for var in name:
                 value = var.split("=")
-                if value[0] in self.inputlist:
+                if value[0] in self._inputlist:
                     tmpvalue = eval(value[1])
                     if isinstance(tmpvalue, (int, float)):
-                        self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])),
-                                                    (float(self.simulateOptions["stopTime"]), float(value[1]))]
+                        self._inputlist[value[0]] = [(float(self._simulateOptions["startTime"]), float(value[1])),
+                                                     (float(self._simulateOptions["stopTime"]), float(value[1]))]
                     elif isinstance(tmpvalue, list):
-                        self.checkValidInputs(tmpvalue)
-                        self.inputlist[value[0]] = tmpvalue
-                    self.inputFlag = True
+                        self._checkValidInputs(tmpvalue)
+                        self._inputlist[value[0]] = tmpvalue
+                    self._inputFlag = True
                 else:
                     raise ModelicaSystemError(f"{value[0]} is not an input!")
 
-    def checkValidInputs(self, name):
+    def _checkValidInputs(self, name):
         if name != sorted(name, key=lambda x: x[0]):
             raise ModelicaSystemError('Time value should be in increasing order')
         for l in name:
             if isinstance(l, tuple):
                 # if l[0] < float(self.simValuesList[0]):
-                if l[0] < float(self.simulateOptions["startTime"]):
+                if l[0] < float(self._simulateOptions["startTime"]):
                     raise ModelicaSystemError('Input time value is less than simulation startTime')
                 if len(l) != 2:
                     raise ModelicaSystemError(f'Value for {l} is in incorrect format!')
             else:
                 raise ModelicaSystemError('Error!!! Value must be in tuple format')
 
-    def createCSVData(self) -> pathlib.Path:
-        start_time: float = float(self.simulateOptions["startTime"])
-        stop_time: float = float(self.simulateOptions["stopTime"])
+    def _createCSVData(self) -> pathlib.Path:
+        start_time: float = float(self._simulateOptions["startTime"])
+        stop_time: float = float(self._simulateOptions["stopTime"])
 
         # Replace None inputs with a default constant zero signal
         inputs: dict[str, list[tuple[float, float]]] = {}
-        for input_name, input_signal in self.inputlist.items():
+        for input_name, input_signal in self._inputlist.items():
             if input_signal is None:
                 inputs[input_name] = [(start_time, 0.0), (stop_time, 0.0)]
             else:
@@ -1139,7 +1222,7 @@ class ModelicaSystem:
             ]
             csv_rows.append(row)
 
-        csvFile = self.tempdir / f'{self.modelName}.csv'
+        csvFile = self._tempdir / f'{self._modelName}.csv'
 
         with open(file=csvFile, mode="w", encoding="utf-8", newline="") as fh:
             writer = csv.writer(fh)
@@ -1147,25 +1230,32 @@ class ModelicaSystem:
 
         return csvFile
 
-    # to convert Modelica model to FMU
-    def convertMo2Fmu(self, version="2.0", fmuType="me_cs", fileNamePrefix="<default>", includeResources=True):  # 19
-        """
-        This method is used to generate FMU from the given Modelica model. It creates "modelName.fmu" in the current working directory. It can be called:
-        with no arguments
-        with arguments of https://build.openmodelica.org/Documentation/OpenModelica.Scripting.translateModelFMU.html
-        usage
-        >>> convertMo2Fmu()
-        >>> convertMo2Fmu(version="2.0", fmuType="me|cs|me_cs", fileNamePrefix="<default>", includeResources=True)
+    def convertMo2Fmu(self, version: str = "2.0", fmuType: str = "me_cs",
+                      fileNamePrefix: str = "<default>",
+                      includeResources: bool = True) -> str:
+        """Translate the model into a Functional Mockup Unit.
+
+        Args:
+            See https://build.openmodelica.org/Documentation/OpenModelica.Scripting.translateModelFMU.html
+
+        Returns:
+            str: Path to the created '*.fmu' file.
+
+        Examples:
+            >>> mod.convertMo2Fmu()
+            '/tmp/tmpmhfx9umo/CauerLowPassAnalog.fmu'
+            >>> mod.convertMo2Fmu(version="2.0", fmuType="me|cs|me_cs", fileNamePrefix="<default>", includeResources=True)
+            '/tmp/tmpmhfx9umo/CauerLowPassAnalog.fmu'
         """
 
         if fileNamePrefix == "<default>":
-            fileNamePrefix = self.modelName
+            fileNamePrefix = self._modelName
         if includeResources:
             includeResourcesStr = "true"
         else:
             includeResourcesStr = "false"
         properties = f'version="{version}", fmuType="{fmuType}", fileNamePrefix="{fileNamePrefix}", includeResources={includeResourcesStr}'
-        fmu = self.requestApi('buildModelFMU', self.modelName, properties)
+        fmu = self._requestApi('buildModelFMU', self._modelName, properties)
 
         # report proper error message
         if not os.path.exists(fmu):
@@ -1182,7 +1272,7 @@ class ModelicaSystem:
         >>> convertFmu2Mo("c:/BouncingBall.Fmu")
         """
 
-        fileName = self.requestApi('importFMU', fmuName)
+        fileName = self._requestApi('importFMU', fmuName)
 
         # report proper error message
         if not os.path.exists(fileName):
@@ -1190,32 +1280,53 @@ class ModelicaSystem:
 
         return fileName
 
-    # to optimize model
-    def optimize(self):  # 21
+    def optimize(self) -> dict[str, Any]:
+        """Perform model-based optimization.
+
+        Optimization options set by setOptimizationOptions() are used.
+
+        Returns:
+            A dict with various values is returned. One of these values is the
+            path to the result file.
+
+        Examples:
+            >>> mod.optimize()
+            {'messages': 'LOG_SUCCESS | info | The initialization finished successfully without homotopy method. ...'
+             'resultFile': '/tmp/tmp68guvjhs/BangBang2021_res.mat',
+             'simulationOptions': 'startTime = 0.0, stopTime = 1.0, numberOfIntervals = '
+                                  "1000, tolerance = 1e-8, method = 'optimization', "
+                                  "fileNamePrefix = 'BangBang2021', options = '', "
+                                  "outputFormat = 'mat', variableFilter = '.*', cflags = "
+                                  "'', simflags = '-s=\\'optimization\\' "
+                                  "-optimizerNP=\\'1\\''",
+             'timeBackend': 0.008684897,
+             'timeCompile': 0.7546678929999999,
+             'timeFrontend': 0.045438053000000006,
+             'timeSimCode': 0.0018537170000000002,
+             'timeSimulation': 0.266354356,
+             'timeTemplates': 0.002007785,
+             'timeTotal': 1.079097854}
         """
-        This method optimizes model according to the optimized options. It can be called:
-        only without any arguments
-        usage
-        >>> optimize()
-        """
-        cName = self.modelName
-        properties = ','.join(f"{key}={val}" for key, val in self.optimizeOptions.items())
+        cName = self._modelName
+        properties = ','.join(f"{key}={val}" for key, val in self._optimizeOptions.items())
         self.setCommandLineOptions("-g=Optimica")
-        optimizeResult = self.requestApi('optimize', cName, properties)
+        optimizeResult = self._requestApi('optimize', cName, properties)
 
         return optimizeResult
 
     def linearize(self, lintime: Optional[float] = None, simflags: Optional[str] = None,
                   simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
-                  timeout: Optional[int] = None) -> LinearizationResult:
-        """Linearize the model according to linearOptions.
+                  timeout: Optional[float] = None) -> LinearizationResult:
+        """Linearize the model according to linearization options.
+
+        See setLinearizationOptions.
 
         Args:
-            lintime: Override linearOptions["stopTime"] value.
-            simflags: A string of extra command line flags for the model
-              binary. - depreciated in favor of simargs
+            lintime: Override "stopTime" value.
+            simflags: String of extra command line flags for the model binary.
+              This argument is deprecated, use simargs instead.
             simargs: A dict with command line flags and possible options; example: "simargs={'csvInput': 'a.csv'}"
-            timeout: Possible timeout for the execution of OM.
+            timeout: Maximum execution time in seconds.
 
         Returns:
             A LinearizationResult object is returned. This allows several
@@ -1235,34 +1346,34 @@ class ModelicaSystem:
 
             return module_def
 
-        if self.xmlFile is None:
+        if self._xmlFile is None:
             raise IOError("Linearization cannot be performed as the model is not build, "
                           "use ModelicaSystem() to build the model first")
 
-        om_cmd = ModelicaSystemCmd(runpath=self.tempdir, modelname=self.modelName, timeout=timeout)
+        om_cmd = ModelicaSystemCmd(runpath=self._tempdir, modelname=self._modelName, timeout=timeout)
 
-        overrideLinearFile = self.tempdir / f'{self.modelName}_override_linear.txt'
+        overrideLinearFile = self._tempdir / f'{self._modelName}_override_linear.txt'
 
         with open(file=overrideLinearFile, mode="w", encoding="utf-8") as fh:
-            for key, value in self.overridevariables.items():
+            for key, value in self._overridevariables.items():
                 fh.write(f"{key}={value}\n")
-            for key, value in self.linearOptions.items():
+            for key, value in self._linearOptions.items():
                 fh.write(f"{key}={value}\n")
 
         om_cmd.arg_set(key="overrideFile", val=overrideLinearFile.as_posix())
 
-        if self.inputFlag:
+        if self._inputFlag:
             nameVal = self.getInputs()
             for n in nameVal:
                 tupleList = nameVal.get(n)
                 if tupleList is not None:
                     for l in tupleList:
-                        if l[0] < float(self.simulateOptions["startTime"]):
+                        if l[0] < float(self._simulateOptions["startTime"]):
                             raise ModelicaSystemError('Input time value is less than simulation startTime')
-            self.csvFile = self.createCSVData()
-            om_cmd.arg_set(key="csvInput", val=self.csvFile.as_posix())
+            self._csvFile = self._createCSVData()
+            om_cmd.arg_set(key="csvInput", val=self._csvFile.as_posix())
 
-        om_cmd.arg_set(key="l", val=str(lintime or self.linearOptions["stopTime"]))
+        om_cmd.arg_set(key="l", val=str(lintime or self._linearOptions["stopTime"]))
 
         # allow runtime simulation flags from user input
         if simflags is not None:
@@ -1275,14 +1386,14 @@ class ModelicaSystem:
         if returncode != 0:
             raise ModelicaSystemError(f"Linearize failed with return code: {returncode}")
 
-        self.simulationFlag = True
+        self._simulationFlag = True
 
         # code to get the matrix and linear inputs, outputs and states
-        linearFile = self.tempdir / "linearized_model.py"
+        linearFile = self._tempdir / "linearized_model.py"
 
         # support older openmodelica versions before OpenModelica v1.16.2 where linearize() generates "linear_modelname.mo" file
         if not linearFile.exists():
-            linearFile = pathlib.Path(f'linear_{self.modelName}.py')
+            linearFile = pathlib.Path(f'linear_{self._modelName}.py')
 
         if not linearFile.exists():
             raise ModelicaSystemError(f"Linearization failed: {linearFile} not found!")
@@ -1296,34 +1407,22 @@ class ModelicaSystem:
 
             result = module.linearized_model()
             (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
-            self.linearinputs = inputVars
-            self.linearoutputs = outputVars
-            self.linearstates = stateVars
+            self._linearinputs = inputVars
+            self._linearoutputs = outputVars
+            self._linearstates = stateVars
             return LinearizationResult(n, m, p, A, B, C, D, x0, u0, stateVars,
                                        inputVars, outputVars)
         except ModuleNotFoundError as ex:
             raise ModelicaSystemError("No module named 'linearized_model'") from ex
 
-    def getLinearInputs(self):
-        """
-        function which returns the LinearInputs after Linearization is performed
-        usage
-        >>> getLinearInputs()
-        """
-        return self.linearinputs
+    def getLinearInputs(self) -> list[str]:
+        """Get names of input variables of the linearized model."""
+        return self._linearinputs
 
-    def getLinearOutputs(self):
-        """
-        function which returns the LinearInputs after Linearization is performed
-        usage
-        >>> getLinearOutputs()
-        """
-        return self.linearoutputs
+    def getLinearOutputs(self) -> list[str]:
+        """Get names of output variables of the linearized model."""
+        return self._linearoutputs
 
-    def getLinearStates(self):
-        """
-        function which returns the LinearInputs after Linearization is performed
-        usage
-        >>> getLinearStates()
-        """
-        return self.linearstates
+    def getLinearStates(self) -> list[str]:
+        """Get names of state variables of the linearized model."""
+        return self._linearstates
