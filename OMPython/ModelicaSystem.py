@@ -168,13 +168,7 @@ class ModelicaSystemCmd:
             self.arg_set(key=arg, val=args[arg])
 
     def get_exe(self) -> pathlib.Path:
-        """
-        Get the path to the executable / complied model.
-
-        Returns
-        -------
-            pathlib.Path
-        """
+        """Get the path to the compiled model executable."""
         if platform.system() == "Windows":
             path_exe = self._runpath / f"{self._modelname}.exe"
         else:
@@ -186,12 +180,9 @@ class ModelicaSystemCmd:
         return path_exe
 
     def get_cmd(self) -> list:
-        """
-        Run the requested simulation
+        """Get a list with the path to the executable and all command line args.
 
-        Returns
-        -------
-            list
+        This can later be used as an argument for subprocess.run().
         """
 
         path_exe = self.get_exe()
@@ -206,12 +197,11 @@ class ModelicaSystemCmd:
         return cmdl
 
     def run(self) -> int:
-        """
-        Run the requested simulation
+        """Run the requested simulation.
 
         Returns
         -------
-            int
+            Subprocess return code (0 on success).
         """
 
         cmdl: list = self.get_cmd()
