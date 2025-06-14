@@ -845,14 +845,31 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getSimulationOptions()")
 
-    def getLinearizationOptions(self, names=None):  # 9
-        """
-        This method returns dict. The key is linearize option names and value is corresponding linearize option value.
-        If name is None then the function will return dict which contain all linearize option names as key and value as corresponding values. eg., getLinearizationOptions()
-        usage:
-        >>> getLinearizationOptions()
-        >>> getLinearizationOptions("Name1")
-        >>> getLinearizationOptions(["Name1","Name2"])
+    def getLinearizationOptions(self, names: Optional[str | list[str]] = None) -> dict | list:
+        """Get simulation options used for linearization.
+
+        Args:
+            names: Either None (default), a string with the linearization option
+              name, or a list of option name strings.
+
+        Returns:
+            If `names` is None, a dict in the format
+            {option_name: option_value} is returned.
+            If `names` is a string, a single element list [option_value] is
+            returned.
+            If `names` is a list, a list with one value for each option name
+            in names is returned: [option1_value, option2_value, ...].
+            Some option values are returned as float when first initialized,
+            but always as strings after setLinearizationOptions is used to
+            change them.
+
+        Examples:
+            >>> mod.getLinearizationOptions()
+            {'startTime': 0.0, 'stopTime': 1.0, 'stepSize': 0.002, 'tolerance': 1e-08}
+            >>> mod.getLinearizationOptions("stopTime")
+            [1.0]
+            >>> mod.getLinearizationOptions(["tolerance", "stopTime"])
+            [1e-08, 1.0]
         """
         if names is None:
             return self._linearOptions
