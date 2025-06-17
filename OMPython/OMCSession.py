@@ -50,7 +50,6 @@ import tempfile
 import time
 from typing import Any, Optional, Tuple
 import uuid
-import warnings
 import zmq
 
 # TODO: replace this with the new parser
@@ -555,12 +554,6 @@ class OMCSessionZMQ:
             raise OMCSessionException("Cannot create a temporary directory!")
 
         return tempdir
-
-    def execute(self, command: str):
-        warnings.warn("This function is depreciated and will be removed in future versions; "
-                      "please use sendExpression() instead", DeprecationWarning, stacklevel=2)
-
-        return self.sendExpression(command, parsed=False)
 
     def sendExpression(self, command: str, parsed: bool = True) -> Any:
         if self.omc_zmq is None:
