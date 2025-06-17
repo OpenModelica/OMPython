@@ -36,9 +36,7 @@ def test_Simulate(om, model_time_str):
     assert om.sendExpression('res.resultFile')
 
 
-def test_execute(om):
-    with pytest.deprecated_call():
-        assert om.execute('"HelloWorld!"') == '"HelloWorld!"\n'
+def test_sendExpression(om):
     assert om.sendExpression('"HelloWorld!"', parsed=False) == '"HelloWorld!"\n'
     assert om.sendExpression('"HelloWorld!"', parsed=True) == 'HelloWorld!'
 
