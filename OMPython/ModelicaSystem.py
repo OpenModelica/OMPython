@@ -45,8 +45,7 @@ import re
 import subprocess
 import tempfile
 import textwrap
-from typing import Optional, Any
-import warnings
+from typing import Any, Optional
 import xml.etree.ElementTree as ET
 
 from OMPython.OMCSession import OMCSessionException, OMCSessionZMQ
@@ -265,52 +264,6 @@ class ModelicaSystemCmd:
             raise ModelicaSystemError(f"Error running command {repr(cmdl)}") from ex
 
         return returncode
-
-    @staticmethod
-    def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, str]]]:
-        """
-        Parse a simflag definition; this is depreciated!
-
-        The return data can be used as input for self.args_set().
-
-        Parameters
-        ----------
-        simflags : str
-
-        Returns
-        -------
-            dict
-        """
-        warnings.warn("The argument 'simflags' is depreciated and will be removed in future versions; "
-                      "please use 'simargs' instead", DeprecationWarning, stacklevel=2)
-
-        simargs: dict[str, Optional[str | dict[str, str]]] = {}
-
-        args = [s for s in simflags.split(' ') if s]
-        for arg in args:
-            if arg[0] != '-':
-                raise ModelicaSystemError(f"Invalid simulation flag: {arg}")
-            arg = arg[1:]
-            parts = arg.split('=')
-            if len(parts) == 1:
-                simargs[parts[0]] = None
-            elif parts[0] == 'override':
-                override = '='.join(parts[1:])
-
-                override_dict = {}
-                for item in override.split(','):
-                    kv = item.split('=')
-                    if not 0 < len(kv) < 3:
-                        raise ModelicaSystemError(f"Invalid value for '-override': {override}")
-                    if kv[0]:
-                        try:
-                            override_dict[kv[0]] = kv[1]
-                        except (KeyError, IndexError) as ex:
-                            raise ModelicaSystemError(f"Invalid value for '-override': {override}") from ex
-
-                simargs[parts[0]] = override_dict
-
-        return simargs
 
 
 class ModelicaSystem:
@@ -858,9 +811,12 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
-    def simulate(self, resultfile: Optional[str] = None, simflags: Optional[str] = None,
-                 simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
-                 timeout: Optional[int] = None):  # 11
+    def simulate(
+            self,
+            resultfile: Optional[str] = None,
+            simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
+            timeout: Optional[int] = None
+    ):  # 11
         """
         This method simulates model according to the simulation options.
         usage
@@ -882,11 +838,7 @@ class ModelicaSystem:
         # always define the resultfile to use
         om_cmd.arg_set(key="r", val=self.resultfile.as_posix())
 
-        # allow runtime simulation flags from user input
-        if simflags is not None:
-            om_cmd.args_set(args=om_cmd.parse_simflags(simflags=simflags))
-
-        if simargs:
+        if simargs is not None:
             om_cmd.args_set(args=simargs)
 
         overrideFile = self.tempdir / f"{self.modelName}_override.txt"
@@ -1242,15 +1194,16 @@ class ModelicaSystem:
 
         return optimizeResult
 
-    def linearize(self, lintime: Optional[float] = None, simflags: Optional[str] = None,
-                  simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
-                  timeout: Optional[int] = None) -> LinearizationResult:
+    def linearize(
+            self,
+            lintime: Optional[float] = None,
+            simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
+            timeout: Optional[int] = None,
+    ) -> LinearizationResult:
         """Linearize the model according to linearOptions.
 
         Args:
             lintime: Override linearOptions["stopTime"] value.
-            simflags: A string of extra command line flags for the model
-              binary. - depreciated in favor of simargs
             simargs: A dict with command line flags and possible options; example: "simargs={'csvInput': 'a.csv'}"
             timeout: Possible timeout for the execution of OM.
 
@@ -1303,11 +1256,7 @@ class ModelicaSystem:
 
         om_cmd.arg_set(key="l", val=str(lintime or self.linearOptions["stopTime"]))
 
-        # allow runtime simulation flags from user input
-        if simflags is not None:
-            om_cmd.args_set(args=om_cmd.parse_simflags(simflags=simflags))
-
-        if simargs:
+        if simargs is not None:
             om_cmd.args_set(args=simargs)
 
         returncode = om_cmd.run()
