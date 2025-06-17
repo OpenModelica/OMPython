@@ -51,7 +51,6 @@ import tempfile
 import time
 from typing import Any, Optional, Tuple
 import uuid
-import warnings
 import zmq
 
 import psutil
@@ -701,12 +700,6 @@ class OMCSessionZMQ:
             raise OMCSessionException(f"Error running model executable {repr(cmdl)}") from ex
 
         return returncode
-
-    def execute(self, command: str):
-        warnings.warn("This function is depreciated and will be removed in future versions; "
-                      "please use sendExpression() instead", DeprecationWarning, stacklevel=2)
-
-        return self.sendExpression(command, parsed=False)
 
     def sendExpression(self, command: str, parsed: bool = True) -> Any:
         """
