@@ -22,7 +22,6 @@ import tempfile
 import time
 from typing import Any, Optional, Tuple
 import uuid
-import warnings
 import zmq
 
 import psutil
@@ -563,9 +562,6 @@ class OMCSessionZMQ:
         """
         return self.omc_process.run_model_executable(cmd_run_data=cmd_run_data)
 
-    def execute(self, command: str):
-        return self.omc_process.execute(command=command)
-
     def sendExpression(self, command: str, parsed: bool = True) -> Any:
         """
         Send an expression to the OMC server and return the result.
@@ -846,14 +842,6 @@ class OMCSession(metaclass=OMCSessionMeta):
             raise OMCSessionException(f"Error running model executable {repr(cmdl)}") from ex
 
         return returncode
-
-    def execute(self, command: str):
-        warnings.warn(message="This function is depreciated and will be removed in future versions; "
-                              "please use sendExpression() instead",
-                      category=DeprecationWarning,
-                      stacklevel=2)
-
-        return self.sendExpression(command, parsed=False)
 
     def sendExpression(self, command: str, parsed: bool = True) -> Any:
         """
