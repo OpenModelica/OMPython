@@ -19,16 +19,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Set up OpenModelica Compiler"
-        uses: OpenModelica/setup-openmodelica@v1.0
-        with:
-          version: ${{ matrix.omc-version }}
-          packages: |
-            omc
-          libraries: |
-            'Modelica 4.0.0'
-      - run: "omc --version"
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -38,16 +28,25 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install . pytest pytest-md pytest-emoji flake8
+          pip install . pytest pytest-md pytest-emoji pre-commit
 
       - name: Set timezone
         uses: szenius/set-timezone@v2.0
         with:
           timezoneLinux: 'Europe/Berlin'
 
-      - name: Lint with flake8
-        run: |
-          flake8 . --count --statistics
+      - name: Run pre-commit linters
+        run: 'pre-commit run --all-files'
+
+      - name: "Set up OpenModelica Compiler"
+        uses: OpenModelica/setup-openmodelica@v1.0
+        with:
+          version: ${{ matrix.omc-version }}
+          packages: |
+            omc
+          libraries: |
+            'Modelica 4.0.0'
+      - run: "omc --version"
 
       - name: Run pytest
         uses: pavelzw/pytest-action@v2

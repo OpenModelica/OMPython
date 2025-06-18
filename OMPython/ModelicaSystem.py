@@ -45,7 +45,7 @@ import re
 import subprocess
 import tempfile
 import textwrap
-from typing import Optional
+from typing import Optional, Any
 import warnings
 import xml.etree.ElementTree as ET
 
@@ -369,20 +369,23 @@ class ModelicaSystem:
         if modelName is None:
             raise ModelicaSystemError("A modelname must be provided (argument modelName)!")
 
-        self.quantitiesList = []
-        self.paramlist = {}
-        self.inputlist = {}
-        self.outputlist = {}
-        self.continuouslist = {}
-        self.simulateOptions = {}
-        self.overridevariables = {}
-        self.simoptionsoverride = {}
+        self.quantitiesList: list[dict[str, Any]] = []
+        self.paramlist: dict[str, str] = {}  # even numerical values are stored as str
+        self.inputlist: dict[str, list | None] = {}
+        # outputlist values are str before simulate(), but they can be
+        # np.float64 after simulate().
+        self.outputlist: dict[str, Any] = {}
+        # same for continuouslist
+        self.continuouslist: dict[str, Any] = {}
+        self.simulateOptions: dict[str, str] = {}
+        self.overridevariables: dict[str, str] = {}
+        self.simoptionsoverride: dict[str, str] = {}
         self.linearOptions = {'startTime': 0.0, 'stopTime': 1.0, 'stepSize': 0.002, 'tolerance': 1e-8}
         self.optimizeOptions = {'startTime': 0.0, 'stopTime': 1.0, 'numberOfIntervals': 500, 'stepSize': 0.002,
                                 'tolerance': 1e-8}
-        self.linearinputs = []  # linearization input list
-        self.linearoutputs = []  # linearization output list
-        self.linearstates = []  # linearization  states list
+        self.linearinputs: list[str] = []  # linearization input list
+        self.linearoutputs: list[str] = []  # linearization output list
+        self.linearstates: list[str] = []  # linearization states list
 
         if session is not None:
             if not isinstance(session, OMCSessionZMQ):
