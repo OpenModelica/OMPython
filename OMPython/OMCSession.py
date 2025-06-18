@@ -643,7 +643,9 @@ class OMCProcessDockerHelper:
         On Windows, volumes are mapped with all files are chmod ugo+rwx,
         so uid does not matter as long as it is not the root user.
         """
-        return 1000 if sys.platform == 'win32' else os.getuid()
+        # mypy complained about os.getuid() not being available on
+        # Windows, hence the type: ignore comment.
+        return 1000 if sys.platform == 'win32' else os.getuid()  # type: ignore
 
     def get_server_address(self) -> Optional[str]:
         if self._dockerNetwork == "separate" and isinstance(self._dockerCid, str):
