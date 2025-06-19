@@ -397,7 +397,7 @@ end M_input;
         "u2=[(0.0, 0), (0.25, 0.5), (0.5, 1.0), (1.0, 0)]",
     ])
     mod.simulate()
-    assert pathlib.Path(mod.csvFile).read_text() == """time,u1,u2,end
+    assert pathlib.Path(mod._csvFile).read_text() == """time,u1,u2,end
 0.0,0.0,0.0,0
 0.25,0.25,0.5,0
 0.5,0.5,1.0,0
