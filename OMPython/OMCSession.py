@@ -456,21 +456,21 @@ class OMCProcess:
             self._currentUser = "nobody"
 
         # omc port and log file
-        if sys.platform == 'win32':
-            self._omc_file_port = f"openmodelica.port.{self._random_string}"
-        else:
-            self._omc_file_port = f"openmodelica.{self._currentUser}.port.{self._random_string}"
+        self._omc_filebase = f"openmodelica.{self._random_string}"
 
         # get a temporary directory
         self._temp_dir = pathlib.Path(tempfile.gettempdir())
 
         # setup log file - this file must be closed in the destructor
-        logfile = self._temp_dir / (self._omc_file_port + '.log')
+        logfile = self._temp_dir / (self._omc_filebase + ".log")
         self._omc_loghandle: Optional[io.TextIOWrapper] = None
         try:
             self._omc_loghandle = open(file=logfile, mode="w+", encoding="utf-8")
         except OSError as ex:
             raise OMCSessionException(f"Cannot open log file {logfile}.") from ex
+
+        self._re_portfile_path = re.compile(pattern=r'\nDumped server port in file: (.*?)($|\n)',
+                                            flags=re.MULTILINE | re.DOTALL)
 
     def __del__(self):
         if self._omc_loghandle is not None:
@@ -505,6 +505,17 @@ class OMCProcess:
         log = self._omc_loghandle.read()
 
         return log
+
+    def _get_portfile_path(self) -> Optional[pathlib.Path]:
+        omc_log = self.get_log()
+
+        portfile = self._re_portfile_path.findall(string=omc_log)
+
+        portfile_path = None
+        if portfile:
+            portfile_path = pathlib.Path(portfile[-1][0])
+
+        return portfile_path
 
 
 class OMCProcessPort(OMCProcess):
@@ -574,11 +585,11 @@ class OMCProcessLocal(OMCProcess):
         # See if the omc server is running
         attempts = 0
         while True:
-            omc_file_port = self._temp_dir / self._omc_file_port
+            omc_portfile_path = self._get_portfile_path()
 
-            if omc_file_port.is_file():
+            if omc_portfile_path is not None and omc_portfile_path.is_file():
                 # Read the port file
-                with open(file=omc_file_port, mode='r', encoding="utf-8") as f_p:
+                with open(file=omc_portfile_path, mode='r', encoding="utf-8") as f_p:
                     port = f_p.readline()
                 break
 
@@ -588,7 +599,7 @@ class OMCProcessLocal(OMCProcess):
             attempts += 1
             if attempts == 80.0:
                 raise OMCSessionException(f"OMC Server did not start (timeout={self._timeout}). "
-                                          f"Could not open file {omc_file_port}. "
+                                          f"Could not open file {omc_portfile_path}. "
                                           f"Log-file says:\n{self.get_log()}")
             time.sleep(self._timeout / 80.0)
 
@@ -742,7 +753,7 @@ class OMCProcessDocker(OMCProcessDockerHelper, OMCProcess):
             raise OMCSessionException(f'dockerNetwork was set to {self._dockerNetwork}, '
                                       'but only \"host\" or \"separate\" is allowed')
 
-        self._dockerCidFile = self._temp_dir / (self._omc_file_port + ".docker.cid")
+        self._dockerCidFile = self._temp_dir / (self._omc_filebase + ".docker.cid")
 
         if isinstance(self._interactivePort, int):
             extraFlags = extraFlags + [f"--interactivePort={int(self._interactivePort)}"]
@@ -761,7 +772,6 @@ class OMCProcessDocker(OMCProcessDockerHelper, OMCProcess):
         return omc_command
 
     def _omc_port_get(self) -> str:
-        omc_file_port = '/tmp/' + self._omc_file_port
         port = None
 
         if not isinstance(self._dockerCid, str):
@@ -770,14 +780,16 @@ class OMCProcessDocker(OMCProcessDockerHelper, OMCProcess):
         # See if the omc server is running
         attempts = 0
         while True:
-            try:
-                output = subprocess.check_output(args=["docker",
-                                                       "exec", self._dockerCid,
-                                                       "cat", omc_file_port],
-                                                 stderr=subprocess.DEVNULL)
-                port = output.decode().strip()
-            except subprocess.CalledProcessError:
-                pass
+            omc_portfile_path = self._get_portfile_path()
+            if omc_portfile_path is not None:
+                try:
+                    output = subprocess.check_output(args=["docker",
+                                                           "exec", self._dockerCid,
+                                                           "cat", omc_portfile_path.as_posix()],
+                                                     stderr=subprocess.DEVNULL)
+                    port = output.decode().strip()
+                except subprocess.CalledProcessError:
+                    pass
 
             if port is not None:
                 break
@@ -785,7 +797,7 @@ class OMCProcessDocker(OMCProcessDockerHelper, OMCProcess):
             attempts += 1
             if attempts == 80.0:
                 raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}). "
-                                          f"Could not open file {omc_file_port}. "
+                                          f"Could not open port file {omc_portfile_path}. "
                                           f"Log-file says:\n{self.get_log()}")
             time.sleep(self._timeout / 80.0)
 
@@ -903,7 +915,6 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper, OMCProcess):
         return omc_command
 
     def _omc_port_get(self) -> str:
-        omc_file_port = '/tmp/' + self._omc_file_port
         port = None
 
         if not isinstance(self._dockerCid, str):
@@ -912,14 +923,16 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper, OMCProcess):
         # See if the omc server is running
         attempts = 0
         while True:
-            try:
-                output = subprocess.check_output(args=["docker",
-                                                       "exec", self._dockerCid,
-                                                       "cat", omc_file_port],
-                                                 stderr=subprocess.DEVNULL)
-                port = output.decode().strip()
-            except subprocess.CalledProcessError:
-                pass
+            omc_portfile_path = self._get_portfile_path()
+            if omc_portfile_path is not None:
+                try:
+                    output = subprocess.check_output(args=["docker",
+                                                           "exec", self._dockerCid,
+                                                           "cat", omc_portfile_path.as_posix()],
+                                                     stderr=subprocess.DEVNULL)
+                    port = output.decode().strip()
+                except subprocess.CalledProcessError:
+                    pass
 
             if port is not None:
                 break
@@ -927,7 +940,7 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper, OMCProcess):
             attempts += 1
             if attempts == 80.0:
                 raise OMCSessionException(f"Docker container based OMC Server did not start (timeout={self._timeout}). "
-                                          f"Could not open file {omc_file_port}. "
+                                          f"Could not open port file {omc_portfile_path}. "
                                           f"Log-file says:\n{self.get_log()}")
             time.sleep(self._timeout / 80.0)
 
@@ -959,3 +972,79 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper, OMCProcess):
                                       f"/ {self._dockerCid}. Log-file says:\n{self.get_log()}")
 
         return omc_process, docker_process
+
+
+class OMCProcessWSL(OMCProcess):
+
+    def __init__(
+            self,
+            timeout: float = 10.00,
+            wsl_omc: str = 'omc',
+            wsl_distribution: Optional[str] = None,
+            wsl_user: Optional[str] = None,
+    ) -> None:
+
+        super().__init__(timeout=timeout)
+
+        # get wsl base command
+        self._wsl_cmd = ['wsl']
+        if isinstance(wsl_distribution, str):
+            self._wsl_cmd += ['--distribution', wsl_distribution]
+        if isinstance(wsl_user, str):
+            self._wsl_cmd += ['--user', wsl_user]
+        self._wsl_cmd += ['--']
+
+        # where to find OpenModelica
+        self._wsl_omc = wsl_omc
+        # start up omc executable, which is waiting for the ZMQ connection
+        self._omc_process = self._omc_process_get()
+        # connect to the running omc instance using ZMQ
+        self._omc_port = self._omc_port_get()
+
+    def _omc_process_get(self) -> subprocess.Popen:
+        my_env = os.environ.copy()
+
+        omc_command = self._wsl_cmd + [
+            self._wsl_omc,
+            "--locale=C",
+            "--interactive=zmq",
+            f"-z={self._random_string}"]
+
+        omc_process = subprocess.Popen(omc_command,
+                                       stdout=self._omc_loghandle,
+                                       stderr=self._omc_loghandle,
+                                       env=my_env)
+        return omc_process
+
+    def _omc_port_get(self) -> str:
+        omc_portfile_path: Optional[pathlib.Path] = None
+        port = None
+
+        # See if the omc server is running
+        attempts = 0
+        while True:
+            try:
+                omc_portfile_path = self._get_portfile_path()
+                if omc_portfile_path is not None:
+                    output = subprocess.check_output(
+                        args=self._wsl_cmd + ["cat", omc_portfile_path.as_posix()],
+                        stderr=subprocess.DEVNULL,
+                    )
+                    port = output.decode().strip()
+            except subprocess.CalledProcessError:
+                pass
+
+            if port is not None:
+                break
+
+            attempts += 1
+            if attempts == 80.0:
+                raise OMCSessionException(f"WSL based OMC Server did not start (timeout={self._timeout}). "
+                                          f"Could not open port file {omc_portfile_path}. "
+                                          f"Log-file says:\n{self.get_log()}")
+            time.sleep(self._timeout / 80.0)
+
+        logger.info(f"WSL based OMC Server is up and running at ZMQ port {port} "
+                    f"pid={self._omc_process.pid if isinstance(self._omc_process, subprocess.Popen) else '?'}")
+
+        return port
