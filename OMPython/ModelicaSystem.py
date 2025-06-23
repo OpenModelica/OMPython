@@ -1126,7 +1126,51 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for strip_space()")
 
-    def _setMethodHelper(
+    def _prepare_inputdata(
+            self,
+            rawinput: str | list[str] | dict[str, str | int | float],
+    ) -> dict[str, str]:
+        """
+        Convert raw input to a structured dictionary {'key1': 'value1', 'key2': 'value2'}.
+        """
+
+        def prepare_str(str_in: str) -> dict[str, str]:
+            str_in = str_in.replace(" ", "")
+            key_val_list: list[str] = str_in.split("=")
+            if len(key_val_list) != 2:
+                raise ModelicaSystemError(f"Invalid 'key=value' pair: {str_in}")
+
+            inputdata = {key_val_list[0]: key_val_list[1]}
+
+            return inputdata
+
+        if isinstance(rawinput, str):
+            warnings.warn(message="The definition of values to set should use a dictionary, "
+                                  "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
+                                  "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
+                          category=DeprecationWarning,
+                          stacklevel=3)
+            return prepare_str(rawinput)
+
+        if isinstance(rawinput, list):
+            warnings.warn(message="The definition of values to set should use a dictionary, "
+                                  "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
+                                  "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
+                          category=DeprecationWarning,
+                          stacklevel=3)
+
+            inputdata: dict[str, str] = {}
+            for item in rawinput:
+                inputdata |= prepare_str(item)
+
+            return inputdata
+
+        if isinstance(rawinput, dict):
+            inputdata = {key: str(val) for key, val in rawinput.items()}
+
+            return inputdata
+
+    def setMethodHelper(
             self,
             inputdata: str | list[str] | dict[str, str | int | float],
             classdata: dict[str, Any],
