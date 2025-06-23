@@ -1061,44 +1061,13 @@ class ModelicaSystem:
 
     @staticmethod
     def _prepare_input_data(
-            raw_input: str | list[str] | dict[str, Any],
+            raw_input: dict[str, Any],
     ) -> dict[str, str]:
         """
         Convert raw input to a structured dictionary {'key1': 'value1', 'key2': 'value2'}.
         """
 
-        def prepare_str(str_in: str) -> dict[str, str]:
-            str_in = str_in.replace(" ", "")
-            key_val_list: list[str] = str_in.split("=")
-            if len(key_val_list) != 2:
-                raise ModelicaSystemError(f"Invalid 'key=value' pair: {str_in}")
-
-            input_data_from_str: dict[str, str] = {key_val_list[0]: key_val_list[1]}
-
-            return input_data_from_str
-
         input_data: dict[str, str] = {}
-
-        if isinstance(raw_input, str):
-            warnings.warn(message="The definition of values to set should use a dictionary, "
-                                  "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
-                                  "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
-                          category=DeprecationWarning,
-                          stacklevel=3)
-            return prepare_str(raw_input)
-
-        if isinstance(raw_input, list):
-            warnings.warn(message="The definition of values to set should use a dictionary, "
-                                  "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
-                                  "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
-                          category=DeprecationWarning,
-                          stacklevel=3)
-
-            for item in raw_input:
-                input_data |= prepare_str(item)
-
-            return input_data
-
         if isinstance(raw_input, dict):
             for key, val in raw_input.items():
                 # convert all values to strings to align it on one type: dict[str, str]
@@ -1175,14 +1144,12 @@ class ModelicaSystem:
 
     def setContinuous(
             self,
-            cvals: str | list[str] | dict[str, Any],
+            cvals: dict[str, Any],
     ) -> bool:
         """
         This method is used to set continuous values. It can be called:
         with a sequence of continuous name and assigning corresponding values as arguments as show in the example below:
         usage
-        >>> setContinuous("Name=value")  # depreciated
-        >>> setContinuous(["Name1=value1","Name2=value2"])  # depreciated
         >>> setContinuous(cvals={"Name1": "value1", "Name2": "value2"})
         """
         inputdata = self._prepare_input_data(raw_input=cvals)
@@ -1195,14 +1162,12 @@ class ModelicaSystem:
 
     def setParameters(
             self,
-            pvals: str | list[str] | dict[str, Any],
+            pvals: dict[str, Any],
     ) -> bool:
         """
         This method is used to set parameter values. It can be called:
         with a sequence of parameter name and assigning corresponding value as arguments as show in the example below:
         usage
-        >>> setParameters("Name=value")  # depreciated
-        >>> setParameters(["Name1=value1","Name2=value2"])  # depreciated
         >>> setParameters(pvals={"Name1": "value1", "Name2": "value2"})
         """
         inputdata = self._prepare_input_data(raw_input=pvals)
@@ -1215,14 +1180,12 @@ class ModelicaSystem:
 
     def setSimulationOptions(
             self,
-            simOptions: str | list[str] | dict[str, Any],
+            simOptions: dict[str, Any],
     ) -> bool:
         """
         This method is used to set simulation options. It can be called:
         with a sequence of simulation options name and assigning corresponding values as arguments as show in the example below:
         usage
-        >>> setSimulationOptions("Name=value")  # depreciated
-        >>> setSimulationOptions(["Name1=value1","Name2=value2"])  # depreciated
         >>> setSimulationOptions(simOptions={"Name1": "value1", "Name2": "value2"})
         """
         inputdata = self._prepare_input_data(raw_input=simOptions)
@@ -1235,14 +1198,12 @@ class ModelicaSystem:
 
     def setLinearizationOptions(
             self,
-            linearizationOptions: str | list[str] | dict[str, Any],
+            linearizationOptions: dict[str, Any],
     ) -> bool:
         """
         This method is used to set linearization options. It can be called:
         with a sequence of linearization options name and assigning corresponding value as arguments as show in the example below
         usage
-        >>> setLinearizationOptions("Name=value")  # depreciated
-        >>> setLinearizationOptions(["Name1=value1","Name2=value2"])  # depreciated
         >>> setLinearizationOptions(linearizationOtions={"Name1": "value1", "Name2": "value2"})
         """
         inputdata = self._prepare_input_data(raw_input=linearizationOptions)
@@ -1255,14 +1216,12 @@ class ModelicaSystem:
 
     def setOptimizationOptions(
             self,
-            optimizationOptions: str | list[str] | dict[str, Any],
+            optimizationOptions: dict[str, Any],
     ) -> bool:
         """
         This method is used to set optimization options. It can be called:
         with a sequence of optimization options name and assigning corresponding values as arguments as show in the example below:
         usage
-        >>> setOptimizationOptions("Name=value")  # depreciated
-        >>> setOptimizationOptions(["Name1=value1","Name2=value2"])  # depreciated
         >>> setOptimizationOptions(optimizationOptions={"Name1": "value1", "Name2": "value2"})
         """
         inputdata = self._prepare_input_data(raw_input=optimizationOptions)
@@ -1275,7 +1234,7 @@ class ModelicaSystem:
 
     def setInputs(
             self,
-            name: str | list[str] | dict[str, Any],
+            name: dict[str, Any],
     ) -> bool:
         """
         This method is used to set input values. It can be called with a sequence of input name and assigning
@@ -1283,8 +1242,6 @@ class ModelicaSystem:
         special case as value could be a list of tuples - these are converted to a string in _prepare_input_data()
         and restored here via ast.literal_eval().
 
-        >>> setInputs("Name=value")  # depreciated
-        >>> setInputs(["Name1=value1","Name2=value2"])  # depreciated
         >>> setInputs(name={"Name1": "value1", "Name2": "value2"})
         """
         inputdata = self._prepare_input_data(raw_input=name)
