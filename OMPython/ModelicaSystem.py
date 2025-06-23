@@ -929,6 +929,9 @@ class ModelicaSystem:
         Due to the tempdir being unique for the ModelicaSystem instance, *NEVER* use this to create several simulations
         with the same instance of ModelicaSystem! Restart each simulation process with a new instance of ModelicaSystem.
 
+        However, if only non-structural parameters are used, it is possible to reuse an existing instance of
+        ModelicaSystem to create several version ModelicaSystemCmd to run the model using different settings.
+
         Parameters
         ----------
         resultfile
