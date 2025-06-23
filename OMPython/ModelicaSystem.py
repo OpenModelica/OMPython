@@ -389,7 +389,6 @@ class ModelicaSystem:
         self._file_name = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
         self._has_inputs = False  # for model with input quantity
         self._simulated = False  # True if the model has already been simulated
-        self._csvFile: Optional[pathlib.Path] = None  # for storing inputs condition
         self._result_file: Optional[pathlib.Path] = None  # for storing result file
         self._variable_filter = variableFilter
 
@@ -968,6 +967,9 @@ class ModelicaSystem:
             om_cmd.arg_set(key="overrideFile", val=overrideFile.as_posix())
 
         if self._has_inputs:  # if model has input quantities
+            # csvfile is based on name used for result file
+            csvfile = self._result_file.parent / f"{self._result_file.stem}.csv"
+
             for i in self._inputs:
                 val = self._inputs[i]
                 if val is None:
@@ -979,9 +981,11 @@ class ModelicaSystem:
                     raise ModelicaSystemError(f"startTime not matched for Input {i}!")
                 if float(self._simulate_options["stopTime"]) != val[-1][0]:
                     raise ModelicaSystemError(f"stopTime not matched for Input {i}!")
-            self._csvFile = self._createCSVData()  # create csv file
 
-            om_cmd.arg_set(key="csvInput", val=self._csvFile.as_posix())
+            # write csv file and store the name
+            csvfile = self._createCSVData(csvfile=csvfile)
+
+            om_cmd.arg_set(key="csvInput", val=csvfile.as_posix())
 
         return om_cmd
 
@@ -1272,7 +1276,11 @@ class ModelicaSystem:
             else:
                 raise ModelicaSystemError('Error!!! Value must be in tuple format')
 
-    def _createCSVData(self) -> pathlib.Path:
+    def _createCSVData(self, csvfile: Optional[pathlib.Path] = None) -> pathlib.Path:
+        """
+        Create a csv file with inputs for the simulation/optimization of the model. If csvfile is provided as argument,
+        this file is used; else a generic file name is created.
+        """
         start_time: float = float(self._simulate_options["startTime"])
         stop_time: float = float(self._simulate_options["stopTime"])
 
@@ -1313,13 +1321,14 @@ class ModelicaSystem:
             ]
             csv_rows.append(row)
 
-        csvFile = self._tempdir / f'{self._model_name}.csv'
+        if csvfile is None:
+            csvFile = self._tempdir / f'{self._model_name}.csv'
 
-        with open(file=csvFile, mode="w", encoding="utf-8", newline="") as fh:
+        with open(file=csvfile, mode="w", encoding="utf-8", newline="") as fh:
             writer = csv.writer(fh)
             writer.writerows(csv_rows)
 
-        return csvFile
+        return csvfile
 
     def convertMo2Fmu(self, version: str = "2.0", fmuType: str = "me_cs",
                       fileNamePrefix: str = "<default>",
@@ -1463,8 +1472,8 @@ class ModelicaSystem:
                     for l in tupleList:
                         if l[0] < float(self._simulate_options["startTime"]):
                             raise ModelicaSystemError('Input time value is less than simulation startTime')
-            self._csvFile = self._createCSVData()
-            om_cmd.arg_set(key="csvInput", val=self._csvFile.as_posix())
+            csvfile = self._createCSVData()
+            om_cmd.arg_set(key="csvInput", val=csvfile.as_posix())
 
         om_cmd.arg_set(key="l", val=str(lintime or self._linearization_options["stopTime"]))
 
