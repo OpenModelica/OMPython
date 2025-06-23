@@ -994,46 +994,79 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for strip_space()")
 
-    def setMethodHelper(self, args1, args2, args3, args4=None):
+    def setMethodHelper(
+            self,
+            inputdata: str | list[str] | dict[str, str | int | float],
+            classdata: dict[str, Any],
+            datatype: str,
+            overwritedata: Optional[dict[str, str]] = None,
+    ) -> bool:
         """
         Helper function for setParameter(),setContinuous(),setSimulationOptions(),setLinearizationOption(),setOptimizationOption()
+
         args1 - string or list of string given by user
         args2 - dict() containing the values of different variables(eg:, parameter,continuous,simulation parameters)
         args3 - function name (eg; continuous, parameter, simulation, linearization,optimization)
         args4 - dict() which stores the new override variables list,
         """
-        def apply_single(args1):
-            args1 = self._strip_space(args1)
-            value = args1.split("=")
-            if value[0] in args2:
-                if args3 == "parameter" and self.isParameterChangeable(value[0], value[1]):
-                    args2[value[0]] = value[1]
-                    if args4 is not None:
-                        args4[value[0]] = value[1]
-                elif args3 != "parameter":
-                    args2[value[0]] = value[1]
-                    if args4 is not None:
-                        args4[value[0]] = value[1]
+
+        # TODO: cleanup / data handling / ...
+        #       (1) args1: Optional[str | list[str]] -> convert to dict
+        #       (2) work on dict! inputs: dict[str, str | int | float | ?numbers.number?]
+        #       (3) handle function
+        #       (4) use it also for other functions with such an input, i.e. 'key=value' | ['key=value']
+        #       (5) include setInputs()
+
+        def apply_single(key_val: str):
+            key_val_list = key_val.split("=")
+            if len(key_val_list) != 2:
+                raise ModelicaSystemError(f"Invalid key = value pair: {key_val}")
+
+            name = self._strip_space(key_val_list[0])
+            value = self._strip_space(key_val_list[1])
+
+            if name in classdata:
+                if datatype == "parameter" and not self.isParameterChangeable(name):
+                    logger.debug(f"It is not possible to set the parameter {repr(name)}. It seems to be "
+                                 "structural, final, protected, evaluated or has a non-constant binding. "
+                                 "Use sendExpression(...) and rebuild the model using buildModel() API; example: "
+                                 "sendExpression(\"setParameterValue("
+                                 f"{self.modelName}, {name}, {value if value is not None else '<?value?>'}"
+                                 ")\") ")
+                    return False
+
+                classdata[name] = value
+                if overwritedata is not None:
+                    overwritedata[name] = value
 
                 return True
 
             else:
                 raise ModelicaSystemError("Unhandled case in setMethodHelper.apply_single() - "
-                                          f"{repr(value[0])} is not a {repr(args3)} variable")
+                                          f"{repr(name)} is not a {repr(datatype)} variable")
 
         result = []
-        if isinstance(args1, str):
-            result = [apply_single(args1)]
+        if isinstance(inputdata, str):
+            result = [apply_single(inputdata)]
 
-        elif isinstance(args1, list):
+        elif isinstance(inputdata, list):
             result = []
-            args1 = self._strip_space(args1)
-            for var in args1:
+            inputdata = self._strip_space(inputdata)
+            for var in inputdata:
                 result.append(apply_single(var))
 
         return all(result)
 
-    def setContinuous(self, cvals):  # 13
+    def isParameterChangeable(
+            self,
+            name: str,
+    ):
+        q = self.getQuantities(name)
+        if q[0]["changeable"] == "false":
+            return False
+        return True
+
+    def setContinuous(self, cvals: str | list[str] | dict[str, str | int | float]) -> bool:
         """
         This method is used to set continuous values. It can be called:
         with a sequence of continuous name and assigning corresponding values as arguments as show in the example below:
@@ -1041,9 +1074,13 @@ class ModelicaSystem:
         >>> setContinuous("Name=value")
         >>> setContinuous(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(cvals, self.continuouslist, "continuous", self.overridevariables)
+        return self.setMethodHelper(
+            inputdata=cvals,
+            classdata=self.continuouslist,
+            datatype="continuous",
+            overwritedata=self.overridevariables)
 
-    def setParameters(self, pvals):  # 14
+    def setParameters(self, pvals: str | list[str] | dict[str, str | int | float]) -> bool:
         """
         This method is used to set parameter values. It can be called:
         with a sequence of parameter name and assigning corresponding value as arguments as show in the example below:
@@ -1051,19 +1088,13 @@ class ModelicaSystem:
         >>> setParameters("Name=value")
         >>> setParameters(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(pvals, self.paramlist, "parameter", self.overridevariables)
+        return self.setMethodHelper(
+            inputdata=pvals,
+            classdata=self.paramlist,
+            datatype="parameter",
+            overwritedata=self.overridevariables)
 
-    def isParameterChangeable(self, name, value):
-        q = self.getQuantities(name)
-        if q[0]["changeable"] == "false":
-            logger.debug(f"setParameters() failed : It is not possible to set the following signal {repr(name)}. "
-                         "It seems to be structural, final, protected or evaluated or has a non-constant binding, "
-                         f"use sendExpression(\"setParameterValue({self.modelName}, {name}, {value})\") "
-                         "and rebuild the model using buildModel() API")
-            return False
-        return True
-
-    def setSimulationOptions(self, simOptions):  # 16
+    def setSimulationOptions(self, simOptions: str | list[str] | dict[str, str | int | float]) -> bool:
         """
         This method is used to set simulation options. It can be called:
         with a sequence of simulation options name and assigning corresponding values as arguments as show in the example below:
@@ -1071,9 +1102,13 @@ class ModelicaSystem:
         >>> setSimulationOptions("Name=value")
         >>> setSimulationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(simOptions, self.simulateOptions, "simulation-option", self.simoptionsoverride)
+        return self.setMethodHelper(
+            inputdata=simOptions,
+            classdata=self.simulateOptions,
+            datatype="simulation-option",
+            overwritedata=self.simoptionsoverride)
 
-    def setLinearizationOptions(self, linearizationOptions):  # 18
+    def setLinearizationOptions(self, linearizationOptions: str | list[str] | dict[str, str | int | float]) -> bool:
         """
         This method is used to set linearization options. It can be called:
         with a sequence of linearization options name and assigning corresponding value as arguments as show in the example below
@@ -1081,9 +1116,13 @@ class ModelicaSystem:
         >>> setLinearizationOptions("Name=value")
         >>> setLinearizationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(linearizationOptions, self.linearOptions, "Linearization-option", None)
+        return self.setMethodHelper(
+            inputdata=linearizationOptions,
+            classdata=self.linearOptions,
+            datatype="Linearization-option",
+            overwritedata=None)
 
-    def setOptimizationOptions(self, optimizationOptions):  # 17
+    def setOptimizationOptions(self, optimizationOptions: str | list[str] | dict[str, str | int | float]) -> bool:
         """
         This method is used to set optimization options. It can be called:
         with a sequence of optimization options name and assigning corresponding values as arguments as show in the example below:
@@ -1091,9 +1130,13 @@ class ModelicaSystem:
         >>> setOptimizationOptions("Name=value")
         >>> setOptimizationOptions(["Name1=value1","Name2=value2"])
         """
-        return self.setMethodHelper(optimizationOptions, self.optimizeOptions, "optimization-option", None)
+        return self.setMethodHelper(
+            inputdata=optimizationOptions,
+            classdata=self.optimizeOptions,
+            datatype="optimization-option",
+            overwritedata=None)
 
-    def setInputs(self, name):  # 15
+    def setInputs(self, name: str | list[str] | dict[str, str | int | float]) -> bool:
         """
         This method is used to set input values. It can be called:
         with a sequence of input name and assigning corresponding values as arguments as show in the example below:
@@ -1102,34 +1145,40 @@ class ModelicaSystem:
         >>> setInputs(["Name1=value1","Name2=value2"])
         """
         if isinstance(name, str):
-            name = self._strip_space(name)
-            value = name.split("=")
-            if value[0] in self.inputlist:
-                tmpvalue = eval(value[1])
+            name1: str = name
+            name1 = name1.replace(" ", "")
+            value1 = name1.split("=")
+            if value1[0] in self.inputlist:
+                tmpvalue = eval(value1[1])
                 if isinstance(tmpvalue, (int, float)):
-                    self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])),
-                                                (float(self.simulateOptions["stopTime"]), float(value[1]))]
+                    self.inputlist[value1[0]] = [(float(self.simulateOptions["startTime"]), float(value1[1])),
+                                                 (float(self.simulateOptions["stopTime"]), float(value1[1]))]
                 elif isinstance(tmpvalue, list):
                     self.checkValidInputs(tmpvalue)
-                    self.inputlist[value[0]] = tmpvalue
+                    self.inputlist[value1[0]] = tmpvalue
                 self.inputFlag = True
             else:
-                raise ModelicaSystemError(f"{value[0]} is not an input")
+                raise ModelicaSystemError(f"{value1[0]} is not an input")
         elif isinstance(name, list):
-            name = self._strip_space(name)
-            for var in name:
-                value = var.split("=")
-                if value[0] in self.inputlist:
-                    tmpvalue = eval(value[1])
+            name_list: list[str] = name
+            for name2 in name_list:
+                name2 = name2.replace(" ", "")
+                value2 = name2.split("=")
+                if value2[0] in self.inputlist:
+                    tmpvalue = eval(value2[1])
                     if isinstance(tmpvalue, (int, float)):
-                        self.inputlist[value[0]] = [(float(self.simulateOptions["startTime"]), float(value[1])),
-                                                    (float(self.simulateOptions["stopTime"]), float(value[1]))]
+                        self.inputlist[value2[0]] = [(float(self.simulateOptions["startTime"]), float(value2[1])),
+                                                     (float(self.simulateOptions["stopTime"]), float(value2[1]))]
                     elif isinstance(tmpvalue, list):
                         self.checkValidInputs(tmpvalue)
-                        self.inputlist[value[0]] = tmpvalue
+                        self.inputlist[value2[0]] = tmpvalue
                     self.inputFlag = True
                 else:
-                    raise ModelicaSystemError(f"{value[0]} is not an input!")
+                    raise ModelicaSystemError(f"{value2[0]} is not an input!")
+        elif isinstance(name, dict):
+            raise NotImplementedError("Must be defined!")
+
+        return True
 
     def checkValidInputs(self, name):
         if name != sorted(name, key=lambda x: x[0]):
