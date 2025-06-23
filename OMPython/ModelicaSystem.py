@@ -1130,9 +1130,11 @@ class ModelicaSystem:
             if len(key_val_list) != 2:
                 raise ModelicaSystemError(f"Invalid 'key=value' pair: {str_in}")
 
-            inputdata = {key_val_list[0]: key_val_list[1]}
+            input_data_from_str: dict[str, str] = {key_val_list[0]: key_val_list[1]}
 
-            return inputdata
+            return input_data_from_str
+
+        input_data: dict[str, str] = {}
 
         if isinstance(rawinput, str):
             warnings.warn(message="The definition of values to set should use a dictionary, "
@@ -1149,20 +1151,21 @@ class ModelicaSystem:
                           category=DeprecationWarning,
                           stacklevel=3)
 
-            inputdata: dict[str, str] = {}
             for item in rawinput:
-                inputdata |= prepare_str(item)
+                input_data |= prepare_str(item)
 
-            return inputdata
+            return input_data
 
         if isinstance(rawinput, dict):
             for key, val in rawinput.items():
                 str_val = str(val)
                 if ' ' in key or ' ' in str_val:
                     raise ModelicaSystemError(f"Spaces not allowed in key/value pairs: {repr(key)} = {repr(val)}!")
-                inputdata[key] = str_val
+                input_data[key] = str_val
 
-            return inputdata
+            return input_data
+
+        raise ModelicaSystemError(f"Invalid type of input: {type(rawinput)}")
 
     def _set_method_helper(
             self,
