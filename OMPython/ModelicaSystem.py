@@ -1117,17 +1117,7 @@ class ModelicaSystem:
         return np_res
 
     @staticmethod
-    def _strip_space(name):
-        if isinstance(name, str):
-            return name.replace(" ", "")
-
-        if isinstance(name, list):
-            return [x.replace(" ", "") for x in name]
-
-        raise ModelicaSystemError("Unhandled input for strip_space()")
-
     def _prepare_inputdata(
-            self,
             rawinput: str | list[str] | dict[str, str | int | float],
     ) -> dict[str, str]:
         """
@@ -1166,72 +1156,65 @@ class ModelicaSystem:
             return inputdata
 
         if isinstance(rawinput, dict):
-            inputdata = {key: str(val) for key, val in rawinput.items()}
+            for key, val in rawinput.items():
+                str_val = str(val)
+                if ' ' in key or ' ' in str_val:
+                    raise ModelicaSystemError(f"Spaces not allowed in key/value pairs: {repr(key)} = {repr(val)}!")
+                inputdata[key] = str_val
 
             return inputdata
 
-    def setMethodHelper(
+    def _set_method_helper(
             self,
-            inputdata: str | list[str] | dict[str, str | int | float],
+            inputdata: dict[str, str],
             classdata: dict[str, Any],
             datatype: str,
             overwritedata: Optional[dict[str, str]] = None,
     ) -> bool:
         """
-        Helper function for setters.
+        Helper function for:
+        * setParameter()
+        * setContinuous()
+        * setSimulationOptions()
+        * setLinearizationOption()
+        * setOptimizationOption()
+        * setInputs()
 
-        args1 - string or list of string given by user
-        args2 - dict() containing the values of different variables(eg:, parameter,continuous,simulation parameters)
-        args3 - function name (eg; continuous, parameter, simulation, linearization,optimization)
-        args4 - dict() which stores the new override variables list,
+        Parameters
+        ----------
+        inputdata
+            string or list of string given by user
+        classdata
+            dict() containing the values of different variables (eg: parameter, continuous, simulation parameters)
+        datatype
+            type identifier (eg; continuous, parameter, simulation, linearization, optimization)
+        overwritedata
+            dict() which stores the new override variables list,
         """
 
-        # TODO: cleanup / data handling / ...
-        #       (1) args1: Optional[str | list[str]] -> convert to dict
-        #       (2) work on dict! inputs: dict[str, str | int | float | ?numbers.number?]
-        #       (3) handle function
-        #       (4) use it also for other functions with such an input, i.e. 'key=value' | ['key=value']
-        #       (5) include setInputs()
-
-        def apply_single(key_val: str):
-            key_val_list = key_val.split("=")
-            if len(key_val_list) != 2:
-                raise ModelicaSystemError(f"Invalid key = value pair: {key_val}")
-
-            name = self._strip_space(key_val_list[0])
-            value = self._strip_space(key_val_list[1])
-
-            if name in classdata:
-                if datatype == "parameter" and not self.isParameterChangeable(name):
-                    logger.debug(f"It is not possible to set the parameter {repr(name)}. It seems to be "
+        inputdata_status: dict[str, bool] = {}
+        for key, val in inputdata.items():
+            status = False
+            if key in classdata:
+                if datatype == "parameter" and not self.isParameterChangeable(key):
+                    logger.debug(f"It is not possible to set the parameter {repr(key)}. It seems to be "
                                  "structural, final, protected, evaluated or has a non-constant binding. "
                                  "Use sendExpression(...) and rebuild the model using buildModel() API; example: "
                                  "sendExpression(\"setParameterValue("
-                                 f"{self.modelName}, {name}, {value if value is not None else '<?value?>'}"
+                                 f"{self.modelName}, {key}, {val if val is not None else '<?value?>'}"
                                  ")\") ")
-                    return False
-
-                classdata[name] = value
-                if overwritedata is not None:
-                    overwritedata[name] = value
-
-                return True
-
+                else:
+                    classdata[key] = val
+                    if overwritedata is not None:
+                        overwritedata[key] = val
+                    status = True
             else:
                 raise ModelicaSystemError("Unhandled case in setMethodHelper.apply_single() - "
-                                          f"{repr(name)} is not a {repr(datatype)} variable")
+                                          f"{repr(key)} is not a {repr(datatype)} variable")
 
-        result = []
-        if isinstance(inputdata, str):
-            result = [apply_single(inputdata)]
+            inputdata_status[key] = status
 
-        elif isinstance(inputdata, list):
-            result = []
-            inputdata = self._strip_space(inputdata)
-            for var in inputdata:
-                result.append(apply_single(var))
-
-        return all(result)
+        return all(inputdata_status.values())
 
     def isParameterChangeable(
             self,
@@ -1250,11 +1233,14 @@ class ModelicaSystem:
         This method is used to set continuous values. It can be called:
         with a sequence of continuous name and assigning corresponding values as arguments as show in the example below:
         usage
-        >>> setContinuous("Name=value")
-        >>> setContinuous(["Name1=value1","Name2=value2"])
+        >>> setContinuous("Name=value")  # depreciated
+        >>> setContinuous(["Name1=value1","Name2=value2"])  # depreciated
+        >>> setContinuous(cvals={"Name1": "value1", "Name2": "value2"})
         """
-        return self._setMethodHelper(
-            inputdata=cvals,
+        inputdata = self._prepare_inputdata(rawinput=cvals)
+
+        return self._set_method_helper(
+            inputdata=inputdata,
             classdata=self.continuouslist,
             datatype="continuous",
             overwritedata=self.overridevariables)
@@ -1267,11 +1253,14 @@ class ModelicaSystem:
         This method is used to set parameter values. It can be called:
         with a sequence of parameter name and assigning corresponding value as arguments as show in the example below:
         usage
-        >>> setParameters("Name=value")
-        >>> setParameters(["Name1=value1","Name2=value2"])
+        >>> setParameters("Name=value")  # depreciated
+        >>> setParameters(["Name1=value1","Name2=value2"])  # depreciated
+        >>> setParameters(pvals={"Name1": "value1", "Name2": "value2"})
         """
-        return self._setMethodHelper(
-            inputdata=pvals,
+        inputdata = self._prepare_inputdata(rawinput=pvals)
+
+        return self._set_method_helper(
+            inputdata=inputdata,
             classdata=self.paramlist,
             datatype="parameter",
             overwritedata=self.overridevariables)
@@ -1284,11 +1273,14 @@ class ModelicaSystem:
         This method is used to set simulation options. It can be called:
         with a sequence of simulation options name and assigning corresponding values as arguments as show in the example below:
         usage
-        >>> setSimulationOptions("Name=value")
-        >>> setSimulationOptions(["Name1=value1","Name2=value2"])
+        >>> setSimulationOptions("Name=value")  # depreciated
+        >>> setSimulationOptions(["Name1=value1","Name2=value2"])  # depreciated
+        >>> setSimulationOptions(simOptions={"Name1": "value1", "Name2": "value2"})
         """
-        return _self.setMethodHelper(
-            inputdata=simOptions,
+        inputdata = self._prepare_inputdata(rawinput=simOptions)
+
+        return self._set_method_helper(
+            inputdata=inputdata,
             classdata=self.simulateOptions,
             datatype="simulation-option",
             overwritedata=self.simoptionsoverride)
@@ -1301,11 +1293,14 @@ class ModelicaSystem:
         This method is used to set linearization options. It can be called:
         with a sequence of linearization options name and assigning corresponding value as arguments as show in the example below
         usage
-        >>> setLinearizationOptions("Name=value")
-        >>> setLinearizationOptions(["Name1=value1","Name2=value2"])
+        >>> setLinearizationOptions("Name=value")  # depreciated
+        >>> setLinearizationOptions(["Name1=value1","Name2=value2"])  # depreciated
+        >>> setLinearizationOptions(linearizationOtions={"Name1": "value1", "Name2": "value2"})
         """
-        return self._setMethodHelper(
-            inputdata=linearizationOptions,
+        inputdata = self._prepare_inputdata(rawinput=linearizationOptions)
+
+        return self._set_method_helper(
+            inputdata=inputdata,
             classdata=self.linearOptions,
             datatype="Linearization-option",
             overwritedata=None)
@@ -1315,11 +1310,14 @@ class ModelicaSystem:
         This method is used to set optimization options. It can be called:
         with a sequence of optimization options name and assigning corresponding values as arguments as show in the example below:
         usage
-        >>> setOptimizationOptions("Name=value")
-        >>> setOptimizationOptions(["Name1=value1","Name2=value2"])
+        >>> setOptimizationOptions("Name=value")  # depreciated
+        >>> setOptimizationOptions(["Name1=value1","Name2=value2"])  # depreciated
+        >>> setOptimizationOptions(optimizationOptions={"Name1": "value1", "Name2": "value2"})
         """
-        return self._setMethodHelper(
-            inputdata=optimizationOptions,
+        inputdata = self._prepare_inputdata(rawinput=optimizationOptions)
+
+        return self._set_method_helper(
+            inputdata=inputdata,
             classdata=self.optimizeOptions,
             datatype="optimization-option",
             overwritedata=None)
@@ -1332,9 +1330,12 @@ class ModelicaSystem:
         This method is used to set input values. It can be called:
         with a sequence of input name and assigning corresponding values as arguments as show in the example below:
         usage
-        >>> setInputs("Name=value")
-        >>> setInputs(["Name1=value1","Name2=value2"])
+        >>> setInputs("Name=value")  # depreciated
+        >>> setInputs(["Name1=value1","Name2=value2"])  # depreciated
+        >>> setInputs(name={"Name1": "value1", "Name2": "value2"})
         """
+        # inputdata = self._prepare_inputdata(rawinput=name)
+
         if isinstance(name, str):
             name1: str = name
             name1 = name1.replace(" ", "")
