@@ -1401,7 +1401,7 @@ class ModelicaSystem:
             interpolated_inputs[signal_name] = np.interp(
                 all_times,
                 signal[:, 0],  # times
-                signal[:, 1]  # values
+                signal[:, 1],  # values
             )
 
         # Write CSV file
@@ -1413,7 +1413,7 @@ class ModelicaSystem:
             row = [
                 t,  # time
                 *(interpolated_inputs[name][i] for name in input_names),  # input values
-                0  # trailing 'end' column
+                0,  # trailing 'end' column
             ]
             csv_rows.append(row)
 
