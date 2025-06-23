@@ -62,7 +62,7 @@ end Pendulum;
     assert "startTime" in d
     assert "stopTime" in d
     assert mod.getLinearizationOptions(["stopTime", "startTime"]) == [d["stopTime"], d["startTime"]]
-    mod.setLinearizationOptions("stopTime=0.02")
+    mod.setLinearizationOptions(linearizationOptions={"stopTime": 0.02})
     assert mod.getLinearizationOptions("stopTime") == ["0.02"]
 
     mod.setInputs(["u1=10", "u2=0"])
