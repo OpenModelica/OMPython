@@ -167,6 +167,15 @@ class ModelicaSystemCmd:
                            f"(was: {repr(self._args[key])})")
         self._args[key] = argval
 
+    def arg_get(self, key: str) -> Optional[str | dict]:
+        """
+        Return the value for the given key
+        """
+        if key in self._args:
+            return self._args[key]
+
+        return None
+
     def args_set(self, args: dict[str, Optional[str | dict[str, str]]]) -> None:
         """
         Define arguments for the model executable.
