@@ -1159,7 +1159,9 @@ class ModelicaSystem:
 
         if isinstance(raw_input, dict):
             for key, val in raw_input.items():
-                str_val = str(val)
+                # convert all values to strings to align it on one type: dict[str, str]
+                # spaces have to be removed as setInput() could take list of tuples as input and spaces would
+                str_val = str(val).replace(' ', '')
                 if ' ' in key or ' ' in str_val:
                     raise ModelicaSystemError(f"Spaces not allowed in key/value pairs: {repr(key)} = {repr(val)}!")
                 input_data[key] = str_val
@@ -1334,9 +1336,11 @@ class ModelicaSystem:
             name: str | list[str] | dict[str, Any],
     ) -> bool:
         """
-        This method is used to set input values. It can be called:
-        with a sequence of input name and assigning corresponding values as arguments as show in the example below:
-        usage
+        This method is used to set input values. It can be called with a sequence of input name and assigning
+        corresponding values as arguments as show in the example below. Compared to other set*() methods this is a
+        special case as value could be a list of tuples - these are converted to a string in _prepare_input_data()
+        and restored here via ast.literal_eval().
+
         >>> setInputs("Name=value")  # depreciated
         >>> setInputs(["Name1=value1","Name2=value2"])  # depreciated
         >>> setInputs(name={"Name1": "value1", "Name2": "value2"})
@@ -1345,7 +1349,11 @@ class ModelicaSystem:
 
         for key, val in inputdata.items():
             if key in self._inputs:
+                if not isinstance(val, str):
+                    raise ModelicaSystemError(f"Invalid data in input for {repr(key)}: {repr(val)}")
+
                 val_evaluated = ast.literal_eval(val)
+
                 if isinstance(val_evaluated, (int, float)):
                     self._inputs[key] = [(float(self._simulate_options["startTime"]), float(val)),
                                          (float(self._simulate_options["stopTime"]), float(val))]
