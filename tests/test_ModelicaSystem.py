@@ -357,7 +357,7 @@ end M_input;
     assert np.isclose(y[-1], 0.0)
 
     # integrate a constant
-    mod.setInputs("u1=2.5")
+    mod.setInputs(name={"u1": 2.5})
     assert mod.getInputs() == {
         "u1": [
             (0.0, 2.5),
@@ -370,7 +370,7 @@ end M_input;
     assert np.isclose(y[-1], 2.5)
 
     # now let's integrate the sum of two ramps
-    mod.setInputs("u1=[(0.0, 0.0), (0.5, 2), (1.0, 0)]")
+    mod.setInputs(name={"u1": [(0.0, 0.0), (0.5, 2), (1.0, 0)]})
     assert mod.getInputs("u1") == [[
         (0.0, 0.0),
         (0.5, 2.0),
@@ -383,19 +383,17 @@ end M_input;
     # let's try some edge cases
     # unmatched startTime
     with pytest.raises(OMPython.ModelicaSystemError):
-        mod.setInputs("u1=[(-0.5, 0.0), (1.0, 1)]")
+        mod.setInputs(name={"u1": [(-0.5, 0.0), (1.0, 1)]})
         mod.simulate()
     # unmatched stopTime
     with pytest.raises(OMPython.ModelicaSystemError):
-        mod.setInputs("u1=[(0.0, 0.0), (0.5, 1)]")
+        mod.setInputs(name={"u1": [(0.0, 0.0), (0.5, 1)]})
         mod.simulate()
 
     # Let's use both inputs, but each one with different number of of
     # samples. This has an effect when generating the csv file.
-    mod.setInputs([
-        "u1=[(0.0, 0), (1.0, 1)]",
-        "u2=[(0.0, 0), (0.25, 0.5), (0.5, 1.0), (1.0, 0)]",
-    ])
+    mod.setInputs(name={"u1": [(0.0, 0), (1.0, 1)],
+                        "u2": [(0.0, 0), (0.25, 0.5), (0.5, 1.0), (1.0, 0)]})
     csv_file = mod._createCSVData()
     assert pathlib.Path(csv_file).read_text() == """time,u1,u2,end
 0.0,0.0,0.0,0
