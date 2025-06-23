@@ -994,7 +994,7 @@ class ModelicaSystem:
 
     @staticmethod
     def _prepare_input_data(
-            raw_input: str | list[str] | dict[str, str | int | float],
+            raw_input: str | list[str] | dict[str, Any],
     ) -> dict[str, str]:
         """
         Convert raw input to a structured dictionary {'key1': 'value1', 'key2': 'value2'}.
@@ -1104,7 +1104,7 @@ class ModelicaSystem:
             return False
         return True
 
-    def setContinuous(self, cvals: str | list[str] | dict[str, str | int | float]) -> bool:
+    def setContinuous(self, cvals: str | list[str] | dict[str, Any]) -> bool:
         """
         This method is used to set continuous values. It can be called:
         with a sequence of continuous name and assigning corresponding values as arguments as show in the example below:
@@ -1121,7 +1121,7 @@ class ModelicaSystem:
             datatype="continuous",
             overwritedata=self.overridevariables)
 
-    def setParameters(self, pvals: str | list[str] | dict[str, str | int | float]) -> bool:
+    def setParameters(self, pvals: str | list[str] | dict[str, Any]) -> bool:
         """
         This method is used to set parameter values. It can be called:
         with a sequence of parameter name and assigning corresponding value as arguments as show in the example below:
@@ -1138,7 +1138,7 @@ class ModelicaSystem:
             datatype="parameter",
             overwritedata=self.overridevariables)
 
-    def setSimulationOptions(self, simOptions: str | list[str] | dict[str, str | int | float]) -> bool:
+    def setSimulationOptions(self, simOptions: str | list[str] | dict[str, Any]) -> bool:
         """
         This method is used to set simulation options. It can be called:
         with a sequence of simulation options name and assigning corresponding values as arguments as show in the example below:
@@ -1155,7 +1155,7 @@ class ModelicaSystem:
             datatype="simulation-option",
             overwritedata=self.simoptionsoverride)
 
-    def setLinearizationOptions(self, linearizationOptions: str | list[str] | dict[str, str | int | float]) -> bool:
+    def setLinearizationOptions(self, linearizationOptions: str | list[str] | dict[str, Any]) -> bool:
         """
         This method is used to set linearization options. It can be called:
         with a sequence of linearization options name and assigning corresponding value as arguments as show in the example below
@@ -1172,7 +1172,7 @@ class ModelicaSystem:
             datatype="Linearization-option",
             overwritedata=None)
 
-    def setOptimizationOptions(self, optimizationOptions: str | list[str] | dict[str, str | int | float]) -> bool:
+    def setOptimizationOptions(self, optimizationOptions: str | list[str] | dict[str, Any]) -> bool:
         """
         This method is used to set optimization options. It can be called:
         with a sequence of optimization options name and assigning corresponding values as arguments as show in the example below:
@@ -1189,7 +1189,7 @@ class ModelicaSystem:
             datatype="optimization-option",
             overwritedata=None)
 
-    def setInputs(self, name: str | list[str] | dict[str, str | int | float]) -> bool:
+    def setInputs(self, name: str | list[str] | dict[str, Any]) -> bool:
         """
         This method is used to set input values. It can be called:
         with a sequence of input name and assigning corresponding values as arguments as show in the example below:
