@@ -985,8 +985,8 @@ class ModelicaSystem:
         raise ModelicaSystemError("Unhandled input for getSolutions()")
 
     @staticmethod
-    def _prepare_inputdata(
-            rawinput: str | list[str] | dict[str, str | int | float],
+    def _prepare_input_data(
+            raw_input: str | list[str] | dict[str, str | int | float],
     ) -> dict[str, str]:
         """
         Convert raw input to a structured dictionary {'key1': 'value1', 'key2': 'value2'}.
@@ -1004,28 +1004,28 @@ class ModelicaSystem:
 
         input_data: dict[str, str] = {}
 
-        if isinstance(rawinput, str):
+        if isinstance(raw_input, str):
             warnings.warn(message="The definition of values to set should use a dictionary, "
                                   "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
                                   "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
                           category=DeprecationWarning,
                           stacklevel=3)
-            return prepare_str(rawinput)
+            return prepare_str(raw_input)
 
-        if isinstance(rawinput, list):
+        if isinstance(raw_input, list):
             warnings.warn(message="The definition of values to set should use a dictionary, "
                                   "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
                                   "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
                           category=DeprecationWarning,
                           stacklevel=3)
 
-            for item in rawinput:
+            for item in raw_input:
                 input_data |= prepare_str(item)
 
             return input_data
 
-        if isinstance(rawinput, dict):
-            for key, val in rawinput.items():
+        if isinstance(raw_input, dict):
+            for key, val in raw_input.items():
                 str_val = str(val)
                 if ' ' in key or ' ' in str_val:
                     raise ModelicaSystemError(f"Spaces not allowed in key/value pairs: {repr(key)} = {repr(val)}!")
@@ -1033,7 +1033,7 @@ class ModelicaSystem:
 
             return input_data
 
-        raise ModelicaSystemError(f"Invalid type of input: {type(rawinput)}")
+        raise ModelicaSystemError(f"Invalid type of input: {type(raw_input)}")
 
     def _set_method_helper(
             self,
@@ -1105,7 +1105,7 @@ class ModelicaSystem:
         >>> setContinuous(["Name1=value1","Name2=value2"])  # depreciated
         >>> setContinuous(cvals={"Name1": "value1", "Name2": "value2"})
         """
-        inputdata = self._prepare_inputdata(rawinput=cvals)
+        inputdata = self._prepare_input_data(raw_input=cvals)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1122,7 +1122,7 @@ class ModelicaSystem:
         >>> setParameters(["Name1=value1","Name2=value2"])  # depreciated
         >>> setParameters(pvals={"Name1": "value1", "Name2": "value2"})
         """
-        inputdata = self._prepare_inputdata(rawinput=pvals)
+        inputdata = self._prepare_input_data(raw_input=pvals)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1139,7 +1139,7 @@ class ModelicaSystem:
         >>> setSimulationOptions(["Name1=value1","Name2=value2"])  # depreciated
         >>> setSimulationOptions(simOptions={"Name1": "value1", "Name2": "value2"})
         """
-        inputdata = self._prepare_inputdata(rawinput=simOptions)
+        inputdata = self._prepare_input_data(raw_input=simOptions)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1156,7 +1156,7 @@ class ModelicaSystem:
         >>> setLinearizationOptions(["Name1=value1","Name2=value2"])  # depreciated
         >>> setLinearizationOptions(linearizationOtions={"Name1": "value1", "Name2": "value2"})
         """
-        inputdata = self._prepare_inputdata(rawinput=linearizationOptions)
+        inputdata = self._prepare_input_data(raw_input=linearizationOptions)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1173,7 +1173,7 @@ class ModelicaSystem:
         >>> setOptimizationOptions(["Name1=value1","Name2=value2"])  # depreciated
         >>> setOptimizationOptions(optimizationOptions={"Name1": "value1", "Name2": "value2"})
         """
-        inputdata = self._prepare_inputdata(rawinput=optimizationOptions)
+        inputdata = self._prepare_input_data(raw_input=optimizationOptions)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1190,7 +1190,7 @@ class ModelicaSystem:
         >>> setInputs(["Name1=value1","Name2=value2"])  # depreciated
         >>> setInputs(name={"Name1": "value1", "Name2": "value2"})
         """
-        # inputdata = self._prepare_inputdata(rawinput=name)
+        # inputdata = self._prepare_input_data(raw_input=name)
 
         if isinstance(name, str):
             name1: str = name
