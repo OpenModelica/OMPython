@@ -32,6 +32,7 @@ __license__ = """
  CONDITIONS OF OSMC-PL.
 """
 
+import ast
 import csv
 from dataclasses import dataclass
 import importlib
@@ -1197,56 +1198,36 @@ class ModelicaSystem:
         >>> setInputs(["Name1=value1","Name2=value2"])  # depreciated
         >>> setInputs(name={"Name1": "value1", "Name2": "value2"})
         """
-        # inputdata = self._prepare_input_data(raw_input=name)
+        inputdata = self._prepare_input_data(raw_input=name)
 
-        if isinstance(name, str):
-            name1: str = name
-            name1 = name1.replace(" ", "")
-            value1 = name1.split("=")
-            if value1[0] in self.inputlist:
-                tmpvalue = eval(value1[1])
-                if isinstance(tmpvalue, (int, float)):
-                    self.inputlist[value1[0]] = [(float(self.simulateOptions["startTime"]), float(value1[1])),
-                                                 (float(self.simulateOptions["stopTime"]), float(value1[1]))]
-                elif isinstance(tmpvalue, list):
-                    self.checkValidInputs(tmpvalue)
-                    self.inputlist[value1[0]] = tmpvalue
+        for key, val in inputdata.items():
+            if key in self.inputlist:
+                val_evaluated = ast.literal_eval(val)
+                if isinstance(val_evaluated, (int, float)):
+                    self.inputlist[key] = [(float(self.simulateOptions["startTime"]), float(val)),
+                                           (float(self.simulateOptions["stopTime"]), float(val))]
+                elif isinstance(val_evaluated, list):
+                    if not all([isinstance(item, tuple) for item in val_evaluated]):
+                        raise ModelicaSystemError("Value for setInput() must be in tuple format; "
+                                                  f"got {repr(val_evaluated)}")
+                    if val_evaluated != sorted(val_evaluated, key=lambda x: x[0]):
+                        raise ModelicaSystemError("Time value should be in increasing order; "
+                                                  f"got {repr(val_evaluated)}")
+
+                    for item in val_evaluated:
+                        if item[0] < float(self.simulateOptions["startTime"]):
+                            raise ModelicaSystemError(f"Time value in {repr(item)} of {repr(val_evaluated)} is less "
+                                                      "than the simulation start time")
+                        if len(item) != 2:
+                            raise ModelicaSystemError(f"Value {repr(item)} of {repr(val_evaluated)} "
+                                                      "is in incorrect format!")
+
+                    self.inputlist[key] = val_evaluated
                 self.inputFlag = True
             else:
-                raise ModelicaSystemError(f"{value1[0]} is not an input")
-        elif isinstance(name, list):
-            name_list: list[str] = name
-            for name2 in name_list:
-                name2 = name2.replace(" ", "")
-                value2 = name2.split("=")
-                if value2[0] in self.inputlist:
-                    tmpvalue = eval(value2[1])
-                    if isinstance(tmpvalue, (int, float)):
-                        self.inputlist[value2[0]] = [(float(self.simulateOptions["startTime"]), float(value2[1])),
-                                                     (float(self.simulateOptions["stopTime"]), float(value2[1]))]
-                    elif isinstance(tmpvalue, list):
-                        self.checkValidInputs(tmpvalue)
-                        self.inputlist[value2[0]] = tmpvalue
-                    self.inputFlag = True
-                else:
-                    raise ModelicaSystemError(f"{value2[0]} is not an input!")
-        elif isinstance(name, dict):
-            raise NotImplementedError("Must be defined!")
+                raise ModelicaSystemError(f"{key} is not an input")
 
         return True
-
-    def checkValidInputs(self, name):
-        if name != sorted(name, key=lambda x: x[0]):
-            raise ModelicaSystemError('Time value should be in increasing order')
-        for l in name:
-            if isinstance(l, tuple):
-                # if l[0] < float(self.simValuesList[0]):
-                if l[0] < float(self.simulateOptions["startTime"]):
-                    raise ModelicaSystemError('Input time value is less than simulation startTime')
-                if len(l) != 2:
-                    raise ModelicaSystemError(f'Value for {l} is in incorrect format!')
-            else:
-                raise ModelicaSystemError('Error!!! Value must be in tuple format')
 
     def createCSVData(self) -> pathlib.Path:
         start_time: float = float(self.simulateOptions["startTime"])
