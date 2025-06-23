@@ -1091,7 +1091,7 @@ class ModelicaSystem:
     def isParameterChangeable(
             self,
             name: str,
-    ):
+    ) -> bool:
         q = self.getQuantities(name)
         if q[0]["changeable"] == "false":
             return False
