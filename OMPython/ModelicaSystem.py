@@ -34,12 +34,16 @@ __license__ = """
 
 import ast
 from dataclasses import dataclass
+import itertools
 import logging
 import numbers
 import numpy as np
 import os
+import pandas as pd
+import queue
 import textwrap
-from typing import Optional, Any
+import threading
+from typing import Any, Optional
 import warnings
 import xml.etree.ElementTree as ET
 
@@ -1791,3 +1795,233 @@ class ModelicaSystem:
     def getLinearStates(self) -> list[str]:
         """Get names of state variables of the linearized model."""
         return self._linearized_states
+
+
+class ModelicaSystemDoE:
+    def __init__(
+            self,
+            fileName: Optional[str | os.PathLike | pathlib.Path] = None,
+            modelName: Optional[str] = None,
+            lmodel: Optional[list[str | tuple[str, str]]] = None,
+            commandLineOptions: Optional[str] = None,
+            variableFilter: Optional[str] = None,
+            customBuildDirectory: Optional[str | os.PathLike | pathlib.Path] = None,
+            omhome: Optional[str] = None,
+
+            simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
+            timeout: Optional[int] = None,
+
+            resultpath: Optional[pathlib.Path] = None,
+            parameters: Optional[dict[str, list[str] | list[int] | list[float]]] = None,
+    ) -> None:
+        self._lmodel = lmodel
+        self._modelName = modelName
+        self._fileName = fileName
+
+        self._CommandLineOptions = commandLineOptions
+        self._variableFilter = variableFilter
+        self._customBuildDirectory = customBuildDirectory
+        self._omhome = omhome
+
+        # reference for the model; not used for any simulations but to evaluate parameters, etc.
+        self._mod = ModelicaSystem(
+            fileName=self._fileName,
+            modelName=self._modelName,
+            lmodel=self._lmodel,
+            commandLineOptions=self._CommandLineOptions,
+            variableFilter=self._variableFilter,
+            customBuildDirectory=self._customBuildDirectory,
+            omhome=self._omhome,
+        )
+
+        self._simargs = simargs
+        self._timeout = timeout
+
+        if isinstance(resultpath, pathlib.Path):
+            self._resultpath = resultpath
+        else:
+            self._resultpath = pathlib.Path('.')
+
+        if isinstance(parameters, dict):
+            self._parameters = parameters
+        else:
+            self._parameters = {}
+
+        self._sim_df: Optional[pd.DataFrame] = None
+        self._sim_task_query: queue.Queue = queue.Queue()
+
+    def prepare(self) -> int:
+
+        param_structure = {}
+        param_simple = {}
+        for param_name in self._parameters.keys():
+            changeable = self._mod.isParameterChangeable(name=param_name)
+            logger.info(f"Parameter {repr(param_name)} is changeable? {changeable}")
+
+            if changeable:
+                param_simple[param_name] = self._parameters[param_name]
+            else:
+                param_structure[param_name] = self._parameters[param_name]
+
+        param_structure_combinations = list(itertools.product(*param_structure.values()))
+        param_simple_combinations = list(itertools.product(*param_simple.values()))
+
+        df_entries: list[pd.DataFrame] = []
+        for idx_pc_structure, pc_structure in enumerate(param_structure_combinations):
+            mod_structure = ModelicaSystem(
+                fileName=self._fileName,
+                modelName=self._modelName,
+                lmodel=self._lmodel,
+                commandLineOptions=self._CommandLineOptions,
+                variableFilter=self._variableFilter,
+                customBuildDirectory=self._customBuildDirectory,
+                omhome=self._omhome,
+            )
+
+            sim_args_structure = {}
+            for idx_structure, pk_structure in enumerate(param_structure.keys()):
+                sim_args_structure[pk_structure] = pc_structure[idx_structure]
+
+                pk_value = pc_structure[idx_structure]
+                if isinstance(pk_value, str):
+                    expression = f"setParameterValue({self._modelName}, {pk_structure}, $Code(=\"{pk_value}\"))"
+                elif isinstance(pk_value, bool):
+                    pk_value_bool_str = "true" if pk_value else "false"
+                    expression = f"setParameterValue({self._modelName}, {pk_structure}, $Code(={pk_value_bool_str}));"
+                else:
+                    expression = f"setParameterValue({self._modelName}, {pk_structure}, {pk_value})"
+                mod_structure.sendExpression(expression)
+
+            for idx_pc_simple, pc_simple in enumerate(param_simple_combinations):
+                sim_args_simple = {}
+                for idx_simple, pk_simple in enumerate(param_simple.keys()):
+                    sim_args_simple[pk_simple] = str(pc_simple[idx_simple])
+
+                resfilename = f"DOE_{idx_pc_structure:09d}_{idx_pc_simple:09d}.mat"
+                logger.info(f"use result file {repr(resfilename)} "
+                            f"for structural parameters: {sim_args_structure} "
+                            f"and simple parameters: {sim_args_simple}")
+                resultfile = self._resultpath / resfilename
+
+                df_data = (
+                        {
+                            'ID structure': idx_pc_structure,
+                            'ID simple': idx_pc_simple,
+                            'resulfilename': resfilename,
+                            'structural parameters ID': idx_pc_structure,
+                        }
+                        | sim_args_structure
+                        | {
+                            'non-structural parameters ID': idx_pc_simple,
+                        }
+                        | sim_args_simple
+                        | {
+                            'results available': False,
+                        }
+                )
+
+                df_entries.append(pd.DataFrame.from_dict(df_data))
+
+                cmd = mod_structure.simulate_cmd(
+                    resultfile=resultfile.absolute().resolve(),
+                    simargs={"override": sim_args_simple},
+                )
+
+                self._sim_task_query.put(cmd)
+
+        self._sim_df = pd.concat(df_entries, ignore_index=True)
+
+        logger.info(f"Prepared {self._sim_df.shape[0]} simulation definitions for the defined DoE.")
+
+        return self._sim_df.shape[0]
+
+    def get_doe(self) -> Optional[pd.DataFrame]:
+        return self._sim_df
+
+    def simulate(self, num_workers: int = 3) -> None:
+
+        sim_count_total = self._sim_task_query.qsize()
+
+        def worker(worker_id, task_queue):
+            while True:
+                sim_data = {}
+                try:
+                    # Get the next task from the queue
+                    cmd: ModelicaSystemCmd = task_queue.get(block=False)
+                except queue.Empty:
+                    logger.info(f"[Worker {worker_id}] No more simulations to run.")
+                    break
+
+                resultfile = cmd.arg_get(key='r')
+                resultpath = pathlib.Path(resultfile)
+
+                logger.info(f"[Worker {worker_id}] Performing task: {resultpath.name}")
+
+                try:
+                    sim_data['sim'].run()
+                except ModelicaSystemError as ex:
+                    logger.warning(f"Simulation error for {resultpath.name}: {ex}")
+
+                # Mark the task as done
+                task_queue.task_done()
+
+                sim_count_done = sim_count_total - self._sim_task_query.qsize()
+                logger.info(f"[Worker {worker_id}] Task completed: {resultpath.name} "
+                            f"({sim_count_done}/{sim_count_total} = "
+                            f"{sim_count_done / sim_count_total * 100:.2f}% of tasks left)")
+
+        logger.info(f"Start simulations for DoE with {sim_count_total} simulations "
+                    f"using {num_workers} workers ...")
+
+        # Create and start worker threads
+        threads = []
+        for i in range(num_workers):
+            thread = threading.Thread(target=worker, args=(i, self._sim_task_query))
+            thread.start()
+            threads.append(thread)
+
+        # Wait for all threads to complete
+        for thread in threads:
+            thread.join()
+
+        for idx, row in self._sim_df.to_dict('index').items():
+            resultfilename = row['resultfilename']
+            resultfile = self._resultpath / resultfilename
+
+            if resultfile.exists():
+                self._sim_df.loc[idx, 'results available'] = True
+
+        sim_total = self._sim_df.shape[0]
+        sim_done = self._sim_df['results available'].sum()
+        logger.info(f"All workers finished ({sim_done} of {sim_total} simulations with a result file).")
+
+    def get_solutions(
+            self,
+            var_list: Optional[list] = None,
+    ) -> Optional[tuple[str] | dict[str, pd.DataFrame | str]]:
+        if self._sim_df is None:
+            return None
+
+        if self._sim_df.shape[0] == 0 or self._sim_df['results available'].sum() == 0:
+            raise ModelicaSystemError("No result files available - all simulations did fail?")
+
+        if var_list is None:
+            resultfilename = self._sim_df['resultfilename'].values[0]
+            resultfile = self._resultpath / resultfilename
+            return self._mod.getSolutions(resultfile=resultfile)
+
+        sol_dict: dict[str, pd.DataFrame | str] = {}
+        for row in self._sim_df.to_dict('records'):
+            resultfilename = row['resultfilename']
+            resultfile = self._resultpath / resultfilename
+
+            try:
+                sol = self._mod.getSolutions(varList=var_list, resultfile=resultfile)
+                sol_data = {var: sol[idx] for idx, var in var_list}
+                sol_df = pd.DataFrame(sol_data)
+                sol_dict[resultfilename] = sol_df
+            except ModelicaSystemError as ex:
+                logger.warning(f"No solution for {resultfilename}: {ex}")
+                sol_dict[resultfilename] = str(ex)
+
+        return sol_dict
