@@ -476,14 +476,14 @@ class ModelicaSystem:
         if customBuildDirectory is not None:
             if not os.path.exists(customBuildDirectory):
                 raise IOError(f"{customBuildDirectory} does not exist")
-            tempdir = pathlib.Path(customBuildDirectory)
+            tempdir = pathlib.Path(customBuildDirectory).absolute()
         else:
-            tempdir = pathlib.Path(tempfile.mkdtemp())
+            tempdir = pathlib.Path(tempfile.mkdtemp()).absolute()
             if not tempdir.is_dir():
                 raise IOError(f"{tempdir} could not be created")
 
         logger.info("Define tempdir as %s", tempdir)
-        exp = f'cd("{tempdir.absolute().as_posix()}")'
+        exp = f'cd("{tempdir.as_posix()}")'
         self.sendExpression(exp)
 
         return tempdir
