@@ -1968,44 +1968,53 @@ class ModelicaSystemDoE:
         """
         return self._sim_df
 
-    def simulate(self, num_workers: int = 3) -> None:
+    def simulate(
+            self,
+            num_workers: int = 3,
+    ) -> bool:
         """
         Simulate the DoE using the defined number of workers.
 
         Returns True if all simulations were done successfully, else False.
         """
 
-        sim_count_total = self._sim_task_query.qsize()
+        sim_query_total = self._sim_task_query.qsize()
+        if not isinstance(self._sim_df, pd.DataFrame):
+            raise ModelicaSystemError("Missing Doe Summary!")
+        sim_df_total = self._sim_df.shape[0]
 
         def worker(worker_id, task_queue):
             while True:
-                sim_data = {}
+                mscmd: Optional[ModelicaSystemCmd] = None
                 try:
                     # Get the next task from the queue
-                    cmd: ModelicaSystemCmd = task_queue.get(block=False)
+                    mscmd = task_queue.get(block=False)
                 except queue.Empty:
                     logger.info(f"[Worker {worker_id}] No more simulations to run.")
                     break
 
-                resultfile = cmd.arg_get(key='r')
+                if mscmd is None:
+                    raise ModelicaSystemError("Missing simulation definition!")
+
+                resultfile = mscmd.arg_get(key='r')
                 resultpath = pathlib.Path(resultfile)
 
                 logger.info(f"[Worker {worker_id}] Performing task: {resultpath.name}")
 
                 try:
-                    sim_data['sim'].run()
+                    mscmd.run()
                 except ModelicaSystemError as ex:
                     logger.warning(f"Simulation error for {resultpath.name}: {ex}")
 
                 # Mark the task as done
                 task_queue.task_done()
 
-                sim_count_done = sim_count_total - self._sim_task_query.qsize()
+                sim_query_done = sim_query_total - self._sim_task_query.qsize()
                 logger.info(f"[Worker {worker_id}] Task completed: {resultpath.name} "
-                            f"({sim_count_done}/{sim_count_total} = "
-                            f"{sim_count_done / sim_count_total * 100:.2f}% of tasks left)")
+                            f"({sim_query_done}/{sim_query_total} = "
+                            f"{sim_query_done / sim_query_total * 100:.2f}% of tasks left)")
 
-        logger.info(f"Start simulations for DoE with {sim_count_total} simulations "
+        logger.info(f"Start simulations for DoE with {sim_query_total} simulations "
                     f"using {num_workers} workers ...")
 
         # Create and start worker threads
