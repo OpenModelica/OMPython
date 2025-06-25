@@ -59,7 +59,7 @@ def test_ModelicaSystemDoE(tmp_path, model_doe, param_doe):
     assert df_doe['results available'].sum() == 16
 
     for row in df_doe.to_dict('records'):
-        resultfilename = row[mod_doe.DF_COLUMNS_RESULTFILENAME]
+        resultfilename = row[mod_doe.DF_COLUMNS_RESULT_FILENAME]
         resultfile = mod_doe._resultpath / resultfilename
 
         var_dict = {
