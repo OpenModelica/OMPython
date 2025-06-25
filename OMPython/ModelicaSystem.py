@@ -2028,7 +2028,7 @@ class ModelicaSystemDoE:
         for thread in threads:
             thread.join()
 
-        for idx, row in self._sim_df.to_dict('index').items():
+        for row in self._sim_df.to_dict('records'):
             resultfilename = row[self.DF_COLUMNS_RESULTFILENAME]
             resultfile = self._resultpath / resultfilename
 
@@ -2036,9 +2036,10 @@ class ModelicaSystemDoE:
                 mask = self._sim_df[self.DF_COLUMNS_RESULTFILENAME] == resultfilename
                 self._sim_df.loc[mask, self.DF_COLUMNS_RESULTS_AVAILABLE] = True
 
-        sim_done = self._sim_df[self.DF_COLUMNS_RESULTS_AVAILABLE].sum()
-        sim_total = self._sim_df.shape[0]
-        logger.info(f"All workers finished ({sim_done} of {sim_total} simulations with a result file).")
+        sim_df_done = self._sim_df[self.DF_COLUMNS_RESULTS_AVAILABLE].sum()
+        logger.info(f"All workers finished ({sim_df_done} of {sim_df_total} simulations with a result file).")
+
+        return sim_df_total == sim_df_done
 
     def get_solutions(
             self,
