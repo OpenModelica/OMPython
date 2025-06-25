@@ -1802,6 +1802,9 @@ class ModelicaSystemDoE:
     Class to run DoEs based on a (Open)Modelica model using ModelicaSystem
     """
 
+    DF_COLUMNS_RESULTFILENAME: str = 'resultfilename'
+    DF_COLUMNS_RESULTS_AVAILABLE: str = 'results available'
+
     def __init__(
             self,
             fileName: Optional[str | os.PathLike | pathlib.Path] = None,
@@ -1922,7 +1925,7 @@ class ModelicaSystemDoE:
                         {
                             'ID structure': idx_pc_structure,
                             'ID simple': idx_pc_simple,
-                            'resulfilename': resfilename,
+                            self.DF_COLUMNS_RESULTFILENAME: resfilename,
                             'structural parameters ID': idx_pc_structure,
                         }
                         | sim_args_structure
@@ -1931,7 +1934,7 @@ class ModelicaSystemDoE:
                         }
                         | sim_args_simple
                         | {
-                            'results available': False,
+                            self.DF_COLUMNS_RESULTS_AVAILABLE: False,
                         }
                 )
 
@@ -2008,14 +2011,15 @@ class ModelicaSystemDoE:
             thread.join()
 
         for idx, row in self._sim_df.to_dict('index').items():
-            resultfilename = row['resultfilename']
+            resultfilename = row[self.DF_COLUMNS_RESULTFILENAME]
             resultfile = self._resultpath / resultfilename
 
             if resultfile.exists():
-                self._sim_df.loc[idx, 'results available'] = True
+                mask = self._sim_df[self.DF_COLUMNS_RESULTFILENAME] == resultfilename
+                self._sim_df.loc[mask, self.DF_COLUMNS_RESULTS_AVAILABLE] = True
 
+        sim_done = self._sim_df[self.DF_COLUMNS_RESULTS_AVAILABLE].sum()
         sim_total = self._sim_df.shape[0]
-        sim_done = self._sim_df['results available'].sum()
         logger.info(f"All workers finished ({sim_done} of {sim_total} simulations with a result file).")
 
     def get_solutions(
@@ -2034,17 +2038,17 @@ class ModelicaSystemDoE:
         if self._sim_df is None:
             return None
 
-        if self._sim_df.shape[0] == 0 or self._sim_df['results available'].sum() == 0:
+        if self._sim_df.shape[0] == 0 or self._sim_df[self.DF_COLUMNS_RESULTS_AVAILABLE].sum() == 0:
             raise ModelicaSystemError("No result files available - all simulations did fail?")
 
         if var_list is None:
-            resultfilename = self._sim_df['resultfilename'].values[0]
+            resultfilename = self._sim_df[self.DF_COLUMNS_RESULTFILENAME].values[0]
             resultfile = self._resultpath / resultfilename
             return self._mod.getSolutions(resultfile=resultfile)
 
         sol_dict: dict[str, pd.DataFrame | str] = {}
         for row in self._sim_df.to_dict('records'):
-            resultfilename = row['resultfilename']
+            resultfilename = row[self.DF_COLUMNS_RESULTFILENAME]
             resultfile = self._resultpath / resultfilename
 
             try:
