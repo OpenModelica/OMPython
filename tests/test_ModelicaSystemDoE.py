@@ -4,11 +4,12 @@ import pandas as pd
 import pathlib
 import pytest
 
+
 @pytest.fixture
 def model_doe(tmp_path: pathlib.Path) -> pathlib.Path:
     # see: https://trac.openmodelica.org/OpenModelica/ticket/4052
     mod = tmp_path / "M.mo"
-    mod.write_text(f"""
+    mod.write_text("""
 model M
   parameter Integer p=1;
   parameter Integer q=1;
