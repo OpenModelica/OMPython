@@ -1800,6 +1800,62 @@ class ModelicaSystem:
 class ModelicaSystemDoE:
     """
     Class to run DoEs based on a (Open)Modelica model using ModelicaSystem
+
+    Example
+    -------
+    ```
+    import OMPython
+    import pathlib
+
+
+    def run_doe():
+        mypath = pathlib.Path('.')
+
+        model = mypath / "M.mo"
+        model.write_text(
+            "    model M\n"
+            "      parameter Integer p=1;\n"
+            "      parameter Integer q=1;\n"
+            "      parameter Real a = -1;\n"
+            "      parameter Real b = -1;\n"
+            "      Real x[p];\n"
+            "      Real y[q];\n"
+            "    equation\n"
+            "      der(x) = a * fill(1.0, p);\n"
+            "      der(y) = b * fill(1.0, q);\n"
+            "    end M;\n"
+        )
+
+        param = {
+            # structural
+            'p': [1, 2],
+            'q': [3, 4],
+            # simple
+            'a': [5, 6],
+            'b': [7, 8],
+        }
+
+        resdir = mypath / 'DoE'
+        resdir.mkdir(exist_ok=True)
+
+        mod_doe = OMPython.ModelicaSystemDoE(
+            fileName=model.as_posix(),
+            modelName="M",
+            parameters=param,
+            resultpath=resdir,
+            simargs={"override": {'stopTime': 1.0}},
+        )
+        mod_doe.prepare()
+        df_doe = mod_doe.get_doe()
+        mod_doe.simulate()
+        var_list = mod_doe.get_solutions()
+        sol_dict = mod_doe.get_solutions(var_list=var_list)
+
+
+    if __name__ == "__main__":
+        run_doe()
+    ```
+
     """
 
     DF_COLUMNS_RESULTFILENAME: str = 'resultfilename'
