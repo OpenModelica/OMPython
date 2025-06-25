@@ -1897,9 +1897,9 @@ class ModelicaSystemDoE:
                 build=False,
             )
 
-            sim_args_structure = {}
+            sim_param_structure = {}
             for idx_structure, pk_structure in enumerate(param_structure.keys()):
-                sim_args_structure[pk_structure] = pc_structure[idx_structure]
+                sim_param_structure[pk_structure] = pc_structure[idx_structure]
 
                 pk_value = pc_structure[idx_structure]
                 if isinstance(pk_value, str):
@@ -1909,19 +1909,22 @@ class ModelicaSystemDoE:
                     expression = f"setParameterValue({self._modelName}, {pk_structure}, $Code(={pk_value_bool_str}));"
                 else:
                     expression = f"setParameterValue({self._modelName}, {pk_structure}, {pk_value})"
-                mod_structure.sendExpression(expression)
+                res = mod_structure.sendExpression(expression)
+                if not res:
+                    raise ModelicaSystemError(f"Cannot set structural parameter {self._modelName}.{pk_structure} "
+                                              f"to {pk_value} using {repr(expression)}")
 
             mod_structure.buildModel(variableFilter=self._variableFilter)
 
             for idx_pc_simple, pc_simple in enumerate(param_simple_combinations):
-                sim_args_simple = {}
+                sim_param_simple = {}
                 for idx_simple, pk_simple in enumerate(param_simple.keys()):
-                    sim_args_simple[pk_simple] = str(pc_simple[idx_simple])
+                    sim_param_simple[pk_simple] = str(pc_simple[idx_simple])
 
                 resfilename = f"DOE_{idx_pc_structure:09d}_{idx_pc_simple:09d}.mat"
                 logger.info(f"use result file {repr(resfilename)} "
-                            f"for structural parameters: {sim_args_structure} "
-                            f"and simple parameters: {sim_args_simple}")
+                            f"for structural parameters: {sim_param_structure} "
+                            f"and simple parameters: {sim_param_simple}")
                 resultfile = self._resultpath / resfilename
 
                 df_data = (
@@ -1931,24 +1934,27 @@ class ModelicaSystemDoE:
                             self.DF_COLUMNS_RESULTFILENAME: resfilename,
                             'structural parameters ID': idx_pc_structure,
                         }
-                        | sim_args_structure
+                        | sim_param_structure
                         | {
                             'non-structural parameters ID': idx_pc_simple,
                         }
-                        | sim_args_simple
+                        | sim_param_simple
                         | {
                             self.DF_COLUMNS_RESULTS_AVAILABLE: False,
                         }
                 )
 
-                df_entries.append(pd.DataFrame.from_dict(df_data))
+                df_entries.append(pd.DataFrame(data=df_data, index=[0]))
 
-                cmd = mod_structure.simulate_cmd(
+                mscmd = mod_structure.simulate_cmd(
                     resultfile=resultfile.absolute().resolve(),
-                    simargs={"override": sim_args_simple},
+                    timeout=self._timeout,
                 )
+                if self._simargs is not None:
+                    mscmd.args_set(args=self._simargs)
+                mscmd.args_set(args={"override": sim_param_simple})
 
-                self._sim_task_query.put(cmd)
+                self._sim_task_query.put(mscmd)
 
         self._sim_df = pd.concat(df_entries, ignore_index=True)
 
