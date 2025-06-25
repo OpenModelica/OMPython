@@ -17,6 +17,7 @@ license = "BSD-3-Clause OR LicenseRef-OSMC-PL-1.2 OR GPL-3.0-only"
 requires-python = ">=3.10"
 dependencies = [
     "numpy",
+    "pandas",
     "psutil",
     "pyparsing",
     "pyzmq",
