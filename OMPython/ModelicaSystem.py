@@ -1798,6 +1798,10 @@ class ModelicaSystem:
 
 
 class ModelicaSystemDoE:
+    """
+    Class to run DoEs based on a (Open)Modelica model using ModelicaSystem
+    """
+
     def __init__(
             self,
             fileName: Optional[str | os.PathLike | pathlib.Path] = None,
@@ -1814,6 +1818,11 @@ class ModelicaSystemDoE:
             resultpath: Optional[pathlib.Path] = None,
             parameters: Optional[dict[str, list[str] | list[int] | list[float]]] = None,
     ) -> None:
+        """
+        Initialisation of ModelicaSystemDoE. The parameters are based on: ModelicaSystem.__init__() and
+        ModelicaSystem.simulate(). Additionally, the path to store the result files is needed (= resultpath) as well as
+        a list of parameters to vary for the Doe (= parameters). All possible combinations are considered.
+        """
         self._lmodel = lmodel
         self._modelName = modelName
         self._fileName = fileName
@@ -1851,6 +1860,12 @@ class ModelicaSystemDoE:
         self._sim_task_query: queue.Queue = queue.Queue()
 
     def prepare(self) -> int:
+        """
+        Prepare the DoE by evaluating the parameters. Each structural parameter requires a new instance of
+        ModelicaSystem while the non-structural parameters can just be set on the executable.
+
+        The return value is the number of simulation defined.
+        """
 
         param_structure = {}
         param_simple = {}
@@ -1936,9 +1951,17 @@ class ModelicaSystemDoE:
         return self._sim_df.shape[0]
 
     def get_doe(self) -> Optional[pd.DataFrame]:
+        """
+        Get the defined Doe as a poandas dataframe.
+        """
         return self._sim_df
 
     def simulate(self, num_workers: int = 3) -> None:
+        """
+        Simulate the DoE using the defined number of workers.
+
+        Returns True if all simulations were done successfully, else False.
+        """
 
         sim_count_total = self._sim_task_query.qsize()
 
@@ -1999,6 +2022,15 @@ class ModelicaSystemDoE:
             self,
             var_list: Optional[list] = None,
     ) -> Optional[tuple[str] | dict[str, pd.DataFrame | str]]:
+        """
+        Get all solutions of the DoE run. The following return values are possible:
+
+        * None, if there no simulation was run
+
+        * A list of variables if val_list == None
+
+        * The Solutions as dict[str, pd.DataFrame] if a value list (== val_list) is defined.
+        """
         if self._sim_df is None:
             return None
 
