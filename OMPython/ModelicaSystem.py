@@ -1894,6 +1894,7 @@ class ModelicaSystemDoE:
                 variableFilter=self._variableFilter,
                 customBuildDirectory=self._customBuildDirectory,
                 omhome=self._omhome,
+                build=False,
             )
 
             sim_args_structure = {}
@@ -1909,6 +1910,8 @@ class ModelicaSystemDoE:
                 else:
                     expression = f"setParameterValue({self._modelName}, {pk_structure}, {pk_value})"
                 mod_structure.sendExpression(expression)
+
+            mod_structure.buildModel(variableFilter=self._variableFilter)
 
             for idx_pc_simple, pc_simple in enumerate(param_simple_combinations):
                 sim_args_simple = {}
