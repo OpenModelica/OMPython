@@ -1348,35 +1348,36 @@ class ModelicaSystem:
         inputdata = self._prepare_input_data(raw_input=name)
 
         for key, val in inputdata.items():
-            if key in self._inputs:
-                if not isinstance(val, str):
-                    raise ModelicaSystemError(f"Invalid data in input for {repr(key)}: {repr(val)}")
-
-                val_evaluated = ast.literal_eval(val)
-
-                if isinstance(val_evaluated, (int, float)):
-                    self._inputs[key] = [(float(self._simulate_options["startTime"]), float(val)),
-                                         (float(self._simulate_options["stopTime"]), float(val))]
-                elif isinstance(val_evaluated, list):
-                    if not all([isinstance(item, tuple) for item in val_evaluated]):
-                        raise ModelicaSystemError("Value for setInput() must be in tuple format; "
-                                                  f"got {repr(val_evaluated)}")
-                    if val_evaluated != sorted(val_evaluated, key=lambda x: x[0]):
-                        raise ModelicaSystemError("Time value should be in increasing order; "
-                                                  f"got {repr(val_evaluated)}")
-
-                    for item in val_evaluated:
-                        if item[0] < float(self._simulate_options["startTime"]):
-                            raise ModelicaSystemError(f"Time value in {repr(item)} of {repr(val_evaluated)} is less "
-                                                      "than the simulation start time")
-                        if len(item) != 2:
-                            raise ModelicaSystemError(f"Value {repr(item)} of {repr(val_evaluated)} "
-                                                      "is in incorrect format!")
-
-                    self._inputs[key] = val_evaluated
-                self._inputFlag = True
-            else:
+            if key not in self._inputs:
                 raise ModelicaSystemError(f"{key} is not an input")
+
+            if not isinstance(val, str):
+                raise ModelicaSystemError(f"Invalid data in input for {repr(key)}: {repr(val)}")
+
+            val_evaluated = ast.literal_eval(val)
+
+            if isinstance(val_evaluated, (int, float)):
+                self._inputs[key] = [(float(self._simulate_options["startTime"]), float(val)),
+                                     (float(self._simulate_options["stopTime"]), float(val))]
+            elif isinstance(val_evaluated, list):
+                if not all([isinstance(item, tuple) for item in val_evaluated]):
+                    raise ModelicaSystemError("Value for setInput() must be in tuple format; "
+                                              f"got {repr(val_evaluated)}")
+                if val_evaluated != sorted(val_evaluated, key=lambda x: x[0]):
+                    raise ModelicaSystemError("Time value should be in increasing order; "
+                                              f"got {repr(val_evaluated)}")
+
+                for item in val_evaluated:
+                    if item[0] < float(self._simulate_options["startTime"]):
+                        raise ModelicaSystemError(f"Time value in {repr(item)} of {repr(val_evaluated)} is less "
+                                                  "than the simulation start time")
+                    if len(item) != 2:
+                        raise ModelicaSystemError(f"Value {repr(item)} of {repr(val_evaluated)} "
+                                                  "is in incorrect format!")
+
+                self._inputs[key] = val_evaluated
+            else:
+                raise ModelicaSystemError(f"Data cannot be evaluated for {repr(key)}: {repr(val)}")
 
         return True
 
