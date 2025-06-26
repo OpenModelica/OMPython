@@ -1047,10 +1047,10 @@ class ModelicaSystem:
     def isParameterChangeable(self, name, value):
         q = self.getQuantities(name)
         if q[0]["changeable"] == "false":
-            logger.verbose(f"setParameters() failed : It is not possible to set the following signal {repr(name)}. "
-                           "It seems to be structural, final, protected or evaluated or has a non-constant binding, "
-                           f"use sendExpression(\"setParameterValue({self.modelName}, {name}, {value})\") "
-                           "and rebuild the model using buildModel() API")
+            logger.debug(f"setParameters() failed : It is not possible to set the following signal {repr(name)}. "
+                         "It seems to be structural, final, protected or evaluated or has a non-constant binding, "
+                         f"use sendExpression(\"setParameterValue({self.modelName}, {name}, {value})\") "
+                         "and rebuild the model using buildModel() API")
             return False
         return True
 
