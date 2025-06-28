@@ -1959,10 +1959,10 @@ class ModelicaSystemDoE:
 
                 pk_value = pc_structure[idx_structure]
                 if isinstance(pk_value, str):
-                    expression = f"setParameterValue({self._modelName}, {pk_structure}, $Code(=\"{pk_value}\"))"
+                    expression = f"setParameterValue({self._modelName}, {pk_structure}, \"{pk_value}\")"
                 elif isinstance(pk_value, bool):
                     pk_value_bool_str = "true" if pk_value else "false"
-                    expression = f"setParameterValue({self._modelName}, {pk_structure}, $Code(={pk_value_bool_str}));"
+                    expression = f"setParameterValue({self._modelName}, {pk_structure}, {pk_value_bool_str});"
                 else:
                     expression = f"setParameterValue({self._modelName}, {pk_structure}, {pk_value})"
                 res = mod_structure.sendExpression(expression)
