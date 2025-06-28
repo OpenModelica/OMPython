@@ -277,6 +277,10 @@ class OMCPath(pathlib.PurePosixPath):
     OMCSessionZMQ session object.
     """
 
+    # TODO: need to handle PurePosixPath and PureWindowsPath
+    #       PureOMCPath => OMCPathPosix(PureOMCPath, PurePosixPath)
+    #                   => OMCPathWindows(PureOMCPath, PureWindowsPath)
+
     def __init__(self, *path, session: OMCSessionZMQ):
         super().__init__(*path)
         self._session = session
@@ -366,6 +370,8 @@ class OMCSessionZMQ:
         self.omc_zmq = None
 
     def omcpath(self, *path) -> OMCPath:
+        # TODO: need to handle PurePosixPath and PureWindowsPath
+        #       define it here based on the backend (omc_process) used?
         return OMCPath(*path, session=self)
 
     def execute(self, command: str):
