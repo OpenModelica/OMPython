@@ -910,7 +910,7 @@ class ModelicaSystem:
 
         if self.inputFlag:  # if model has input quantities
             # csvfile is based on name used for result file
-            csvfile = resultfile.parent / f"{resultfile.stem}.csv"
+            csvfile = self.resultfile.parent / f"{self.resultfile.stem}.csv"
 
             for i in self.inputlist:
                 val = self.inputlist[i]
