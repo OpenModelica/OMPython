@@ -961,10 +961,10 @@ class ModelicaSystem:
         # get absolute path
         result_file = result_file.absolute()
 
-        resultVars = self.sendExpression(f'readSimulationResultVars("{result_file.as_posix()}")')
+        result_vars = self.sendExpression(f'readSimulationResultVars("{result_file.as_posix()}")')
         self.sendExpression("closeSimulationResultFile()")
         if varList is None:
-            return resultVars
+            return result_vars
 
         if isinstance(varList, str):
             var_list_checked = [varList]
@@ -976,13 +976,13 @@ class ModelicaSystem:
         for var in var_list_checked:
             if var == "time":
                 continue
-            if var not in resultVars:
+            if var not in result_vars:
                 raise ModelicaSystemError(f"Requested data {repr(var)} does not exist")
         variables = ",".join(var_list_checked)
         res = self.sendExpression(f'readSimulationResult("{result_file.as_posix()}",{{{variables}}})')
-        npRes = np.array(res)
+        np_res = np.array(res)
         self.sendExpression("closeSimulationResultFile()")
-        return npRes
+        return np_res
 
     @staticmethod
     def _strip_space(name):
