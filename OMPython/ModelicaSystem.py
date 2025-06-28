@@ -2047,7 +2047,6 @@ class ModelicaSystemDoE:
 
         def worker(worker_id, task_queue):
             while True:
-                mscmd: Optional[ModelicaSystemCmd] = None
                 try:
                     # Get the next task from the queue
                     mscmd = task_queue.get(block=False)
