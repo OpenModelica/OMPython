@@ -17,7 +17,6 @@ license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = [
     "numpy",
-    "pandas",
     "psutil",
     "pyparsing",
     "pyzmq",
