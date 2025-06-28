@@ -1858,8 +1858,8 @@ class ModelicaSystemDoE:
 
     """
 
-    DF_COLUMNS_RESULT_FILENAME: str = 'result filename'
-    DF_COLUMNS_RESULT_AVAILABLE: str = 'result available'
+    DICT_RESULT_FILENAME: str = 'result filename'
+    DICT_RESULT_AVAILABLE: str = 'result available'
 
     def __init__(
             self,
@@ -1993,7 +1993,7 @@ class ModelicaSystemDoE:
                         }
                         | sim_param_simple
                         | {
-                            self.DF_COLUMNS_RESULT_AVAILABLE: False,
+                            self.DICT_RESULT_AVAILABLE: False,
                         }
                 )
 
@@ -2098,7 +2098,7 @@ class ModelicaSystemDoE:
             # see: https://github.com/OpenModelica/OMPython/issues/261
             # https://github.com/OpenModelica/OpenModelica/issues/13829
             if resultfile.is_file() and resultfile.stat().st_size > 0:
-                self._sim_dict[resultfilename][self.DF_COLUMNS_RESULTS_AVAILABLE] = True
+                self._sim_dict[resultfilename][self.DICT_RESULT_AVAILABLE] = True
                 sim_dict_done += 1
 
         logger.info(f"All workers finished ({sim_dict_done} of {sim_dict_total} simulations with a result file).")
@@ -2143,7 +2143,7 @@ class ModelicaSystemDoE:
 
             sol_dict[resultfilename] = {}
 
-            if self._sim_dict[resultfilename][self.DF_COLUMNS_RESULTS_AVAILABLE] != True:
+            if self._sim_dict[resultfilename][self.DICT_RESULT_AVAILABLE] != True:
                 sol_dict[resultfilename]['msg'] = 'No result file available!'
                 sol_dict[resultfilename]['data'] = {}
                 continue
