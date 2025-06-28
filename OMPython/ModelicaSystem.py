@@ -39,7 +39,6 @@ import logging
 import numbers
 import numpy as np
 import os
-import pandas as pd
 import queue
 import textwrap
 import threading
@@ -1838,18 +1837,19 @@ class ModelicaSystemDoE:
         resdir = mypath / 'DoE'
         resdir.mkdir(exist_ok=True)
 
-        mod_doe = OMPython.ModelicaSystemDoE(
+        doe_mod = OMPython.ModelicaSystemDoE(
             fileName=model.as_posix(),
             modelName="M",
             parameters=param,
             resultpath=resdir,
             simargs={"override": {'stopTime': 1.0}},
         )
-        mod_doe.prepare()
-        df_doe = mod_doe.get_doe()
-        mod_doe.simulate()
-        var_list = mod_doe.get_solutions()
-        sol_dict = mod_doe.get_solutions(var_list=var_list)
+        doe_mod.prepare()
+        doe_dict = doe_mod.get_doe()
+        doe_mod.simulate()
+        doe_sol = doe_mod.get_solutions()
+
+        # ... work with doe_df and doe_sol ...
 
 
     if __name__ == "__main__":
@@ -1915,7 +1915,7 @@ class ModelicaSystemDoE:
         else:
             self._parameters = {}
 
-        self._sim_df: Optional[pd.DataFrame] = None
+        self._sim_dict: Optional[dict[str, dict[str, Any]]] = None
         self._sim_task_query: queue.Queue = queue.Queue()
 
     def prepare(self) -> int:
@@ -1940,7 +1940,7 @@ class ModelicaSystemDoE:
         param_structure_combinations = list(itertools.product(*param_structure.values()))
         param_simple_combinations = list(itertools.product(*param_simple.values()))
 
-        df_entries: list[pd.DataFrame] = []
+        self._sim_dict = {}
         for idx_pc_structure, pc_structure in enumerate(param_structure_combinations):
             mod_structure = ModelicaSystem(
                 fileName=self._fileName,
@@ -1986,13 +1986,10 @@ class ModelicaSystemDoE:
                 df_data = (
                         {
                             'ID structure': idx_pc_structure,
-                            'ID simple': idx_pc_simple,
-                            self.DF_COLUMNS_RESULT_FILENAME: resfilename,
-                            'structural parameters ID': idx_pc_structure,
                         }
                         | sim_param_structure
                         | {
-                            'non-structural parameters ID': idx_pc_simple,
+                            'ID non-structure': idx_pc_simple,
                         }
                         | sim_param_simple
                         | {
@@ -2000,7 +1997,7 @@ class ModelicaSystemDoE:
                         }
                 )
 
-                df_entries.append(pd.DataFrame(data=df_data, index=[0]))
+                self._sim_dict[resfilename] = df_data
 
                 mscmd = mod_structure.simulate_cmd(
                     resultfile=resultfile.absolute().resolve(),
@@ -2012,17 +2009,26 @@ class ModelicaSystemDoE:
 
                 self._sim_task_query.put(mscmd)
 
-        self._sim_df = pd.concat(df_entries, ignore_index=True)
+        logger.info(f"Prepared {self._sim_task_query.qsize()} simulation definitions for the defined DoE.")
 
-        logger.info(f"Prepared {self._sim_df.shape[0]} simulation definitions for the defined DoE.")
+        return self._sim_task_query.qsize()
 
-        return self._sim_df.shape[0]
-
-    def get_doe(self) -> Optional[pd.DataFrame]:
+    def get_doe(self) -> Optional[dict[str, dict[str, Any]]]:
         """
-        Get the defined Doe as a poandas dataframe.
+        Get the defined DoE as a dict, where each key is the result filename and the value is a dict of simulation
+        settings including structural and non-structural parameters.
+
+        The following code snippet can be used to convert the data to a pandas dataframe:
+
+        ```
+        import pandas as pd
+
+        doe_dict = doe_mod.get_doe()
+        doe_df = pd.DataFrame.from_dict(data=doe_dict, orient='index')
+        ```
+
         """
-        return self._sim_df
+        return self._sim_dict
 
     def simulate(
             self,
@@ -2035,9 +2041,9 @@ class ModelicaSystemDoE:
         """
 
         sim_query_total = self._sim_task_query.qsize()
-        if not isinstance(self._sim_df, pd.DataFrame):
+        if not isinstance(self._sim_dict, dict) or len(self._sim_dict) == 0:
             raise ModelicaSystemError("Missing Doe Summary!")
-        sim_df_total = self._sim_df.shape[0]
+        sim_dict_total = len(self._sim_dict)
 
         def worker(worker_id, task_queue):
             while True:
@@ -2084,55 +2090,78 @@ class ModelicaSystemDoE:
         for thread in threads:
             thread.join()
 
-        for row in self._sim_df.to_dict('records'):
-            resultfilename = row[self.DF_COLUMNS_RESULT_FILENAME]
+        sim_dict_done = 0
+        for resultfilename in self._sim_dict:
             resultfile = self._resultpath / resultfilename
 
-            if resultfile.exists():
-                mask = self._sim_df[self.DF_COLUMNS_RESULT_FILENAME] == resultfilename
-                self._sim_df.loc[mask, self.DF_COLUMNS_RESULT_AVAILABLE] = True
+            # include check for an empty (=> 0B) result file which indicates a crash of the model executable
+            # see: https://github.com/OpenModelica/OMPython/issues/261
+            # https://github.com/OpenModelica/OpenModelica/issues/13829
+            if resultfile.is_file() and resultfile.stat().st_size > 0:
+                self._sim_dict[resultfilename][self.DF_COLUMNS_RESULTS_AVAILABLE] = True
+                sim_dict_done += 1
 
-        sim_df_done = self._sim_df[self.DF_COLUMNS_RESULT_AVAILABLE].sum()
-        logger.info(f"All workers finished ({sim_df_done} of {sim_df_total} simulations with a result file).")
+        logger.info(f"All workers finished ({sim_dict_done} of {sim_dict_total} simulations with a result file).")
 
-        return sim_df_total == sim_df_done
+        return sim_dict_total == sim_dict_done
 
     def get_solutions(
             self,
             var_list: Optional[list] = None,
-    ) -> Optional[tuple[str] | dict[str, pd.DataFrame | str]]:
+    ) -> Optional[tuple[str] | dict[str, dict[str, np.ndarray]]]:
         """
         Get all solutions of the DoE run. The following return values are possible:
-
-        * None, if there no simulation was run
 
         * A list of variables if val_list == None
 
         * The Solutions as dict[str, pd.DataFrame] if a value list (== val_list) is defined.
+
+        The following code snippet can be used to convert the solution data for each run to a pandas dataframe:
+
+        ```
+        import pandas as pd
+
+        doe_sol = doe_mod.get_solutions()
+        for key in doe_sol:
+            data = doe_sol[key]['data']
+            if data:
+                doe_sol[key]['df'] = pd.DataFrame.from_dict(data=data)
+            else:
+                doe_sol[key]['df'] = None
+        ```
+
         """
-        if self._sim_df is None:
+        if not isinstance(self._sim_dict, dict):
             return None
 
-        if self._sim_df.shape[0] == 0 or self._sim_df[self.DF_COLUMNS_RESULT_AVAILABLE].sum() == 0:
+        if len(self._sim_dict) == 0:
             raise ModelicaSystemError("No result files available - all simulations did fail?")
 
-        if var_list is None:
-            resultfilename = self._sim_df[self.DF_COLUMNS_RESULT_FILENAME].values[0]
+        sol_dict: dict[str, dict[str, Any]] = {}
+        for resultfilename in self._sim_dict:
             resultfile = self._resultpath / resultfilename
-            return self._mod.getSolutions(resultfile=resultfile)
 
-        sol_dict: dict[str, pd.DataFrame | str] = {}
-        for row in self._sim_df.to_dict('records'):
-            resultfilename = row[self.DF_COLUMNS_RESULT_FILENAME]
-            resultfile = self._resultpath / resultfilename
+            sol_dict[resultfilename] = {}
+
+            if self._sim_dict[resultfilename][self.DF_COLUMNS_RESULTS_AVAILABLE] != True:
+                sol_dict[resultfilename]['msg'] = 'No result file available!'
+                sol_dict[resultfilename]['data'] = {}
+                continue
+
+            if var_list is None:
+                var_list_row = list(self._mod.getSolutions(resultfile=resultfile))
+            else:
+                var_list_row = var_list
 
             try:
-                sol = self._mod.getSolutions(varList=var_list, resultfile=resultfile)
-                sol_data = {var: sol[idx] for idx, var in var_list}
-                sol_df = pd.DataFrame(sol_data)
-                sol_dict[resultfilename] = sol_df
+                sol = self._mod.getSolutions(varList=var_list_row, resultfile=resultfile)
+                sol_data = {var: sol[idx] for idx, var in enumerate(var_list_row)}
+                sol_dict[resultfilename]['msg'] = 'Simulation available'
+                sol_dict[resultfilename]['data'] = sol_data
             except ModelicaSystemError as ex:
-                logger.warning(f"No solution for {resultfilename}: {ex}")
-                sol_dict[resultfilename] = str(ex)
+                msg = f"Error reading solution for {resultfilename}: {ex}"
+                logger.warning(msg)
+                sol_dict[resultfilename]['msg'] = msg
+                sol_dict[resultfilename]['data'] = {}
 
         return sol_dict

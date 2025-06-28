@@ -1,6 +1,5 @@
 import numpy as np
 import OMPython
-import pandas as pd
 import pathlib
 import pytest
 
@@ -42,25 +41,30 @@ def test_ModelicaSystemDoE(tmp_path, model_doe, param_doe):
     tmpdir = tmp_path / 'DoE'
     tmpdir.mkdir(exist_ok=True)
 
-    mod_doe = OMPython.ModelicaSystemDoE(
+    doe_mod = OMPython.ModelicaSystemDoE(
         fileName=model_doe.as_posix(),
         modelName="M",
         parameters=param_doe,
         resultpath=tmpdir,
         simargs={"override": {'stopTime': 1.0}},
     )
-    mod_doe.prepare()
-    df_doe = mod_doe.get_doe()
-    assert isinstance(df_doe, pd.DataFrame)
-    assert df_doe.shape[0] == 16
-    assert df_doe['results available'].sum() == 0
+    doe_count = doe_mod.prepare()
+    assert doe_count == 16
 
-    mod_doe.simulate()
-    assert df_doe['results available'].sum() == 16
+    doe_dict = doe_mod.get_doe()
+    assert isinstance(doe_dict, dict)
+    assert len(doe_dict.keys()) == 16
 
-    for row in df_doe.to_dict('records'):
-        resultfilename = row[mod_doe.DF_COLUMNS_RESULT_FILENAME]
-        resultfile = mod_doe._resultpath / resultfilename
+    doe_status = doe_mod.simulate()
+    assert doe_status is True
+
+    doe_sol = doe_mod.get_solutions()
+
+    for resultfilename in doe_dict:
+        row = doe_dict[resultfilename]
+
+        assert resultfilename in doe_sol
+        sol = doe_sol[resultfilename]
 
         var_dict = {
             # simple / non-structural parameters
@@ -73,6 +77,7 @@ def test_ModelicaSystemDoE(tmp_path, model_doe, param_doe):
             f"x[{row['p']}]": float(row['a']),
             f"y[{row['p']}]": float(row['b']),
         }
-        sol = mod_doe._mod.getSolutions(resultfile=resultfile.as_posix(), varList=list(var_dict.keys()))
 
-        assert np.isclose(sol[:, -1], np.array(list(var_dict.values()))).all()
+        for var in var_dict:
+            assert var in sol['data']
+            assert np.isclose(sol['data'][var][-1], var_dict[var])
