@@ -35,6 +35,5 @@ repos:
         additional_dependencies:
           - pyparsing
           - types-psutil
-          - pandas-stubs
           - pyzmq
           - numpy
