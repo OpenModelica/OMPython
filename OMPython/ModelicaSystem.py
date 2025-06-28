@@ -2143,7 +2143,7 @@ class ModelicaSystemDoE:
 
             sol_dict[resultfilename] = {}
 
-            if self._sim_dict[resultfilename][self.DICT_RESULT_AVAILABLE] != True:
+            if not self._sim_dict[resultfilename][self.DICT_RESULT_AVAILABLE]:
                 sol_dict[resultfilename]['msg'] = 'No result file available!'
                 sol_dict[resultfilename]['data'] = {}
                 continue
