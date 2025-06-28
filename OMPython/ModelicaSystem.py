@@ -131,23 +131,37 @@ class ModelicaSystemCmd:
         key : str
         val : str, None
         """
+
+        def override2str(value: Any) -> str:
+            """
+            Convert a value for 'override' to a string taking into account differences between Modelica and Python.
+            """
+            if isinstance(value, str):
+                return f"\"{value.strip()}\""
+            if isinstance(value, bool):
+                return 'true' if value else 'false'
+            if isinstance(value, numbers.Number):
+                return str(value)
+            raise ModelicaSystemError(f"Invalid value type: {type(value)} for key {key}")
+
         if not isinstance(key, str):
             raise ModelicaSystemError(f"Invalid argument key: {repr(key)} (type: {type(key)})")
         key = key.strip()
-        if val is None:
-            argval = None
-        elif isinstance(val, str):
-            argval = val.strip()
-        elif isinstance(val, numbers.Number):
-            argval = str(val)
-        elif key == 'override' and isinstance(val, dict):
+
+        if key == 'override' and isinstance(val, dict):
             for okey in val:
                 if not isinstance(okey, str) or not isinstance(val[okey], (str, numbers.Number)):
                     raise ModelicaSystemError("Invalid argument for 'override': "
                                               f"{repr(okey)} = {repr(val[okey])}")
                 self._arg_override[okey] = val[okey]
 
-            argval = ','.join([f"{okey}={str(self._arg_override[okey])}" for okey in self._arg_override])
+            argval = ','.join([f"{okey}={override2str(self._arg_override[okey])}" for okey in self._arg_override])
+        elif val is None:
+            argval = None
+        elif isinstance(val, str):
+            argval = val.strip()
+        elif isinstance(val, numbers.Number):
+            argval = str(val)
         else:
             raise ModelicaSystemError(f"Invalid argument value for {repr(key)}: {repr(val)} (type: {type(val)})")
 
