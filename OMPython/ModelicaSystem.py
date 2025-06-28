@@ -1975,7 +1975,7 @@ class ModelicaSystemDoE:
             for idx_pc_simple, pc_simple in enumerate(param_simple_combinations):
                 sim_param_simple = {}
                 for idx_simple, pk_simple in enumerate(param_simple.keys()):
-                    sim_param_simple[pk_simple] = str(pc_simple[idx_simple])
+                    sim_param_simple[pk_simple] = pc_simple[idx_simple]
 
                 resfilename = f"DOE_{idx_pc_structure:09d}_{idx_pc_simple:09d}.mat"
                 logger.info(f"use result file {repr(resfilename)} "
