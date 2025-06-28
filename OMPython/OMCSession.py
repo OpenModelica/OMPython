@@ -271,6 +271,31 @@ class OMCSessionCmd:
         return self._ask(question='getClassNames', opt=opt)
 
 
+class OMCPath(pathlib.PurePosixPath):
+    """
+    Implementation of a basic Path object which uses OMC as backend. The connection to OMC is provided via a
+    OMCSessionZMQ session object.
+    """
+
+    def __init__(self, *path, session: OMCSessionZMQ):
+        super().__init__(*path)
+        self._session = session
+
+    def with_segments(self, *pathsegments):
+        # overwrite this function of PurePosixPath to ensure session is set
+        return type(self)(*pathsegments, session=self._session)
+
+    # TODO: implement needed methods from pathlib._abc.PathBase:
+    #       is_dir()
+    #       is_file()
+    #       read_text() + binary()?
+    #       write_text() + binary()?
+    #       unlink()
+    #       resolve()
+    #       ... more ...
+    #       ??? test if local (write OMC => READ local and the other way) and use shortcuts ???
+
+
 class OMCSessionZMQ:
 
     def __init__(
@@ -324,6 +349,9 @@ class OMCSessionZMQ:
             del self.omc_zmq
 
         self.omc_zmq = None
+
+    def omcpath(self, *path) -> OMCPath:
+        return OMCPath(*path, session=self)
 
     def execute(self, command: str):
         warnings.warn("This function is depreciated and will be removed in future versions; "
