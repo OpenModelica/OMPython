@@ -2073,8 +2073,8 @@ class ModelicaSystemDoE:
 
                 sim_query_done = sim_query_total - self._sim_task_query.qsize()
                 logger.info(f"[Worker {worker_id}] Task completed: {resultpath.name} "
-                            f"({sim_query_done}/{sim_query_total} = "
-                            f"{sim_query_done / sim_query_total * 100:.2f}% of tasks left)")
+                            f"({sim_query_total - sim_query_done}/{sim_query_total} = "
+                            f"{(sim_query_total - sim_query_done) / sim_query_total * 100:.2f}% of tasks left)")
 
         logger.info(f"Start simulations for DoE with {sim_query_total} simulations "
                     f"using {num_workers} workers ...")
