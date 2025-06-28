@@ -950,39 +950,39 @@ class ModelicaSystem:
         >>> getSolutions(["Name1","Name2"],resultfile=""c:/a.mat"")
         """
         if resultfile is None:
-            resFile = self.resultfile.as_posix()
+            result_file = self.resultfile
         else:
-            resFile = resultfile
+            result_file = pathlib.Path(resultfile)
 
         # check for result file exits
-        if not os.path.exists(resFile):
-            raise ModelicaSystemError(f"Result file does not exist {resFile}")
-        resultVars = self.sendExpression(f'readSimulationResultVars("{resFile}")')
+        if not result_file.is_file():
+            raise ModelicaSystemError(f"Result file does not exist {result_file}")
+
+        # get absolute path
+        result_file = result_file.absolute()
+
+        result_vars = self.sendExpression(f'readSimulationResultVars("{result_file.as_posix()}")')
         self.sendExpression("closeSimulationResultFile()")
         if varList is None:
-            return resultVars
+            return result_vars
 
         if isinstance(varList, str):
-            if varList not in resultVars and varList != "time":
-                raise ModelicaSystemError(f"Requested data {repr(varList)} does not exist")
-            res = self.sendExpression(f'readSimulationResult("{resFile}", {{{varList}}})')
-            npRes = np.array(res)
-            self.sendExpression("closeSimulationResultFile()")
-            return npRes
+            var_list_checked = [varList]
+        elif isinstance(varList, list):
+            var_list_checked = varList
+        else:
+            raise ModelicaSystemError("Unhandled input for getSolutions()")
 
-        if isinstance(varList, list):
-            for var in varList:
-                if var == "time":
-                    continue
-                if var not in resultVars:
-                    raise ModelicaSystemError(f"Requested data {repr(var)} does not exist")
-            variables = ",".join(varList)
-            res = self.sendExpression(f'readSimulationResult("{resFile}",{{{variables}}})')
-            npRes = np.array(res)
-            self.sendExpression("closeSimulationResultFile()")
-            return npRes
-
-        raise ModelicaSystemError("Unhandled input for getSolutions()")
+        for var in var_list_checked:
+            if var == "time":
+                continue
+            if var not in result_vars:
+                raise ModelicaSystemError(f"Requested data {repr(var)} does not exist")
+        variables = ",".join(var_list_checked)
+        res = self.sendExpression(f'readSimulationResult("{result_file.as_posix()}",{{{variables}}})')
+        np_res = np.array(res)
+        self.sendExpression("closeSimulationResultFile()")
+        return np_res
 
     @staticmethod
     def _strip_space(name):
