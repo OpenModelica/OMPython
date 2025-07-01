@@ -764,9 +764,8 @@ class OMCProcessDocker(OMCProcessDockerHelper):
         if sys.platform == "win32":
             extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
             if not self._interactivePort:
-                raise OMCSessionException("docker on Windows requires knowing which port to connect to. For "
-                                          "dockerContainer=..., the container needs to have already manually exposed "
-                                          "this port when it was started (-p 127.0.0.1:n:n) or you get an error later.")
+                raise OMCSessionException("docker on Windows requires knowing which port to connect to - "
+                                          "please set the interactivePort argument")
 
         if sys.platform == "win32":
             if isinstance(self._interactivePort, str):
@@ -892,9 +891,10 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
         if sys.platform == "win32":
             extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
             if not self._interactivePort:
-                raise OMCSessionException("docker on Windows requires knowing which port to connect to. For "
-                                          "dockerContainer=..., the container needs to have already manually exposed "
-                                          "this port when it was started (-p 127.0.0.1:n:n) or you get an error later.")
+                raise OMCSessionException("Docker on Windows requires knowing which port to connect to - "
+                                          "Please set the interactivePort argument. Furthermore, the container needs "
+                                          "to have already manually exposed this port when it was started "
+                                          "(-p 127.0.0.1:n:n) or you get an error later.")
 
         if isinstance(self._interactivePort, int):
             extraFlags = extraFlags + [f"--interactivePort={int(self._interactivePort)}"]
