@@ -351,7 +351,7 @@ class ModelicaSystem:
 
         self._quantities: list[dict[str, Any]] = []
         self._params: dict[str, str] = {}  # even numerical values are stored as str
-        self._inputlist: dict[str, list | None] = {}
+        self._inputs: dict[str, list | None] = {}
         # _outputlist values are str before simulate(), but they can be
         # np.float64 after simulate().
         self._outputlist: dict[str, Any] = {}
@@ -541,7 +541,7 @@ class ModelicaSystem:
             if scalar["variability"] == "continuous":
                 self._continuouslist[scalar["name"]] = scalar["start"]
             if scalar["causality"] == "input":
-                self._inputlist[scalar["name"]] = scalar["start"]
+                self._inputs[scalar["name"]] = scalar["start"]
             if scalar["causality"] == "output":
                 self._outputlist[scalar["name"]] = scalar["start"]
 
@@ -736,11 +736,11 @@ class ModelicaSystem:
             [[(0.0, 0.0), (1.0, 1.0)], None]
         """
         if names is None:
-            return self._inputlist
+            return self._inputs
         elif isinstance(names, str):
-            return [self._inputlist[names]]
+            return [self._inputs[names]]
         elif isinstance(names, list):
-            return [self._inputlist[x] for x in names]
+            return [self._inputs[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getInputs()")
 
@@ -969,13 +969,13 @@ class ModelicaSystem:
             om_cmd.arg_set(key="overrideFile", val=overrideFile.as_posix())
 
         if self._inputFlag:  # if model has input quantities
-            for i in self._inputlist:
-                val = self._inputlist[i]
+            for i in self._inputs:
+                val = self._inputs[i]
                 if val is None:
                     val = [(float(self._simulateOptions["startTime"]), 0.0),
                            (float(self._simulateOptions["stopTime"]), 0.0)]
-                    self._inputlist[i] = [(float(self._simulateOptions["startTime"]), 0.0),
-                                          (float(self._simulateOptions["stopTime"]), 0.0)]
+                    self._inputs[i] = [(float(self._simulateOptions["startTime"]), 0.0),
+                                       (float(self._simulateOptions["stopTime"]), 0.0)]
                 if float(self._simulateOptions["startTime"]) != val[0][0]:
                     raise ModelicaSystemError(f"startTime not matched for Input {i}!")
                 if float(self._simulateOptions["stopTime"]) != val[-1][0]:
@@ -1191,14 +1191,14 @@ class ModelicaSystem:
         if isinstance(name, str):
             name = self._strip_space(name)
             value = name.split("=")
-            if value[0] in self._inputlist:
+            if value[0] in self._inputs:
                 tmpvalue = eval(value[1])
                 if isinstance(tmpvalue, (int, float)):
-                    self._inputlist[value[0]] = [(float(self._simulateOptions["startTime"]), float(value[1])),
-                                                 (float(self._simulateOptions["stopTime"]), float(value[1]))]
+                    self._inputs[value[0]] = [(float(self._simulateOptions["startTime"]), float(value[1])),
+                                              (float(self._simulateOptions["stopTime"]), float(value[1]))]
                 elif isinstance(tmpvalue, list):
                     self._checkValidInputs(tmpvalue)
-                    self._inputlist[value[0]] = tmpvalue
+                    self._inputs[value[0]] = tmpvalue
                 self._inputFlag = True
             else:
                 raise ModelicaSystemError(f"{value[0]} is not an input")
@@ -1206,14 +1206,14 @@ class ModelicaSystem:
             name = self._strip_space(name)
             for var in name:
                 value = var.split("=")
-                if value[0] in self._inputlist:
+                if value[0] in self._inputs:
                     tmpvalue = eval(value[1])
                     if isinstance(tmpvalue, (int, float)):
-                        self._inputlist[value[0]] = [(float(self._simulateOptions["startTime"]), float(value[1])),
-                                                     (float(self._simulateOptions["stopTime"]), float(value[1]))]
+                        self._inputs[value[0]] = [(float(self._simulateOptions["startTime"]), float(value[1])),
+                                                  (float(self._simulateOptions["stopTime"]), float(value[1]))]
                     elif isinstance(tmpvalue, list):
                         self._checkValidInputs(tmpvalue)
-                        self._inputlist[value[0]] = tmpvalue
+                        self._inputs[value[0]] = tmpvalue
                     self._inputFlag = True
                 else:
                     raise ModelicaSystemError(f"{value[0]} is not an input!")
@@ -1237,7 +1237,7 @@ class ModelicaSystem:
 
         # Replace None inputs with a default constant zero signal
         inputs: dict[str, list[tuple[float, float]]] = {}
-        for input_name, input_signal in self._inputlist.items():
+        for input_name, input_signal in self._inputs.items():
             if input_signal is None:
                 inputs[input_name] = [(start_time, 0.0), (stop_time, 0.0)]
             else:
