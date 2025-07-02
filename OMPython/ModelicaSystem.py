@@ -350,7 +350,7 @@ class ModelicaSystem:
             raise ModelicaSystemError("A modelname must be provided (argument modelName)!")
 
         self._quantities: list[dict[str, Any]] = []
-        self._paramlist: dict[str, str] = {}  # even numerical values are stored as str
+        self._params: dict[str, str] = {}  # even numerical values are stored as str
         self._inputlist: dict[str, list | None] = {}
         # _outputlist values are str before simulate(), but they can be
         # np.float64 after simulate().
@@ -535,9 +535,9 @@ class ModelicaSystem:
 
             if scalar["variability"] == "parameter":
                 if scalar["name"] in self._overridevariables:
-                    self._paramlist[scalar["name"]] = self._overridevariables[scalar["name"]]
+                    self._params[scalar["name"]] = self._overridevariables[scalar["name"]]
                 else:
-                    self._paramlist[scalar["name"]] = scalar["start"]
+                    self._params[scalar["name"]] = scalar["start"]
             if scalar["variability"] == "continuous":
                 self._continuouslist[scalar["name"]] = scalar["start"]
             if scalar["causality"] == "input":
@@ -702,11 +702,11 @@ class ModelicaSystem:
             ['1.23', '4.56']
         """
         if names is None:
-            return self._paramlist
+            return self._params
         elif isinstance(names, str):
-            return [self._paramlist[names]]
+            return [self._params[names]]
         elif isinstance(names, list):
-            return [self._paramlist[x] for x in names]
+            return [self._params[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getParameters()")
 
@@ -1138,7 +1138,7 @@ class ModelicaSystem:
         >>> setParameters("Name=value")
         >>> setParameters(["Name1=value1","Name2=value2"])
         """
-        return self._setMethodHelper(pvals, self._paramlist, "parameter", self._overridevariables)
+        return self._setMethodHelper(pvals, self._params, "parameter", self._overridevariables)
 
     def isParameterChangeable(self, name, value):
         q = self.getQuantities(name)
