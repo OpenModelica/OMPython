@@ -386,15 +386,15 @@ class ModelicaSystem:
         self._xml_file = None
         self._lmodel = lmodel  # may be needed if model is derived from other model
         self._model_name = modelName  # Model class name
-        self._fileName = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
+        self._file_name = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
         self._inputFlag = False  # for model with input quantity
         self._simulationFlag = False  # if the model is simulated?
         self._csvFile: Optional[pathlib.Path] = None  # for storing inputs condition
         self._resultfile: Optional[pathlib.Path] = None  # for storing result file
         self._variableFilter = variableFilter
 
-        if self._fileName is not None and not self._fileName.is_file():  # if file does not exist
-            raise IOError(f"{self._fileName} does not exist!")
+        if self._file_name is not None and not self._file_name.is_file():  # if file does not exist
+            raise IOError(f"{self._file_name} does not exist!")
 
         # set default command Line Options for linearization as
         # linearize() will use the simulation executable and runtime
@@ -404,9 +404,9 @@ class ModelicaSystem:
 
         self._tempdir = self.setTempDirectory(customBuildDirectory)
 
-        if self._fileName is not None:
+        if self._file_name is not None:
             self._loadLibrary(lmodel=self._lmodel)
-            self._loadFile(fileName=self._fileName)
+            self._loadFile(fileName=self._file_name)
 
         # allow directly loading models from MSL without fileName
         elif fileName is None and modelName is not None:
