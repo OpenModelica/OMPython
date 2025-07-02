@@ -364,7 +364,7 @@ class ModelicaSystem:
         self._optimization_options = {'startTime': 0.0, 'stopTime': 1.0, 'numberOfIntervals': 500, 'stepSize': 0.002,
                                       'tolerance': 1e-8}
         self._linearized_inputs: list[str] = []  # linearization input list
-        self._linearoutputs: list[str] = []  # linearization output list
+        self._linearized_outputs: list[str] = []  # linearization output list
         self._linearstates: list[str] = []  # linearization states list
 
         if session is not None:
@@ -1460,7 +1460,7 @@ class ModelicaSystem:
             result = module.linearized_model()
             (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
             self._linearized_inputs = inputVars
-            self._linearoutputs = outputVars
+            self._linearized_outputs = outputVars
             self._linearstates = stateVars
             return LinearizationResult(n, m, p, A, B, C, D, x0, u0, stateVars,
                                        inputVars, outputVars)
@@ -1473,7 +1473,7 @@ class ModelicaSystem:
 
     def getLinearOutputs(self) -> list[str]:
         """Get names of output variables of the linearized model."""
-        return self._linearoutputs
+        return self._linearized_outputs
 
     def getLinearStates(self) -> list[str]:
         """Get names of state variables of the linearized model."""
