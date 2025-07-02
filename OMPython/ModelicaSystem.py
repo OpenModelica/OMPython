@@ -357,7 +357,7 @@ class ModelicaSystem:
         self._outputs: dict[str, Any] = {}
         # same for _continuous
         self._continuous: dict[str, Any] = {}
-        self._simulateOptions: dict[str, str] = {}
+        self._simulate_options: dict[str, str] = {}
         self._overridevariables: dict[str, str] = {}
         self._simoptionsoverride: dict[str, str] = {}
         self._linearOptions = {'startTime': 0.0, 'stopTime': 1.0, 'stepSize': 0.002, 'tolerance': 1e-8}
@@ -518,7 +518,7 @@ class ModelicaSystem:
         for attr in rootCQ.iter('DefaultExperiment'):
             for key in ("startTime", "stopTime", "stepSize", "tolerance",
                         "solver", "outputFormat"):
-                self._simulateOptions[key] = attr.get(key)
+                self._simulate_options[key] = attr.get(key)
 
         for sv in rootCQ.iter('ScalarVariable'):
             scalar = {}
@@ -837,11 +837,11 @@ class ModelicaSystem:
             ['1.1e-08', '1.234']
         """
         if names is None:
-            return self._simulateOptions
+            return self._simulate_options
         elif isinstance(names, str):
-            return [self._simulateOptions[names]]
+            return [self._simulate_options[names]]
         elif isinstance(names, list):
-            return [self._simulateOptions[x] for x in names]
+            return [self._simulate_options[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getSimulationOptions()")
 
@@ -972,13 +972,13 @@ class ModelicaSystem:
             for i in self._inputs:
                 val = self._inputs[i]
                 if val is None:
-                    val = [(float(self._simulateOptions["startTime"]), 0.0),
-                           (float(self._simulateOptions["stopTime"]), 0.0)]
-                    self._inputs[i] = [(float(self._simulateOptions["startTime"]), 0.0),
-                                       (float(self._simulateOptions["stopTime"]), 0.0)]
-                if float(self._simulateOptions["startTime"]) != val[0][0]:
+                    val = [(float(self._simulate_options["startTime"]), 0.0),
+                           (float(self._simulate_options["stopTime"]), 0.0)]
+                    self._inputs[i] = [(float(self._simulate_options["startTime"]), 0.0),
+                                       (float(self._simulate_options["stopTime"]), 0.0)]
+                if float(self._simulate_options["startTime"]) != val[0][0]:
                     raise ModelicaSystemError(f"startTime not matched for Input {i}!")
-                if float(self._simulateOptions["stopTime"]) != val[-1][0]:
+                if float(self._simulate_options["stopTime"]) != val[-1][0]:
                     raise ModelicaSystemError(f"stopTime not matched for Input {i}!")
             self._csvFile = self._createCSVData()  # create csv file
 
@@ -1158,7 +1158,7 @@ class ModelicaSystem:
         >>> setSimulationOptions("Name=value")
         >>> setSimulationOptions(["Name1=value1","Name2=value2"])
         """
-        return self._setMethodHelper(simOptions, self._simulateOptions, "simulation-option", self._simoptionsoverride)
+        return self._setMethodHelper(simOptions, self._simulate_options, "simulation-option", self._simoptionsoverride)
 
     def setLinearizationOptions(self, linearizationOptions):  # 18
         """
@@ -1194,8 +1194,8 @@ class ModelicaSystem:
             if value[0] in self._inputs:
                 tmpvalue = eval(value[1])
                 if isinstance(tmpvalue, (int, float)):
-                    self._inputs[value[0]] = [(float(self._simulateOptions["startTime"]), float(value[1])),
-                                              (float(self._simulateOptions["stopTime"]), float(value[1]))]
+                    self._inputs[value[0]] = [(float(self._simulate_options["startTime"]), float(value[1])),
+                                              (float(self._simulate_options["stopTime"]), float(value[1]))]
                 elif isinstance(tmpvalue, list):
                     self._checkValidInputs(tmpvalue)
                     self._inputs[value[0]] = tmpvalue
@@ -1209,8 +1209,8 @@ class ModelicaSystem:
                 if value[0] in self._inputs:
                     tmpvalue = eval(value[1])
                     if isinstance(tmpvalue, (int, float)):
-                        self._inputs[value[0]] = [(float(self._simulateOptions["startTime"]), float(value[1])),
-                                                  (float(self._simulateOptions["stopTime"]), float(value[1]))]
+                        self._inputs[value[0]] = [(float(self._simulate_options["startTime"]), float(value[1])),
+                                                  (float(self._simulate_options["stopTime"]), float(value[1]))]
                     elif isinstance(tmpvalue, list):
                         self._checkValidInputs(tmpvalue)
                         self._inputs[value[0]] = tmpvalue
@@ -1224,7 +1224,7 @@ class ModelicaSystem:
         for l in name:
             if isinstance(l, tuple):
                 # if l[0] < float(self.simValuesList[0]):
-                if l[0] < float(self._simulateOptions["startTime"]):
+                if l[0] < float(self._simulate_options["startTime"]):
                     raise ModelicaSystemError('Input time value is less than simulation startTime')
                 if len(l) != 2:
                     raise ModelicaSystemError(f'Value for {l} is in incorrect format!')
@@ -1232,8 +1232,8 @@ class ModelicaSystem:
                 raise ModelicaSystemError('Error!!! Value must be in tuple format')
 
     def _createCSVData(self) -> pathlib.Path:
-        start_time: float = float(self._simulateOptions["startTime"])
-        stop_time: float = float(self._simulateOptions["stopTime"])
+        start_time: float = float(self._simulate_options["startTime"])
+        stop_time: float = float(self._simulate_options["stopTime"])
 
         # Replace None inputs with a default constant zero signal
         inputs: dict[str, list[tuple[float, float]]] = {}
@@ -1420,7 +1420,7 @@ class ModelicaSystem:
                 tupleList = nameVal.get(n)
                 if tupleList is not None:
                     for l in tupleList:
-                        if l[0] < float(self._simulateOptions["startTime"]):
+                        if l[0] < float(self._simulate_options["startTime"]):
                             raise ModelicaSystemError('Input time value is less than simulation startTime')
             self._csvFile = self._createCSVData()
             om_cmd.arg_set(key="csvInput", val=self._csvFile.as_posix())
