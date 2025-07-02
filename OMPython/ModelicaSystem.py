@@ -361,8 +361,8 @@ class ModelicaSystem:
         self._override_variables: dict[str, str] = {}
         self._simulate_options_override: dict[str, str] = {}
         self._linearization_options = {'startTime': 0.0, 'stopTime': 1.0, 'stepSize': 0.002, 'tolerance': 1e-8}
-        self._optimizeOptions = {'startTime': 0.0, 'stopTime': 1.0, 'numberOfIntervals': 500, 'stepSize': 0.002,
-                                 'tolerance': 1e-8}
+        self._optimization_options = {'startTime': 0.0, 'stopTime': 1.0, 'numberOfIntervals': 500, 'stepSize': 0.002,
+                                      'tolerance': 1e-8}
         self._linearinputs: list[str] = []  # linearization input list
         self._linearoutputs: list[str] = []  # linearization output list
         self._linearstates: list[str] = []  # linearization states list
@@ -907,11 +907,11 @@ class ModelicaSystem:
             [1e-08, 1.0]
         """
         if names is None:
-            return self._optimizeOptions
+            return self._optimization_options
         elif isinstance(names, str):
-            return [self._optimizeOptions[names]]
+            return [self._optimization_options[names]]
         elif isinstance(names, list):
-            return [self._optimizeOptions[x] for x in names]
+            return [self._optimization_options[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
@@ -1178,7 +1178,7 @@ class ModelicaSystem:
         >>> setOptimizationOptions("Name=value")
         >>> setOptimizationOptions(["Name1=value1","Name2=value2"])
         """
-        return self._setMethodHelper(optimizationOptions, self._optimizeOptions, "optimization-option", None)
+        return self._setMethodHelper(optimizationOptions, self._optimization_options, "optimization-option", None)
 
     def setInputs(self, name):  # 15
         """
@@ -1358,7 +1358,7 @@ class ModelicaSystem:
              'timeTotal': 1.079097854}
         """
         cName = self._modelName
-        properties = ','.join(f"{key}={val}" for key, val in self._optimizeOptions.items())
+        properties = ','.join(f"{key}={val}" for key, val in self._optimization_options.items())
         self.setCommandLineOptions("-g=Optimica")
         optimizeResult = self._requestApi('optimize', cName, properties)
 
