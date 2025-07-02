@@ -360,7 +360,7 @@ class ModelicaSystem:
         self._simulate_options: dict[str, str] = {}
         self._override_variables: dict[str, str] = {}
         self._simulate_options_override: dict[str, str] = {}
-        self._linearOptions = {'startTime': 0.0, 'stopTime': 1.0, 'stepSize': 0.002, 'tolerance': 1e-8}
+        self._linearization_options = {'startTime': 0.0, 'stopTime': 1.0, 'stepSize': 0.002, 'tolerance': 1e-8}
         self._optimizeOptions = {'startTime': 0.0, 'stopTime': 1.0, 'numberOfIntervals': 500, 'stepSize': 0.002,
                                  'tolerance': 1e-8}
         self._linearinputs: list[str] = []  # linearization input list
@@ -872,11 +872,11 @@ class ModelicaSystem:
             [1e-08, 1.0]
         """
         if names is None:
-            return self._linearOptions
+            return self._linearization_options
         elif isinstance(names, str):
-            return [self._linearOptions[names]]
+            return [self._linearization_options[names]]
         elif isinstance(names, list):
-            return [self._linearOptions[x] for x in names]
+            return [self._linearization_options[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getLinearizationOptions()")
 
@@ -1168,7 +1168,7 @@ class ModelicaSystem:
         >>> setLinearizationOptions("Name=value")
         >>> setLinearizationOptions(["Name1=value1","Name2=value2"])
         """
-        return self._setMethodHelper(linearizationOptions, self._linearOptions, "Linearization-option", None)
+        return self._setMethodHelper(linearizationOptions, self._linearization_options, "Linearization-option", None)
 
     def setOptimizationOptions(self, optimizationOptions):  # 17
         """
@@ -1409,7 +1409,7 @@ class ModelicaSystem:
         with open(file=overrideLinearFile, mode="w", encoding="utf-8") as fh:
             for key, value in self._override_variables.items():
                 fh.write(f"{key}={value}\n")
-            for key, value in self._linearOptions.items():
+            for key, value in self._linearization_options.items():
                 fh.write(f"{key}={value}\n")
 
         om_cmd.arg_set(key="overrideFile", val=overrideLinearFile.as_posix())
@@ -1425,7 +1425,7 @@ class ModelicaSystem:
             self._csvFile = self._createCSVData()
             om_cmd.arg_set(key="csvInput", val=self._csvFile.as_posix())
 
-        om_cmd.arg_set(key="l", val=str(lintime or self._linearOptions["stopTime"]))
+        om_cmd.arg_set(key="l", val=str(lintime or self._linearization_options["stopTime"]))
 
         # allow runtime simulation flags from user input
         if simflags is not None:
