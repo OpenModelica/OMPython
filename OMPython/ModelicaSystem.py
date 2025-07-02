@@ -352,9 +352,9 @@ class ModelicaSystem:
         self._quantities: list[dict[str, Any]] = []
         self._params: dict[str, str] = {}  # even numerical values are stored as str
         self._inputs: dict[str, list | None] = {}
-        # _outputlist values are str before simulate(), but they can be
+        # _outputs values are str before simulate(), but they can be
         # np.float64 after simulate().
-        self._outputlist: dict[str, Any] = {}
+        self._outputs: dict[str, Any] = {}
         # same for _continuouslist
         self._continuouslist: dict[str, Any] = {}
         self._simulateOptions: dict[str, str] = {}
@@ -543,7 +543,7 @@ class ModelicaSystem:
             if scalar["causality"] == "input":
                 self._inputs[scalar["name"]] = scalar["start"]
             if scalar["causality"] == "output":
-                self._outputlist[scalar["name"]] = scalar["start"]
+                self._outputs[scalar["name"]] = scalar["start"]
 
             self._quantities.append(scalar)
 
@@ -781,30 +781,30 @@ class ModelicaSystem:
         """
         if not self._simulationFlag:
             if names is None:
-                return self._outputlist
+                return self._outputs
             elif isinstance(names, str):
-                return [self._outputlist[names]]
+                return [self._outputs[names]]
             else:
-                return [self._outputlist[x] for x in names]
+                return [self._outputs[x] for x in names]
         else:
             if names is None:
-                for i in self._outputlist:
+                for i in self._outputs:
                     value = self.getSolutions(i)
-                    self._outputlist[i] = value[0][-1]
-                return self._outputlist
+                    self._outputs[i] = value[0][-1]
+                return self._outputs
             elif isinstance(names, str):
-                if names in self._outputlist:
+                if names in self._outputs:
                     value = self.getSolutions(names)
-                    self._outputlist[names] = value[0][-1]
-                    return [self._outputlist[names]]
+                    self._outputs[names] = value[0][-1]
+                    return [self._outputs[names]]
                 else:
                     raise KeyError(names)
             elif isinstance(names, list):
                 valuelist = []
                 for i in names:
-                    if i in self._outputlist:
+                    if i in self._outputs:
                         value = self.getSolutions(i)
-                        self._outputlist[i] = value[0][-1]
+                        self._outputs[i] = value[0][-1]
                         valuelist.append(value[0][-1])
                     else:
                         raise KeyError(i)
