@@ -125,7 +125,7 @@ class ModelicaSystemCmd:
         self._args: dict[str, str | None] = {}
         self._arg_override: dict[str, str] = {}
 
-    def arg_set(self, key: str, val: Optional[str | dict] = None) -> None:
+    def arg_set(self, key: str, val: Optional[str | dict[str, Any]] = None) -> None:
         """
         Set one argument for the executable model.
 
@@ -168,7 +168,7 @@ class ModelicaSystemCmd:
 
         return None
 
-    def args_set(self, args: dict[str, Optional[str | dict[str, str]]]) -> None:
+    def args_set(self, args: dict[str, Optional[str | dict[str, Any]]]) -> None:
         """
         Define arguments for the model executable.
 
