@@ -15,7 +15,7 @@ def test_OMCPath_docker():
     assert p2.is_file()
     assert p2.parent.is_dir()
     assert p2.unlink()
-    assert p2.is_file() == False
+    assert p2.is_file() is False
 
     del omcp
     del om
