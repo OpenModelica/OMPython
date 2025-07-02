@@ -358,7 +358,7 @@ class ModelicaSystem:
         # same for _continuous
         self._continuous: dict[str, Any] = {}
         self._simulate_options: dict[str, str] = {}
-        self._overridevariables: dict[str, str] = {}
+        self._override_variables: dict[str, str] = {}
         self._simoptionsoverride: dict[str, str] = {}
         self._linearOptions = {'startTime': 0.0, 'stopTime': 1.0, 'stepSize': 0.002, 'tolerance': 1e-8}
         self._optimizeOptions = {'startTime': 0.0, 'stopTime': 1.0, 'numberOfIntervals': 500, 'stepSize': 0.002,
@@ -534,8 +534,8 @@ class ModelicaSystem:
                 scalar["unit"] = att.get('unit')
 
             if scalar["variability"] == "parameter":
-                if scalar["name"] in self._overridevariables:
-                    self._params[scalar["name"]] = self._overridevariables[scalar["name"]]
+                if scalar["name"] in self._override_variables:
+                    self._params[scalar["name"]] = self._override_variables[scalar["name"]]
                 else:
                     self._params[scalar["name"]] = scalar["start"]
             if scalar["variability"] == "continuous":
@@ -958,8 +958,8 @@ class ModelicaSystem:
             om_cmd.args_set(args=simargs)
 
         overrideFile = self._tempdir / f"{self._modelName}_override.txt"
-        if self._overridevariables or self._simoptionsoverride:
-            tmpdict = self._overridevariables.copy()
+        if self._override_variables or self._simoptionsoverride:
+            tmpdict = self._override_variables.copy()
             tmpdict.update(self._simoptionsoverride)
             # write to override file
             with open(file=overrideFile, mode="w", encoding="utf-8") as fh:
@@ -1128,7 +1128,7 @@ class ModelicaSystem:
         >>> setContinuous("Name=value")
         >>> setContinuous(["Name1=value1","Name2=value2"])
         """
-        return self._setMethodHelper(cvals, self._continuous, "continuous", self._overridevariables)
+        return self._setMethodHelper(cvals, self._continuous, "continuous", self._override_variables)
 
     def setParameters(self, pvals):  # 14
         """
@@ -1138,7 +1138,7 @@ class ModelicaSystem:
         >>> setParameters("Name=value")
         >>> setParameters(["Name1=value1","Name2=value2"])
         """
-        return self._setMethodHelper(pvals, self._params, "parameter", self._overridevariables)
+        return self._setMethodHelper(pvals, self._params, "parameter", self._override_variables)
 
     def isParameterChangeable(self, name, value):
         q = self.getQuantities(name)
@@ -1407,7 +1407,7 @@ class ModelicaSystem:
         overrideLinearFile = self._tempdir / f'{self._modelName}_override_linear.txt'
 
         with open(file=overrideLinearFile, mode="w", encoding="utf-8") as fh:
-            for key, value in self._overridevariables.items():
+            for key, value in self._override_variables.items():
                 fh.write(f"{key}={value}\n")
             for key, value in self._linearOptions.items():
                 fh.write(f"{key}={value}\n")
