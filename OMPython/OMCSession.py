@@ -268,6 +268,50 @@ class OMCSessionCmd:
         return self._ask(question='getClassNames', opt=opt)
 
 
+class OMCPath(pathlib.PurePosixPath):
+    """
+    Implementation of a basic Path object which uses OMC as backend. The connection to OMC is provided via a
+    OMCSessionZMQ session object.
+    """
+
+    # TODO: need to handle PurePosixPath and PureWindowsPath
+    #       PureOMCPath => OMCPathPosix(PureOMCPath, PurePosixPath)
+    #                   => OMCPathWindows(PureOMCPath, PureWindowsPath)
+
+    def __init__(self, *path, session: OMCSessionZMQ):
+        super().__init__(*path)
+        self._session = session
+
+    def with_segments(self, *pathsegments):
+        # overwrite this function of PurePosixPath to ensure session is set
+        return type(self)(*pathsegments, session=self._session)
+
+    def is_file(self) -> bool:
+        return self._session.sendExpression(f'regularFileExists("{self.as_posix()}")')
+
+    def is_dir(self) -> bool:
+        return self._session.sendExpression(f'directoryExists("{self.as_posix()}")')
+
+    def read_text(self) -> str:
+        return self._session.sendExpression(f'readFile("{self.as_posix()}")')
+
+    def write_text(self, data: str) -> bool:
+        return self._session.sendExpression(f'writeFile("{self.as_posix()}", "{data}", false)')
+
+    def unlink(self) -> bool:
+        return self._session.sendExpression(f'deleteFile("{self.as_posix()}")')
+
+    # TODO: implement needed methods from pathlib._abc.PathBase:
+    #       OK - is_dir()
+    #       OK - is_file()
+    #       OK - read_text() + binary()?
+    #       OK - write_text() + binary()?
+    #       OK - unlink()
+    #       resolve()
+    #       ... more ...
+    #       ??? test if local (write OMC => READ local and the other way) and use shortcuts ???
+
+
 class OMCSessionZMQ:
 
     def __init__(
@@ -321,6 +365,11 @@ class OMCSessionZMQ:
             del self.omc_zmq
 
         self.omc_zmq = None
+
+    def omcpath(self, *path) -> OMCPath:
+        # TODO: need to handle PurePosixPath and PureWindowsPath
+        #       define it here based on the backend (omc_process) used?
+        return OMCPath(*path, session=self)
 
     def execute(self, command: str):
         warnings.warn("This function is depreciated and will be removed in future versions; "
