@@ -280,6 +280,7 @@ class OMCPath(pathlib.PurePosixPath):
     # TODO: need to handle PurePosixPath and PureWindowsPath
     #       PureOMCPath => OMCPathPosix(PureOMCPath, PurePosixPath)
     #                   => OMCPathWindows(PureOMCPath, PureWindowsPath)
+    # TODO: only working for Python 3.12+ (not working for 3.10!; 3.11?)
 
     def __init__(self, *path, session: OMCSessionZMQ):
         super().__init__(*path)
