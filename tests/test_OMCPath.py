@@ -1,8 +1,14 @@
+import sys
 import OMPython
 import pytest
 
+skip_on_windows = pytest.mark.skipif(
+    sys.platform.startswith("win"),
+    reason="OpenModelica Docker image is Linux-only; skipping on Windows.",
+)
 
-@pytest.mark.skip(reason="This test would fail (no docker on github)")
+
+@skip_on_windows
 def test_OMCPath_docker():
     omcp = OMPython.OMCProcessDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
     om = OMPython.OMCSessionZMQ(omc_process=omcp)
