@@ -1322,7 +1322,7 @@ class ModelicaSystem:
             csv_rows.append(row)
 
         if csvfile is None:
-            csvFile = self._tempdir / f'{self._model_name}.csv'
+            csvfile = self._tempdir / f'{self._model_name}.csv'
 
         with open(file=csvfile, mode="w", encoding="utf-8", newline="") as fh:
             writer = csv.writer(fh)
