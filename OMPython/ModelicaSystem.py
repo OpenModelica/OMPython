@@ -920,7 +920,7 @@ class ModelicaSystem:
             resultfile: pathlib.Path,
             simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
-            timeout: Optional[int] = None,
+            timeout: Optional[float] = None,
     ) -> ModelicaSystemCmd:
         """
         This method prepares the simulates model according to the simulation options. It returns an instance of
