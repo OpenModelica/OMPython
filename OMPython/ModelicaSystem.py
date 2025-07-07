@@ -1210,7 +1210,7 @@ class ModelicaSystem:
                              "structural, final, protected, evaluated or has a non-constant binding. "
                              "Use sendExpression(...) and rebuild the model using buildModel() API; example: "
                              "sendExpression(\"setParameterValue("
-                             f"{self.modelName}, {key}, {val if val is not None else '<?value?>'}"
+                             f"{self._model_name}, {key}, {val if val is not None else '<?value?>'}"
                              ")\") ")
             else:
                 classdata[key] = val
@@ -1247,9 +1247,9 @@ class ModelicaSystem:
 
         return self._set_method_helper(
             inputdata=inputdata,
-            classdata=self.continuouslist,
+            classdata=self._continuous,
             datatype="continuous",
-            overwritedata=self.overridevariables)
+            overwritedata=self._override_variables)
 
     def setParameters(
             self,
@@ -1267,9 +1267,9 @@ class ModelicaSystem:
 
         return self._set_method_helper(
             inputdata=inputdata,
-            classdata=self.paramlist,
+            classdata=self._params,
             datatype="parameter",
-            overwritedata=self.overridevariables)
+            overwritedata=self._override_variables)
 
     def setSimulationOptions(
             self,
@@ -1287,9 +1287,9 @@ class ModelicaSystem:
 
         return self._set_method_helper(
             inputdata=inputdata,
-            classdata=self.simulateOptions,
+            classdata=self._simulate_options,
             datatype="simulation-option",
-            overwritedata=self.simoptionsoverride)
+            overwritedata=self._simulate_options_override)
 
     def setLinearizationOptions(
             self,
@@ -1307,7 +1307,7 @@ class ModelicaSystem:
 
         return self._set_method_helper(
             inputdata=inputdata,
-            classdata=self.linearOptions,
+            classdata=self._linearization_options,
             datatype="Linearization-option",
             overwritedata=None)
 
@@ -1327,7 +1327,7 @@ class ModelicaSystem:
 
         return self._set_method_helper(
             inputdata=inputdata,
-            classdata=self.optimizeOptions,
+            classdata=self._optimization_options,
             datatype="optimization-option",
             overwritedata=None)
 
