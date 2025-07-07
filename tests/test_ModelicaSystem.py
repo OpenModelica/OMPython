@@ -396,7 +396,7 @@ end M_input;
         "u1=[(0.0, 0), (1.0, 1)]",
         "u2=[(0.0, 0), (0.25, 0.5), (0.5, 1.0), (1.0, 0)]",
     ])
-    csv_file = mod.createCSVData()
+    csv_file = mod._createCSVData()
     assert pathlib.Path(csv_file).read_text() == """time,u1,u2,end
 0.0,0.0,0.0,0
 0.25,0.25,0.5,0
