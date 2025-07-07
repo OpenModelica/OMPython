@@ -985,11 +985,13 @@ class ModelicaSystem:
 
         return om_cmd
 
-    def simulate(self,
-                 resultfile: Optional[str] = None,
-                 simflags: Optional[str] = None,
-                 simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
-                 timeout: Optional[float] = None) -> None:
+    def simulate(
+            self,
+            resultfile: Optional[str] = None,
+            simflags: Optional[str] = None,
+            simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
+            timeout: Optional[float] = None,
+    ) -> None:
         """Simulate the model according to simulation options.
 
         See setSimulationOptions().
