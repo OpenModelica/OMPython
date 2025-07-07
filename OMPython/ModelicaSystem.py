@@ -388,7 +388,6 @@ class ModelicaSystem:
         self._lmodel = lmodel  # may be needed if model is derived from other model
         self._model_name = modelName  # Model class name
         self._file_name = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
-        self._has_inputs = False  # for model with input quantity
         self._simulated = False  # True if the model has already been simulated
         self._result_file: Optional[pathlib.Path] = None  # for storing result file
         self._variable_filter = variableFilter
@@ -967,22 +966,20 @@ class ModelicaSystem:
 
             om_cmd.arg_set(key="overrideFile", val=overrideFile.as_posix())
 
-        if self._has_inputs:  # if model has input quantities
-            # csvfile is based on name used for result file
-            csvfile = result_file.parent / f"{result_file.stem}.csv"
-
-            for i in self._inputs:
-                val = self._inputs[i]
+        if self._inputs:  # if model has input quantities
+            for key in self._inputs:
+                val = self._inputs[key]
                 if val is None:
                     val = [(float(self._simulate_options["startTime"]), 0.0),
                            (float(self._simulate_options["stopTime"]), 0.0)]
-                    self._inputs[i] = [(float(self._simulate_options["startTime"]), 0.0),
-                                       (float(self._simulate_options["stopTime"]), 0.0)]
+                    self._inputs[key] = val
                 if float(self._simulate_options["startTime"]) != val[0][0]:
-                    raise ModelicaSystemError(f"startTime not matched for Input {i}!")
+                    raise ModelicaSystemError(f"startTime not matched for Input {key}!")
                 if float(self._simulate_options["stopTime"]) != val[-1][0]:
-                    raise ModelicaSystemError(f"stopTime not matched for Input {i}!")
+                    raise ModelicaSystemError(f"stopTime not matched for Input {key}!")
 
+            # csvfile is based on name used for result file
+            csvfile = result_file.parent / f"{result_file.stem}.csv"
             # write csv file and store the name
             csvfile = self._createCSVData(csvfile=csvfile)
 
@@ -1379,11 +1376,13 @@ class ModelicaSystem:
             else:
                 raise ModelicaSystemError(f"Data cannot be evaluated for {repr(key)}: {repr(val)}")
 
-        self._has_inputs = True
-
         return True
 
-    def _createCSVData(self) -> pathlib.Path:
+    def _createCSVData(self, csvfile: Optional[pathlib.Path] = None) -> pathlib.Path:
+        """
+        Create a csv file with inputs for the simulation/optimization of the model. If csvfile is provided as argument,
+        this file is used; else a generic file name is created.
+        """
         start_time: float = float(self._simulate_options["startTime"])
         stop_time: float = float(self._simulate_options["stopTime"])
 
@@ -1567,13 +1566,13 @@ class ModelicaSystem:
 
         om_cmd.arg_set(key="overrideFile", val=overrideLinearFile.as_posix())
 
-        if self._has_inputs:
-            nameVal = self.getInputs()
-            for n in nameVal:
-                tupleList = nameVal.get(n)
-                if tupleList is not None:
-                    for l in tupleList:
-                        if l[0] < float(self._simulate_options["startTime"]):
+        inputs = self.getInputs()
+        if inputs:
+            for key in inputs:
+                data = inputs[key]
+                if data is not None:
+                    for value in data:
+                        if value[0] < float(self._simulate_options["startTime"]):
                             raise ModelicaSystemError('Input time value is less than simulation startTime')
             csvfile = self._createCSVData()
             om_cmd.arg_set(key="csvInput", val=csvfile.as_posix())
