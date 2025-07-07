@@ -1395,6 +1395,8 @@ class ModelicaSystem:
             else:
                 raise ModelicaSystemError(f"Data cannot be evaluated for {repr(key)}: {repr(val)}")
 
+        self._has_inputs = True
+
         return True
 
     def _createCSVData(self, csvfile: Optional[pathlib.Path] = None) -> pathlib.Path:
