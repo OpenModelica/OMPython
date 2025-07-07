@@ -363,7 +363,11 @@ end M_input;
             (0.0, 2.5),
             (1.0, 2.5),
         ],
-        "u2": None,
+        # u2 is set due to the call to simulate() above
+        "u2": [
+            (0.0, 0.0),
+            (1.0, 0.0),
+        ],
     }
     mod.simulate()
     y = mod.getSolutions("y")[0]
@@ -390,7 +394,7 @@ end M_input;
         mod.setInputs(name={"u1": [(0.0, 0.0), (0.5, 1)]})
         mod.simulate()
 
-    # Let's use both inputs, but each one with different number of of
+    # Let's use both inputs, but each one with different number of
     # samples. This has an effect when generating the csv file.
     mod.setInputs(name={"u1": [(0.0, 0), (1.0, 1)],
                         "u2": [(0.0, 0), (0.25, 0.5), (0.5, 1.0), (1.0, 0)]})
