@@ -1490,10 +1490,6 @@ class ModelicaSystem:
         if not linear_file.exists():
             raise ModelicaSystemError(f"Linearization failed: {linear_file} not found!")
 
-        # support older openmodelica versions before OpenModelica v1.16.2 where linearize() generates "linear_model_name.mo" file
-        if not linear_file.exists():
-            linear_file = pathlib.Path(f'linear_{self._model_name}.py')
-
         # extract data from the python file with the linearized model using the ast module - this allows to get the
         # needed information without executing the created code
         linear_data = {}
