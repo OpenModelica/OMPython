@@ -513,7 +513,8 @@ class ModelicaSystem:
         if not xml_file.is_file():
             raise ModelicaSystemError(f"XML file not generated: {xml_file}")
 
-        tree = ET.parse(xml_file)
+        xml_content = xml_file.read_text()
+        tree = ET.ElementTree(ET.fromstring(xml_content))
         rootCQ = tree.getroot()
         for attr in rootCQ.iter('DefaultExperiment'):
             for key in ("startTime", "stopTime", "stepSize", "tolerance",
