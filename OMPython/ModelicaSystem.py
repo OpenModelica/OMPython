@@ -2000,7 +2000,7 @@ class ModelicaSystemDoE:
                 self._sim_dict[resfilename] = df_data
 
                 mscmd = mod_structure.simulate_cmd(
-                    resultfile=resultfile.absolute().resolve(),
+                    result_file=resultfile.absolute().resolve(),
                     timeout=self._timeout,
                 )
                 if self._simargs is not None:
@@ -2148,12 +2148,12 @@ class ModelicaSystemDoE:
                 continue
 
             if var_list is None:
-                var_list_row = list(self._mod.getSolutions(resultfile=resultfile))
+                var_list_row = list(self._mod.getSolutions(resultfile=resultfile.as_posix()))
             else:
                 var_list_row = var_list
 
             try:
-                sol = self._mod.getSolutions(varList=var_list_row, resultfile=resultfile)
+                sol = self._mod.getSolutions(varList=var_list_row, resultfile=resultfile.as_posix())
                 sol_data = {var: sol[idx] for idx, var in enumerate(var_list_row)}
                 sol_dict[resultfilename]['msg'] = 'Simulation available'
                 sol_dict[resultfilename]['data'] = sol_data
