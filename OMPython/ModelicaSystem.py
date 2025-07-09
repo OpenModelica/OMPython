@@ -916,7 +916,7 @@ class ModelicaSystem:
 
     def simulate_cmd(
             self,
-            resultfile: pathlib.Path,
+            result_file: pathlib.Path,
             simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
             timeout: Optional[float] = None,
@@ -933,7 +933,7 @@ class ModelicaSystem:
 
         Parameters
         ----------
-        resultfile
+        result_file
         simflags
         simargs
         timeout
@@ -946,7 +946,7 @@ class ModelicaSystem:
         om_cmd = ModelicaSystemCmd(runpath=self._tempdir, modelname=self._model_name, timeout=timeout)
 
         # always define the result file to use
-        om_cmd.arg_set(key="r", val=resultfile.as_posix())
+        om_cmd.arg_set(key="r", val=result_file.as_posix())
 
         # allow runtime simulation flags from user input
         if simflags is not None:
@@ -968,7 +968,7 @@ class ModelicaSystem:
 
         if self._has_inputs:  # if model has input quantities
             # csvfile is based on name used for result file
-            csvfile = self._result_file.parent / f"{self._result_file.stem}.csv"
+            csvfile = result_file.parent / f"{result_file.stem}.csv"
 
             for i in self._inputs:
                 val = self._inputs[i]
@@ -1023,7 +1023,7 @@ class ModelicaSystem:
             self._result_file = self._tempdir / resultfile
 
         om_cmd = self.simulate_cmd(
-            resultfile=self._result_file,
+            result_file=self._result_file,
             simflags=simflags,
             simargs=simargs,
             timeout=timeout,
