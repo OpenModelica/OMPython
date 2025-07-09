@@ -32,9 +32,9 @@ __license__ = """
  CONDITIONS OF OSMC-PL.
 """
 
+import ast
 import csv
 from dataclasses import dataclass
-import importlib
 import logging
 import numbers
 import numpy as np
@@ -1438,14 +1438,6 @@ class ModelicaSystem:
               compatibility, because linearize() used to return `[A, B, C, D]`.
         """
 
-        # replacement for depreciated importlib.load_module()
-        def load_module_from_path(module_name, file_path):
-            spec = importlib.util.spec_from_file_location(module_name, file_path)
-            module_def = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module_def)
-
-            return module_def
-
         if self._xml_file is None:
             raise ModelicaSystemError(
                 "Linearization cannot be performed as the model is not build, "
@@ -1484,38 +1476,62 @@ class ModelicaSystem:
         if simargs:
             om_cmd.args_set(args=simargs)
 
+        # the file create by the model executable which contains the matrix and linear inputs, outputs and states
+        linear_file = self._tempdir / "linearized_model.py"
+
+        linear_file.unlink(missing_ok=True)
+
         returncode = om_cmd.run()
         if returncode != 0:
             raise ModelicaSystemError(f"Linearize failed with return code: {returncode}")
 
         self._simulated = True
 
-        # code to get the matrix and linear inputs, outputs and states
-        linearFile = self._tempdir / "linearized_model.py"
+        if not linear_file.exists():
+            raise ModelicaSystemError(f"Linearization failed: {linear_file} not found!")
 
         # support older openmodelica versions before OpenModelica v1.16.2 where linearize() generates "linear_model_name.mo" file
-        if not linearFile.exists():
-            linearFile = pathlib.Path(f'linear_{self._model_name}.py')
+        if not linear_file.exists():
+            linear_file = pathlib.Path(f'linear_{self._model_name}.py')
 
-        if not linearFile.exists():
-            raise ModelicaSystemError(f"Linearization failed: {linearFile} not found!")
-
-        # this function is called from the generated python code linearized_model.py at runtime,
-        # to improve the performance by directly reading the matrices A, B, C and D from the julia code and avoid building the linearized modelica model
+        # extract data from the python file with the linearized model using the ast module - this allows to get the
+        # needed information without executing the created code
+        linear_data = {}
+        linear_file_content = linear_file.read_text()
         try:
-            # do not add the linearfile directory to path, as multiple execution of linearization will always use the first added path, instead execute the file
-            # https://github.com/OpenModelica/OMPython/issues/196
-            module = load_module_from_path(module_name="linearized_model", file_path=linearFile.as_posix())
+            linear_file_ast = ast.parse(linear_file_content)
+            for body_part in linear_file_ast.body[0].body:
+                if not isinstance(body_part, ast.Assign):
+                    continue
 
-            result = module.linearized_model()
-            (n, m, p, x0, u0, A, B, C, D, stateVars, inputVars, outputVars) = result
-            self._linearized_inputs = inputVars
-            self._linearized_outputs = outputVars
-            self._linearized_states = stateVars
-            return LinearizationResult(n, m, p, A, B, C, D, x0, u0, stateVars,
-                                       inputVars, outputVars)
-        except ModuleNotFoundError as ex:
-            raise ModelicaSystemError("No module named 'linearized_model'") from ex
+                target = body_part.targets[0].id
+                value = ast.literal_eval(body_part.value)
+
+                linear_data[target] = value
+        except (AttributeError, IndexError, ValueError, SyntaxError, TypeError) as ex:
+            raise ModelicaSystemError(f"Error parsing linearization file {linear_file}!") from ex
+
+        # remove the file
+        linear_file.unlink()
+
+        self._linearized_inputs = linear_data["inputVars"]
+        self._linearized_outputs = linear_data["outputVars"]
+        self._linearized_states = linear_data["stateVars"]
+
+        return LinearizationResult(
+            n=linear_data["n"],
+            m=linear_data["m"],
+            p=linear_data["p"],
+            x0=linear_data["x0"],
+            u0=linear_data["u0"],
+            A=linear_data["A"],
+            B=linear_data["B"],
+            C=linear_data["C"],
+            D=linear_data["D"],
+            stateVars=linear_data["stateVars"],
+            inputVars=linear_data["inputVars"],
+            outputVars=linear_data["outputVars"],
+        )
 
     def getLinearInputs(self) -> list[str]:
         """Get names of input variables of the linearized model."""
