@@ -519,14 +519,24 @@ class ModelicaSystem:
         for attr in rootCQ.iter('DefaultExperiment'):
             for key in ("startTime", "stopTime", "stepSize", "tolerance",
                         "solver", "outputFormat"):
-                self._simulate_options[key] = attr.get(key)
+                self._simulate_options[key] = str(attr.get(key))
 
         for sv in rootCQ.iter('ScalarVariable'):
-            scalar = {}
-            for key in ("name", "description", "variability", "causality", "alias"):
-                scalar[key] = sv.get(key)
-            scalar["changeable"] = sv.get('isValueChangeable')
-            scalar["aliasvariable"] = sv.get('aliasVariable')
+            translations = {
+                "alias": "alias",
+                "aliasvariable": "aliasVariable",
+                "causality": "causality",
+                "changeable": "isValueChangeable",
+                "description": "description",
+                "name": "name",
+                "variability": "variability",
+            }
+
+            scalar: dict[str, Any] = {}
+            for key_dst, key_src in translations.items():
+                val = sv.get(key_src)
+                scalar[key_dst] = None if val is None else str(val)
+
             ch = list(sv)
             for att in ch:
                 scalar["start"] = att.get('start')
@@ -534,6 +544,7 @@ class ModelicaSystem:
                 scalar["max"] = att.get('max')
                 scalar["unit"] = att.get('unit')
 
+            # save parameters in the corresponding class variables
             if scalar["variability"] == "parameter":
                 if scalar["name"] in self._override_variables:
                     self._params[scalar["name"]] = self._override_variables[scalar["name"]]
