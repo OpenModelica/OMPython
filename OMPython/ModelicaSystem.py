@@ -1495,12 +1495,13 @@ class ModelicaSystem:
         linear_data = {}
         linear_file_content = linear_file.read_text()
         try:
+            # ignore possible typing errors below (mypy) - these are catched by the try .. except .. block
             linear_file_ast = ast.parse(linear_file_content)
-            for body_part in linear_file_ast.body[0].body:
+            for body_part in linear_file_ast.body[0].body:  # type: ignore
                 if not isinstance(body_part, ast.Assign):
                     continue
 
-                target = body_part.targets[0].id
+                target = body_part.targets[0].id  # type: ignore
                 value = ast.literal_eval(body_part.value)
 
                 linear_data[target] = value
