@@ -383,7 +383,6 @@ class ModelicaSystem:
         if not isinstance(lmodel, list):
             raise ModelicaSystemError(f"Invalid input type for lmodel: {type(lmodel)} - list expected!")
 
-        self._xml_file = None
         self._lmodel = lmodel  # may be needed if model is derived from other model
         self._model_name = modelName  # Model class name
         self._file_name = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
@@ -482,8 +481,6 @@ class ModelicaSystem:
 
         xml_file = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
         self._xmlparse(xml_file=xml_file)
-        # TODO: remove _xml_file?!
-        self._xml_file = xml_file
 
     def sendExpression(self, expr: str, parsed: bool = True):
         try:
@@ -1549,7 +1546,8 @@ class ModelicaSystem:
               compatibility, because linearize() used to return `[A, B, C, D]`.
         """
 
-        if self._xml_file is None:
+        if len(self._quantities) == 0:
+            # if self._quantities has no content, the xml file was not parsed; see self._xmlparse()
             raise ModelicaSystemError(
                 "Linearization cannot be performed as the model is not build, "
                 "use ModelicaSystem() to build the model first"
