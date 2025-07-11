@@ -492,6 +492,30 @@ class OMCSessionZMQ:
 
         return OMCPath(*path, session=self)
 
+    def omcpath_tempdir(self) -> OMCPath:
+        """
+        Get a temporary directory using OMC.
+        """
+        names = [str(uuid.uuid4()) for _ in range(100)]
+
+        tempdir_str = self.sendExpression("getTempDirectoryPath()")
+        tempdir_base = self.omcpath(tempdir_str)
+        tempdir: Optional[OMCPath] = None
+        for name in names:
+            # create a unique temporary directory name
+            tempdir = tempdir_base / name
+
+            if tempdir.exists():
+                continue
+
+            tempdir.mkdir(parents=True, exist_ok=False)
+            break
+
+        if tempdir is None or not tempdir.is_dir():
+            raise OMCSessionException("Cannot create a temporary directory!")
+
+        return tempdir
+
     def execute(self, command: str):
         warnings.warn("This function is depreciated and will be removed in future versions; "
                       "please use sendExpression() instead", DeprecationWarning, stacklevel=2)
