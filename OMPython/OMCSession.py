@@ -461,18 +461,18 @@ else:
 
 @dataclasses.dataclass
 class OMCSessionRunData:
-    # TODO: rename OMCExcecutableModelData
     """
     Data class to store the command line data for running a model executable in the OMC environment.
 
     All data should be defined for the environment, where OMC is running (local, docker or WSL)
     """
-    # cmd_path is the expected working directory
+    # cmd_path is based on the selected OMCProcess definition
     cmd_path: str
     cmd_model_name: str
     # command line arguments for the model executable
     cmd_args: list[str]
     # result file with the simulation output
+    # cmd_result_path is based on the selected OMCProcess definition
     cmd_result_path: str
 
     # command prefix data (as list of strings); needed for docker or WSL
@@ -601,13 +601,13 @@ class OMCSessionZMQ:
 
         return tempdir
 
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
+    def omc_run_data_update(self, omc_run_data: OMCSessionRunData, session: OMCSessionZMQ) -> OMCSessionRunData:
         """
         Modify data based on the selected OMCProcess implementation.
 
         Needs to be implemented in the subclasses.
         """
-        return self.omc_process.omc_run_data_update(omc_run_data=omc_run_data)
+        return self.omc_process.omc_run_data_update(omc_run_data=omc_run_data, session=self)
 
     @staticmethod
     def run_model_executable(cmd_run_data: OMCSessionRunData) -> int:
@@ -655,8 +655,11 @@ class OMCSessionZMQ:
         return self.sendExpression(command, parsed=False)
 
     def sendExpression(self, command: str, parsed: bool = True) -> Any:
+        """
+        Send an expression to the OMC server and return the result.
+        """
         if self.omc_zmq is None:
-            raise OMCSessionException("No OMC running. Create a new instance of OMCSessionZMQ!")
+            raise OMCSessionException("No OMC running. Create a new instance of OMCProcess!")
 
         logger.debug("sendExpression(%r, parsed=%r)", command, parsed)
 
@@ -841,7 +844,7 @@ class OMCProcess(metaclass=abc.ABCMeta):
         return portfile_path
 
     @abc.abstractmethod
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
+    def omc_run_data_update(self, omc_run_data: OMCSessionRunData, session: OMCSessionZMQ) -> OMCSessionRunData:
         """
         Update the OMCSessionRunData object based on the selected OMCProcess implementation.
 
@@ -862,7 +865,7 @@ class OMCProcessPort(OMCProcess):
         super().__init__()
         self._omc_port = omc_port
 
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
+    def omc_run_data_update(self, omc_run_data: OMCSessionRunData, session: OMCSessionZMQ) -> OMCSessionRunData:
         """
         Update the OMCSessionRunData object based on the selected OMCProcess implementation.
         """
@@ -952,7 +955,7 @@ class OMCProcessLocal(OMCProcess):
 
         return port
 
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
+    def omc_run_data_update(self, omc_run_data: OMCSessionRunData, session: OMCSessionZMQ) -> OMCSessionRunData:
         """
         Update the OMCSessionRunData object based on the selected OMCProcess implementation.
         """
@@ -1109,7 +1112,7 @@ class OMCProcessDockerHelper(OMCProcess):
 
         return self._dockerCid
 
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
+    def omc_run_data_update(self, omc_run_data: OMCSessionRunData, session: OMCSessionZMQ) -> OMCSessionRunData:
         """
         Update the OMCSessionRunData object based on the selected OMCProcess implementation.
         """
@@ -1430,7 +1433,7 @@ class OMCProcessWSL(OMCProcess):
 
         return port
 
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
+    def omc_run_data_update(self, omc_run_data: OMCSessionRunData, session: OMCSessionZMQ) -> OMCSessionRunData:
         """
         Update the OMCSessionRunData object based on the selected OMCProcess implementation.
         """
