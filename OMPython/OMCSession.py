@@ -1387,25 +1387,30 @@ class OMCProcessWSL(OMCProcess):
 
         super().__init__(timeout=timeout)
 
-        # get wsl base command
-        self._wsl_cmd = ['wsl']
-        if isinstance(wsl_distribution, str):
-            self._wsl_cmd += ['--distribution', wsl_distribution]
-        if isinstance(wsl_user, str):
-            self._wsl_cmd += ['--user', wsl_user]
-        self._wsl_cmd += ['--']
-
         # where to find OpenModelica
         self._wsl_omc = wsl_omc
+        # store WSL distribution and user
+        self._wsl_distribution = wsl_distribution
+        self._wsl_user = wsl_user
         # start up omc executable, which is waiting for the ZMQ connection
         self._omc_process = self._omc_process_get()
         # connect to the running omc instance using ZMQ
         self._omc_port = self._omc_port_get()
 
+    def _wsl_cmd(self) -> list[str]:        # get wsl base command
+        wsl_cmd = ['wsl']
+        if isinstance(self._wsl_distribution, str):
+            wsl_cmd += ['--distribution', self._wsl_distribution]
+        if isinstance(self._wsl_user, str):
+            wsl_cmd += ['--user', self._wsl_user]
+        wsl_cmd += ['--']
+
+        return wsl_cmd
+
     def _omc_process_get(self) -> subprocess.Popen:
         my_env = os.environ.copy()
 
-        omc_command = self._wsl_cmd + [
+        omc_command = self._wsl_cmd() + [
             self._wsl_omc,
             "--locale=C",
             "--interactive=zmq",
@@ -1428,7 +1433,7 @@ class OMCProcessWSL(OMCProcess):
                 omc_portfile_path = self._get_portfile_path()
                 if omc_portfile_path is not None:
                     output = subprocess.check_output(
-                        args=self._wsl_cmd + ["cat", omc_portfile_path.as_posix()],
+                        args=self._wsl_cmd() + ["cat", omc_portfile_path.as_posix()],
                         stderr=subprocess.DEVNULL,
                     )
                     port = output.decode().strip()
@@ -1454,4 +1459,14 @@ class OMCProcessWSL(OMCProcess):
         """
         Update the OMCSessionRunData object based on the selected OMCProcess implementation.
         """
-        raise OMCSessionException("OMCProcessWSL does not support omc_run_data_update()!")
+        omc_run_data_copy = dataclasses.replace(omc_run_data)
+
+        omc_run_data_copy.cmd_prefix = self._wsl_cmd()
+
+        cmd_path = session.omcpath(omc_run_data_copy.cmd_path)
+        cmd_model_executable = cmd_path / omc_run_data_copy.cmd_model_name
+        if not cmd_model_executable.is_file():
+            raise OMCSessionException(f"Application file path not found: {cmd_model_executable}")
+        omc_run_data_copy.cmd_model_executable = cmd_model_executable.as_posix()
+
+        return omc_run_data_copy
