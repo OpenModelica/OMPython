@@ -417,6 +417,12 @@ class OMCPath(pathlib.PurePosixPath):
 
 
 if sys.version_info < (3, 12):
+    warnings.warn(
+        message="Python < 3.12 - using a limited compatibility class as OMCPath replacement.",
+        category=DeprecationWarning,
+        stacklevel=1,
+    )
+
     class OMCPathCompatibility(pathlib.Path):
 
         def size(self) -> int:
