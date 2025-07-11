@@ -396,12 +396,14 @@ end M_input;
         "u1=[(0.0, 0), (1.0, 1)]",
         "u2=[(0.0, 0), (0.25, 0.5), (0.5, 1.0), (1.0, 0)]",
     ])
-    mod.simulate()
-    assert pathlib.Path(mod._csvFile).read_text() == """time,u1,u2,end
+    csv_file = mod._createCSVData()
+    assert pathlib.Path(csv_file).read_text() == """time,u1,u2,end
 0.0,0.0,0.0,0
 0.25,0.25,0.5,0
 0.5,0.5,1.0,0
 1.0,1.0,0.0,0
 """
+
+    mod.simulate()
     y = mod.getSolutions("y")[0]
     assert np.isclose(y[-1], 1.0)
