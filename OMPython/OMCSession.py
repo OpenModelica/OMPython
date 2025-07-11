@@ -481,8 +481,15 @@ class OMCSessionZMQ:
         self.omc_zmq = None
 
     def omcpath(self, *path) -> OMCPath:
-        # TODO: need to handle PurePosixPath and PureWindowsPath
-        #       define it here based on the backend (omc_process) used?
+        """
+        Create an OMCPath object based on the given path segments and the current OMC session.
+        """
+
+        # fallback solution for Python < 3.12; a modified pathlib.Path object is used as OMCPath replacement
+        if sys.version_info < (3, 12):
+            # noinspection PyArgumentList
+            return OMCPath(*path)
+
         return OMCPath(*path, session=self)
 
     def execute(self, command: str):
