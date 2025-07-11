@@ -422,8 +422,7 @@ if sys.version_info < (3, 12):
         def size(self) -> int:
             return self.stat().st_size
 
-
-    OMCPath = OMCPathCompatibility
+    OMCPath = OMCPathCompatibility  # noqa: F811
 
 
 class OMCSessionZMQ:
