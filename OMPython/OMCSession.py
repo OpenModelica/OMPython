@@ -271,7 +271,7 @@ class OMCSessionCmd:
         return self._ask(question='getClassNames', opt=opt)
 
 
-class OMCPath(pathlib.PurePosixPath):
+class OMCPathReal(pathlib.PurePosixPath):
     """
     Implementation of a basic Path object which uses OMC as backend. The connection to OMC is provided via a
     OMCSessionZMQ session object.
@@ -423,12 +423,15 @@ if sys.version_info < (3, 12):
         stacklevel=1,
     )
 
-    class OMCPathCompatibility(pathlib.Path):
+    class OMCPathCompatibility(pathlib.PosixPath):
 
         def size(self) -> int:
             return self.stat().st_size
 
     OMCPath = OMCPathCompatibility  # noqa: F811
+
+else:
+    OMCPath = OMCPathReal
 
 
 class OMCSessionZMQ:
@@ -494,8 +497,8 @@ class OMCSessionZMQ:
         if sys.version_info < (3, 12):
             # noinspection PyArgumentList
             return OMCPath(*path)
-
-        return OMCPath(*path, session=self)
+        else:
+            return OMCPath(*path, session=self)
 
     def omcpath_tempdir(self) -> OMCPath:
         """
