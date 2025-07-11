@@ -1566,10 +1566,9 @@ class ModelicaSystem:
 
         om_cmd.arg_set(key="overrideFile", val=overrideLinearFile.as_posix())
 
-        inputs = self.getInputs()
-        if inputs:
-            for key in inputs:
-                data = inputs[key]
+        if self._inputs:
+            for key in self._inputs:
+                data = self._inputs[key]
                 if data is not None:
                     for value in data:
                         if value[0] < float(self._simulate_options["startTime"]):
