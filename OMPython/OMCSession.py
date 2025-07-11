@@ -277,11 +277,6 @@ class OMCPath(pathlib.PurePosixPath):
     OMCSessionZMQ session object.
     """
 
-    # TODO: need to handle PurePosixPath and PureWindowsPath
-    #       PureOMCPath => OMCPathPosix(PureOMCPath, PurePosixPath)
-    #                   => OMCPathWindows(PureOMCPath, PureWindowsPath)
-    # TODO: only working for Python 3.12+ (not working for 3.10!; 3.11?)
-
     def __init__(self, *path, session: OMCSessionZMQ):
         super().__init__(*path)
         self._session = session
@@ -420,15 +415,6 @@ class OMCPath(pathlib.PurePosixPath):
 
         raise OMCSessionException(f"Error reading file size for path {self.as_posix()}!")
 
-    # TODO: implement needed methods from pathlib._abc.PathBase:
-    #       OK - is_dir()
-    #       OK - is_file()
-    #       OK - read_text() + binary()?
-    #       OK - write_text() + binary()?
-    #       OK - unlink()
-    #       resolve()
-    #       ... more ...
-    #       ??? test if local (write OMC => READ local and the other way) and use shortcuts ???
 
 
 class OMCSessionZMQ:
