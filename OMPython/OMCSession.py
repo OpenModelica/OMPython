@@ -1116,7 +1116,24 @@ class OMCProcessDockerHelper(OMCProcess):
         """
         Update the OMCSessionRunData object based on the selected OMCProcess implementation.
         """
-        raise OMCSessionException("OMCProcessDocker* does not support omc_run_data_update()!")
+        omc_run_data_copy = dataclasses.replace(omc_run_data)
+
+        omc_run_data_copy.cmd_prefix = (
+                [
+                    "docker", "exec",
+                    "--user", str(self._getuid()),
+                ]
+                + self._dockerExtraArgs
+                + [self._dockerCid]
+        )
+
+        cmd_path = session.omcpath(omc_run_data_copy.cmd_path)
+        cmd_model_executable = cmd_path / omc_run_data_copy.cmd_model_name
+        if not cmd_model_executable.is_file():
+            raise OMCSessionException(f"Application file path not found: {cmd_model_executable}")
+        omc_run_data_copy.cmd_model_executable = cmd_model_executable.as_posix()
+
+        return omc_run_data_copy
 
 
 class OMCProcessDocker(OMCProcessDockerHelper):
