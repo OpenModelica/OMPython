@@ -38,17 +38,15 @@ import logging
 import numbers
 import numpy as np
 import os
-import pathlib
 import platform
 import re
 import subprocess
-import tempfile
 import textwrap
 from typing import Optional, Any
 import warnings
 import xml.etree.ElementTree as ET
 
-from OMPython.OMCSession import OMCSessionException, OMCSessionZMQ, OMCProcessLocal
+from OMPython.OMCSession import OMCSessionException, OMCSessionZMQ, OMCProcessLocal, OMCPath
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
@@ -114,8 +112,8 @@ class LinearizationResult:
 class ModelicaSystemCmd:
     """A compiled model executable."""
 
-    def __init__(self, runpath: pathlib.Path, modelname: str, timeout: Optional[float] = None) -> None:
-        self._runpath = pathlib.Path(runpath).resolve().absolute()
+    def __init__(self, runpath: OMCPath, modelname: str, timeout: Optional[float] = None) -> None:
+        self._runpath = runpath
         self._model_name = modelname
         self._timeout = timeout
         self._args: dict[str, str | None] = {}
@@ -175,7 +173,7 @@ class ModelicaSystemCmd:
         for arg in args:
             self.arg_set(key=arg, val=args[arg])
 
-    def get_exe(self) -> pathlib.Path:
+    def get_exe(self) -> OMCPath:
         """Get the path to the compiled model executable."""
         if platform.system() == "Windows":
             path_exe = self._runpath / f"{self._model_name}.exe"
@@ -295,7 +293,7 @@ class ModelicaSystemCmd:
 class ModelicaSystem:
     def __init__(
             self,
-            fileName: Optional[str | os.PathLike | pathlib.Path] = None,
+            fileName: Optional[str | os.PathLike] = None,
             modelName: Optional[str] = None,
             lmodel: Optional[list[str | tuple[str, str]]] = None,
             commandLineOptions: Optional[str] = None,
@@ -384,9 +382,13 @@ class ModelicaSystem:
 
         self._lmodel = lmodel  # may be needed if model is derived from other model
         self._model_name = modelName  # Model class name
-        self._file_name = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
+        if fileName is not None:
+            file_name = self._getconn.omcpath(fileName).resolve()
+        else:
+            file_name = None
+        self._file_name: Optional[OMCPath] = file_name  # Model file/package name
         self._simulated = False  # True if the model has already been simulated
-        self._result_file: Optional[pathlib.Path] = None  # for storing result file
+        self._result_file: Optional[OMCPath] = None  # for storing result file
         self._variable_filter = variableFilter
 
         if self._file_name is not None and not self._file_name.is_file():  # if file does not exist
@@ -398,7 +400,7 @@ class ModelicaSystem:
         self.setCommandLineOptions("--linearizationDumpLanguage=python")
         self.setCommandLineOptions("--generateSymbolicLinearization")
 
-        self._work_dir: pathlib.Path = self.setWorkDirectory(customBuildDirectory)
+        self._work_dir: OMCPath = self.setWorkDirectory(customBuildDirectory)
 
         if self._file_name is not None:
             self._loadLibrary(lmodel=self._lmodel)
@@ -418,7 +420,7 @@ class ModelicaSystem:
         exp = f'setCommandLineOptions("{commandLineOptions}")'
         self.sendExpression(exp)
 
-    def _loadFile(self, fileName: pathlib.Path):
+    def _loadFile(self, fileName: OMCPath):
         # load file
         self.sendExpression(f'loadFile("{fileName.as_posix()}")')
 
@@ -446,17 +448,17 @@ class ModelicaSystem:
                                               '1)["Modelica"]\n'
                                               '2)[("Modelica","3.2.3"), "PowerSystems"]\n')
 
-    def setWorkDirectory(self, customBuildDirectory: Optional[str | os.PathLike] = None) -> pathlib.Path:
+    def setWorkDirectory(self, customBuildDirectory: Optional[str | os.PathLike] = None) -> OMCPath:
         """
         Define the work directory for the ModelicaSystem / OpenModelica session. The model is build within this
         directory. If no directory is defined a unique temporary directory is created.
         """
         if customBuildDirectory is not None:
-            workdir = pathlib.Path(customBuildDirectory).absolute()
+            workdir = self._getconn.omcpath(customBuildDirectory).absolute()
             if not workdir.is_dir():
                 raise IOError(f"Provided work directory does not exists: {customBuildDirectory}!")
         else:
-            workdir = pathlib.Path(tempfile.mkdtemp()).absolute()
+            workdir = self._getconn.omcpath_tempdir().absolute()
             if not workdir.is_dir():
                 raise IOError(f"{workdir} could not be created")
 
@@ -469,7 +471,7 @@ class ModelicaSystem:
         # ... and also return the defined path
         return workdir
 
-    def getWorkDirectory(self) -> pathlib.Path:
+    def getWorkDirectory(self) -> OMCPath:
         """
         Return the defined working directory for this ModelicaSystem / OpenModelica session.
         """
@@ -487,7 +489,7 @@ class ModelicaSystem:
         buildModelResult = self._requestApi("buildModel", self._model_name, properties=varFilter)
         logger.debug("OM model build result: %s", buildModelResult)
 
-        xml_file = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
+        xml_file = self._getconn.omcpath(buildModelResult[0]).parent / buildModelResult[1]
         self._xmlparse(xml_file=xml_file)
 
     def sendExpression(self, expr: str, parsed: bool = True):
@@ -514,7 +516,7 @@ class ModelicaSystem:
 
         return self.sendExpression(exp)
 
-    def _xmlparse(self, xml_file: pathlib.Path):
+    def _xmlparse(self, xml_file: OMCPath):
         if not xml_file.is_file():
             raise ModelicaSystemError(f"XML file not generated: {xml_file}")
 
@@ -934,7 +936,7 @@ class ModelicaSystem:
 
     def simulate_cmd(
             self,
-            result_file: pathlib.Path,
+            result_file: OMCPath,
             simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
             timeout: Optional[float] = None,
@@ -1039,9 +1041,12 @@ class ModelicaSystem:
             # default result file generated by OM
             self._result_file = self.getWorkDirectory() / f"{self._model_name}_res.mat"
         elif os.path.exists(resultfile):
-            self._result_file = pathlib.Path(resultfile)
+            self._result_file = self._getconn.omcpath(resultfile)
         else:
             self._result_file = self.getWorkDirectory() / resultfile
+
+        if not isinstance(self._result_file, OMCPath):
+            raise ModelicaSystemError(f"Invalid result file path: {self._result_file} - must be an OMCPath object!")
 
         om_cmd = self.simulate_cmd(
             result_file=self._result_file,
@@ -1060,7 +1065,7 @@ class ModelicaSystem:
             # check for an empty (=> 0B) result file which indicates a crash of the model executable
             # see: https://github.com/OpenModelica/OMPython/issues/261
             #      https://github.com/OpenModelica/OpenModelica/issues/13829
-            if self._result_file.stat().st_size == 0:
+            if self._result_file.size() == 0:
                 self._result_file.unlink()
                 raise ModelicaSystemError("Empty result file - this indicates a crash of the model executable!")
 
@@ -1109,7 +1114,7 @@ class ModelicaSystem:
                 raise ModelicaSystemError("No result file found. Run simulate() first.")
             result_file = self._result_file
         else:
-            result_file = pathlib.Path(resultfile)
+            result_file = self._getconn.omcpath(resultfile)
 
         # check for result file exits
         if not result_file.is_file():
@@ -1399,11 +1404,9 @@ class ModelicaSystem:
             else:
                 raise ModelicaSystemError(f"Data cannot be evaluated for {repr(key)}: {repr(val)}")
 
-        self._has_inputs = True
-
         return True
 
-    def _createCSVData(self, csvfile: Optional[pathlib.Path] = None) -> pathlib.Path:
+    def _createCSVData(self, csvfile: Optional[OMCPath] = None) -> OMCPath:
         """
         Create a csv file with inputs for the simulation/optimization of the model. If csvfile is provided as argument,
         this file is used; else a generic file name is created.
@@ -1578,15 +1581,15 @@ class ModelicaSystem:
             timeout=timeout,
         )
 
-        overrideLinearFile = self.getWorkDirectory() / f'{self._model_name}_override_linear.txt'
+        override_content = (
+                "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
+                + "\n".join([f"{key}={value}" for key, value in self._linearization_options.items()])
+                + "\n"
+        )
+        override_file = self.getWorkDirectory() / f'{self._model_name}_override_linear.txt'
+        override_file.write_text(override_content)
 
-        with open(file=overrideLinearFile, mode="w", encoding="utf-8") as fh:
-            for key1, value1 in self._override_variables.items():
-                fh.write(f"{key1}={value1}\n")
-            for key2, value2 in self._linearization_options.items():
-                fh.write(f"{key2}={value2}\n")
-
-        om_cmd.arg_set(key="overrideFile", val=overrideLinearFile.as_posix())
+        om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
 
         if self._inputs:
             for key in self._inputs:
@@ -1614,7 +1617,7 @@ class ModelicaSystem:
         returncode = om_cmd.run()
         if returncode != 0:
             raise ModelicaSystemError(f"Linearize failed with return code: {returncode}")
-        if not linear_file.exists():
+        if not linear_file.is_file():
             raise ModelicaSystemError(f"Linearization failed: {linear_file} not found!")
 
         self._simulated = True
