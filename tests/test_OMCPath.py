@@ -20,11 +20,16 @@ def test_OMCPath_docker():
     om = OMPython.OMCSessionZMQ(omc_process=omcp)
     assert om.sendExpression("getVersion()") == "OpenModelica 1.25.0"
 
-    p1 = om.omcpath('/tmp')
-    assert str(p1) == "/tmp"
-    p2 = p1 / 'test.txt'
-    assert str(p2) == "/tmp/test.txt"
+    tempdir = '/tmp'
+
+    p1 = om.omcpath(tempdir).resolve().absolute()
+    assert str(p1) == tempdir
+    p2 = p1 / '..' / p1.name / 'test.txt'
+    assert p2.is_file() is False
     assert p2.write_text('test')
+    assert p2.is_file()
+    p2 = p2.resolve().absolute()
+    assert str(p2) == f"{tempdir}/test.txt"
     assert p2.read_text() == "test"
     assert p2.is_file()
     assert p2.parent.is_dir()
@@ -39,11 +44,20 @@ def test_OMCPath_docker():
 def test_OMCPath_local():
     om = OMPython.OMCSessionZMQ()
 
-    p1 = om.omcpath('/tmp')
-    assert str(p1) == "/tmp"
-    p2 = p1 / 'test.txt'
-    assert str(p2) == "/tmp/test.txt"
+    # use different tempdir for Windows and Linux
+    if sys.platform.startswith("win"):
+        tempdir = 'C:/temp'
+    else:
+        tempdir = '/tmp'
+
+    p1 = om.omcpath(tempdir).resolve().absolute()
+    assert str(p1) == tempdir
+    p2 = p1 / '..' / p1.name / 'test.txt'
+    assert p2.is_file() is False
     assert p2.write_text('test')
+    assert p2.is_file()
+    p2 = p2.resolve().absolute()
+    assert str(p2) == f"{tempdir}/test.txt"
     assert p2.read_text() == "test"
     assert p2.is_file()
     assert p2.parent.is_dir()
