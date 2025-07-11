@@ -416,6 +416,15 @@ class OMCPath(pathlib.PurePosixPath):
         raise OMCSessionException(f"Error reading file size for path {self.as_posix()}!")
 
 
+if sys.version_info < (3, 12):
+    class OMCPathCompatibility(pathlib.Path):
+
+        def size(self) -> int:
+            return self.stat().st_size
+
+
+    OMCPath = OMCPathCompatibility
+
 
 class OMCSessionZMQ:
 
