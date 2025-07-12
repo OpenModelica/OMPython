@@ -457,6 +457,9 @@ class OMCSessionRunData:
     # command timeout
     cmd_timeout: Optional[float] = 10.0
 
+    # working directory to be used on the *local* system
+    cmd_cwd_local: Optional[str] = None
+
     def get_cmd(self) -> list[str]:
         """
         Get the command line to run the model executable in the environment defined by the OMCProcess definition.
@@ -890,6 +893,8 @@ class OMCProcessLocal(OMCProcess):
         if not cmd_model_executable.is_file():
             raise OMCSessionException(f"Application file path not found: {cmd_model_executable}")
         omc_run_data_copy.cmd_model_executable = cmd_model_executable.as_posix()
+
+        omc_run_data_copy.cmd_cwd_local = omc_run_data.cmd_path
 
         return omc_run_data_copy
 

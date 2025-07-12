@@ -234,7 +234,7 @@ class ModelicaSystemCmd:
                 capture_output=True,
                 text=True,
                 env=my_env,
-                cwd=cmd_run_data.cmd_path,
+                cwd=cmd_run_data.cmd_cwd_local,
                 timeout=cmd_run_data.cmd_timeout,
                 check=True,
             )
