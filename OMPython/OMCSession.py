@@ -466,13 +466,12 @@ class OMCSessionRunData:
 
     All data should be defined for the environment, where OMC is running (local, docker or WSL)
     """
-    # cmd_path is based on the selected OMCProcess definition
+    # cmd_path is the expected working directory
     cmd_path: str
     cmd_model_name: str
     # command line arguments for the model executable
     cmd_args: list[str]
     # result file with the simulation output
-    # cmd_result_path is based on the selected OMCProcess definition
     cmd_result_path: str
 
     # command prefix data (as list of strings); needed for docker or WSL
