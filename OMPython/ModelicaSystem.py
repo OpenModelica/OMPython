@@ -32,6 +32,7 @@ __license__ = """
  CONDITIONS OF OSMC-PL.
 """
 
+import ast
 import csv
 from dataclasses import dataclass
 import importlib
@@ -45,8 +46,7 @@ import re
 import subprocess
 import tempfile
 import textwrap
-from typing import Optional, Any
-import warnings
+from typing import Any, Optional
 import xml.etree.ElementTree as ET
 
 from OMPython.OMCSession import OMCSessionException, OMCSessionZMQ, OMCProcessLocal
@@ -254,44 +254,6 @@ class ModelicaSystemCmd:
 
         return returncode
 
-    @staticmethod
-    def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, str]]]:
-        """
-        Parse a simflag definition; this is deprecated!
-
-        The return data can be used as input for self.args_set().
-        """
-        warnings.warn("The argument 'simflags' is depreciated and will be removed in future versions; "
-                      "please use 'simargs' instead", DeprecationWarning, stacklevel=2)
-
-        simargs: dict[str, Optional[str | dict[str, str]]] = {}
-
-        args = [s for s in simflags.split(' ') if s]
-        for arg in args:
-            if arg[0] != '-':
-                raise ModelicaSystemError(f"Invalid simulation flag: {arg}")
-            arg = arg[1:]
-            parts = arg.split('=')
-            if len(parts) == 1:
-                simargs[parts[0]] = None
-            elif parts[0] == 'override':
-                override = '='.join(parts[1:])
-
-                override_dict = {}
-                for item in override.split(','):
-                    kv = item.split('=')
-                    if not 0 < len(kv) < 3:
-                        raise ModelicaSystemError(f"Invalid value for '-override': {override}")
-                    if kv[0]:
-                        try:
-                            override_dict[kv[0]] = kv[1]
-                        except (KeyError, IndexError) as ex:
-                            raise ModelicaSystemError(f"Invalid value for '-override': {override}") from ex
-
-                simargs[parts[0]] = override_dict
-
-        return simargs
-
 
 class ModelicaSystem:
     def __init__(
@@ -387,7 +349,6 @@ class ModelicaSystem:
         self._lmodel = lmodel  # may be needed if model is derived from other model
         self._model_name = modelName  # Model class name
         self._file_name = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
-        self._has_inputs = False  # for model with input quantity
         self._simulated = False  # True if the model has already been simulated
         self._result_file: Optional[pathlib.Path] = None  # for storing result file
         self._variable_filter = variableFilter
@@ -917,7 +878,6 @@ class ModelicaSystem:
     def simulate_cmd(
             self,
             result_file: pathlib.Path,
-            simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
             timeout: Optional[float] = None,
     ) -> ModelicaSystemCmd:
@@ -931,13 +891,6 @@ class ModelicaSystem:
         However, if only non-structural parameters are used, it is possible to reuse an existing instance of
         ModelicaSystem to create several version ModelicaSystemCmd to run the model using different settings.
 
-        Parameters
-        ----------
-        result_file
-        simflags
-        simargs
-        timeout
-
         Returns
         -------
             An instance if ModelicaSystemCmd to run the requested simulation.
@@ -948,11 +901,7 @@ class ModelicaSystem:
         # always define the result file to use
         om_cmd.arg_set(key="r", val=result_file.as_posix())
 
-        # allow runtime simulation flags from user input
-        if simflags is not None:
-            om_cmd.args_set(args=om_cmd.parse_simflags(simflags=simflags))
-
-        if simargs:
+        if simargs is not None:
             om_cmd.args_set(args=simargs)
 
         overrideFile = self._tempdir / f"{self._model_name}_override.txt"
@@ -966,22 +915,20 @@ class ModelicaSystem:
 
             om_cmd.arg_set(key="overrideFile", val=overrideFile.as_posix())
 
-        if self._has_inputs:  # if model has input quantities
-            # csvfile is based on name used for result file
-            csvfile = result_file.parent / f"{result_file.stem}.csv"
-
-            for i in self._inputs:
-                val = self._inputs[i]
+        if self._inputs:  # if model has input quantities
+            for key in self._inputs:
+                val = self._inputs[key]
                 if val is None:
                     val = [(float(self._simulate_options["startTime"]), 0.0),
                            (float(self._simulate_options["stopTime"]), 0.0)]
-                    self._inputs[i] = [(float(self._simulate_options["startTime"]), 0.0),
-                                       (float(self._simulate_options["stopTime"]), 0.0)]
+                    self._inputs[key] = val
                 if float(self._simulate_options["startTime"]) != val[0][0]:
-                    raise ModelicaSystemError(f"startTime not matched for Input {i}!")
+                    raise ModelicaSystemError(f"startTime not matched for Input {key}!")
                 if float(self._simulate_options["stopTime"]) != val[-1][0]:
-                    raise ModelicaSystemError(f"stopTime not matched for Input {i}!")
+                    raise ModelicaSystemError(f"stopTime not matched for Input {key}!")
 
+            # csvfile is based on name used for result file
+            csvfile = result_file.parent / f"{result_file.stem}.csv"
             # write csv file and store the name
             csvfile = self._createCSVData(csvfile=csvfile)
 
@@ -992,7 +939,6 @@ class ModelicaSystem:
     def simulate(
             self,
             resultfile: Optional[str] = None,
-            simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
             timeout: Optional[float] = None,
     ) -> None:
@@ -1002,8 +948,6 @@ class ModelicaSystem:
 
         Args:
             resultfile: Path to a custom result file
-            simflags: String of extra command line flags for the model binary.
-              This argument is deprecated, use simargs instead.
             simargs: Dict with simulation runtime flags.
             timeout: Maximum execution time in seconds.
 
@@ -1024,7 +968,6 @@ class ModelicaSystem:
 
         om_cmd = self.simulate_cmd(
             result_file=self._result_file,
-            simflags=simflags,
             simargs=simargs,
             timeout=timeout,
         )
@@ -1117,164 +1060,225 @@ class ModelicaSystem:
         return np_res
 
     @staticmethod
-    def _strip_space(name):
-        if isinstance(name, str):
-            return name.replace(" ", "")
-
-        if isinstance(name, list):
-            return [x.replace(" ", "") for x in name]
-
-        raise ModelicaSystemError("Unhandled input for strip_space()")
-
-    def _setMethodHelper(self, args1, args2, args3, args4=None):
-        """Helper function for setters.
-
-        args1 - string or list of string given by user
-        args2 - dict() containing the values of different variables(eg:, parameter,continuous,simulation parameters)
-        args3 - function name (eg; continuous, parameter, simulation, linearization,optimization)
-        args4 - dict() which stores the new override variables list,
+    def _prepare_input_data(
+            raw_input: dict[str, Any],
+    ) -> dict[str, str]:
         """
-        def apply_single(args1):
-            args1 = self._strip_space(args1)
-            value = args1.split("=")
-            if value[0] in args2:
-                if args3 == "parameter" and self.isParameterChangeable(value[0], value[1]):
-                    args2[value[0]] = value[1]
-                    if args4 is not None:
-                        args4[value[0]] = value[1]
-                elif args3 != "parameter":
-                    args2[value[0]] = value[1]
-                    if args4 is not None:
-                        args4[value[0]] = value[1]
+        Convert raw input to a structured dictionary {'key1': 'value1', 'key2': 'value2'}.
+        """
 
-                return True
+        input_data: dict[str, str] = {}
+        if isinstance(raw_input, dict):
+            for key, val in raw_input.items():
+                # convert all values to strings to align it on one type: dict[str, str]
+                # spaces have to be removed as setInput() could take list of tuples as input and spaces would
+                str_val = str(val).replace(' ', '')
+                if ' ' in key or ' ' in str_val:
+                    raise ModelicaSystemError(f"Spaces not allowed in key/value pairs: {repr(key)} = {repr(val)}!")
+                input_data[key] = str_val
 
+            return input_data
+
+        raise ModelicaSystemError(f"Invalid type of input: {type(raw_input)}")
+
+    def _set_method_helper(
+            self,
+            inputdata: dict[str, str],
+            classdata: dict[str, Any],
+            datatype: str,
+            overwritedata: Optional[dict[str, str]] = None,
+    ) -> bool:
+        """
+        Helper function for:
+        * setParameter()
+        * setContinuous()
+        * setSimulationOptions()
+        * setLinearizationOption()
+        * setOptimizationOption()
+        * setInputs()
+
+        Parameters
+        ----------
+        inputdata
+            string or list of string given by user
+        classdata
+            dict() containing the values of different variables (eg: parameter, continuous, simulation parameters)
+        datatype
+            type identifier (eg; continuous, parameter, simulation, linearization, optimization)
+        overwritedata
+            dict() which stores the new override variables list,
+        """
+
+        inputdata_status: dict[str, bool] = {}
+        for key, val in inputdata.items():
+            if key not in classdata:
+                raise ModelicaSystemError("Unhandled case in setMethodHelper.apply_single() - "
+                                          f"{repr(key)} is not a {repr(datatype)} variable")
+
+            status = False
+            if datatype == "parameter" and not self.isParameterChangeable(key):
+                logger.debug(f"It is not possible to set the parameter {repr(key)}. It seems to be "
+                             "structural, final, protected, evaluated or has a non-constant binding. "
+                             "Use sendExpression(...) and rebuild the model using buildModel() API; example: "
+                             "sendExpression(\"setParameterValue("
+                             f"{self._model_name}, {key}, {val if val is not None else '<?value?>'}"
+                             ")\") ")
             else:
-                raise ModelicaSystemError("Unhandled case in _setMethodHelper.apply_single() - "
-                                          f"{repr(value[0])} is not a {repr(args3)} variable")
+                classdata[key] = val
+                if overwritedata is not None:
+                    overwritedata[key] = val
+                status = True
 
-        result = []
-        if isinstance(args1, str):
-            result = [apply_single(args1)]
+            inputdata_status[key] = status
 
-        elif isinstance(args1, list):
-            result = []
-            args1 = self._strip_space(args1)
-            for var in args1:
-                result.append(apply_single(var))
+        return all(inputdata_status.values())
 
-        return all(result)
+    def isParameterChangeable(
+            self,
+            name: str,
+    ) -> bool:
+        q = self.getQuantities(name)
+        if q[0]["changeable"] == "false":
+            return False
+        return True
 
-    def setContinuous(self, cvals):  # 13
+    def setContinuous(
+            self,
+            cvals: dict[str, Any],
+    ) -> bool:
         """
         This method is used to set continuous values. It can be called:
         with a sequence of continuous name and assigning corresponding values as arguments as show in the example below:
         usage
-        >>> setContinuous("Name=value")
-        >>> setContinuous(["Name1=value1","Name2=value2"])
+        >>> setContinuous(cvals={"Name1": "value1", "Name2": "value2"})
         """
-        return self._setMethodHelper(cvals, self._continuous, "continuous", self._override_variables)
+        inputdata = self._prepare_input_data(raw_input=cvals)
 
-    def setParameters(self, pvals):  # 14
+        return self._set_method_helper(
+            inputdata=inputdata,
+            classdata=self._continuous,
+            datatype="continuous",
+            overwritedata=self._override_variables)
+
+    def setParameters(
+            self,
+            pvals: dict[str, Any],
+    ) -> bool:
         """
         This method is used to set parameter values. It can be called:
         with a sequence of parameter name and assigning corresponding value as arguments as show in the example below:
         usage
-        >>> setParameters("Name=value")
-        >>> setParameters(["Name1=value1","Name2=value2"])
+        >>> setParameters(pvals={"Name1": "value1", "Name2": "value2"})
         """
-        return self._setMethodHelper(pvals, self._params, "parameter", self._override_variables)
+        inputdata = self._prepare_input_data(raw_input=pvals)
 
-    def isParameterChangeable(self, name, value):
-        q = self.getQuantities(name)
-        if q[0]["changeable"] == "false":
-            logger.debug(f"setParameters() failed : It is not possible to set the following signal {repr(name)}. "
-                         "It seems to be structural, final, protected or evaluated or has a non-constant binding, "
-                         f"use sendExpression(\"setParameterValue({self._model_name}, {name}, {value})\") "
-                         "and rebuild the model using buildModel() API")
-            return False
-        return True
+        return self._set_method_helper(
+            inputdata=inputdata,
+            classdata=self._params,
+            datatype="parameter",
+            overwritedata=self._override_variables)
 
-    def setSimulationOptions(self, simOptions):  # 16
+    def setSimulationOptions(
+            self,
+            simOptions: dict[str, Any],
+    ) -> bool:
         """
         This method is used to set simulation options. It can be called:
         with a sequence of simulation options name and assigning corresponding values as arguments as show in the example below:
         usage
-        >>> setSimulationOptions("Name=value")
-        >>> setSimulationOptions(["Name1=value1","Name2=value2"])
+        >>> setSimulationOptions(simOptions={"Name1": "value1", "Name2": "value2"})
         """
-        return self._setMethodHelper(simOptions, self._simulate_options, "simulation-option", self._simulate_options_override)
+        inputdata = self._prepare_input_data(raw_input=simOptions)
 
-    def setLinearizationOptions(self, linearizationOptions):  # 18
+        return self._set_method_helper(
+            inputdata=inputdata,
+            classdata=self._simulate_options,
+            datatype="simulation-option",
+            overwritedata=self._simulate_options_override)
+
+    def setLinearizationOptions(
+            self,
+            linearizationOptions: dict[str, Any],
+    ) -> bool:
         """
         This method is used to set linearization options. It can be called:
         with a sequence of linearization options name and assigning corresponding value as arguments as show in the example below
         usage
-        >>> setLinearizationOptions("Name=value")
-        >>> setLinearizationOptions(["Name1=value1","Name2=value2"])
+        >>> setLinearizationOptions(linearizationOtions={"Name1": "value1", "Name2": "value2"})
         """
-        return self._setMethodHelper(linearizationOptions, self._linearization_options, "Linearization-option", None)
+        inputdata = self._prepare_input_data(raw_input=linearizationOptions)
 
-    def setOptimizationOptions(self, optimizationOptions):  # 17
+        return self._set_method_helper(
+            inputdata=inputdata,
+            classdata=self._linearization_options,
+            datatype="Linearization-option",
+            overwritedata=None)
+
+    def setOptimizationOptions(
+            self,
+            optimizationOptions: dict[str, Any],
+    ) -> bool:
         """
         This method is used to set optimization options. It can be called:
         with a sequence of optimization options name and assigning corresponding values as arguments as show in the example below:
         usage
-        >>> setOptimizationOptions("Name=value")
-        >>> setOptimizationOptions(["Name1=value1","Name2=value2"])
+        >>> setOptimizationOptions(optimizationOptions={"Name1": "value1", "Name2": "value2"})
         """
-        return self._setMethodHelper(optimizationOptions, self._optimization_options, "optimization-option", None)
+        inputdata = self._prepare_input_data(raw_input=optimizationOptions)
 
-    def setInputs(self, name):  # 15
-        """
-        This method is used to set input values. It can be called:
-        with a sequence of input name and assigning corresponding values as arguments as show in the example below:
-        usage
-        >>> setInputs("Name=value")
-        >>> setInputs(["Name1=value1","Name2=value2"])
-        """
-        if isinstance(name, str):
-            name = self._strip_space(name)
-            value = name.split("=")
-            if value[0] in self._inputs:
-                tmpvalue = eval(value[1])
-                if isinstance(tmpvalue, (int, float)):
-                    self._inputs[value[0]] = [(float(self._simulate_options["startTime"]), float(value[1])),
-                                              (float(self._simulate_options["stopTime"]), float(value[1]))]
-                elif isinstance(tmpvalue, list):
-                    self._checkValidInputs(tmpvalue)
-                    self._inputs[value[0]] = tmpvalue
-                self._has_inputs = True
-            else:
-                raise ModelicaSystemError(f"{value[0]} is not an input")
-        elif isinstance(name, list):
-            name = self._strip_space(name)
-            for var in name:
-                value = var.split("=")
-                if value[0] in self._inputs:
-                    tmpvalue = eval(value[1])
-                    if isinstance(tmpvalue, (int, float)):
-                        self._inputs[value[0]] = [(float(self._simulate_options["startTime"]), float(value[1])),
-                                                  (float(self._simulate_options["stopTime"]), float(value[1]))]
-                    elif isinstance(tmpvalue, list):
-                        self._checkValidInputs(tmpvalue)
-                        self._inputs[value[0]] = tmpvalue
-                    self._has_inputs = True
-                else:
-                    raise ModelicaSystemError(f"{value[0]} is not an input!")
+        return self._set_method_helper(
+            inputdata=inputdata,
+            classdata=self._optimization_options,
+            datatype="optimization-option",
+            overwritedata=None)
 
-    def _checkValidInputs(self, name):
-        if name != sorted(name, key=lambda x: x[0]):
-            raise ModelicaSystemError('Time value should be in increasing order')
-        for l in name:
-            if isinstance(l, tuple):
-                # if l[0] < float(self.simValuesList[0]):
-                if l[0] < float(self._simulate_options["startTime"]):
-                    raise ModelicaSystemError('Input time value is less than simulation startTime')
-                if len(l) != 2:
-                    raise ModelicaSystemError(f'Value for {l} is in incorrect format!')
+    def setInputs(
+            self,
+            name: dict[str, Any],
+    ) -> bool:
+        """
+        This method is used to set input values. It can be called with a sequence of input name and assigning
+        corresponding values as arguments as show in the example below. Compared to other set*() methods this is a
+        special case as value could be a list of tuples - these are converted to a string in _prepare_input_data()
+        and restored here via ast.literal_eval().
+
+        >>> setInputs(name={"Name1": "value1", "Name2": "value2"})
+        """
+        inputdata = self._prepare_input_data(raw_input=name)
+
+        for key, val in inputdata.items():
+            if key not in self._inputs:
+                raise ModelicaSystemError(f"{key} is not an input")
+
+            if not isinstance(val, str):
+                raise ModelicaSystemError(f"Invalid data in input for {repr(key)}: {repr(val)}")
+
+            val_evaluated = ast.literal_eval(val)
+
+            if isinstance(val_evaluated, (int, float)):
+                self._inputs[key] = [(float(self._simulate_options["startTime"]), float(val)),
+                                     (float(self._simulate_options["stopTime"]), float(val))]
+            elif isinstance(val_evaluated, list):
+                if not all([isinstance(item, tuple) for item in val_evaluated]):
+                    raise ModelicaSystemError("Value for setInput() must be in tuple format; "
+                                              f"got {repr(val_evaluated)}")
+                if val_evaluated != sorted(val_evaluated, key=lambda x: x[0]):
+                    raise ModelicaSystemError("Time value should be in increasing order; "
+                                              f"got {repr(val_evaluated)}")
+
+                for item in val_evaluated:
+                    if item[0] < float(self._simulate_options["startTime"]):
+                        raise ModelicaSystemError(f"Time value in {repr(item)} of {repr(val_evaluated)} is less "
+                                                  "than the simulation start time")
+                    if len(item) != 2:
+                        raise ModelicaSystemError(f"Value {repr(item)} of {repr(val_evaluated)} "
+                                                  "is in incorrect format!")
+
+                self._inputs[key] = val_evaluated
             else:
-                raise ModelicaSystemError('Error!!! Value must be in tuple format')
+                raise ModelicaSystemError(f"Data cannot be evaluated for {repr(key)}: {repr(val)}")
+
+        return True
 
     def _createCSVData(self, csvfile: Optional[pathlib.Path] = None) -> pathlib.Path:
         """
@@ -1414,17 +1418,18 @@ class ModelicaSystem:
 
         return optimizeResult
 
-    def linearize(self, lintime: Optional[float] = None, simflags: Optional[str] = None,
-                  simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
-                  timeout: Optional[float] = None) -> LinearizationResult:
+    def linearize(
+            self,
+            lintime: Optional[float] = None,
+            simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
+            timeout: Optional[int] = None,
+    ) -> LinearizationResult:
         """Linearize the model according to linearization options.
 
         See setLinearizationOptions.
 
         Args:
             lintime: Override "stopTime" value.
-            simflags: String of extra command line flags for the model binary.
-              This argument is deprecated, use simargs instead.
             simargs: A dict with command line flags and possible options; example: "simargs={'csvInput': 'a.csv'}"
             timeout: Maximum execution time in seconds.
 
@@ -1464,24 +1469,20 @@ class ModelicaSystem:
 
         om_cmd.arg_set(key="overrideFile", val=overrideLinearFile.as_posix())
 
-        if self._has_inputs:
-            nameVal = self.getInputs()
-            for n in nameVal:
-                tupleList = nameVal.get(n)
-                if tupleList is not None:
-                    for l in tupleList:
-                        if l[0] < float(self._simulate_options["startTime"]):
+        inputs = self.getInputs()
+        if inputs:
+            for key in inputs:
+                data = inputs[key]
+                if data is not None:
+                    for value in data:
+                        if value[0] < float(self._simulate_options["startTime"]):
                             raise ModelicaSystemError('Input time value is less than simulation startTime')
             csvfile = self._createCSVData()
             om_cmd.arg_set(key="csvInput", val=csvfile.as_posix())
 
         om_cmd.arg_set(key="l", val=str(lintime or self._linearization_options["stopTime"]))
 
-        # allow runtime simulation flags from user input
-        if simflags is not None:
-            om_cmd.args_set(args=om_cmd.parse_simflags(simflags=simflags))
-
-        if simargs:
+        if simargs is not None:
             om_cmd.args_set(args=simargs)
 
         returncode = om_cmd.run()
