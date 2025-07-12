@@ -268,6 +268,169 @@ class OMCSessionCmd:
         return self._ask(question='getClassNames', opt=opt)
 
 
+class OMCPathReal(pathlib.PurePosixPath):
+    """
+    Implementation of a basic Path object which uses OMC as backend. The connection to OMC is provided via a
+    OMCSessionZMQ session object.
+    """
+
+    def __init__(self, *path, session: OMCSessionZMQ):
+        super().__init__(*path)
+        self._session = session
+
+    def with_segments(self, *pathsegments):
+        """
+        Create a new OMCPath object with the given path segments.
+
+        The original definition of Path is overridden to ensure session is set.
+        """
+        return type(self)(*pathsegments, session=self._session)
+
+    def is_file(self) -> bool:
+        """
+        Check if the path is a regular file.
+        """
+        return self._session.sendExpression(f'regularFileExists("{self.as_posix()}")')
+
+    def is_dir(self) -> bool:
+        """
+        Check if the path is a directory.
+        """
+        return self._session.sendExpression(f'directoryExists("{self.as_posix()}")')
+
+    def read_text(self, encoding=None, errors=None) -> str:
+        """
+        Read the content of the file represented by this path as text.
+
+        The additional arguments `encoding` and `errors` are only defined for compatibility with Path() definitions.
+        """
+        return self._session.sendExpression(f'readFile("{self.as_posix()}")')
+
+    def write_text(self, data: str, encoding=None, errors=None, newline=None) -> bool:
+        """
+        Write text data to the file represented by this path.
+
+        The additional arguments `encoding`, `errors`, and `newline` are only defined for compatibility with Path()
+        definitions.
+        """
+        if not isinstance(data, str):
+            raise TypeError('data must be str, not %s' %
+                            data.__class__.__name__)
+
+        return self._session.sendExpression(f'writeFile("{self.as_posix()}", "{data}", false)')
+
+    def mkdir(self, mode=0o777, parents=False, exist_ok=False):
+        """
+        Create a directory at the path represented by this OMCPath object.
+
+        The additional arguments `mode`, and `parents` are only defined for compatibility with Path() definitions.
+        """
+        if self.is_dir() and not exist_ok:
+            raise FileExistsError(f"Directory {self.as_posix()} already exists!")
+
+        return self._session.sendExpression(f'mkdir("{self.as_posix()}")')
+
+    def cwd(self):
+        """
+        Returns the current working directory as an OMCPath object.
+        """
+        cwd_str = self._session.sendExpression('cd()')
+        return OMCPath(cwd_str, session=self._session)
+
+    def unlink(self, missing_ok: bool = False) -> bool:
+        """
+        Unlink (delete) the file or directory represented by this path.
+        """
+        res = self._session.sendExpression(f'deleteFile("{self.as_posix()}")')
+        if not res and not missing_ok:
+            raise FileNotFoundError(f"Cannot delete file {self.as_posix()} - it does not exists!")
+        return res
+
+    def resolve(self, strict: bool = False) -> OMCPath:
+        """
+        Resolve the path to an absolute path. This is done based on available OMC functions.
+        """
+        if strict and not (self.is_file() or self.is_dir()):
+            raise OMCSessionException(f"Path {self.as_posix()} does not exist!")
+
+        if self.is_file():
+            omcpath = self._omc_resolve(self.parent.as_posix()) / self.name
+        elif self.is_dir():
+            omcpath = self._omc_resolve(self.as_posix())
+        else:
+            raise OMCSessionException(f"Path {self.as_posix()} is neither a file nor a directory!")
+
+        return omcpath
+
+    def _omc_resolve(self, pathstr: str) -> OMCPath:
+        """
+        Internal function to resolve the path of the OMCPath object using OMC functions *WITHOUT* changing the cwd
+        within OMC.
+        """
+        expression = ('omcpath_cwd := cd(); '
+                      f'omcpath_check := cd("{pathstr}"); '  # check requested pathstring
+                      'cd(omcpath_cwd)')
+
+        try:
+            result = self._session.sendExpression(command=expression, parsed=False)
+            result_parts = result.split('\n')
+            pathstr_resolved = result_parts[1]
+            pathstr_resolved = pathstr_resolved[1:-1]  # remove quotes
+
+            omcpath_resolved = self._session.omcpath(pathstr_resolved)
+        except OMCSessionException as ex:
+            raise OMCSessionException(f"OMCPath resolve failed for {pathstr}!") from ex
+
+        if not omcpath_resolved.is_file() and not omcpath_resolved.is_dir():
+            raise OMCSessionException(f"OMCPath resolve failed for {pathstr} - path does not exist!")
+
+        return omcpath_resolved
+
+    def absolute(self) -> OMCPath:
+        """
+        Resolve the path to an absolute path. This is done by calling resolve() as it is the best we can do
+        using OMC functions.
+        """
+        return self.resolve(strict=True)
+
+    def exists(self) -> bool:
+        """
+        Semi replacement for pathlib.Path.exists().
+        """
+        return self.is_file() or self.is_dir()
+
+    def size(self) -> int:
+        """
+        Get the size of the file in bytes - this is a extra function and the best we can do using OMC.
+        """
+        if not self.is_file():
+            raise OMCSessionException(f"Path {self.as_posix()} is not a file!")
+
+        res = self._session.sendExpression(f'stat("{self.as_posix()}")')
+        if res[0]:
+            return int(res[1])
+
+        raise OMCSessionException(f"Error reading file size for path {self.as_posix()}!")
+
+
+if sys.version_info < (3, 12):
+    warnings.warn(
+        message="Python < 3.12 - using a limited compatibility class as OMCPath replacement.",
+        category=DeprecationWarning,
+        stacklevel=1,
+    )
+
+    class OMCPathCompatibility(pathlib.PosixPath):
+
+        def size(self) -> int:
+            return self.stat().st_size
+
+    OMCPath = OMCPathCompatibility  # noqa: F811
+
+else:
+    OMCPath = OMCPathReal
+
+
 class OMCSessionZMQ:
 
     def __init__(
@@ -321,6 +484,42 @@ class OMCSessionZMQ:
             del self.omc_zmq
 
         self.omc_zmq = None
+
+    def omcpath(self, *path) -> OMCPath:
+        """
+        Create an OMCPath object based on the given path segments and the current OMC session.
+        """
+
+        # fallback solution for Python < 3.12; a modified pathlib.Path object is used as OMCPath replacement
+        if sys.version_info < (3, 12):
+            # noinspection PyArgumentList
+            return OMCPath(*path)
+        else:
+            return OMCPath(*path, session=self)
+
+    def omcpath_tempdir(self) -> OMCPath:
+        """
+        Get a temporary directory using OMC.
+        """
+        names = [str(uuid.uuid4()) for _ in range(100)]
+
+        tempdir_str = self.sendExpression("getTempDirectoryPath()")
+        tempdir_base = self.omcpath(tempdir_str)
+        tempdir: Optional[OMCPath] = None
+        for name in names:
+            # create a unique temporary directory name
+            tempdir = tempdir_base / name
+
+            if tempdir.exists():
+                continue
+
+            tempdir.mkdir(parents=True, exist_ok=False)
+            break
+
+        if tempdir is None or not tempdir.is_dir():
+            raise OMCSessionException("Cannot create a temporary directory!")
+
+        return tempdir
 
     def execute(self, command: str):
         warnings.warn("This function is depreciated and will be removed in future versions; "
