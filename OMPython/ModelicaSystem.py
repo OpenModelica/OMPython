@@ -1558,10 +1558,10 @@ class ModelicaSystem:
         overrideLinearFile = self._tempdir / f'{self._model_name}_override_linear.txt'
 
         with open(file=overrideLinearFile, mode="w", encoding="utf-8") as fh:
-            for key, value in self._override_variables.items():
-                fh.write(f"{key}={value}\n")
-            for key, value in self._linearization_options.items():
-                fh.write(f"{key}={value}\n")
+            for key1, value1 in self._override_variables.items():
+                fh.write(f"{key1}={value1}\n")
+            for key2, value2 in self._linearization_options.items():
+                fh.write(f"{key2}={value2}\n")
 
         om_cmd.arg_set(key="overrideFile", val=overrideLinearFile.as_posix())
 
