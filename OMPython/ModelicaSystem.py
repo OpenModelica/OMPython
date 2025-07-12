@@ -210,7 +210,9 @@ class ModelicaSystemCmd:
             cmd_timeout=self._timeout,
         )
 
-        return omc_run_data
+        omc_run_data_updated = self._session.omc_run_data_update(omc_run_data, session=self._session)
+
+        return omc_run_data_updated
 
     @staticmethod
     def run_cmd(cmd_run_data: OMCSessionRunData) -> int:
@@ -259,7 +261,6 @@ class ModelicaSystemCmd:
             Subprocess return code (0 on success).
         """
         cmd_run_data = self.run_def()
-        cmd_run_data = self._session.omc_run_data_update(cmd_run_data, session=self._session)
         return self.run_cmd(cmd_run_data=cmd_run_data)
 
     @staticmethod
