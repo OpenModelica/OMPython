@@ -43,6 +43,23 @@ def test_OMCPath_local():
     del om
 
 
+@pytest.mark.skip(reason="Not able to run WSL on github")
+def test_OMCPath_WSL():
+    omcp = OMPython.OMCProcessWSL(
+        wsl_omc='omc',
+        wsl_user='omc',
+        timeout=30.0,
+    )
+    om = OMPython.OMCSessionZMQ(omc_process=omcp)
+
+    tempdir = '/tmp'
+
+    _run_OMCPath_checks(tempdir, om)
+
+    del omcp
+    del om
+
+
 def _run_OMCPath_checks(tempdir: str, om: OMPython.OMCSessionZMQ):
     p1 = om.omcpath(tempdir).resolve().absolute()
     assert str(p1) == tempdir
