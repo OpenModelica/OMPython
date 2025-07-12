@@ -1398,12 +1398,15 @@ class OMCProcessWSL(OMCProcess):
         # connect to the running omc instance using ZMQ
         self._omc_port = self._omc_port_get()
 
-    def _wsl_cmd(self) -> list[str]:        # get wsl base command
+    def _wsl_cmd(self, wsl_cwd: Optional[str] = None) -> list[str]:
+        # get wsl base command
         wsl_cmd = ['wsl']
         if isinstance(self._wsl_distribution, str):
             wsl_cmd += ['--distribution', self._wsl_distribution]
         if isinstance(self._wsl_user, str):
             wsl_cmd += ['--user', self._wsl_user]
+        if isinstance(wsl_cwd, str):
+            wsl_cmd += ['--cd', wsl_cwd]
         wsl_cmd += ['--']
 
         return wsl_cmd
@@ -1462,7 +1465,7 @@ class OMCProcessWSL(OMCProcess):
         """
         omc_run_data_copy = dataclasses.replace(omc_run_data)
 
-        omc_run_data_copy.cmd_prefix = self._wsl_cmd()
+        omc_run_data_copy.cmd_prefix = self._wsl_cmd(wsl_cwd=omc_run_data.cmd_path)
 
         cmd_path = session.omcpath(omc_run_data_copy.cmd_path)
         cmd_model_executable = cmd_path / omc_run_data_copy.cmd_model_name
