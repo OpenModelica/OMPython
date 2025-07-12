@@ -22,19 +22,7 @@ def test_OMCPath_docker():
 
     tempdir = '/tmp'
 
-    p1 = om.omcpath(tempdir).resolve().absolute()
-    assert str(p1) == tempdir
-    p2 = p1 / '..' / p1.name / 'test.txt'
-    assert p2.is_file() is False
-    assert p2.write_text('test')
-    assert p2.is_file()
-    p2 = p2.resolve().absolute()
-    assert str(p2) == f"{tempdir}/test.txt"
-    assert p2.read_text() == "test"
-    assert p2.is_file()
-    assert p2.parent.is_dir()
-    assert p2.unlink()
-    assert p2.is_file() is False
+    _run_OMCPath_checks(tempdir, om)
 
     del omcp
     del om
@@ -50,6 +38,12 @@ def test_OMCPath_local():
     else:
         tempdir = '/tmp'
 
+    _run_OMCPath_checks(tempdir, om)
+
+    del om
+
+
+def _run_OMCPath_checks(tempdir: str, om: OMPython.OMCSessionZMQ):
     p1 = om.omcpath(tempdir).resolve().absolute()
     assert str(p1) == tempdir
     p2 = p1 / '..' / p1.name / 'test.txt'
@@ -63,10 +57,3 @@ def test_OMCPath_local():
     assert p2.parent.is_dir()
     assert p2.unlink()
     assert p2.is_file() is False
-
-    del om
-
-
-if __name__ == '__main__':
-    test_OMCPath_docker()
-    print('DONE')
