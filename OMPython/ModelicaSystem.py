@@ -377,8 +377,6 @@ class ModelicaSystem:
         self._linearized_states: list[str] = []  # linearization states list
 
         if omc_process is not None:
-            if not isinstance(omc_process, OMCProcessLocal):
-                raise ModelicaSystemError("Invalid (local) omc process definition provided!")
             self._getconn = OMCSessionZMQ(omc_process=omc_process)
         else:
             self._getconn = OMCSessionZMQ(omhome=omhome)
