@@ -2,20 +2,36 @@ import OMPython
 import os
 import pathlib
 import pytest
+import sys
 import tempfile
 import numpy as np
 
+skip_on_windows = pytest.mark.skipif(
+    sys.platform.startswith("win"),
+    reason="OpenModelica Docker image is Linux-only; skipping on Windows.",
+)
+
+skip_python_older_312 = pytest.mark.skipif(
+    sys.version_info < (3, 12),
+    reason="OMCPath(non-local) only working for Python >= 3.12.",
+)
+
 
 @pytest.fixture
-def model_firstorder(tmp_path):
-    mod = tmp_path / "M.mo"
-    mod.write_text("""model M
+def model_firstorder_content():
+    return ("""model M
   Real x(start = 1, fixed = true);
   parameter Real a = -1;
 equation
   der(x) = x*a;
 end M;
 """)
+
+
+@pytest.fixture
+def model_firstorder(tmp_path, model_firstorder_content):
+    mod = tmp_path / "M.mo"
+    mod.write_text(model_firstorder_content)
     return mod
 
 
@@ -113,9 +129,33 @@ def test_customBuildDirectory(tmp_path, model_firstorder):
     assert result_file.is_file()
 
 
+@skip_on_windows
+@skip_python_older_312
+def test_getSolutions_docker(model_firstorder_content):
+    omcp = OMPython.OMCProcessDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
+    omc = OMPython.OMCSessionZMQ(omc_process=omcp)
+
+    modelpath = omc.omcpath_tempdir() / 'M.mo'
+    modelpath.write_text(model_firstorder_content)
+
+    file_path = pathlib.Path(modelpath)
+    mod = OMPython.ModelicaSystem(
+        fileName=file_path,
+        modelName="M",
+        omc_process=omc.omc_process,
+    )
+
+    _run_getSolutions(mod)
+
+
 def test_getSolutions(model_firstorder):
     filePath = model_firstorder.as_posix()
     mod = OMPython.ModelicaSystem(filePath, "M")
+
+    _run_getSolutions(mod)
+
+
+def _run_getSolutions(mod):
     x0 = 1
     a = -1
     tau = -1 / a
