@@ -74,7 +74,10 @@ class DummyPopen:
         return os.kill(self.pid, signal.SIGKILL)
 
     def wait(self, timeout):
-        return self.process.wait(timeout=timeout)
+        try:
+            self.process.wait(timeout=timeout)
+        except psutil.TimeoutExpired:
+            pass
 
 
 class OMCSessionException(Exception):
