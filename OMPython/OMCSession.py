@@ -375,7 +375,7 @@ class OMCPathReal(pathlib.PurePosixPath):
                       'cd(omcpath_cwd)')
 
         try:
-            result = self._session.sendExpression(expression)
+            result = self._session.sendExpression(command=expression, parsed=False)
             result_parts = result.split('\n')
             pathstr_resolved = result_parts[1]
             pathstr_resolved = pathstr_resolved[1:-1]  # remove quotes
