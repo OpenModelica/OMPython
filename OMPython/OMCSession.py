@@ -1122,6 +1122,7 @@ class OMCProcessDockerHelper(OMCProcess):
                 [
                     "docker", "exec",
                     "--user", str(self._getuid()),
+                    "--workdir", omc_run_data_copy.cmd_path,
                 ]
                 + self._dockerExtraArgs
                 + [self._dockerCid]
