@@ -152,7 +152,7 @@ class ModelicaSystemCmd:
             raise ModelicaSystemError(f"Invalid argument value for {repr(key)}: {repr(val)} (type: {type(val)})")
 
         if key in self._args:
-            logger.warning(f"Overwrite model executable argument: {repr(key)} = {repr(argval)} "
+            logger.warning(f"Override model executable argument: {repr(key)} = {repr(argval)} "
                            f"(was: {repr(self._args[key])})")
         self._args[key] = argval
 
