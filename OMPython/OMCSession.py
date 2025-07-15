@@ -404,7 +404,7 @@ class OMCPathReal(pathlib.PurePosixPath):
 
     def size(self) -> int:
         """
-        Get the size of the file in bytes - this is a extra function and the best we can do using OMC.
+        Get the size of the file in bytes - this is an extra function and the best we can do using OMC.
         """
         if not self.is_file():
             raise OMCSessionException(f"Path {self.as_posix()} is not a file!")
