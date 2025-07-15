@@ -1195,29 +1195,25 @@ class ModelicaSystem:
             dict() which stores the new override variables list,
         """
 
-        inputdata_status: dict[str, bool] = {}
         for key, val in inputdata.items():
             if key not in classdata:
                 raise ModelicaSystemError("Unhandled case in setMethodHelper.apply_single() - "
                                           f"{repr(key)} is not a {repr(datatype)} variable")
 
-            status = False
             if datatype == "parameter" and not self.isParameterChangeable(key):
-                logger.debug(f"It is not possible to set the parameter {repr(key)}. It seems to be "
-                             "structural, final, protected, evaluated or has a non-constant binding. "
-                             "Use sendExpression(...) and rebuild the model using buildModel() API; example: "
-                             "sendExpression(\"setParameterValue("
-                             f"{self._model_name}, {key}, {val if val is not None else '<?value?>'}"
-                             ")\") ")
-            else:
-                classdata[key] = val
-                if overwritedata is not None:
-                    overwritedata[key] = val
-                status = True
+                raise ModelicaSystemError(f"It is not possible to set the parameter {repr(key)}. It seems to be "
+                                          "structural, final, protected, evaluated or has a non-constant binding. "
+                                          "Use sendExpression(...) and rebuild the model using buildModel() API; "
+                                          "command to set the parameter before rebuilding the model: "
+                                          "sendExpression(\"setParameterValue("
+                                          f"{self._model_name}, {key}, {val if val is not None else '<?value?>'}"
+                                          ")\").")
 
-            inputdata_status[key] = status
+            classdata[key] = val
+            if overwritedata is not None:
+                overwritedata[key] = val
 
-        return all(inputdata_status.values())
+        return True
 
     def isParameterChangeable(
             self,
