@@ -427,7 +427,8 @@ if sys.version_info < (3, 12):
 
         # modified copy of pathlib.Path.__new__() definition
         def __new__(cls, *args, **kwargs):
-            logger.warning("Python < 3.12 - using a limited version of class OMCPath.")
+            logger.warning("Python < 3.12 - using a version of class OMCPath "
+                           "based on pathlib.Path for local usage only.")
 
             if cls is OMCPathCompatibility:
                 cls = OMCPathCompatibilityWindows if os.name == 'nt' else OMCPathCompatibilityPosix
