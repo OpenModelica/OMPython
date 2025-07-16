@@ -418,7 +418,7 @@ class OMCPathReal(pathlib.PurePosixPath):
 
 if sys.version_info < (3, 12):
 
-    class OMCPathCompatibility:
+    class OMCPathCompatibility(pathlib.Path):
         """
         Compatibility class for OMCPath in Python < 3.12. This allows to run all code which uses OMCPath (mainly
         ModelicaSystem) on these Python versions. There is one remaining limitation: only OMCProcessLocal will work as
