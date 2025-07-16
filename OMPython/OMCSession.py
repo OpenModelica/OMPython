@@ -277,7 +277,7 @@ class OMCPathReal(pathlib.PurePosixPath):
     OMCSessionZMQ session object.
     """
 
-    def __init__(self, *path, session: OMCSessionZMQ):
+    def __init__(self, *path, session: OMCSessionZMQ) -> None:
         super().__init__(*path)
         self._session = session
 
@@ -289,27 +289,28 @@ class OMCPathReal(pathlib.PurePosixPath):
         """
         return type(self)(*pathsegments, session=self._session)
 
-    def is_file(self) -> bool:
+    def is_file(self, *, follow_symlinks=True) -> bool:
         """
         Check if the path is a regular file.
         """
         return self._session.sendExpression(f'regularFileExists("{self.as_posix()}")')
 
-    def is_dir(self) -> bool:
+    def is_dir(self, *, follow_symlinks=True) -> bool:
         """
         Check if the path is a directory.
         """
         return self._session.sendExpression(f'directoryExists("{self.as_posix()}")')
 
-    def read_text(self, encoding=None, errors=None) -> str:
+    def read_text(self, encoding=None, errors=None, newline=None) -> str:
         """
         Read the content of the file represented by this path as text.
 
-        The additional arguments `encoding` and `errors` are only defined for compatibility with Path() definitions.
+        The additional arguments `encoding`, `errors` and `newline` are only defined for compatibility with Path()
+        definition.
         """
         return self._session.sendExpression(f'readFile("{self.as_posix()}")')
 
-    def write_text(self, data: str, encoding=None, errors=None, newline=None) -> bool:
+    def write_text(self, data: str, encoding=None, errors=None, newline=None):
         """
         Write text data to the file represented by this path.
 
@@ -340,16 +341,15 @@ class OMCPathReal(pathlib.PurePosixPath):
         cwd_str = self._session.sendExpression('cd()')
         return OMCPath(cwd_str, session=self._session)
 
-    def unlink(self, missing_ok: bool = False) -> bool:
+    def unlink(self, missing_ok: bool = False) -> None:
         """
         Unlink (delete) the file or directory represented by this path.
         """
         res = self._session.sendExpression(f'deleteFile("{self.as_posix()}")')
         if not res and not missing_ok:
             raise FileNotFoundError(f"Cannot delete file {self.as_posix()} - it does not exists!")
-        return res
 
-    def resolve(self, strict: bool = False) -> OMCPath:
+    def resolve(self, strict: bool = False):
         """
         Resolve the path to an absolute path. This is done based on available OMC functions.
         """
@@ -365,7 +365,7 @@ class OMCPathReal(pathlib.PurePosixPath):
 
         return omcpath
 
-    def _omc_resolve(self, pathstr: str) -> OMCPath:
+    def _omc_resolve(self, pathstr: str):
         """
         Internal function to resolve the path of the OMCPath object using OMC functions *WITHOUT* changing the cwd
         within OMC.
@@ -389,7 +389,7 @@ class OMCPathReal(pathlib.PurePosixPath):
 
         return omcpath_resolved
 
-    def absolute(self) -> OMCPath:
+    def absolute(self):
         """
         Resolve the path to an absolute path. This is done by calling resolve() as it is the best we can do
         using OMC functions.
@@ -417,18 +417,42 @@ class OMCPathReal(pathlib.PurePosixPath):
 
 
 if sys.version_info < (3, 12):
-    warnings.warn(
-        message="Python < 3.12 - using a limited compatibility class as OMCPath replacement.",
-        category=DeprecationWarning,
-        stacklevel=1,
-    )
 
-    class OMCPathCompatibility(pathlib.PosixPath):
+    class OMCPathCompatibility:
+        """
+        Compatibility class for OMCPath in Python < 3.12. This allows to run all code which uses OMCPath (mainly
+        ModelicaSystem) on these Python versions. There is one remaining limitation: only OMCProcessLocal will work as
+        OMCPathCompatibility is based on the standard pathlib.Path implementation.
+        """
+
+        # modified copy of pathlib.Path.__new__() definition
+        def __new__(cls, *args, **kwargs):
+            logger.warning("Python < 3.12 - using a limited version of class OMCPath.")
+
+            if cls is OMCPathCompatibility:
+                cls = OMCPathCompatibilityWindows if os.name == 'nt' else OMCPathCompatibilityPosix
+            self = cls._from_parts(args)
+            if not self._flavour.is_supported:
+                raise NotImplementedError("cannot instantiate %r on your system"
+                                          % (cls.__name__,))
+            return self
 
         def size(self) -> int:
+            """
+            Needed compatibility function to have the same interface as OMCPathReal
+            """
             return self.stat().st_size
 
-    OMCPath = OMCPathCompatibility  # noqa: F811
+
+    class OMCPathCompatibilityPosix(pathlib.PosixPath, OMCPathCompatibility):
+        pass
+
+
+    class OMCPathCompatibilityWindows(pathlib.WindowsPath, OMCPathCompatibility):
+        pass
+
+
+    OMCPath = OMCPathCompatibility
 
 else:
     OMCPath = OMCPathReal
@@ -495,19 +519,30 @@ class OMCSessionZMQ:
 
         # fallback solution for Python < 3.12; a modified pathlib.Path object is used as OMCPath replacement
         if sys.version_info < (3, 12):
-            # noinspection PyArgumentList
-            return OMCPath(*path)
+            if isinstance(self.omc_process, OMCProcessLocal):
+                # noinspection PyArgumentList
+                return OMCPath(*path)
+            else:
+                raise OMCSessionException("OMCPath is supported for Python < 3.12 only if OMCProcessLocal is used!")
         else:
             return OMCPath(*path, session=self)
 
-    def omcpath_tempdir(self) -> OMCPath:
+    def omcpath_tempdir(self, tempdir_base: Optional[OMCPath] = None) -> OMCPath:
         """
         Get a temporary directory using OMC.
         """
+        # fallback solution for Python < 3.12; a modified pathlib.Path object is used as OMCPath replacement
+        if sys.version_info < (3, 12):
+            tempdir_str = tempfile.gettempdir()
+            # noinspection PyArgumentList
+            return OMCPath(tempdir_str)
+
         names = [str(uuid.uuid4()) for _ in range(100)]
 
-        tempdir_str = self.sendExpression("getTempDirectoryPath()")
-        tempdir_base = self.omcpath(tempdir_str)
+        if tempdir_base is None:
+            tempdir_str = self.sendExpression("getTempDirectoryPath()")
+            tempdir_base = self.omcpath(tempdir_str)
+
         tempdir: Optional[OMCPath] = None
         for name in names:
             # create a unique temporary directory name
