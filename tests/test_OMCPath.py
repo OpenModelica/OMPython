@@ -9,13 +9,30 @@ skip_on_windows = pytest.mark.skipif(
 
 skip_python_older_312 = pytest.mark.skipif(
     sys.version_info < (3, 12),
-    reason="OMCPath only working for Python >= 3.12 (definition of pathlib.PurePath).",
+    reason="OMCPath(non-local) only working for Python >= 3.12.",
 )
+
+
+def test_OMCPath_OMCSessionZMQ():
+    om = OMPython.OMCSessionZMQ()
+
+    _run_OMCPath_checks(om)
+
+    del om
+
+
+def test_OMCPath_OMCProcessLocal():
+    omp = OMPython.OMCProcessLocal()
+    om = OMPython.OMCSessionZMQ(omc_process=omp)
+
+    _run_OMCPath_checks(om)
+
+    del om
 
 
 @skip_on_windows
 @skip_python_older_312
-def test_OMCPath_docker():
+def test_OMCPath_OMCProcessDocker():
     omcp = OMPython.OMCProcessDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
     om = OMPython.OMCSessionZMQ(omc_process=omcp)
     assert om.sendExpression("getVersion()") == "OpenModelica 1.25.0"
@@ -26,17 +43,9 @@ def test_OMCPath_docker():
     del om
 
 
-@skip_python_older_312
-def test_OMCPath_local():
-    om = OMPython.OMCSessionZMQ()
-
-    _run_OMCPath_checks(om)
-
-    del om
-
-
 @pytest.mark.skip(reason="Not able to run WSL on github")
-def test_OMCPath_WSL():
+@skip_python_older_312
+def test_OMCPath_OMCProcessWSL():
     omcp = OMPython.OMCProcessWSL(
         wsl_omc='omc',
         wsl_user='omc',
@@ -52,14 +61,18 @@ def test_OMCPath_WSL():
 
 def _run_OMCPath_checks(om: OMPython.OMCSessionZMQ):
     p1 = om.omcpath_tempdir()
-    p2 = p1 / '..' / p1.name / 'test.txt'
-    assert p2.is_file() is False
-    assert p2.write_text('test')
-    assert p2.is_file()
-    p2 = p2.resolve().absolute()
-    assert str(p2) == f"{str(p1)}/test.txt"
-    assert p2.read_text() == "test"
-    assert p2.is_file()
-    assert p2.parent.is_dir()
-    assert p2.unlink()
-    assert p2.is_file() is False
+    p2 = p1 / 'test'
+    p2.mkdir()
+    assert p2.is_dir()
+    p3 = p2 / '..' / p2.name / 'test.txt'
+    assert p3.is_file() is False
+    assert p3.write_text('test')
+    assert p3.is_file()
+    assert p3.size() > 0
+    p3 = p3.resolve().absolute()
+    assert str(p3) == str((p2 / 'test.txt').resolve().absolute())
+    assert p3.read_text() == "test"
+    assert p3.is_file()
+    assert p3.parent.is_dir()
+    assert p3.unlink() is None
+    assert p3.is_file() is False
