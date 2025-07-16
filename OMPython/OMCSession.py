@@ -443,14 +443,11 @@ if sys.version_info < (3, 12):
             """
             return self.stat().st_size
 
-
     class OMCPathCompatibilityPosix(pathlib.PosixPath, OMCPathCompatibility):
         pass
 
-
     class OMCPathCompatibilityWindows(pathlib.WindowsPath, OMCPathCompatibility):
         pass
-
 
     OMCPath = OMCPathCompatibility
 
