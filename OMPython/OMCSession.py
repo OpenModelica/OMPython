@@ -526,18 +526,17 @@ class OMCSessionZMQ:
 
     def omcpath_tempdir(self, tempdir_base: Optional[OMCPath] = None) -> OMCPath:
         """
-        Get a temporary directory using OMC.
+        Get a temporary directory using OMC. It is our own implementation as non-local usage relies on OMC to run all
+        filesystem related access.
         """
-        # fallback solution for Python < 3.12; a modified pathlib.Path object is used as OMCPath replacement
-        if sys.version_info < (3, 12):
-            tempdir_str = tempfile.gettempdir()
-            # noinspection PyArgumentList
-            return OMCPath(tempdir_str)
-
         names = [str(uuid.uuid4()) for _ in range(100)]
 
         if tempdir_base is None:
-            tempdir_str = self.sendExpression("getTempDirectoryPath()")
+            # fallback solution for Python < 3.12; a modified pathlib.Path object is used as OMCPath replacement
+            if sys.version_info < (3, 12):
+                tempdir_str = tempfile.gettempdir()
+            else:
+                tempdir_str = self.sendExpression("getTempDirectoryPath()")
             tempdir_base = self.omcpath(tempdir_str)
 
         tempdir: Optional[OMCPath] = None
