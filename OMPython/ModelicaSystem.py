@@ -1630,7 +1630,6 @@ class ModelicaSystem:
             * `result = linearize(); A = result[0]` mostly just for backwards
               compatibility, because linearize() used to return `[A, B, C, D]`.
         """
-
         if len(self._quantities) == 0:
             # if self._quantities has no content, the xml file was not parsed; see self._xmlparse()
             raise ModelicaSystemError(
