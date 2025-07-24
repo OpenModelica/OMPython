@@ -34,6 +34,7 @@ __license__ = """
  CONDITIONS OF OSMC-PL.
 """
 
+import dataclasses
 import io
 import json
 import logging
@@ -454,6 +455,48 @@ if sys.version_info < (3, 12):
 
 else:
     OMCPath = OMCPathReal
+
+
+@dataclasses.dataclass
+class OMCSessionRunData:
+    # TODO: rename OMCExcecutableModelData
+    """
+    Data class to store the command line data for running a model executable in the OMC environment.
+
+    All data should be defined for the environment, where OMC is running (local, docker or WSL)
+    """
+    # cmd_path is the expected working directory
+    cmd_path: str
+    cmd_model_name: str
+    # command line arguments for the model executable
+    cmd_args: list[str]
+    # result file with the simulation output
+    cmd_result_path: str
+
+    # command prefix data (as list of strings); needed for docker or WSL
+    cmd_prefix: Optional[list[str]] = None
+    # cmd_model_executable is build out of cmd_path and cmd_model_name; this is mainly needed on Windows (add *.exe)
+    cmd_model_executable: Optional[str] = None
+    # additional library search path; this is mainly needed if OMCProcessLocal is run on Windows
+    cmd_library_path: Optional[str] = None
+    # command timeout
+    cmd_timeout: Optional[float] = 10.0
+
+    # working directory to be used on the *local* system
+    cmd_cwd_local: Optional[str] = None
+
+    def get_cmd(self) -> list[str]:
+        """
+        Get the command line to run the model executable in the environment defined by the OMCProcess definition.
+        """
+
+        if self.cmd_model_executable is None:
+            raise OMCSessionException("No model file defined for the model executable!")
+
+        cmdl = [] if self.cmd_prefix is None else self.cmd_prefix
+        cmdl += [self.cmd_model_executable] + self.cmd_args
+
+        return cmdl
 
 
 class OMCSessionZMQ:
