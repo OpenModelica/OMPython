@@ -396,7 +396,7 @@ class OMCPathReal(pathlib.PurePosixPath):
         """
         return self.resolve(strict=True)
 
-    def exists(self) -> bool:
+    def exists(self, follow_symlinks=True) -> bool:
         """
         Semi replacement for pathlib.Path.exists().
         """
