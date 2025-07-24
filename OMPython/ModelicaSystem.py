@@ -38,15 +38,12 @@ import logging
 import numbers
 import numpy as np
 import os
-import platform
-import re
-import subprocess
 import textwrap
 from typing import Optional, Any
 import warnings
 import xml.etree.ElementTree as ET
 
-from OMPython.OMCSession import OMCSessionException, OMCSessionZMQ, OMCProcessLocal, OMCPath
+from OMPython.OMCSession import OMCSessionException, OMCSessionRunData, OMCSessionZMQ, OMCProcessLocal, OMCPath
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
@@ -112,7 +109,14 @@ class LinearizationResult:
 class ModelicaSystemCmd:
     """A compiled model executable."""
 
-    def __init__(self, runpath: OMCPath, modelname: str, timeout: Optional[float] = None) -> None:
+    def __init__(
+            self,
+            session: OMCSessionZMQ,
+            runpath: OMCPath,
+            modelname: str,
+            timeout: Optional[float] = None,
+    ) -> None:
+        self._session = session
         self._runpath = runpath
         self._model_name = modelname
         self._timeout = timeout
@@ -227,27 +231,12 @@ class ModelicaSystemCmd:
         for arg in args:
             self.arg_set(key=arg, val=args[arg])
 
-    def get_exe(self) -> OMCPath:
-        """Get the path to the compiled model executable."""
-        if platform.system() == "Windows":
-            path_exe = self._runpath / f"{self._model_name}.exe"
-        else:
-            path_exe = self._runpath / self._model_name
-
-        if not path_exe.exists():
-            raise ModelicaSystemError(f"Application file path not found: {path_exe}")
-
-        return path_exe
-
-    def get_cmd(self) -> list:
-        """Get a list with the path to the executable and all command line args.
-
-        This can later be used as an argument for subprocess.run().
+    def get_cmd_args(self) -> list[str]:
+        """
+        Get a list with the command arguments for the model executable.
         """
 
-        path_exe = self.get_exe()
-
-        cmdl = [path_exe.as_posix()]
+        cmdl = []
         for key in sorted(self._args):
             if self._args[key] is None:
                 cmdl.append(f"-{key}")
@@ -256,54 +245,26 @@ class ModelicaSystemCmd:
 
         return cmdl
 
-    def run(self) -> int:
-        """Run the requested simulation.
-
-        Returns
-        -------
-            Subprocess return code (0 on success).
+    def definition(self) -> OMCSessionRunData:
         """
+        Define all needed data to run the model executable. The data is stored in an OMCSessionRunData object.
+        """
+        # ensure that a result filename is provided
+        result_file = self.arg_get('r')
+        if not isinstance(result_file, str):
+            result_file = (self._runpath / f"{self._model_name}.mat").as_posix()
 
-        cmdl: list = self.get_cmd()
+        omc_run_data = OMCSessionRunData(
+            cmd_path=self._runpath.as_posix(),
+            cmd_model_name=self._model_name,
+            cmd_args=self.get_cmd_args(),
+            cmd_result_path=result_file,
+            cmd_timeout=self._timeout,
+        )
 
-        logger.debug("Run OM command %s in %s", repr(cmdl), self._runpath.as_posix())
+        omc_run_data_updated = self._session.omc_run_data_update(omc_run_data=omc_run_data)
 
-        if platform.system() == "Windows":
-            path_dll = ""
-
-            # set the process environment from the generated .bat file in windows which should have all the dependencies
-            path_bat = self._runpath / f"{self._model_name}.bat"
-            if not path_bat.exists():
-                raise ModelicaSystemError("Batch file (*.bat) does not exist " + str(path_bat))
-
-            with open(file=path_bat, mode='r', encoding='utf-8') as fh:
-                for line in fh:
-                    match = re.match(r"^SET PATH=([^%]*)", line, re.IGNORECASE)
-                    if match:
-                        path_dll = match.group(1).strip(';')  # Remove any trailing semicolons
-            my_env = os.environ.copy()
-            my_env["PATH"] = path_dll + os.pathsep + my_env["PATH"]
-        else:
-            # TODO: how to handle path to resources of external libraries for any system not Windows?
-            my_env = None
-
-        try:
-            cmdres = subprocess.run(cmdl, capture_output=True, text=True, env=my_env, cwd=self._runpath,
-                                    timeout=self._timeout, check=True)
-            stdout = cmdres.stdout.strip()
-            stderr = cmdres.stderr.strip()
-            returncode = cmdres.returncode
-
-            logger.debug("OM output for command %s:\n%s", repr(cmdl), stdout)
-
-            if stderr:
-                raise ModelicaSystemError(f"Error running command {repr(cmdl)}: {stderr}")
-        except subprocess.TimeoutExpired as ex:
-            raise ModelicaSystemError(f"Timeout running command {repr(cmdl)}") from ex
-        except subprocess.CalledProcessError as ex:
-            raise ModelicaSystemError(f"Error running command {repr(cmdl)}") from ex
-
-        return returncode
+        return omc_run_data_updated
 
     @staticmethod
     def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, Any] | numbers.Number]]:
@@ -1031,6 +992,7 @@ class ModelicaSystem:
         """
 
         om_cmd = ModelicaSystemCmd(
+            session=self._getconn,
             runpath=self.getWorkDirectory(),
             modelname=self._model_name,
             timeout=timeout,
@@ -1127,7 +1089,8 @@ class ModelicaSystem:
         if self._result_file.is_file():
             self._result_file.unlink()
         # ... run simulation ...
-        returncode = om_cmd.run()
+        cmd_definition = om_cmd.definition()
+        returncode = self._getconn.run_model_executable(cmd_run_data=cmd_definition)
         # and check returncode *AND* resultfile
         if returncode != 0 and self._result_file.is_file():
             # check for an empty (=> 0B) result file which indicates a crash of the model executable
@@ -1679,6 +1642,7 @@ class ModelicaSystem:
             )
 
         om_cmd = ModelicaSystemCmd(
+            session=self._getconn,
             runpath=self.getWorkDirectory(),
             modelname=self._model_name,
             timeout=timeout,
@@ -1716,7 +1680,8 @@ class ModelicaSystem:
         linear_file = self.getWorkDirectory() / "linearized_model.py"
         linear_file.unlink(missing_ok=True)
 
-        returncode = om_cmd.run()
+        cmd_definition = om_cmd.definition()
+        returncode = self._getconn.run_model_executable(cmd_run_data=cmd_definition)
         if returncode != 0:
             raise ModelicaSystemError(f"Linearize failed with return code: {returncode}")
         if not linear_file.is_file():
