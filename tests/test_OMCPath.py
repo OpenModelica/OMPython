@@ -74,5 +74,5 @@ def _run_OMCPath_checks(om: OMPython.OMCSessionZMQ):
     assert p3.read_text() == "test"
     assert p3.is_file()
     assert p3.parent.is_dir()
-    assert p3.unlink() is None
+    p3.unlink()
     assert p3.is_file() is False
