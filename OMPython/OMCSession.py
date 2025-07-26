@@ -600,7 +600,7 @@ class OMCSessionZMQ:
 
         return tempdir
 
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData, session: OMCSessionZMQ) -> OMCSessionRunData:
+    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
         Modify data based on the selected OMCProcess implementation.
 
