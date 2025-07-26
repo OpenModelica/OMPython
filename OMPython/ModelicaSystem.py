@@ -957,11 +957,9 @@ class ModelicaSystem:
         if self._override_variables or self._simulate_options_override:
             tmpdict = self._override_variables.copy()
             tmpdict.update(self._simulate_options_override)
-            # write to override file
-            with open(file=overrideFile, mode="w", encoding="utf-8") as fh:
-                for key, value in tmpdict.items():
-                    fh.write(f"{key}={value}\n")
 
+            override_content = "\n".join([f"{key}={value}" for key, value in tmpdict.items()]) + "\n"
+            overrideFile.write_text(override_content)
             om_cmd.arg_set(key="overrideFile", val=overrideFile.as_posix())
 
         if self._inputs:  # if model has input quantities
