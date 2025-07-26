@@ -32,7 +32,6 @@ __license__ = """
  CONDITIONS OF OSMC-PL.
 """
 
-import csv
 from dataclasses import dataclass
 import importlib
 import logging
@@ -1324,9 +1323,10 @@ class ModelicaSystem:
         if csvfile is None:
             csvfile = self._tempdir / f'{self._model_name}.csv'
 
-        with open(file=csvfile, mode="w", encoding="utf-8", newline="") as fh:
-            writer = csv.writer(fh)
-            writer.writerows(csv_rows)
+        # basic definition of a CSV file using csv_rows as input
+        csv_content = "\n".join([",".join(map(str, row)) for row in csv_rows]) + "\n"
+
+        csvfile.write_text(csv_content)
 
         return csvfile
 
