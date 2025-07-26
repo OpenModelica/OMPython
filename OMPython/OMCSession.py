@@ -606,7 +606,7 @@ class OMCSessionZMQ:
 
         Needs to be implemented in the subclasses.
         """
-        return self.omc_process.omc_run_data_update(omc_run_data=omc_run_data, session=self)
+        return self.omc_process.omc_run_data_update(omc_run_data=omc_run_data)
 
     @staticmethod
     def run_model_executable(cmd_run_data: OMCSessionRunData) -> int:
@@ -843,7 +843,7 @@ class OMCProcess(metaclass=abc.ABCMeta):
         return portfile_path
 
     @abc.abstractmethod
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData, session: OMCSessionZMQ) -> OMCSessionRunData:
+    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
         Update the OMCSessionRunData object based on the selected OMCProcess implementation.
 
@@ -864,7 +864,7 @@ class OMCProcessPort(OMCProcess):
         super().__init__()
         self._omc_port = omc_port
 
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData, session: OMCSessionZMQ) -> OMCSessionRunData:
+    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
         Update the OMCSessionRunData object based on the selected OMCProcess implementation.
         """
@@ -954,7 +954,7 @@ class OMCProcessLocal(OMCProcess):
 
         return port
 
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData, session: OMCSessionZMQ) -> OMCSessionRunData:
+    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
         Update the OMCSessionRunData object based on the selected OMCProcess implementation.
         """
@@ -1111,7 +1111,7 @@ class OMCProcessDockerHelper(OMCProcess):
 
         return self._dockerCid
 
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData, session: OMCSessionZMQ) -> OMCSessionRunData:
+    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
         Update the OMCSessionRunData object based on the selected OMCProcess implementation.
         """
@@ -1127,10 +1127,8 @@ class OMCProcessDockerHelper(OMCProcess):
                 + [self._dockerCid]
         )
 
-        cmd_path = session.omcpath(omc_run_data_copy.cmd_path)
+        cmd_path = pathlib.PurePosixPath(omc_run_data_copy.cmd_path)
         cmd_model_executable = cmd_path / omc_run_data_copy.cmd_model_name
-        if not cmd_model_executable.is_file():
-            raise OMCSessionException(f"Application file path not found: {cmd_model_executable}")
         omc_run_data_copy.cmd_model_executable = cmd_model_executable.as_posix()
 
         return omc_run_data_copy
@@ -1458,7 +1456,7 @@ class OMCProcessWSL(OMCProcess):
 
         return port
 
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData, session: OMCSessionZMQ) -> OMCSessionRunData:
+    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
         Update the OMCSessionRunData object based on the selected OMCProcess implementation.
         """
@@ -1466,10 +1464,8 @@ class OMCProcessWSL(OMCProcess):
 
         omc_run_data_copy.cmd_prefix = self._wsl_cmd(wsl_cwd=omc_run_data.cmd_path)
 
-        cmd_path = session.omcpath(omc_run_data_copy.cmd_path)
+        cmd_path = pathlib.PurePosixPath(omc_run_data_copy.cmd_path)
         cmd_model_executable = cmd_path / omc_run_data_copy.cmd_model_name
-        if not cmd_model_executable.is_file():
-            raise OMCSessionException(f"Application file path not found: {cmd_model_executable}")
         omc_run_data_copy.cmd_model_executable = cmd_model_executable.as_posix()
 
         return omc_run_data_copy
