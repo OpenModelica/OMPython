@@ -1175,15 +1175,22 @@ class ModelicaSystem:
         """
         return self._setMethodHelper(cvals, self._continuous, "continuous", self._override_variables)
 
-    def setParameters(self, pvals):  # 14
+    def setParameters(self, *pvals, **keyword_parameters):  # 14
         """
         This method is used to set parameter values. It can be called:
         with a sequence of parameter name and assigning corresponding value as arguments as show in the example below:
         usage
+        >>> setParameters(Name=value)
+        >>> setParameters(Name1=value1, Name2=value2)
         >>> setParameters("Name=value")
         >>> setParameters(["Name1=value1","Name2=value2"])
         """
-        return self._setMethodHelper(pvals, self._params, "parameter", self._override_variables)
+        if len(pvals)>0 and len(keyword_parameters)==0:
+            return self._setMethodHelper(pvals[0], self._params, "parameter", self._override_variables)
+        elif len(pvals)==0 and len(keyword_parameters)>0:
+            return self.setParameters([f'{param}={val}' for param,val in keyword_parameters.items()])
+        else:
+            raise ValueError('Wrong function arguments')
 
     def isParameterChangeable(self, name, value):
         q = self.getQuantities(name)
