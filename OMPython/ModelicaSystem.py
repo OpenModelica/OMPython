@@ -515,6 +515,20 @@ class ModelicaSystem:
         buildModelResult = self._requestApi(apiName="buildModel", entity=self._model_name, properties=var_filter)
         logger.debug("OM model build result: %s", buildModelResult)
 
+        # check if the executable exists ...
+        om_cmd = ModelicaSystemCmd(
+            session=self._getconn,
+            runpath=self.getWorkDirectory(),
+            modelname=self._model_name,
+            timeout=5.0,
+        )
+        # ... by running it - output help for command help
+        om_cmd.arg_set(key="help", val="help")
+        cmd_definition = om_cmd.definition()
+        returncode = self._getconn.run_model_executable(cmd_run_data=cmd_definition)
+        if returncode != 0:
+            raise ModelicaSystemError("Model executable not working!")
+
         xml_file = self._getconn.omcpath(buildModelResult[0]).parent / buildModelResult[1]
         self._xmlparse(xml_file=xml_file)
 
