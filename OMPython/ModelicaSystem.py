@@ -953,14 +953,17 @@ class ModelicaSystem:
         if simargs:
             om_cmd.args_set(args=simargs)
 
-        overrideFile = self._tempdir / f"{self._model_name}_override.txt"
         if self._override_variables or self._simulate_options_override:
-            tmpdict = self._override_variables.copy()
-            tmpdict.update(self._simulate_options_override)
+            override_file = result_file.parent / f"{result_file.stem}_override.txt"
 
-            override_content = "\n".join([f"{key}={value}" for key, value in tmpdict.items()]) + "\n"
-            overrideFile.write_text(override_content)
-            om_cmd.arg_set(key="overrideFile", val=overrideFile.as_posix())
+            override_content = (
+                    "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
+                    + "\n".join([f"{key}={value}" for key, value in self._simulate_options_override.items()])
+                    + "\n"
+            )
+
+            override_file.write_text(override_content)
+            om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
 
         if self._inputs:  # if model has input quantities
             for key in self._inputs:
