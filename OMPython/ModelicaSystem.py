@@ -978,7 +978,7 @@ class ModelicaSystem:
             om_cmd.args_set(args=simargs)
 
         if self._override_variables or self._simulate_options_override:
-            override_file = self.getWorkDirectory() / f"{result_file.stem}_override.txt"
+            override_file = result_file.parent / f"{result_file.stem}_override.txt"
 
             override_content = (
                     "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
