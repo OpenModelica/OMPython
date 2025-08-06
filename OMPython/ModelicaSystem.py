@@ -37,7 +37,6 @@ from dataclasses import dataclass
 import itertools
 import logging
 import numbers
-import numpy as np
 import os
 import queue
 import textwrap
@@ -45,6 +44,8 @@ import threading
 from typing import Any, cast, Optional
 import warnings
 import xml.etree.ElementTree as ET
+
+import numpy as np
 
 from OMPython.OMCSession import (OMCSessionException, OMCSessionRunData, OMCSessionZMQ,
                                  OMCProcess, OMCPath)
