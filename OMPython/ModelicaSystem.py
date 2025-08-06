@@ -1851,11 +1851,11 @@ class ModelicaSystemDoE:
             simargs={"override": {'stopTime': 1.0}},
         )
         doe_mod.prepare()
-        doe_dict = doe_mod.get_doe()
+        doe_def = doe_mod.get_doe_definition()
         doe_mod.simulate()
-        doe_sol = doe_mod.get_solutions()
+        doe_sol = doe_mod.get_doe_solutions()
 
-        # ... work with doe_df and doe_sol ...
+        # ... work with doe_def and doe_sol ...
 
 
     if __name__ == "__main__":
@@ -1927,8 +1927,8 @@ class ModelicaSystemDoE:
         else:
             self._parameters = {}
 
-        self._sim_dict: Optional[dict[str, dict[str, Any]]] = None
-        self._sim_task_query: queue.Queue = queue.Queue()
+        self._doe_def: Optional[dict[str, dict[str, Any]]] = None
+        self._doe_cmd: Optional[dict[str, OMCSessionRunData]] = None
 
     def session(self) -> OMCSessionZMQ:
         """
@@ -1944,6 +1944,9 @@ class ModelicaSystemDoE:
         The return value is the number of simulation defined.
         """
 
+        doe_sim = {}
+        doe_def = {}
+
         param_structure = {}
         param_non_structure = {}
         for param_name in self._parameters.keys():
@@ -1958,18 +1961,11 @@ class ModelicaSystemDoE:
         param_structure_combinations = list(itertools.product(*param_structure.values()))
         param_simple_combinations = list(itertools.product(*param_non_structure.values()))
 
-        self._sim_dict = {}
         for idx_pc_structure, pc_structure in enumerate(param_structure_combinations):
-            mod_structure = ModelicaSystem(
-                fileName=self._fileName,
-                modelName=self._modelName,
-                lmodel=self._lmodel,
-                commandLineOptions=self._CommandLineOptions,
-                variableFilter=self._variableFilter,
-                customBuildDirectory=self._customBuildDirectory,
-                omhome=self._omhome,
-                build=False,
-            )
+
+            build_dir = self._resultpath / f"DOE_{idx_pc_structure:09d}"
+            build_dir.mkdir()
+            self._mod.setWorkDirectory(customBuildDirectory=build_dir)
 
             sim_param_structure = {}
             for idx_structure, pk_structure in enumerate(param_structure.keys()):
@@ -1984,12 +1980,12 @@ class ModelicaSystemDoE:
                     expression = f"setParameterValue({self._modelName}, {pk_structure}, {pk_value_bool_str});"
                 else:
                     expression = f"setParameterValue({self._modelName}, {pk_structure}, {pk_value})"
-                res = mod_structure.sendExpression(expression)
+                res = self._mod.sendExpression(expression)
                 if not res:
                     raise ModelicaSystemError(f"Cannot set structural parameter {self._modelName}.{pk_structure} "
                                               f"to {pk_value} using {repr(expression)}")
 
-            mod_structure.buildModel(variableFilter=self._variableFilter)
+            self._mod.buildModel()
 
             for idx_pc_simple, pc_simple in enumerate(param_simple_combinations):
                 sim_param_simple = {}
@@ -2016,23 +2012,26 @@ class ModelicaSystemDoE:
                         }
                 )
 
-                self._sim_dict[resfilename] = df_data
-
-                mscmd = mod_structure.simulate_cmd(
+                self._mod.setParameters(sim_param_simple)
+                mscmd = self._mod.simulate_cmd(
                     result_file=resultfile,
                     timeout=self._timeout,
                 )
                 if self._simargs is not None:
                     mscmd.args_set(args=self._simargs)
-                mscmd.args_set(args={"override": sim_param_simple})
+                cmd_definition = mscmd.definition()
+                del mscmd
 
-                self._sim_task_query.put(mscmd)
+                doe_sim[resfilename] = cmd_definition
+                doe_def[resfilename] = df_data
 
-        logger.info(f"Prepared {self._sim_task_query.qsize()} simulation definitions for the defined DoE.")
+        logger.info(f"Prepared {len(doe_sim)} simulation definitions for the defined DoE.")
+        self._doe_cmd = doe_sim
+        self._doe_def = doe_def
 
-        return self._sim_task_query.qsize()
+        return len(doe_sim)
 
-    def get_doe(self) -> Optional[dict[str, dict[str, Any]]]:
+    def get_doe_definition(self) -> Optional[dict[str, dict[str, Any]]]:
         """
         Get the defined DoE as a dict, where each key is the result filename and the value is a dict of simulation
         settings including structural and non-structural parameters.
@@ -2042,12 +2041,18 @@ class ModelicaSystemDoE:
         ```
         import pandas as pd
 
-        doe_dict = doe_mod.get_doe()
+        doe_dict = doe_mod.get_doe_definition()
         doe_df = pd.DataFrame.from_dict(data=doe_dict, orient='index')
         ```
 
         """
-        return self._sim_dict
+        return self._doe_def
+
+    def get_doe_command(self) -> Optional[dict[str, OMCSessionRunData]]:
+        """
+        Get the definitions of simulations commands to run for this DoE.
+        """
+        return self._doe_cmd
 
     def simulate(
             self,
@@ -2059,48 +2064,62 @@ class ModelicaSystemDoE:
         Returns True if all simulations were done successfully, else False.
         """
 
-        sim_query_total = self._sim_task_query.qsize()
-        if not isinstance(self._sim_dict, dict) or len(self._sim_dict) == 0:
+        if self._doe_cmd is None or self._doe_def is None:
+            raise ModelicaSystemError("DoE preparation missing - call prepare() first!")
+
+        doe_cmd_total = len(self._doe_cmd)
+        doe_def_total = len(self._doe_def)
+
+        if doe_cmd_total != doe_def_total:
+            raise ModelicaSystemError(f"Mismatch between number simulation commands ({doe_cmd_total}) "
+                                      f"and simulation definitions ({doe_def_total}).")
+
+        doe_task_query: queue.Queue = queue.Queue()
+        if self._doe_cmd is not None:
+            for doe_cmd in self._doe_cmd.values():
+                doe_task_query.put(doe_cmd)
+
+        if not isinstance(self._doe_def, dict) or len(self._doe_def) == 0:
             raise ModelicaSystemError("Missing Doe Summary!")
-        sim_dict_total = len(self._sim_dict)
 
         def worker(worker_id, task_queue):
             while True:
                 try:
                     # Get the next task from the queue
-                    mscmd = task_queue.get(block=False)
+                    cmd_definition = task_queue.get(block=False)
                 except queue.Empty:
                     logger.info(f"[Worker {worker_id}] No more simulations to run.")
                     break
 
-                if mscmd is None:
+                if cmd_definition is None:
                     raise ModelicaSystemError("Missing simulation definition!")
 
-                resultfile = mscmd.arg_get(key='r')
+                resultfile = cmd_definition.cmd_result_path
                 resultpath = self.session().omcpath(resultfile)
 
                 logger.info(f"[Worker {worker_id}] Performing task: {resultpath.name}")
 
                 try:
-                    mscmd.run()
+                    returncode = self._mod._getconn.run_model_executable(cmd_run_data=cmd_definition)
+                    logger.info(f"[Worker {worker_id}] Simulation {resultpath.name} "
+                                f"finished with return code: {returncode}")
                 except ModelicaSystemError as ex:
                     logger.warning(f"Simulation error for {resultpath.name}: {ex}")
 
                 # Mark the task as done
                 task_queue.task_done()
 
-                sim_query_done = sim_query_total - self._sim_task_query.qsize()
+                sim_query_done = doe_cmd_total - doe_task_query.qsize()
                 logger.info(f"[Worker {worker_id}] Task completed: {resultpath.name} "
-                            f"({sim_query_total - sim_query_done}/{sim_query_total} = "
-                            f"{(sim_query_total - sim_query_done) / sim_query_total * 100:.2f}% of tasks left)")
-
-        logger.info(f"Start simulations for DoE with {sim_query_total} simulations "
-                    f"using {num_workers} workers ...")
+                            f"({doe_cmd_total - sim_query_done}/{doe_cmd_total} = "
+                            f"{(doe_cmd_total - sim_query_done) / doe_cmd_total * 100:.2f}% of tasks left)")
 
         # Create and start worker threads
+        logger.info(f"Start simulations for DoE with {doe_cmd_total} simulations "
+                    f"using {num_workers} workers ...")
         threads = []
         for i in range(num_workers):
-            thread = threading.Thread(target=worker, args=(i, self._sim_task_query))
+            thread = threading.Thread(target=worker, args=(i, doe_task_query))
             thread.start()
             threads.append(thread)
 
@@ -2108,22 +2127,22 @@ class ModelicaSystemDoE:
         for thread in threads:
             thread.join()
 
-        sim_dict_done = 0
-        for resultfilename in self._sim_dict:
+        doe_def_done = 0
+        for resultfilename in self._doe_def:
             resultfile = self._resultpath / resultfilename
 
             # include check for an empty (=> 0B) result file which indicates a crash of the model executable
             # see: https://github.com/OpenModelica/OMPython/issues/261
             # https://github.com/OpenModelica/OpenModelica/issues/13829
             if resultfile.is_file() and resultfile.size() > 0:
-                self._sim_dict[resultfilename][self.DICT_RESULT_AVAILABLE] = True
-                sim_dict_done += 1
+                self._doe_def[resultfilename][self.DICT_RESULT_AVAILABLE] = True
+                doe_def_done += 1
 
-        logger.info(f"All workers finished ({sim_dict_done} of {sim_dict_total} simulations with a result file).")
+        logger.info(f"All workers finished ({doe_def_done} of {doe_def_total} simulations with a result file).")
 
-        return sim_dict_total == sim_dict_done
+        return doe_def_total == doe_def_done
 
-    def get_solutions(
+    def get_doe_solutions(
             self,
             var_list: Optional[list] = None,
     ) -> Optional[tuple[str] | dict[str, dict[str, np.ndarray]]]:
@@ -2139,7 +2158,7 @@ class ModelicaSystemDoE:
         ```
         import pandas as pd
 
-        doe_sol = doe_mod.get_solutions()
+        doe_sol = doe_mod.get_doe_solutions()
         for key in doe_sol:
             data = doe_sol[key]['data']
             if data:
@@ -2149,20 +2168,22 @@ class ModelicaSystemDoE:
         ```
 
         """
-        if not isinstance(self._sim_dict, dict):
+        if not isinstance(self._doe_def, dict):
             return None
 
-        if len(self._sim_dict) == 0:
+        if len(self._doe_def) == 0:
             raise ModelicaSystemError("No result files available - all simulations did fail?")
 
         sol_dict: dict[str, dict[str, Any]] = {}
-        for resultfilename in self._sim_dict:
+        for resultfilename in self._doe_def:
             resultfile = self._resultpath / resultfilename
 
             sol_dict[resultfilename] = {}
 
-            if not self._sim_dict[resultfilename][self.DICT_RESULT_AVAILABLE]:
-                sol_dict[resultfilename]['msg'] = 'No result file available!'
+            if not self._doe_def[resultfilename][self.DICT_RESULT_AVAILABLE]:
+                msg = f"No result file available for {resultfilename}"
+                logger.warning(msg)
+                sol_dict[resultfilename]['msg'] = msg
                 sol_dict[resultfilename]['data'] = {}
                 continue
 
