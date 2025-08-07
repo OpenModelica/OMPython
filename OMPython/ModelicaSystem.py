@@ -1872,6 +1872,7 @@ class ModelicaSystemDoE:
 
     def __init__(
             self,
+            # data to be used for ModelicaSystem
             fileName: Optional[str | os.PathLike] = None,
             modelName: Optional[str] = None,
             lmodel: Optional[list[str | tuple[str, str]]] = None,
@@ -1879,10 +1880,12 @@ class ModelicaSystemDoE:
             variableFilter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
-
+            omc_process: Optional[OMCProcess] = None,  # TODO: use omc session
+            # simulation specific input
+            # TODO: add more settings (simulation options, input options, ...)
             simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,
             timeout: Optional[int] = None,
-
+            # DoE specific inputs
             resultpath: Optional[str | os.PathLike] = None,
             parameters: Optional[dict[str, list[str] | list[int] | list[float]]] = None,
     ) -> None:
@@ -1891,36 +1894,30 @@ class ModelicaSystemDoE:
         ModelicaSystem.simulate(). Additionally, the path to store the result files is needed (= resultpath) as well as
         a list of parameters to vary for the Doe (= parameters). All possible combinations are considered.
         """
-        self._lmodel = lmodel
-        self._modelName = modelName
-        self._fileName = fileName
 
-        self._CommandLineOptions = commandLineOptions
-        self._variableFilter = variableFilter
-        self._customBuildDirectory = customBuildDirectory
-        self._omhome = omhome
-
-        # reference for the model; not used for any simulations but to evaluate parameters, etc.
         self._mod = ModelicaSystem(
-            fileName=self._fileName,
-            modelName=self._modelName,
-            lmodel=self._lmodel,
-            commandLineOptions=self._CommandLineOptions,
-            variableFilter=self._variableFilter,
-            customBuildDirectory=self._customBuildDirectory,
-            omhome=self._omhome,
+            fileName=fileName,
+            modelName=modelName,
+            lmodel=lmodel,
+            commandLineOptions=commandLineOptions,
+            variableFilter=variableFilter,
+            customBuildDirectory=customBuildDirectory,
+            omhome=omhome,
+            omc_process=omc_process,
         )
+
+        self._model_name = modelName
 
         self._simargs = simargs
         self._timeout = timeout
 
-        if resultpath is not None:
-            self._resultpath = self.session().omcpath(resultpath)
-        else:
+        if resultpath is None:
             self._resultpath = self.session().omcpath_tempdir()
-
+        else:
+            self._resultpath = self.session().omcpath(resultpath)
         if not self._resultpath.is_dir():
-            raise ModelicaSystemError(f"Resultpath {self._resultpath.as_posix()} does not exists!")
+            raise ModelicaSystemError("Argument resultpath must be set to a valid path within the environment used "
+                                      f"for the OpenModelica session: {resultpath}!")
 
         if isinstance(parameters, dict):
             self._parameters = parameters
@@ -1974,15 +1971,15 @@ class ModelicaSystemDoE:
                 pk_value = pc_structure[idx_structure]
                 if isinstance(pk_value, str):
                     pk_value_str = pk_value.replace('"', '\\"')
-                    expression = f"setParameterValue({self._modelName}, {pk_structure}, \"{pk_value_str}\")"
+                    expression = f"setParameterValue({self._model_name}, {pk_structure}, \"{pk_value_str}\")"
                 elif isinstance(pk_value, bool):
                     pk_value_bool_str = "true" if pk_value else "false"
-                    expression = f"setParameterValue({self._modelName}, {pk_structure}, {pk_value_bool_str});"
+                    expression = f"setParameterValue({self._model_name}, {pk_structure}, {pk_value_bool_str});"
                 else:
-                    expression = f"setParameterValue({self._modelName}, {pk_structure}, {pk_value})"
+                    expression = f"setParameterValue({self._model_name}, {pk_structure}, {pk_value})"
                 res = self._mod.sendExpression(expression)
                 if not res:
-                    raise ModelicaSystemError(f"Cannot set structural parameter {self._modelName}.{pk_structure} "
+                    raise ModelicaSystemError(f"Cannot set structural parameter {self._model_name}.{pk_structure} "
                                               f"to {pk_value} using {repr(expression)}")
 
             self._mod.buildModel()
