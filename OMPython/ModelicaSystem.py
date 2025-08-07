@@ -1082,9 +1082,9 @@ class ModelicaSystem:
         else:
             result_file = pathlib.Path(resultfile)
 
-        # check for result file exits
+        # check if the result file exits
         if not result_file.is_file():
-            raise ModelicaSystemError(f"Result file does not exist {result_file}")
+            raise ModelicaSystemError(f"Result file does not exist {result_file.as_posix()}")
 
         # get absolute path
         result_file = result_file.absolute()
