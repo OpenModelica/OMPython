@@ -383,7 +383,6 @@ class ModelicaSystem:
         if not isinstance(lmodel, list):
             raise ModelicaSystemError(f"Invalid input type for lmodel: {type(lmodel)} - list expected!")
 
-        self._xml_file = None
         self._lmodel = lmodel  # may be needed if model is derived from other model
         self._model_name = modelName  # Model class name
         self._file_name = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
@@ -481,8 +480,8 @@ class ModelicaSystem:
         buildModelResult = self._requestApi("buildModel", self._model_name, properties=varFilter)
         logger.debug("OM model build result: %s", buildModelResult)
 
-        self._xml_file = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
-        self._xmlparse()
+        xml_file = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
+        self._xmlparse(xml_file=xml_file)
 
     def sendExpression(self, expr: str, parsed: bool = True):
         try:
@@ -508,23 +507,34 @@ class ModelicaSystem:
 
         return self.sendExpression(exp)
 
-    def _xmlparse(self):
-        if not self._xml_file.is_file():
-            raise ModelicaSystemError(f"XML file not generated: {self._xml_file}")
+    def _xmlparse(self, xml_file: pathlib.Path):
+        if not xml_file.is_file():
+            raise ModelicaSystemError(f"XML file not generated: {xml_file}")
 
-        tree = ET.parse(self._xml_file)
+        xml_content = xml_file.read_text()
+        tree = ET.ElementTree(ET.fromstring(xml_content))
         rootCQ = tree.getroot()
         for attr in rootCQ.iter('DefaultExperiment'):
             for key in ("startTime", "stopTime", "stepSize", "tolerance",
                         "solver", "outputFormat"):
-                self._simulate_options[key] = attr.get(key)
+                self._simulate_options[key] = str(attr.get(key))
 
         for sv in rootCQ.iter('ScalarVariable'):
-            scalar = {}
-            for key in ("name", "description", "variability", "causality", "alias"):
-                scalar[key] = sv.get(key)
-            scalar["changeable"] = sv.get('isValueChangeable')
-            scalar["aliasvariable"] = sv.get('aliasVariable')
+            translations = {
+                "alias": "alias",
+                "aliasvariable": "aliasVariable",
+                "causality": "causality",
+                "changeable": "isValueChangeable",
+                "description": "description",
+                "name": "name",
+                "variability": "variability",
+            }
+
+            scalar: dict[str, Any] = {}
+            for key_dst, key_src in translations.items():
+                val = sv.get(key_src)
+                scalar[key_dst] = None if val is None else str(val)
+
             ch = list(sv)
             for att in ch:
                 scalar["start"] = att.get('start')
@@ -532,6 +542,7 @@ class ModelicaSystem:
                 scalar["max"] = att.get('max')
                 scalar["unit"] = att.get('unit')
 
+            # save parameters in the corresponding class variables
             if scalar["variability"] == "parameter":
                 if scalar["name"] in self._override_variables:
                     self._params[scalar["name"]] = self._override_variables[scalar["name"]]
@@ -1446,7 +1457,8 @@ class ModelicaSystem:
 
             return module_def
 
-        if self._xml_file is None:
+        if len(self._quantities) == 0:
+            # if self._quantities has no content, the xml file was not parsed; see self._xmlparse()
             raise ModelicaSystemError(
                 "Linearization cannot be performed as the model is not build, "
                 "use ModelicaSystem() to build the model first"
