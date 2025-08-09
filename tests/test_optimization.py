@@ -51,7 +51,7 @@ end BangBang2021;
     r = mod.optimize()
     # it is necessary to specify resultfile, otherwise it wouldn't find it.
     resultfile_str = r["resultFile"]
-    resultfile_omcpath = mod._getconn.omcpath(resultfile_str)
+    resultfile_omcpath = mod.session().omcpath(resultfile_str)
     time, f, v = mod.getSolutions(["time", "f", "v"], resultfile=resultfile_omcpath.as_posix())
     assert np.isclose(f[0], 10)
     assert np.isclose(f[-1], -10)
