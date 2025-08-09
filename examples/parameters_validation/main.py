@@ -17,11 +17,11 @@ def main(file=None):
 				],
 			)
 			print('--------------------------------------', file=file)
-			print('Simulating with:', file=file)
-			print(f'\tpositive_number = {positive_number}', file=file)
-			print(f'\tnegative_number = {negative_number}', file=file)
+			print(f'model parameters: {model.getParameters()}', file=file)
 			try:
 				model.simulate() # Parameters values are validated here.
+				print('No errors')
+				continue
 			except Exception as e:
 				print(e, file=file)
 
