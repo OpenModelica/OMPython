@@ -384,9 +384,9 @@ class ModelicaSystem:
         self._linearized_states: list[str] = []  # linearization states list
 
         if omc_process is not None:
-            self._getconn = OMCSessionZMQ(omc_process=omc_process)
+            self._session = OMCSessionZMQ(omc_process=omc_process)
         else:
-            self._getconn = OMCSessionZMQ(omhome=omhome)
+            self._session = OMCSessionZMQ(omhome=omhome)
 
         # set commandLineOptions using default values or the user defined list
         if commandLineOptions is None:
@@ -408,7 +408,7 @@ class ModelicaSystem:
         self._lmodel = lmodel  # may be needed if model is derived from other model
         self._model_name = modelName  # Model class name
         if fileName is not None:
-            file_name = self._getconn.omcpath(fileName).resolve()
+            file_name = self._session.omcpath(fileName).resolve()
         else:
             file_name = None
         self._file_name: Optional[OMCPath] = file_name  # Model file/package name
@@ -437,6 +437,9 @@ class ModelicaSystem:
 
         if build:
             self.buildModel(variableFilter)
+
+    def get_session(self) -> OMCSessionZMQ:
+        return self._session
 
     def setCommandLineOptions(self, commandLineOptions: str):
         """
@@ -479,11 +482,11 @@ class ModelicaSystem:
         directory. If no directory is defined a unique temporary directory is created.
         """
         if customBuildDirectory is not None:
-            workdir = self._getconn.omcpath(customBuildDirectory).absolute()
+            workdir = self._session.omcpath(customBuildDirectory).absolute()
             if not workdir.is_dir():
                 raise IOError(f"Provided work directory does not exists: {customBuildDirectory}!")
         else:
-            workdir = self._getconn.omcpath_tempdir().absolute()
+            workdir = self._session.omcpath_tempdir().absolute()
             if not workdir.is_dir():
                 raise IOError(f"{workdir} could not be created")
 
@@ -519,7 +522,7 @@ class ModelicaSystem:
 
         # check if the executable exists ...
         om_cmd = ModelicaSystemCmd(
-            session=self._getconn,
+            session=self._session,
             runpath=self.getWorkDirectory(),
             modelname=self._model_name,
             timeout=5.0,
@@ -527,16 +530,16 @@ class ModelicaSystem:
         # ... by running it - output help for command help
         om_cmd.arg_set(key="help", val="help")
         cmd_definition = om_cmd.definition()
-        returncode = self._getconn.run_model_executable(cmd_run_data=cmd_definition)
+        returncode = self._session.run_model_executable(cmd_run_data=cmd_definition)
         if returncode != 0:
             raise ModelicaSystemError("Model executable not working!")
 
-        xml_file = self._getconn.omcpath(buildModelResult[0]).parent / buildModelResult[1]
+        xml_file = self._session.omcpath(buildModelResult[0]).parent / buildModelResult[1]
         self._xmlparse(xml_file=xml_file)
 
     def sendExpression(self, expr: str, parsed: bool = True) -> Any:
         try:
-            retval = self._getconn.sendExpression(expr, parsed)
+            retval = self._session.sendExpression(expr, parsed)
         except OMCSessionException as ex:
             raise ModelicaSystemError(f"Error executing {repr(expr)}") from ex
 
@@ -1011,7 +1014,7 @@ class ModelicaSystem:
         """
 
         om_cmd = ModelicaSystemCmd(
-            session=self._getconn,
+            session=self._session,
             runpath=self.getWorkDirectory(),
             modelname=self._model_name,
             timeout=timeout,
@@ -1091,7 +1094,7 @@ class ModelicaSystem:
         elif isinstance(resultfile, OMCPath):
             self._result_file = resultfile
         else:
-            self._result_file = self._getconn.omcpath(resultfile)
+            self._result_file = self._session.omcpath(resultfile)
             if not self._result_file.is_absolute():
                 self._result_file = self.getWorkDirectory() / resultfile
 
@@ -1110,7 +1113,7 @@ class ModelicaSystem:
             self._result_file.unlink()
         # ... run simulation ...
         cmd_definition = om_cmd.definition()
-        returncode = self._getconn.run_model_executable(cmd_run_data=cmd_definition)
+        returncode = self._session.run_model_executable(cmd_run_data=cmd_definition)
         # and check returncode *AND* resultfile
         if returncode != 0 and self._result_file.is_file():
             # check for an empty (=> 0B) result file which indicates a crash of the model executable
@@ -1165,7 +1168,7 @@ class ModelicaSystem:
                 raise ModelicaSystemError("No result file found. Run simulate() first.")
             result_file = self._result_file
         else:
-            result_file = self._getconn.omcpath(resultfile)
+            result_file = self._session.omcpath(resultfile)
 
         # check if the result file exits
         if not result_file.is_file():
@@ -1632,7 +1635,7 @@ class ModelicaSystem:
             )
 
         om_cmd = ModelicaSystemCmd(
-            session=self._getconn,
+            session=self._session,
             runpath=self.getWorkDirectory(),
             modelname=self._model_name,
             timeout=timeout,
@@ -1672,7 +1675,7 @@ class ModelicaSystem:
         linear_file.unlink(missing_ok=True)
 
         cmd_definition = om_cmd.definition()
-        returncode = self._getconn.run_model_executable(cmd_run_data=cmd_definition)
+        returncode = self._session.run_model_executable(cmd_run_data=cmd_definition)
         if returncode != 0:
             raise ModelicaSystemError(f"Linearize failed with return code: {returncode}")
         if not linear_file.is_file():
@@ -1840,9 +1843,9 @@ class ModelicaSystemDoE:
         self._timeout = timeout
 
         if resultpath is None:
-            self._resultpath = self._mod._getconn.omcpath_tempdir()
+            self._resultpath = self._mod.get_session().omcpath_tempdir()
         else:
-            self._resultpath = self._mod._getconn.omcpath(resultpath)
+            self._resultpath = self._mod.get_session().omcpath(resultpath)
         if not self._resultpath.is_dir():
             raise ModelicaSystemError("Argument resultpath must be set to a valid path within the environment used "
                                       f"for the OpenModelica session: {resultpath}!")
@@ -2013,12 +2016,12 @@ class ModelicaSystemDoE:
                     raise ModelicaSystemError("Missing simulation definition!")
 
                 resultfile = cmd_definition.cmd_result_path
-                resultpath = self._mod._getconn.omcpath(resultfile)
+                resultpath = self._mod.get_session().omcpath(resultfile)
 
                 logger.info(f"[Worker {worker_id}] Performing task: {resultpath.name}")
 
                 try:
-                    returncode = self._mod._getconn.run_model_executable(cmd_run_data=cmd_definition)
+                    returncode = self._mod.get_session().run_model_executable(cmd_run_data=cmd_definition)
                     logger.info(f"[Worker {worker_id}] Simulation {resultpath.name} "
                                 f"finished with return code: {returncode}")
                 except ModelicaSystemError as ex:
