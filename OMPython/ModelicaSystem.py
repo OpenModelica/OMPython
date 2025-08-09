@@ -1733,7 +1733,7 @@ class ModelicaSystemDoE:
             variableFilter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
-            omc_process: Optional[OMCProcessLocal] = None,  # TODO: use omc session
+            omc_process: Optional[OMCProcess] = None,
             # simulation specific input
             # TODO: add more settings (simulation options, input options, ...)
             simargs: Optional[dict[str, Optional[str | dict[str, Any]]]] = None,
