@@ -35,17 +35,21 @@ end BangBang2021;
 
     mod = OMPython.ModelicaSystem(fileName=model_file.as_posix(), modelName="BangBang2021")
 
-    mod.setOptimizationOptions(["numberOfIntervals=16", "stopTime=1",
-                                "stepSize=0.001", "tolerance=1e-8"])
+    mod.setOptimizationOptions(optimizationOptions={"numberOfIntervals": 16,
+                                                    "stopTime": 1,
+                                                    "stepSize": 0.001,
+                                                    "tolerance": 1e-8})
 
     # test the getter
     assert mod.getOptimizationOptions()["stopTime"] == "1"
     assert mod.getOptimizationOptions("stopTime") == ["1"]
-    assert mod.getOptimizationOptions(["tolerance", "stopTime"]) == ["1e-8", "1"]
+    assert mod.getOptimizationOptions(["tolerance", "stopTime"]) == ["1e-08", "1"]
 
     r = mod.optimize()
     # it is necessary to specify resultfile, otherwise it wouldn't find it.
-    time, f, v = mod.getSolutions(["time", "f", "v"], resultfile=r["resultFile"])
+    resultfile_str = r["resultFile"]
+    resultfile_omcpath = mod._getconn.omcpath(resultfile_str)
+    time, f, v = mod.getSolutions(["time", "f", "v"], resultfile=resultfile_omcpath.as_posix())
     assert np.isclose(f[0], 10)
     assert np.isclose(f[-1], -10)
 
