@@ -1132,7 +1132,11 @@ class ModelicaSystem:
 
         self._simulated = True
 
-    def getSolutions(self, varList: Optional[str | list[str]] = None, resultfile: Optional[str] = None) -> tuple[str] | np.ndarray:
+    def getSolutions(
+            self,
+            varList: Optional[str | list[str]] = None,
+            resultfile: Optional[str | os.PathLike] = None,
+    ) -> tuple[str] | np.ndarray:
         """Extract simulation results from a result data file.
 
         Args:
