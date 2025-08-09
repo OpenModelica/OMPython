@@ -685,7 +685,10 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getQuantities()")
 
-    def getContinuous(self, names: Optional[str | list[str]] = None):
+    def getContinuous(
+            self,
+            names: Optional[str | list[str]] = None,
+    ) -> dict[str, str | numbers.Real] | list[str | numbers.Real]:
         """Get values of continuous signals.
 
         If called before simulate(), the initial values are returned as
@@ -757,7 +760,10 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getContinous()")
 
-    def getParameters(self, names: Optional[str | list[str]] = None) -> dict[str, str] | list[str]:  # 5
+    def getParameters(
+            self,
+            names: Optional[str | list[str]] = None,
+    ) -> dict[str, str] | list[str]:
         """Get parameter values.
 
         Args:
@@ -788,7 +794,10 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getParameters()")
 
-    def getInputs(self, names: Optional[str | list[str]] = None) -> dict | list:  # 6
+    def getInputs(
+            self,
+            names: Optional[str | list[str]] = None,
+    ) -> dict[str, list[tuple[numbers.Real]]] | list[tuple[numbers.Real]]:
         """Get values of input signals.
 
         Args:
@@ -822,7 +831,10 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getInputs()")
 
-    def getOutputs(self, names: Optional[str | list[str]] = None):  # 7
+    def getOutputs(
+            self,
+            names: Optional[str | list[str]] = None,
+    ) -> dict[str, str | numbers.Real] | list[str | numbers.Real]:
         """Get values of output signals.
 
         If called before simulate(), the initial values are returned as
@@ -890,7 +902,10 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getOutputs()")
 
-    def getSimulationOptions(self, names: Optional[str | list[str]] = None) -> dict[str, str] | list[str]:
+    def getSimulationOptions(
+            self,
+            names: Optional[str | list[str]] = None,
+    ) -> dict[str, str] | list[str]:
         """Get simulation options such as stopTime and tolerance.
 
         Args:
@@ -924,7 +939,10 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getSimulationOptions()")
 
-    def getLinearizationOptions(self, names: Optional[str | list[str]] = None) -> dict | list:
+    def getLinearizationOptions(
+            self,
+            names: Optional[str | list[str]] = None,
+    ) -> dict[str, str | numbers.Real] | list[str | numbers.Real]:
         """Get simulation options used for linearization.
 
         Args:
@@ -959,7 +977,10 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getLinearizationOptions()")
 
-    def getOptimizationOptions(self, names: Optional[str | list[str]] = None) -> dict | list:
+    def getOptimizationOptions(
+            self,
+            names: Optional[str | list[str]] = None,
+    ) -> dict[str, str | numbers.Real] | list[str | numbers.Real]:
         """Get simulation options used for optimization.
 
         Args:
