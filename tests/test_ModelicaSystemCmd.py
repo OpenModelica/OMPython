@@ -36,8 +36,7 @@ def test_simflags(mscmd_firstorder):
     with pytest.deprecated_call():
         mscmd.args_set(args=mscmd.parse_simflags(simflags="-noEventEmit -noRestart -override=a=1,x=3"))
 
-    assert mscmd.get_cmd() == [
-        mscmd.get_exe().as_posix(),
+    assert mscmd.get_cmd_args() == [
         '-noEventEmit',
         '-noRestart',
         '-override=a=1,b=2,x=3',
@@ -47,8 +46,7 @@ def test_simflags(mscmd_firstorder):
         "override": {'b': None},
     })
 
-    assert mscmd.get_cmd() == [
-        mscmd.get_exe().as_posix(),
+    assert mscmd.get_cmd_args() == [
         '-noEventEmit',
         '-noRestart',
         '-override=a=1,x=3',
