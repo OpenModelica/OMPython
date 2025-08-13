@@ -1172,7 +1172,7 @@ class ModelicaSystem:
             inputdata: dict[str, str],
             classdata: dict[str, Any],
             datatype: str,
-            overwritedata: Optional[dict[str, str]] = None,
+            overridedata: Optional[dict[str, str]] = None,
     ) -> bool:
         """
         Helper function for:
@@ -1191,7 +1191,7 @@ class ModelicaSystem:
             dict() containing the values of different variables (eg: parameter, continuous, simulation parameters)
         datatype
             type identifier (eg; continuous, parameter, simulation, linearization, optimization)
-        overwritedata
+        overridedata
             dict() which stores the new override variables list,
         """
 
@@ -1210,8 +1210,8 @@ class ModelicaSystem:
                                           ")\").")
 
             classdata[key] = val
-            if overwritedata is not None:
-                overwritedata[key] = val
+            if overridedata is not None:
+                overridedata[key] = val
 
         return True
 
@@ -1242,7 +1242,7 @@ class ModelicaSystem:
             inputdata=inputdata,
             classdata=self._continuous,
             datatype="continuous",
-            overwritedata=self._override_variables)
+            overridedata=self._override_variables)
 
     def setParameters(
             self,
@@ -1262,7 +1262,7 @@ class ModelicaSystem:
             inputdata=inputdata,
             classdata=self._params,
             datatype="parameter",
-            overwritedata=self._override_variables)
+            overridedata=self._override_variables)
 
     def setSimulationOptions(
             self,
@@ -1282,7 +1282,7 @@ class ModelicaSystem:
             inputdata=inputdata,
             classdata=self._simulate_options,
             datatype="simulation-option",
-            overwritedata=self._simulate_options_override)
+            overridedata=self._simulate_options_override)
 
     def setLinearizationOptions(
             self,
@@ -1302,7 +1302,7 @@ class ModelicaSystem:
             inputdata=inputdata,
             classdata=self._linearization_options,
             datatype="Linearization-option",
-            overwritedata=None)
+            overridedata=None)
 
     def setOptimizationOptions(
             self,
@@ -1322,7 +1322,7 @@ class ModelicaSystem:
             inputdata=inputdata,
             classdata=self._optimization_options,
             datatype="optimization-option",
-            overwritedata=None)
+            overridedata=None)
 
     def setInputs(
             self,
