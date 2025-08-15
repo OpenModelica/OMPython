@@ -34,9 +34,9 @@ def test_setParameters():
     model_path = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels/"
     mod = OMPython.ModelicaSystem(model_path + "BouncingBall.mo", "BouncingBall")
 
-    # method 1
-    mod.setParameters(pvals={"e": 1.234})
-    mod.setParameters(pvals={"g": 321.0})
+    # method 1 (test depreciated variants)
+    mod.setParameters("e=1.234")
+    mod.setParameters(["g=321.0"])
     assert mod.getParameters("e") == ["1.234"]
     assert mod.getParameters("g") == ["321.0"]
     assert mod.getParameters() == {
@@ -46,8 +46,9 @@ def test_setParameters():
     with pytest.raises(KeyError):
         mod.getParameters("thisParameterDoesNotExist")
 
-    # method 2
-    mod.setParameters(pvals={"e": 21.3, "g": 0.12})
+    # method 2 (new style)
+    pvals = {"e": 21.3, "g": 0.12}
+    mod.setParameters(**pvals)
     assert mod.getParameters() == {
         "e": "21.3",
         "g": "0.12",
