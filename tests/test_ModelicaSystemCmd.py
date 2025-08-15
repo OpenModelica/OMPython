@@ -43,7 +43,8 @@ def test_simflags(mscmd_firstorder):
         "override": {'b': None},
     })
 
-    assert mscmd.get_cmd_args() == [
+    assert mscmd.get_cmd() == [
+        mscmd.get_exe().as_posix(),
         '-noEventEmit',
         '-noRestart',
         '-override=a=1,x=3',
