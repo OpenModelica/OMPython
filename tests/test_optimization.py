@@ -35,10 +35,13 @@ end BangBang2021;
 
     mod = OMPython.ModelicaSystem(fileName=model_file.as_posix(), modelName="BangBang2021")
 
-    mod.setOptimizationOptions(optimizationOptions={"numberOfIntervals": 16,
-                                                    "stopTime": 1,
-                                                    "stepSize": 0.001,
-                                                    "tolerance": 1e-8})
+    optimizationOptions = {
+        "numberOfIntervals": 16,
+        "stopTime": 1,
+        "stepSize": 0.001,
+        "tolerance": 1e-8,
+    }
+    mod.setOptimizationOptions(**optimizationOptions)
 
     # test the getter
     assert mod.getOptimizationOptions()["stopTime"] == "1"
