@@ -62,10 +62,10 @@ end Pendulum;
     assert "startTime" in d
     assert "stopTime" in d
     assert mod.getLinearizationOptions(["stopTime", "startTime"]) == [d["stopTime"], d["startTime"]]
-    mod.setLinearizationOptions(linearizationOptions={"stopTime": 0.02})
+    mod.setLinearizationOptions(stopTime=0.02)
     assert mod.getLinearizationOptions("stopTime") == ["0.02"]
 
-    mod.setInputs(name={"u1": 10, "u2": 0})
+    mod.setInputs(u1=10, u2=0)
     [A, B, C, D] = mod.linearize()
     g = float(mod.getParameters("g")[0])
     l = float(mod.getParameters("l")[0])
