@@ -1115,7 +1115,6 @@ class ModelicaSystem:
 
     @staticmethod
     def _prepare_input_data(
-            input_args: Any,
             input_kwargs: dict[str, Any],
     ) -> dict[str, str]:
         """
@@ -1133,28 +1132,6 @@ class ModelicaSystem:
             return input_data_from_str
 
         input_data: dict[str, str] = {}
-
-        for input_arg in input_args:
-            if isinstance(input_arg, str):
-                warnings.warn(message="The definition of values to set should use a dictionary, "
-                                      "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
-                                      "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
-                              category=DeprecationWarning,
-                              stacklevel=3)
-                input_data = input_data | prepare_str(input_arg)
-            elif isinstance(input_arg, list):
-                warnings.warn(message="The definition of values to set should use a dictionary, "
-                                      "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
-                                      "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
-                              category=DeprecationWarning,
-                              stacklevel=3)
-
-                for item in input_arg:
-                    if not isinstance(item, str):
-                        raise ModelicaSystemError(f"Invalid input data type for set*() function: {type(item)}!")
-                    input_data = input_data | prepare_str(item)
-            else:
-                raise ModelicaSystemError(f"Invalid input data type for set*() function: {type(input_arg)}!")
 
         if len(input_kwargs):
             for key, val in input_kwargs.items():
@@ -1229,21 +1206,15 @@ class ModelicaSystem:
 
     def setContinuous(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set continuous values. It can be called:
-        with a sequence of continuous name and assigning corresponding values as arguments as show in the example below:
-        usage
-        >>> setContinuous("Name=value")  # depreciated
-        >>> setContinuous(["Name1=value1","Name2=value2"])  # depreciated
-
+        This method is used to set continuous values.
         >>> setContinuous(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setContinuous(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1253,21 +1224,15 @@ class ModelicaSystem:
 
     def setParameters(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set parameter values. It can be called:
-        with a sequence of parameter name and assigning corresponding value as arguments as show in the example below:
-        usage
-        >>> setParameters("Name=value")  # depreciated
-        >>> setParameters(["Name1=value1","Name2=value2"])  # depreciated
-
+        This method is used to set parameter values.
         >>> setParameters(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setParameters(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1277,21 +1242,15 @@ class ModelicaSystem:
 
     def setSimulationOptions(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set simulation options. It can be called:
-        with a sequence of simulation options name and assigning corresponding values as arguments as show in the example below:
-        usage
-        >>> setSimulationOptions("Name=value")  # depreciated
-        >>> setSimulationOptions(["Name1=value1","Name2=value2"])  # depreciated
-
+        This method is used to set simulation options.
         >>> setSimulationOptions(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setSimulationOptions(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1301,21 +1260,15 @@ class ModelicaSystem:
 
     def setLinearizationOptions(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set linearization options. It can be called:
-        with a sequence of linearization options name and assigning corresponding value as arguments as show in the example below
-        usage
-        >>> setLinearizationOptions("Name=value")  # depreciated
-        >>> setLinearizationOptions(["Name1=value1","Name2=value2"])  # depreciated
-
+        This method is used to set linearization options.
         >>> setLinearizationOptions(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setLinearizationOptions(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1325,21 +1278,17 @@ class ModelicaSystem:
 
     def setOptimizationOptions(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
         This method is used to set optimization options. It can be called:
         with a sequence of optimization options name and assigning corresponding values as arguments as show in the example below:
         usage
-        >>> setOptimizationOptions("Name=value")  # depreciated
-        >>> setOptimizationOptions(["Name1=value1","Name2=value2"])  # depreciated
-
         >>> setOptimizationOptions(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setOptimizationOptions(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1349,23 +1298,18 @@ class ModelicaSystem:
 
     def setInputs(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set input values. It can be called with a sequence of input name and assigning
-        corresponding values as arguments as show in the example below. Compared to other set*() methods this is a
-        special case as value could be a list of tuples - these are converted to a string in _prepare_input_data()
-        and restored here via ast.literal_eval().
+        This method is used to set input values.
 
-        >>> setInputs("Name=value")  # depreciated
-        >>> setInputs(["Name1=value1","Name2=value2"])  # depreciated
-
+        Compared to other set*() methods this is a special case as value could be a list of tuples - these are
+        converted to a string in _prepare_input_data() and restored here via ast.literal_eval().
         >>> setInputs(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setInputs(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         for key, val in inputdata.items():
             if key not in self._inputs:
