@@ -46,6 +46,7 @@ import subprocess
 import tempfile
 import textwrap
 from typing import Any, Optional
+import warnings
 import xml.etree.ElementTree as ET
 
 from OMPython.OMCSession import OMCSessionException, OMCSessionZMQ, OMCProcessLocal
