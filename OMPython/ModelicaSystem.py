@@ -360,8 +360,7 @@ class ModelicaSystem:
         self._override_variables: dict[str, str] = {}
         self._simulate_options_override: dict[str, str] = {}
         self._linearization_options = {'startTime': 0.0, 'stopTime': 1.0, 'stepSize': 0.002, 'tolerance': 1e-8}
-        self._optimization_options = {'startTime': 0.0, 'stopTime': 1.0, 'numberOfIntervals': 500, 'stepSize': 0.002,
-                                      'tolerance': 1e-8}
+        self._optimization_options = self._linearization_options | {'numberOfIntervals': 500}
         self._linearized_inputs: list[str] = []  # linearization input list
         self._linearized_outputs: list[str] = []  # linearization output list
         self._linearized_states: list[str] = []  # linearization states list
@@ -1094,9 +1093,9 @@ class ModelicaSystem:
         else:
             result_file = pathlib.Path(resultfile)
 
-        # check for result file exits
+        # check if the result file exits
         if not result_file.is_file():
-            raise ModelicaSystemError(f"Result file does not exist {result_file}")
+            raise ModelicaSystemError(f"Result file does not exist {result_file.as_posix()}")
 
         # get absolute path
         result_file = result_file.absolute()
@@ -1413,7 +1412,7 @@ class ModelicaSystem:
             interpolated_inputs[signal_name] = np.interp(
                 all_times,
                 signal[:, 0],  # times
-                signal[:, 1]  # values
+                signal[:, 1],  # values
             )
 
         # Write CSV file
@@ -1425,7 +1424,7 @@ class ModelicaSystem:
             row = [
                 t,  # time
                 *(interpolated_inputs[name][i] for name in input_names),  # input values
-                0  # trailing 'end' column
+                0,  # trailing 'end' column
             ]
             csv_rows.append(row)
 
