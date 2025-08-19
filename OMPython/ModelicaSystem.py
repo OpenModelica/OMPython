@@ -463,7 +463,7 @@ class ModelicaSystem:
         exp = f'cd("{workdir.as_posix()}")'
         self.sendExpression(exp)
 
-        # set the class variable _tempdir ...
+        # set the class variable _work_dir ...
         self._work_dir = workdir
         # ... and also return the defined path
         return workdir
