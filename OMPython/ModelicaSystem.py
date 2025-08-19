@@ -33,7 +33,6 @@ __license__ = """
 """
 
 import ast
-import csv
 from dataclasses import dataclass
 import logging
 import numbers
@@ -382,7 +381,6 @@ class ModelicaSystem:
         if not isinstance(lmodel, list):
             raise ModelicaSystemError(f"Invalid input type for lmodel: {type(lmodel)} - list expected!")
 
-        self._xml_file = None
         self._lmodel = lmodel  # may be needed if model is derived from other model
         self._model_name = modelName  # Model class name
         self._file_name = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
@@ -479,8 +477,8 @@ class ModelicaSystem:
         buildModelResult = self._requestApi("buildModel", self._model_name, properties=varFilter)
         logger.debug("OM model build result: %s", buildModelResult)
 
-        self._xml_file = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
-        self._xmlparse()
+        xml_file = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
+        self._xmlparse(xml_file=xml_file)
 
     def sendExpression(self, expr: str, parsed: bool = True):
         try:
@@ -506,23 +504,34 @@ class ModelicaSystem:
 
         return self.sendExpression(exp)
 
-    def _xmlparse(self):
-        if not self._xml_file.is_file():
-            raise ModelicaSystemError(f"XML file not generated: {self._xml_file}")
+    def _xmlparse(self, xml_file: pathlib.Path):
+        if not xml_file.is_file():
+            raise ModelicaSystemError(f"XML file not generated: {xml_file}")
 
-        tree = ET.parse(self._xml_file)
+        xml_content = xml_file.read_text()
+        tree = ET.ElementTree(ET.fromstring(xml_content))
         rootCQ = tree.getroot()
         for attr in rootCQ.iter('DefaultExperiment'):
             for key in ("startTime", "stopTime", "stepSize", "tolerance",
                         "solver", "outputFormat"):
-                self._simulate_options[key] = attr.get(key)
+                self._simulate_options[key] = str(attr.get(key))
 
         for sv in rootCQ.iter('ScalarVariable'):
-            scalar = {}
-            for key in ("name", "description", "variability", "causality", "alias"):
-                scalar[key] = sv.get(key)
-            scalar["changeable"] = sv.get('isValueChangeable')
-            scalar["aliasvariable"] = sv.get('aliasVariable')
+            translations = {
+                "alias": "alias",
+                "aliasvariable": "aliasVariable",
+                "causality": "causality",
+                "changeable": "isValueChangeable",
+                "description": "description",
+                "name": "name",
+                "variability": "variability",
+            }
+
+            scalar: dict[str, Any] = {}
+            for key_dst, key_src in translations.items():
+                val = sv.get(key_src)
+                scalar[key_dst] = None if val is None else str(val)
+
             ch = list(sv)
             for att in ch:
                 scalar["start"] = att.get('start')
@@ -530,6 +539,7 @@ class ModelicaSystem:
                 scalar["max"] = att.get('max')
                 scalar["unit"] = att.get('unit')
 
+            # save parameters in the corresponding class variables
             if scalar["variability"] == "parameter":
                 if scalar["name"] in self._override_variables:
                     self._params[scalar["name"]] = self._override_variables[scalar["name"]]
@@ -953,16 +963,17 @@ class ModelicaSystem:
         if simargs:
             om_cmd.args_set(args=simargs)
 
-        overrideFile = self._tempdir / f"{self._model_name}_override.txt"
         if self._override_variables or self._simulate_options_override:
-            tmpdict = self._override_variables.copy()
-            tmpdict.update(self._simulate_options_override)
-            # write to override file
-            with open(file=overrideFile, mode="w", encoding="utf-8") as fh:
-                for key, value in tmpdict.items():
-                    fh.write(f"{key}={value}\n")
+            override_file = result_file.parent / f"{result_file.stem}_override.txt"
 
-            om_cmd.arg_set(key="overrideFile", val=overrideFile.as_posix())
+            override_content = (
+                    "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
+                    + "\n".join([f"{key}={value}" for key, value in self._simulate_options_override.items()])
+                    + "\n"
+            )
+
+            override_file.write_text(override_content)
+            om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
 
         if self._inputs:  # if model has input quantities
             for key in self._inputs:
@@ -1420,9 +1431,10 @@ class ModelicaSystem:
         if csvfile is None:
             csvfile = self._tempdir / f'{self._model_name}.csv'
 
-        with open(file=csvfile, mode="w", encoding="utf-8", newline="") as fh:
-            writer = csv.writer(fh)
-            writer.writerows(csv_rows)
+        # basic definition of a CSV file using csv_rows as input
+        csv_content = "\n".join([",".join(map(str, row)) for row in csv_rows]) + "\n"
+
+        csvfile.write_text(csv_content)
 
         return csvfile
 
@@ -1534,7 +1546,8 @@ class ModelicaSystem:
               compatibility, because linearize() used to return `[A, B, C, D]`.
         """
 
-        if self._xml_file is None:
+        if len(self._quantities) == 0:
+            # if self._quantities has no content, the xml file was not parsed; see self._xmlparse()
             raise ModelicaSystemError(
                 "Linearization cannot be performed as the model is not build, "
                 "use ModelicaSystem() to build the model first"
@@ -1545,10 +1558,10 @@ class ModelicaSystem:
         overrideLinearFile = self._tempdir / f'{self._model_name}_override_linear.txt'
 
         with open(file=overrideLinearFile, mode="w", encoding="utf-8") as fh:
-            for key, value in self._override_variables.items():
-                fh.write(f"{key}={value}\n")
-            for key, value in self._linearization_options.items():
-                fh.write(f"{key}={value}\n")
+            for key1, value1 in self._override_variables.items():
+                fh.write(f"{key1}={value1}\n")
+            for key2, value2 in self._linearization_options.items():
+                fh.write(f"{key2}={value2}\n")
 
         om_cmd.arg_set(key="overrideFile", val=overrideLinearFile.as_posix())
 

@@ -483,11 +483,17 @@ class OMCProcess:
                 self._omc_process = None
 
     def get_port(self) -> Optional[str]:
+        """
+        Get the port to connect to the OMC process.
+        """
         if not isinstance(self._omc_port, str):
             raise OMCSessionException(f"Invalid port to connect to OMC process: {self._omc_port}")
         return self._omc_port
 
     def get_log(self) -> str:
+        """
+        Get the log file content of the OMC session.
+        """
         if self._omc_loghandle is None:
             raise OMCSessionException("Log file not available!")
 
@@ -509,6 +515,9 @@ class OMCProcess:
 
 
 class OMCProcessPort(OMCProcess):
+    """
+    OMCProcess implementation which uses a port to connect to an already running OMC server.
+    """
 
     def __init__(
             self,
@@ -519,6 +528,9 @@ class OMCProcessPort(OMCProcess):
 
 
 class OMCProcessLocal(OMCProcess):
+    """
+    OMCProcess implementation which runs the OMC server locally on the machine (Linux / Windows).
+    """
 
     def __init__(
             self,
@@ -600,6 +612,9 @@ class OMCProcessLocal(OMCProcess):
 
 
 class OMCProcessDockerHelper(OMCProcess):
+    """
+    Base class for OMCProcess implementations which run the OMC server in a Docker container.
+    """
 
     def __init__(
             self,
@@ -692,6 +707,9 @@ class OMCProcessDockerHelper(OMCProcess):
         return port
 
     def get_server_address(self) -> Optional[str]:
+        """
+        Get the server address of the OMC server running in a Docker container.
+        """
         if self._dockerNetwork == "separate" and isinstance(self._dockerCid, str):
             output = subprocess.check_output(["docker", "inspect", self._dockerCid]).decode().strip()
             return json.loads(output)[0]["NetworkSettings"]["IPAddress"]
@@ -699,6 +717,9 @@ class OMCProcessDockerHelper(OMCProcess):
         return None
 
     def get_docker_container_id(self) -> str:
+        """
+        Get the Docker container ID of the Docker container with the OMC server.
+        """
         if not isinstance(self._dockerCid, str):
             raise OMCSessionException(f"Invalid docker container ID: {self._dockerCid}!")
 
@@ -706,6 +727,9 @@ class OMCProcessDockerHelper(OMCProcess):
 
 
 class OMCProcessDocker(OMCProcessDockerHelper):
+    """
+    OMC process running in a Docker container.
+    """
 
     def __init__(
             self,
@@ -764,9 +788,8 @@ class OMCProcessDocker(OMCProcessDockerHelper):
         if sys.platform == "win32":
             extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
             if not self._interactivePort:
-                raise OMCSessionException("docker on Windows requires knowing which port to connect to. For "
-                                          "dockerContainer=..., the container needs to have already manually exposed "
-                                          "this port when it was started (-p 127.0.0.1:n:n) or you get an error later.")
+                raise OMCSessionException("docker on Windows requires knowing which port to connect to - "
+                                          "please set the interactivePort argument")
 
         if sys.platform == "win32":
             if isinstance(self._interactivePort, str):
@@ -847,6 +870,9 @@ class OMCProcessDocker(OMCProcessDockerHelper):
 
 
 class OMCProcessDockerContainer(OMCProcessDockerHelper):
+    """
+    OMC process running in a Docker container (by container ID).
+    """
 
     def __init__(
             self,
@@ -892,9 +918,10 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
         if sys.platform == "win32":
             extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
             if not self._interactivePort:
-                raise OMCSessionException("docker on Windows requires knowing which port to connect to. For "
-                                          "dockerContainer=..., the container needs to have already manually exposed "
-                                          "this port when it was started (-p 127.0.0.1:n:n) or you get an error later.")
+                raise OMCSessionException("Docker on Windows requires knowing which port to connect to - "
+                                          "Please set the interactivePort argument. Furthermore, the container needs "
+                                          "to have already manually exposed this port when it was started "
+                                          "(-p 127.0.0.1:n:n) or you get an error later.")
 
         if isinstance(self._interactivePort, int):
             extraFlags = extraFlags + [f"--interactivePort={int(self._interactivePort)}"]
@@ -936,6 +963,9 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
 
 
 class OMCProcessWSL(OMCProcess):
+    """
+    OMC process running in Windows Subsystem for Linux (WSL).
+    """
 
     def __init__(
             self,
