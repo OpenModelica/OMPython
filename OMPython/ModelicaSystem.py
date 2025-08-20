@@ -118,35 +118,90 @@ class ModelicaSystemCmd:
         self._runpath = pathlib.Path(runpath).resolve().absolute()
         self._model_name = modelname
         self._timeout = timeout
+
+        # dictionaries of command line arguments for the model executable
         self._args: dict[str, str | None] = {}
+        # 'override' argument needs special handling, as it is a dict on its own saved as dict elements following the
+        # structure: 'key' => 'key=value'
         self._arg_override: dict[str, str] = {}
 
-    def arg_set(self, key: str, val: Optional[str | dict] = None) -> None:
+    def arg_set(
+            self,
+            key: str,
+            val: Optional[str | dict[str, Any] | numbers.Number] = None,
+    ) -> None:
         """
         Set one argument for the executable model.
 
-        Parameters
-        ----------
-        key : str
-        val : str, None
+        Args:
+            key: identifier / argument name to be used for the call of the model executable.
+            val: value for the given key; None for no value and for key == 'override' a dictionary can be used which
+              indicates variables to override
         """
+
+        def override2str(
+                okey: str,
+                oval: str | bool | numbers.Number,
+        ) -> str:
+            """
+            Convert a value for 'override' to a string taking into account differences between Modelica and Python.
+            """
+            # check oval for any string representations of numbers (or bool) and convert these to Python representations
+            if isinstance(oval, str):
+                try:
+                    oval_evaluated = ast.literal_eval(oval)
+                    if isinstance(oval_evaluated, (numbers.Number, bool)):
+                        oval = oval_evaluated
+                except (ValueError, SyntaxError):
+                    pass
+
+            if isinstance(oval, str):
+                oval_str = oval.strip()
+            elif isinstance(oval, bool):
+                oval_str = 'true' if oval else 'false'
+            elif isinstance(oval, numbers.Number):
+                oval_str = str(oval)
+            else:
+                raise ModelicaSystemError(f"Invalid value for override key {okey}: {type(oval)}")
+
+            return f"{okey}={oval_str}"
+
         if not isinstance(key, str):
             raise ModelicaSystemError(f"Invalid argument key: {repr(key)} (type: {type(key)})")
         key = key.strip()
-        if val is None:
+
+        if isinstance(val, dict):
+            if key != 'override':
+                raise ModelicaSystemError("Dictionary input only possible for key 'override'!")
+
+            for okey, oval in val.items():
+                if not isinstance(okey, str):
+                    raise ModelicaSystemError("Invalid key for argument 'override': "
+                                              f"{repr(okey)} (type: {type(okey)})")
+
+                if not isinstance(oval, (str, bool, numbers.Number, type(None))):
+                    raise ModelicaSystemError(f"Invalid input for 'override'.{repr(okey)}: "
+                                              f"{repr(oval)} (type: {type(oval)})")
+
+                if okey in self._arg_override:
+                    if oval is None:
+                        logger.info(f"Remove model executable override argument: {repr(self._arg_override[okey])}")
+                        del self._arg_override[okey]
+                        continue
+
+                    logger.info(f"Update model executable override argument: {repr(okey)} = {repr(oval)} "
+                                f"(was: {repr(self._arg_override[okey])})")
+
+                if oval is not None:
+                    self._arg_override[okey] = override2str(okey=okey, oval=oval)
+
+            argval = ','.join(sorted(self._arg_override.values()))
+        elif val is None:
             argval = None
         elif isinstance(val, str):
             argval = val.strip()
         elif isinstance(val, numbers.Number):
             argval = str(val)
-        elif key == 'override' and isinstance(val, dict):
-            for okey in val:
-                if not isinstance(okey, str) or not isinstance(val[okey], (str, numbers.Number)):
-                    raise ModelicaSystemError("Invalid argument for 'override': "
-                                              f"{repr(okey)} = {repr(val[okey])}")
-                self._arg_override[okey] = val[okey]
-
-            argval = ','.join([f"{okey}={str(self._arg_override[okey])}" for okey in self._arg_override])
         else:
             raise ModelicaSystemError(f"Invalid argument value for {repr(key)}: {repr(val)} (type: {type(val)})")
 
@@ -155,7 +210,7 @@ class ModelicaSystemCmd:
                            f"(was: {repr(self._args[key])})")
         self._args[key] = argval
 
-    def arg_get(self, key: str) -> Optional[str | dict]:
+    def arg_get(self, key: str) -> Optional[str | dict[str, str | bool | numbers.Number]]:
         """
         Return the value for the given key
         """
@@ -164,13 +219,12 @@ class ModelicaSystemCmd:
 
         return None
 
-    def args_set(self, args: dict[str, Optional[str | dict[str, str]]]) -> None:
+    def args_set(
+            self,
+            args: dict[str, Optional[str | dict[str, Any] | numbers.Number]],
+    ) -> None:
         """
         Define arguments for the model executable.
-
-        Parameters
-        ----------
-        args : dict[str, Optional[str | dict[str, str]]]
         """
         for arg in args:
             self.arg_set(key=arg, val=args[arg])
@@ -196,7 +250,7 @@ class ModelicaSystemCmd:
         path_exe = self.get_exe()
 
         cmdl = [path_exe.as_posix()]
-        for key in self._args:
+        for key in sorted(self._args):
             if self._args[key] is None:
                 cmdl.append(f"-{key}")
             else:
@@ -254,7 +308,7 @@ class ModelicaSystemCmd:
         return returncode
 
     @staticmethod
-    def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, str]]]:
+    def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, Any] | numbers.Number]]:
         """
         Parse a simflag definition; this is deprecated!
 
@@ -263,7 +317,7 @@ class ModelicaSystemCmd:
         warnings.warn("The argument 'simflags' is depreciated and will be removed in future versions; "
                       "please use 'simargs' instead", DeprecationWarning, stacklevel=2)
 
-        simargs: dict[str, Optional[str | dict[str, str]]] = {}
+        simargs: dict[str, Optional[str | dict[str, Any] | numbers.Number]] = {}
 
         args = [s for s in simflags.split(' ') if s]
         for arg in args:
@@ -940,7 +994,7 @@ class ModelicaSystem:
             self,
             result_file: pathlib.Path,
             simflags: Optional[str] = None,
-            simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
+            simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
             timeout: Optional[float] = None,
     ) -> ModelicaSystemCmd:
         """
@@ -1018,7 +1072,7 @@ class ModelicaSystem:
             self,
             resultfile: Optional[str] = None,
             simflags: Optional[str] = None,
-            simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
+            simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
             timeout: Optional[float] = None,
     ) -> None:
         """Simulate the model according to simulation options.
@@ -1541,9 +1595,13 @@ class ModelicaSystem:
 
         return optimizeResult
 
-    def linearize(self, lintime: Optional[float] = None, simflags: Optional[str] = None,
-                  simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
-                  timeout: Optional[float] = None) -> LinearizationResult:
+    def linearize(
+            self,
+            lintime: Optional[float] = None,
+            simflags: Optional[str] = None,
+            simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
+            timeout: Optional[float] = None,
+    ) -> LinearizationResult:
         """Linearize the model according to linearization options.
 
         See setLinearizationOptions.
