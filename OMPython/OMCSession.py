@@ -643,7 +643,7 @@ class OMCProcessDockerHelper(OMCProcess):
             raise NotImplementedError("Docker not supported on win32!")
 
         docker_process = None
-        for idx in range(0, 40):
+        for _ in range(0, 40):
             dockerTop = subprocess.check_output(["docker", "top", docker_cid]).decode().strip()
             docker_process = None
             for line in dockerTop.split("\n"):
@@ -846,7 +846,7 @@ class OMCProcessDocker(OMCProcessDockerHelper):
             raise OMCSessionException(f"Invalid content for docker container ID file path: {docker_cid_file}")
 
         docker_cid = None
-        for idx in range(0, 40):
+        for _ in range(0, 40):
             try:
                 with open(file=docker_cid_file, mode="r", encoding="utf-8") as fh:
                     docker_cid = fh.read().strip()
