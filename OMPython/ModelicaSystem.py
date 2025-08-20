@@ -431,7 +431,7 @@ class ModelicaSystem:
                         apiCall = "loadFile"
                     else:
                         apiCall = "loadModel"
-                    self._requestApi(apiCall, element)
+                    self._requestApi(apiName=apiCall, entity=element)
                 elif isinstance(element, tuple):
                     if not element[1]:
                         expr_load_lib = f"loadModel({element[0]})"
@@ -483,13 +483,13 @@ class ModelicaSystem:
         else:
             varFilter = 'variableFilter=".*"'
 
-        buildModelResult = self._requestApi("buildModel", self._model_name, properties=varFilter)
+        buildModelResult = self._requestApi(apiName="buildModel", entity=self._model_name, properties=varFilter)
         logger.debug("OM model build result: %s", buildModelResult)
 
         xml_file = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
         self._xmlparse(xml_file=xml_file)
 
-    def sendExpression(self, expr: str, parsed: bool = True):
+    def sendExpression(self, expr: str, parsed: bool = True) -> Any:
         try:
             retval = self._getconn.sendExpression(expr, parsed)
         except OMCSessionException as ex:
@@ -500,7 +500,12 @@ class ModelicaSystem:
         return retval
 
     # request to OMC
-    def _requestApi(self, apiName, entity=None, properties=None):  # 2
+    def _requestApi(
+            self,
+            apiName: str,
+            entity: Optional[str] = None,
+            properties: Optional[str] = None,
+    ) -> Any:
         if entity is not None and properties is not None:
             exp = f'{apiName}({entity}, {properties})'
         elif entity is not None and properties is None:
@@ -1475,8 +1480,9 @@ class ModelicaSystem:
             includeResourcesStr = "true"
         else:
             includeResourcesStr = "false"
-        properties = f'version="{version}", fmuType="{fmuType}", fileNamePrefix="{fileNamePrefix}", includeResources={includeResourcesStr}'
-        fmu = self._requestApi('buildModelFMU', self._model_name, properties)
+        properties = (f'version="{version}", fmuType="{fmuType}", '
+                      f'fileNamePrefix="{fileNamePrefix}", includeResources={includeResourcesStr}')
+        fmu = self._requestApi(apiName='buildModelFMU', entity=self._model_name, properties=properties)
 
         # report proper error message
         if not os.path.exists(fmu):
@@ -1493,7 +1499,7 @@ class ModelicaSystem:
         >>> convertFmu2Mo("c:/BouncingBall.Fmu")
         """
 
-        fileName = self._requestApi('importFMU', fmuName)
+        fileName = self._requestApi(apiName='importFMU', entity=fmuName)
 
         # report proper error message
         if not os.path.exists(fileName):
@@ -1531,7 +1537,7 @@ class ModelicaSystem:
         cName = self._model_name
         properties = ','.join(f"{key}={val}" for key, val in self._optimization_options.items())
         self.setCommandLineOptions("-g=Optimica")
-        optimizeResult = self._requestApi('optimize', cName, properties)
+        optimizeResult = self._requestApi(apiName='optimize', entity=cName, properties=properties)
 
         return optimizeResult
 
