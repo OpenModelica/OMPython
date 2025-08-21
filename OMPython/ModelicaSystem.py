@@ -529,15 +529,18 @@ class ModelicaSystem:
         return self._work_dir
 
     def buildModel(self, variableFilter: Optional[str] = None):
+        filter_def: Optional[str] = None
         if variableFilter is not None:
-            self._variable_filter = variableFilter
+            filter_def = variableFilter
+        elif self._variable_filter is not None:
+            filter_def = self._variable_filter
 
-        if self._variable_filter is not None:
-            varFilter = f'variableFilter="{self._variable_filter}"'
+        if filter_def is not None:
+            var_filter = f'variableFilter="{filter_def}"'
         else:
-            varFilter = 'variableFilter=".*"'
+            var_filter = 'variableFilter=".*"'
 
-        buildModelResult = self._requestApi(apiName="buildModel", entity=self._model_name, properties=varFilter)
+        buildModelResult = self._requestApi(apiName="buildModel", entity=self._model_name, properties=var_filter)
         logger.debug("OM model build result: %s", buildModelResult)
 
         xml_file = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
