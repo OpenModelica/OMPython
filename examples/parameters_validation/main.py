@@ -28,7 +28,7 @@ def main(file=None):
 def test_passing()->bool:
 	"""Function to use for automatic testing. If returns `True` it means this example is working."""
 	class PrintSilencer:
-		def write(s:str):
+		def write(self, s:str):
 			pass
 	test_passing = False
 	try:
