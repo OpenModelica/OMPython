@@ -114,7 +114,15 @@ class LinearizationResult:
 class ModelicaSystemCmd:
     """A compiled model executable."""
 
-    def __init__(self, runpath: pathlib.Path, modelname: str, timeout: Optional[float] = None) -> None:
+    def __init__(
+            self,
+            runpath: pathlib.Path,
+            modelname: Optional[str] = None,
+            timeout: Optional[float] = None,
+    ) -> None:
+        if modelname is None:
+            raise ModelicaSystemError("Missing model name!")
+
         self._runpath = pathlib.Path(runpath).resolve().absolute()
         self._model_name = modelname
         self._timeout = timeout
