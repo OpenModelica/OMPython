@@ -124,9 +124,12 @@ class ModelicaSystemCmd:
             self,
             session: OMCSessionZMQ,
             runpath: OMCPath,
-            modelname: str,
+            modelname: Optional[str] = None,
             timeout: Optional[float] = None,
     ) -> None:
+        if modelname is None:
+            raise ModelicaSystemError("Missing model name!")
+
         self._session = session
         self._runpath = runpath
         self._model_name = modelname
