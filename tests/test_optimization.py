@@ -33,7 +33,11 @@ __OpenModelica_commandLineOptions="+g=Optimica");
 end BangBang2021;
 """)
 
-    mod = OMPython.ModelicaSystem(fileName=model_file.as_posix(), modelName="BangBang2021")
+    mod = OMPython.ModelicaSystem()
+    mod.model_definition(
+        file=model_file.as_posix(),
+        model="BangBang2021",
+    )
 
     optimizationOptions = {
         "numberOfIntervals": 16,

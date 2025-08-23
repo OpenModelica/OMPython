@@ -8,8 +8,11 @@ def test_isPackage():
 
 
 def test_isPackage2():
-    mod = OMPython.ModelicaSystem(modelName="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
-                                  lmodel=["Modelica"])
+    mod = OMPython.ModelicaSystem()
+    mod.model_definition(
+        model="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
+        libraries=["Modelica"],
+    )
     omccmd = OMPython.OMCSessionCmd(session=mod.session())
     assert omccmd.isPackage('Modelica')
 
