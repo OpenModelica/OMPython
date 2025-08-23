@@ -1597,9 +1597,13 @@ class ModelicaSystem:
 
         return csvfile
 
-    def convertMo2Fmu(self, version: str = "2.0", fmuType: str = "me_cs",
-                      fileNamePrefix: str = "<default>",
-                      includeResources: bool = True) -> str:
+    def convertMo2Fmu(
+            self,
+            version: str = "2.0",
+            fmuType: str = "me_cs",
+            fileNamePrefix: Optional[str] = None,
+            includeResources: bool = True,
+    ) -> str:
         """Translate the model into a Functional Mockup Unit.
 
         Args:
@@ -1616,12 +1620,12 @@ class ModelicaSystem:
             '/tmp/tmpmhfx9umo/CauerLowPassAnalog.fmu'
         """
 
-        if fileNamePrefix == "<default>":
+        if fileNamePrefix is None:
+            if self._model_name is None:
+                raise ModelicaSystemError("Missing model name!")
             fileNamePrefix = self._model_name
-        if includeResources:
-            includeResourcesStr = "true"
-        else:
-            includeResourcesStr = "false"
+        includeResourcesStr = "true" if includeResources else "false"
+
         properties = (f'version="{version}", fmuType="{fmuType}", '
                       f'fileNamePrefix="{fileNamePrefix}", includeResources={includeResourcesStr}')
         fmu = self._requestApi(apiName='buildModelFMU', entity=self._model_name, properties=properties)
