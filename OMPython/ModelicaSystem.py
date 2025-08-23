@@ -429,9 +429,8 @@ class ModelicaSystem:
 
         # set commandLineOptions using default values or the user defined list
         if commandLineOptions is None:
-            # set default command Line Options for linearization as
-            # linearize() will use the simulation executable and runtime
-            # flag -l to perform linearization
+            # set default command line options to improve the performance of linearization and to avoid recompilation if
+            # the simulation executable is reused in linearize() via the runtime flag '-l'
             commandLineOptions = [
                 "--linearizationDumpLanguage=python",
                 "--generateSymbolicLinearization",
