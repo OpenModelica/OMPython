@@ -352,7 +352,7 @@ class ModelicaSystem:
             fileName: Optional[str | os.PathLike | pathlib.Path] = None,
             modelName: Optional[str] = None,
             lmodel: Optional[list[str | tuple[str, str]]] = None,
-            commandLineOptions: Optional[str] = None,
+            commandLineOptions: Optional[list[str]] = None,
             variableFilter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
@@ -374,8 +374,9 @@ class ModelicaSystem:
               lmodel=["Modelica"] for just the library name
               and lmodel=[("Modelica","3.2.3")] for specifying both the name
               and the version.
-            commandLineOptions: String with extra command line options to be
-              provided to omc via setCommandLineOptions().
+            commandLineOptions: List with extra command line options as elements. The list elements are
+              provided to omc via setCommandLineOptions(). If set, the default values will be overridden.
+              To disable any command line options, use an empty list.
             variableFilter: A regular expression. Only variables fully
               matching the regexp will be stored in the result file.
               Leaving it unspecified is equivalent to ".*".
@@ -426,8 +427,16 @@ class ModelicaSystem:
         else:
             self._getconn = OMCSessionZMQ(omhome=omhome)
 
-        # set commandLineOptions if provided by users
-        self.setCommandLineOptions(commandLineOptions=commandLineOptions)
+        # set commandLineOptions using default values or the user defined list
+        if commandLineOptions is None:
+            # set default command line options to improve the performance of linearization and to avoid recompilation if
+            # the simulation executable is reused in linearize() via the runtime flag '-l'
+            commandLineOptions = [
+                "--linearizationDumpLanguage=python",
+                "--generateSymbolicLinearization",
+            ]
+        for opt in commandLineOptions:
+            self.setCommandLineOptions(commandLineOptions=opt)
 
         if lmodel is None:
             lmodel = []
@@ -445,12 +454,6 @@ class ModelicaSystem:
         if self._file_name is not None and not self._file_name.is_file():  # if file does not exist
             raise IOError(f"{self._file_name} does not exist!")
 
-        # set default command Line Options for linearization as
-        # linearize() will use the simulation executable and runtime
-        # flag -l to perform linearization
-        self.setCommandLineOptions("--linearizationDumpLanguage=python")
-        self.setCommandLineOptions("--generateSymbolicLinearization")
-
         self._work_dir: pathlib.Path = self.setWorkDirectory(customBuildDirectory)
 
         if self._file_name is not None:
@@ -464,10 +467,10 @@ class ModelicaSystem:
         if build:
             self.buildModel(variableFilter)
 
-    def setCommandLineOptions(self, commandLineOptions: Optional[str] = None):
-        # set commandLineOptions if provided by users
-        if commandLineOptions is None:
-            return
+    def setCommandLineOptions(self, commandLineOptions: str):
+        """
+        Set the provided command line option via OMC setCommandLineOptions().
+        """
         exp = f'setCommandLineOptions("{commandLineOptions}")'
         self.sendExpression(exp)
 
