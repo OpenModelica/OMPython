@@ -468,10 +468,10 @@ class ModelicaSystem:
         if build:
             self.buildModel(variableFilter)
 
-    def setCommandLineOptions(self, commandLineOptions: Optional[str] = None):
-        # set commandLineOptions if provided by users
-        if commandLineOptions is None:
-            return
+    def setCommandLineOptions(self, commandLineOptions: str):
+        """
+        Set the provided command line option via OMC setCommandLineOptions().
+        """
         exp = f'setCommandLineOptions("{commandLineOptions}")'
         self.sendExpression(exp)
 
