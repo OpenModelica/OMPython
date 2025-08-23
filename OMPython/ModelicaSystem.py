@@ -321,15 +321,10 @@ class ModelicaSystemCmd:
 class ModelicaSystem:
     def __init__(
             self,
-            fileName: Optional[str | os.PathLike] = None,
-            modelName: Optional[str] = None,
-            lmodel: Optional[list[str | tuple[str, str]]] = None,
             commandLineOptions: Optional[list[str]] = None,
-            variableFilter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
             omc_process: Optional[OMCProcess] = None,
-            build: bool = True,
     ) -> None:
         """Initialize, load and build a model.
 
@@ -337,43 +332,16 @@ class ModelicaSystem:
         xml files, etc.
 
         Args:
-            fileName: Path to the model file. Either absolute or relative to
-              the current working directory.
-            modelName: The name of the model class. If it is contained within
-              a package, "PackageName.ModelName" should be used.
-            lmodel: List of libraries to be loaded before the model itself is
-              loaded. Two formats are supported for the list elements:
-              lmodel=["Modelica"] for just the library name
-              and lmodel=[("Modelica","3.2.3")] for specifying both the name
-              and the version.
             commandLineOptions: List with extra command line options as elements. The list elements are
               provided to omc via setCommandLineOptions(). If set, the default values will be overridden.
               To disable any command line options, use an empty list.
-            variableFilter: A regular expression. Only variables fully
-              matching the regexp will be stored in the result file.
-              Leaving it unspecified is equivalent to ".*".
             customBuildDirectory: Path to a directory to be used for temporary
               files like the model executable. If left unspecified, a tmp
               directory will be created.
-            omhome: OPENMODELICAHOME value to be used when creating the OMC
-              session.
+            omhome: path to OMC to be used when creating the OMC session (see OMCSessionZMQ).
             omc_process: definition of a (local) OMC process to be used. If
               unspecified, a new local session will be created.
-            build: Boolean controlling whether or not the model should be
-              built when constructor is called. If False, the constructor
-              simply loads the model without compiling.
-
-        Examples:
-            mod = ModelicaSystem("ModelicaModel.mo", "modelName")
-            mod = ModelicaSystem("ModelicaModel.mo", "modelName", ["Modelica"])
-            mod = ModelicaSystem("ModelicaModel.mo", "modelName", [("Modelica","3.2.3"), "PowerSystems"])
         """
-
-        if fileName is None and modelName is None and not lmodel:  # all None
-            raise ModelicaSystemError("Cannot create ModelicaSystem object without any arguments")
-
-        if modelName is None:
-            raise ModelicaSystemError("A modelname must be provided (argument modelName)!")
 
         self._quantities: list[dict[str, Any]] = []
         self._params: dict[str, str] = {}  # even numerical values are stored as str
@@ -408,44 +376,83 @@ class ModelicaSystem:
         for opt in commandLineOptions:
             self.setCommandLineOptions(commandLineOptions=opt)
 
-        if lmodel is None:
-            lmodel = []
-
-        if not isinstance(lmodel, list):
-            raise ModelicaSystemError(f"Invalid input type for lmodel: {type(lmodel)} - list expected!")
-
-        self._lmodel = lmodel  # may be needed if model is derived from other model
-        self._model_name = modelName  # Model class name
-        if fileName is not None:
-            file_name = self._session.omcpath(fileName).resolve()
-        else:
-            file_name = None
-        self._file_name: Optional[OMCPath] = file_name  # Model file/package name
         self._simulated = False  # True if the model has already been simulated
         self._result_file: Optional[OMCPath] = None  # for storing result file
-        self._variable_filter = variableFilter
+
+        self._work_dir: OMCPath = self.setWorkDirectory(customBuildDirectory)
+
+        self._model_name: Optional[str] = None
+        self._lmodel: Optional[list[str | tuple[str, str]]] = None
+        self._file_name: Optional[OMCPath]
+        self._variable_filter: Optional[str] = None
+
+    def model_definition(
+            self,
+            model: str,
+            file: Optional[str | os.PathLike] = None,
+            libraries: Optional[list[str | tuple[str, str]]] = None,
+            variable_filter: Optional[str] = None,
+            build: bool = True,
+    ) -> None:
+        """Initialize, load and build a model.
+
+        The constructor loads the model file and builds it, generating exe and
+        xml files, etc.
+
+        Args:
+            file: Path to the model file. Either absolute or relative to
+              the current working directory.
+            model: The name of the model class. If it is contained within
+              a package, "PackageName.ModelName" should be used.
+            libraries: List of libraries to be loaded before the model itself is
+              loaded. Two formats are supported for the list elements:
+              lmodel=["Modelica"] for just the library name
+              and lmodel=[("Modelica","3.2.3")] for specifying both the name
+              and the version.
+            variable_filter: A regular expression. Only variables fully
+              matching the regexp will be stored in the result file.
+              Leaving it unspecified is equivalent to ".*".
+            build: Boolean controlling whether the model should be
+              built when constructor is called. If False, the constructor
+              simply loads the model without compiling.
+
+        Examples:
+            mod = ModelicaSystem()
+            # and then one of the lines below
+            mod.setup_model(model="modelName", file="ModelicaModel.mo", )
+            mod.setup_model(model="modelName", file="ModelicaModel.mo", libraries=["Modelica"])
+            mod.setup_model(model="modelName", file="ModelicaModel.mo", libraries=[("Modelica","3.2.3"), "PowerSystems"])
+        """
+
+        if not isinstance(model, str):
+            raise ModelicaSystemError("A model name must be provided (argument modelName)!")
+
+        if libraries is None:
+            libraries = []
+
+        if not isinstance(libraries, list):
+            raise ModelicaSystemError(f"Invalid input type for lmodel: {type(libraries)} - list expected!")
+
+        # set variables
+        self._model_name = model  # Model class name
+        self._lmodel = libraries  # may be needed if model is derived from other model
+        if file is not None:
+            file_name = self._session.omcpath(file).resolve()
+        else:
+            file_name = None
+        self._file_name = file_name  # Model file/package name
+        self._variable_filter = variable_filter
 
         if self._file_name is not None and not self._file_name.is_file():  # if file does not exist
             raise IOError(f"{self._file_name} does not exist!")
 
-        # set default command Line Options for linearization as
-        # linearize() will use the simulation executable and runtime
-        # flag -l to perform linearization
-        self.setCommandLineOptions("--linearizationDumpLanguage=python")
-        self.setCommandLineOptions("--generateSymbolicLinearization")
-
-        self._work_dir: OMCPath = self.setWorkDirectory(customBuildDirectory)
-
-        if self._file_name is not None:
+        if self._lmodel:
             self._loadLibrary(lmodel=self._lmodel)
+        if self._file_name is not None:
             self._loadFile(fileName=self._file_name)
 
-        # allow directly loading models from MSL without fileName
-        elif fileName is None and modelName is not None:
-            self._loadLibrary(lmodel=self._lmodel)
-
         if build:
-            self.buildModel(variableFilter)
+            self.buildModel(variable_filter)
 
     def session(self) -> OMCSessionZMQ:
         """
