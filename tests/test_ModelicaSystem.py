@@ -23,7 +23,7 @@ def test_ModelicaSystem_loop(model_firstorder):
     def worker():
         filePath = model_firstorder.as_posix()
         mod = OMPython.ModelicaSystem()
-        mod.model_definition(
+        mod.definition(
             file=filePath,
             model="M",
         )
@@ -37,7 +37,7 @@ def test_setParameters():
     omc = OMPython.OMCSessionZMQ()
     model_path = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels/"
     mod = OMPython.ModelicaSystem()
-    mod.model_definition(
+    mod.definition(
         file=model_path + "BouncingBall.mo",
         model="BouncingBall",
     )
@@ -70,7 +70,7 @@ def test_setSimulationOptions():
     omc = OMPython.OMCSessionZMQ()
     model_path = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels/"
     mod = OMPython.ModelicaSystem()
-    mod.model_definition(
+    mod.definition(
         file=model_path + "BouncingBall.mo",
         model="BouncingBall",
     )
@@ -107,7 +107,7 @@ def test_relative_path(model_firstorder):
         assert "/" not in model_relative
 
         mod = OMPython.ModelicaSystem()
-        mod.model_definition(
+        mod.definition(
             file=model_relative,
             model="M",
         )
@@ -121,7 +121,7 @@ def test_customBuildDirectory(tmp_path, model_firstorder):
     tmpdir = tmp_path / "tmpdir1"
     tmpdir.mkdir()
     mod = OMPython.ModelicaSystem(customBuildDirectory=tmpdir)
-    mod.model_definition(
+    mod.definition(
         file=filePath,
         model="M",
     )
@@ -135,7 +135,7 @@ def test_customBuildDirectory(tmp_path, model_firstorder):
 def test_getSolutions(model_firstorder):
     filePath = model_firstorder.as_posix()
     mod = OMPython.ModelicaSystem()
-    mod.model_definition(
+    mod.definition(
         file=filePath,
         model="M",
     )
@@ -176,7 +176,7 @@ y = der(x);
 end M_getters;
 """)
     mod = OMPython.ModelicaSystem()
-    mod.model_definition(
+    mod.definition(
         file=model_file.as_posix(),
         model="M_getters",
     )
@@ -372,7 +372,7 @@ y = x;
 end M_input;
 """)
     mod = OMPython.ModelicaSystem()
-    mod.model_definition(
+    mod.definition(
         file=model_file.as_posix(),
         model="M_input",
     )

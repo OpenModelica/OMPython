@@ -9,7 +9,7 @@ def test_isPackage():
 
 def test_isPackage2():
     mod = OMPython.ModelicaSystem()
-    mod.model_definition(
+    mod.definition(
         model="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
         libraries=["Modelica"],
     )

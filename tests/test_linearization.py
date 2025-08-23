@@ -25,7 +25,7 @@ end linearTest;
 
 def test_example(model_linearTest):
     mod = OMPython.ModelicaSystem()
-    mod.model_definition(
+    mod.definition(
         file=model_linearTest,
         model="linearTest",
     )
@@ -60,7 +60,7 @@ y2 = phi + u1;
 end Pendulum;
 """)
     mod = OMPython.ModelicaSystem()
-    mod.model_definition(
+    mod.definition(
         file=model_file.as_posix(),
         model="Pendulum",
         libraries=["Modelica"],

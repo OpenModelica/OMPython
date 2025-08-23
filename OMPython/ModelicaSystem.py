@@ -424,7 +424,7 @@ class ModelicaSystem:
         self._file_name: Optional[os.PathLike]
         self._variable_filter: Optional[str] = None
 
-    def model_definition(
+    def definition(
             self,
             model: str,
             file: Optional[str | os.PathLike | pathlib.Path] = None,
