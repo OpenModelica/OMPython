@@ -424,9 +424,9 @@ class ModelicaSystem:
         self._file_name: Optional[os.PathLike]
         self._variable_filter: Optional[str] = None
 
-    def model_definition(
+    def model(
             self,
-            model: str,
+            name: str,
             file: Optional[str | os.PathLike | pathlib.Path] = None,
             libraries: Optional[list[str | tuple[str, str]]] = None,
             variable_filter: Optional[str] = None,
@@ -440,7 +440,7 @@ class ModelicaSystem:
         Args:
             file: Path to the model file. Either absolute or relative to
               the current working directory.
-            model: The name of the model class. If it is contained within
+            name: The name of the model class. If it is contained within
               a package, "PackageName.ModelName" should be used.
             libraries: List of libraries to be loaded before the model itself is
               loaded. Two formats are supported for the list elements:
@@ -462,8 +462,8 @@ class ModelicaSystem:
             mod.setup_model(model="modelName", file="ModelicaModel.mo", libraries=[("Modelica","3.2.3"), "PowerSystems"])
         """
 
-        if not isinstance(model, str):
-            raise ModelicaSystemError("A model name must be provided (argument modelName)!")
+        if not isinstance(name, str):
+            raise ModelicaSystemError("A model name must be provided (argument name)!")
 
         if libraries is None:
             libraries = []
@@ -472,7 +472,7 @@ class ModelicaSystem:
             raise ModelicaSystemError(f"Invalid input type for lmodel: {type(libraries)} - list expected!")
 
         # set variables
-        self._model_name = model  # Model class name
+        self._model_name = name  # Model class name
         self._lmodel = libraries  # may be needed if model is derived from other model
         self._file_name = pathlib.Path(file).resolve() if file is not None else None  # Model file/package name
         self._variable_filter = variable_filter
