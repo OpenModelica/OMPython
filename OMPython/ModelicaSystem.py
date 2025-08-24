@@ -1658,11 +1658,11 @@ class ModelicaSystem:
         properties = (f'version="{version}", fmuType="{fmuType}", '
                       f'fileNamePrefix="{fileNamePrefix}", includeResources={includeResourcesStr}')
         fmu = self._requestApi(apiName='buildModelFMU', entity=self._model_name, properties=properties)
-        fmu_path = pathlib.Path(fmu)
+        fmu_path = self._work_dir / fmu
 
         # report proper error message
         if not fmu_path.is_file():
-            raise ModelicaSystemError(f"Missing FMU file: {fmu.as_posix()}")
+            raise ModelicaSystemError(f"Missing FMU file: {fmu_path.as_posix()}")
 
         return fmu_path
 
