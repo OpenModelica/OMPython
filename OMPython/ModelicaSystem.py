@@ -1658,7 +1658,7 @@ class ModelicaSystem:
         properties = (f'version="{version}", fmuType="{fmuType}", '
                       f'fileNamePrefix="{fileNamePrefix}", includeResources={includeResourcesStr}')
         fmu = self._requestApi(apiName='buildModelFMU', entity=self._model_name, properties=properties)
-        fmu_path = self._work_dir / fmu
+        fmu_path = self._getconn.omcpath(fmu)
 
         # report proper error message
         if not fmu_path.is_file():
@@ -1682,7 +1682,7 @@ class ModelicaSystem:
         fmu_path = pathlib.Path(fmu)
 
         filename = self._requestApi(apiName='importFMU', entity=fmu_path.as_posix())
-        filepath = pathlib.Path(filename)
+        filepath = self._work_dir / filename
 
         # report proper error message
         if not filepath.is_file():
