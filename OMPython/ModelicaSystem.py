@@ -462,6 +462,10 @@ class ModelicaSystem:
             mod.setup_model(model="modelName", file="ModelicaModel.mo", libraries=[("Modelica","3.2.3"), "PowerSystems"])
         """
 
+        if self._model_name is not None:
+            raise ModelicaSystemError("Can not reuse this instance of ModelicaSystem "
+                                      f"defined for {repr(self._model_name)}!")
+
         if not isinstance(model, str):
             raise ModelicaSystemError("A model name must be provided (argument modelName)!")
 
