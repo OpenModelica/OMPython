@@ -1579,16 +1579,17 @@ class ModelicaSystem:
     # to convert FMU to Modelica model
     def convertFmu2Mo(
             self,
-            fmuName: os.PathLike,
+            fmu: os.PathLike,
     ) -> pathlib.Path:
         """
-        In order to load FMU, at first it needs to be translated into Modelica model. This method is used to generate Modelica model from the given FMU. It generates "fmuName_me_FMU.mo".
+        In order to load FMU, at first it needs to be translated into Modelica model. This method is used to generate
+        Modelica model from the given FMU. It generates "fmuName_me_FMU.mo".
         Currently, it only supports Model Exchange conversion.
         usage
         >>> convertFmu2Mo("c:/BouncingBall.Fmu")
         """
 
-        fmu_path = pathlib.Path(fmuName)
+        fmu_path = pathlib.Path(fmu)
 
         filename = self._requestApi(apiName='importFMU', entity=fmu_path.as_posix())
         filepath = pathlib.Path(filename)
@@ -1596,6 +1597,11 @@ class ModelicaSystem:
         # report proper error message
         if not filepath.is_file():
             raise ModelicaSystemError(f"Missing file {filepath.as_posix()}")
+
+        self.model(
+            name=f"{fmu_path.stem}_me_FMU",
+            file=filepath,
+        )
 
         return filepath
 
