@@ -385,7 +385,7 @@ class ModelicaSystem:
         self._work_dir: OMCPath = self.setWorkDirectory(customBuildDirectory)
 
         self._model_name: Optional[str] = None
-        self._lmodel: Optional[list[str | tuple[str, str]]] = None
+        self._libraries: Optional[list[str | tuple[str, str]]] = None
         self._file_name: Optional[OMCPath] = None
         self._variable_filter: Optional[str] = None
 
@@ -453,8 +453,8 @@ class ModelicaSystem:
         if self._file_name is not None and not self._file_name.is_file():  # if file does not exist
             raise IOError(f"{self._file_name} does not exist!")
 
-        if self._lmodel:
-            self._loadLibrary(lmodel=self._lmodel)
+        if self._libraries:
+            self._loadLibrary(libraries=self._libraries)
         if self._file_name is not None:
             self._loadFile(fileName=self._file_name)
 
@@ -479,9 +479,9 @@ class ModelicaSystem:
         self.sendExpression(f'loadFile("{fileName.as_posix()}")')
 
     # for loading file/package, loading model and building model
-    def _loadLibrary(self, lmodel: list):
+    def _loadLibrary(self, libraries: list):
         # load Modelica standard libraries or Modelica files if needed
-        for element in lmodel:
+        for element in libraries:
             if element is not None:
                 if isinstance(element, str):
                     if element.endswith(".mo"):
