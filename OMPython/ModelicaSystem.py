@@ -457,10 +457,14 @@ class ModelicaSystem:
         Examples:
             mod = ModelicaSystem()
             # and then one of the lines below
-            mod.setup_model(model="modelName", file="ModelicaModel.mo", )
-            mod.setup_model(model="modelName", file="ModelicaModel.mo", libraries=["Modelica"])
-            mod.setup_model(model="modelName", file="ModelicaModel.mo", libraries=[("Modelica","3.2.3"), "PowerSystems"])
+            mod.model(name="modelName", file="ModelicaModel.mo", )
+            mod.model(name="modelName", file="ModelicaModel.mo", libraries=["Modelica"])
+            mod.model(name="modelName", file="ModelicaModel.mo", libraries=[("Modelica","3.2.3"), "PowerSystems"])
         """
+
+        if self._model_name is not None:
+            raise ModelicaSystemError("Can not reuse this instance of ModelicaSystem "
+                                      f"defined for {repr(self._model_name)}!")
 
         if not isinstance(name, str):
             raise ModelicaSystemError("A model name must be provided (argument name)!")
