@@ -438,7 +438,7 @@ class ModelicaSystem:
             libraries = []
 
         if not isinstance(libraries, list):
-            raise ModelicaSystemError(f"Invalid input type for lmodel: {type(libraries)} - list expected!")
+            raise ModelicaSystemError(f"Invalid input type for libraries: {type(libraries)} - list expected!")
 
         # set variables
         self._model_name = name  # Model class name
