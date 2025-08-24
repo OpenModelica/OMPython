@@ -422,9 +422,9 @@ class ModelicaSystem:
         Examples:
             mod = ModelicaSystem()
             # and then one of the lines below
-            mod.setup_model(model="modelName", file="ModelicaModel.mo", )
-            mod.setup_model(model="modelName", file="ModelicaModel.mo", libraries=["Modelica"])
-            mod.setup_model(model="modelName", file="ModelicaModel.mo", libraries=[("Modelica","3.2.3"), "PowerSystems"])
+            mod.model(name="modelName", file="ModelicaModel.mo", )
+            mod.model(name="modelName", file="ModelicaModel.mo", libraries=["Modelica"])
+            mod.model(name="modelName", file="ModelicaModel.mo", libraries=[("Modelica","3.2.3"), "PowerSystems"])
         """
 
         if self._model_name is not None:
