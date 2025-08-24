@@ -1631,7 +1631,7 @@ class ModelicaSystem:
             fmuType: str = "me_cs",
             fileNamePrefix: Optional[str] = None,
             includeResources: bool = True,
-    ) -> str:
+    ) -> pathlib.Path:
         """Translate the model into a Functional Mockup Unit.
 
         Args:
@@ -1658,15 +1658,19 @@ class ModelicaSystem:
         properties = (f'version="{version}", fmuType="{fmuType}", '
                       f'fileNamePrefix="{fileNamePrefix}", includeResources={includeResourcesStr}')
         fmu = self._requestApi(apiName='buildModelFMU', entity=self._model_name, properties=properties)
+        fmu_path = pathlib.Path(fmu)
 
         # report proper error message
-        if not os.path.exists(fmu):
-            raise ModelicaSystemError(f"Missing FMU file: {fmu}")
+        if not fmu_path.is_file():
+            raise ModelicaSystemError(f"Missing FMU file: {fmu.as_posix()}")
 
-        return fmu
+        return fmu_path
 
     # to convert FMU to Modelica model
-    def convertFmu2Mo(self, fmuName):  # 20
+    def convertFmu2Mo(
+            self,
+            fmuName: os.PathLike,
+    ) -> pathlib.Path:
         """
         In order to load FMU, at first it needs to be translated into Modelica model. This method is used to generate
         Modelica model from the given FMU. It generates "fmuName_me_FMU.mo".
@@ -1675,13 +1679,16 @@ class ModelicaSystem:
         >>> convertFmu2Mo("c:/BouncingBall.Fmu")
         """
 
-        fileName = self._requestApi(apiName='importFMU', entity=fmuName)
+        fmu_path = pathlib.Path(fmuName)
+
+        filename = self._requestApi(apiName='importFMU', entity=fmu_path.as_posix())
+        filepath = pathlib.Path(filename)
 
         # report proper error message
-        if not os.path.exists(fileName):
-            raise ModelicaSystemError(f"Missing file {fileName}")
+        if not filepath.is_file():
+            raise ModelicaSystemError(f"Missing file {filepath.as_posix()}")
 
-        return fileName
+        return filepath
 
     def optimize(self) -> dict[str, Any]:
         """Perform model-based optimization.
