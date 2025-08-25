@@ -362,10 +362,7 @@ class ModelicaSystem:
             omhome: Optional[str] = None,
             omc_process: Optional[OMCProcessLocal] = None,
     ) -> None:
-        """Initialize, load and build a model.
-
-        The constructor loads the model file and builds it, generating exe and
-        xml files, etc.
+        """Create a ModelicaSystem instance. To define the model use model() or convertFmu2Mo().
 
         Args:
             commandLineOptions: List with extra command line options as elements. The list elements are
@@ -432,10 +429,9 @@ class ModelicaSystem:
             variable_filter: Optional[str] = None,
             build: bool = True,
     ) -> None:
-        """Initialize, load and build a model.
+        """Load and build a Modelica model.
 
-        The constructor loads the model file and builds it, generating exe and
-        xml files, etc.
+        This method loads the model file and builds it if requested (build == True).
 
         Args:
             file: Path to the model file. Either absolute or relative to
