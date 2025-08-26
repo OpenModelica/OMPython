@@ -114,7 +114,15 @@ class LinearizationResult:
 class ModelicaSystemCmd:
     """A compiled model executable."""
 
-    def __init__(self, runpath: pathlib.Path, modelname: str, timeout: Optional[float] = None) -> None:
+    def __init__(
+            self,
+            runpath: pathlib.Path,
+            modelname: Optional[str] = None,
+            timeout: Optional[float] = None,
+    ) -> None:
+        if modelname is None:
+            raise ModelicaSystemError("Missing model name!")
+
         self._runpath = pathlib.Path(runpath).resolve().absolute()
         self._model_name = modelname
         self._timeout = timeout
@@ -349,58 +357,24 @@ class ModelicaSystemCmd:
 class ModelicaSystem:
     def __init__(
             self,
-            fileName: Optional[str | os.PathLike | pathlib.Path] = None,
-            modelName: Optional[str] = None,
-            lmodel: Optional[list[str | tuple[str, str]]] = None,
-            commandLineOptions: Optional[str] = None,
-            variableFilter: Optional[str] = None,
+            commandLineOptions: Optional[list[str]] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
             omc_process: Optional[OMCProcessLocal] = None,
-            build: bool = True,
     ) -> None:
-        """Initialize, load and build a model.
-
-        The constructor loads the model file and builds it, generating exe and
-        xml files, etc.
+        """Create a ModelicaSystem instance. To define the model use model() or convertFmu2Mo().
 
         Args:
-            fileName: Path to the model file. Either absolute or relative to
-              the current working directory.
-            modelName: The name of the model class. If it is contained within
-              a package, "PackageName.ModelName" should be used.
-            lmodel: List of libraries to be loaded before the model itself is
-              loaded. Two formats are supported for the list elements:
-              lmodel=["Modelica"] for just the library name
-              and lmodel=[("Modelica","3.2.3")] for specifying both the name
-              and the version.
-            commandLineOptions: String with extra command line options to be
-              provided to omc via setCommandLineOptions().
-            variableFilter: A regular expression. Only variables fully
-              matching the regexp will be stored in the result file.
-              Leaving it unspecified is equivalent to ".*".
+            commandLineOptions: List with extra command line options as elements. The list elements are
+              provided to omc via setCommandLineOptions(). If set, the default values will be overridden.
+              To disable any command line options, use an empty list.
             customBuildDirectory: Path to a directory to be used for temporary
               files like the model executable. If left unspecified, a tmp
               directory will be created.
-            omhome: OPENMODELICAHOME value to be used when creating the OMC
-              session.
+            omhome: path to OMC to be used when creating the OMC session (see OMCSessionZMQ).
             omc_process: definition of a (local) OMC process to be used. If
               unspecified, a new local session will be created.
-            build: Boolean controlling whether or not the model should be
-              built when constructor is called. If False, the constructor
-              simply loads the model without compiling.
-
-        Examples:
-            mod = ModelicaSystem("ModelicaModel.mo", "modelName")
-            mod = ModelicaSystem("ModelicaModel.mo", "modelName", ["Modelica"])
-            mod = ModelicaSystem("ModelicaModel.mo", "modelName", [("Modelica","3.2.3"), "PowerSystems"])
         """
-
-        if fileName is None and modelName is None and not lmodel:  # all None
-            raise ModelicaSystemError("Cannot create ModelicaSystem object without any arguments")
-
-        if modelName is None:
-            raise ModelicaSystemError("A modelname must be provided (argument modelName)!")
 
         self._quantities: list[dict[str, Any]] = []
         self._params: dict[str, str] = {}  # even numerical values are stored as str
@@ -426,48 +400,98 @@ class ModelicaSystem:
         else:
             self._getconn = OMCSessionZMQ(omhome=omhome)
 
-        # set commandLineOptions if provided by users
-        self.setCommandLineOptions(commandLineOptions=commandLineOptions)
+        # set commandLineOptions using default values or the user defined list
+        if commandLineOptions is None:
+            # set default command line options to improve the performance of linearization and to avoid recompilation if
+            # the simulation executable is reused in linearize() via the runtime flag '-l'
+            commandLineOptions = [
+                "--linearizationDumpLanguage=python",
+                "--generateSymbolicLinearization",
+            ]
+        for opt in commandLineOptions:
+            self.setCommandLineOptions(commandLineOptions=opt)
 
-        if lmodel is None:
-            lmodel = []
-
-        if not isinstance(lmodel, list):
-            raise ModelicaSystemError(f"Invalid input type for lmodel: {type(lmodel)} - list expected!")
-
-        self._lmodel = lmodel  # may be needed if model is derived from other model
-        self._model_name = modelName  # Model class name
-        self._file_name = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
         self._simulated = False  # True if the model has already been simulated
         self._result_file: Optional[pathlib.Path] = None  # for storing result file
-        self._variable_filter = variableFilter
+
+        self._work_dir: pathlib.Path = self.setWorkDirectory(customBuildDirectory)
+
+        self._model_name: Optional[str] = None
+        self._libraries: Optional[list[str | tuple[str, str]]] = None
+        self._file_name: Optional[os.PathLike]
+        self._variable_filter: Optional[str] = None
+
+    def model(
+            self,
+            name: str,
+            file: Optional[str | os.PathLike | pathlib.Path] = None,
+            libraries: Optional[list[str | tuple[str, str]]] = None,
+            variable_filter: Optional[str] = None,
+            build: bool = True,
+    ) -> None:
+        """Load and build a Modelica model.
+
+        This method loads the model file and builds it if requested (build == True).
+
+        Args:
+            file: Path to the model file. Either absolute or relative to
+              the current working directory.
+            name: The name of the model class. If it is contained within
+              a package, "PackageName.ModelName" should be used.
+            libraries: List of libraries to be loaded before the model itself is
+              loaded. Two formats are supported for the list elements:
+              lmodel=["Modelica"] for just the library name
+              and lmodel=[("Modelica","3.2.3")] for specifying both the name
+              and the version.
+            variable_filter: A regular expression. Only variables fully
+              matching the regexp will be stored in the result file.
+              Leaving it unspecified is equivalent to ".*".
+            build: Boolean controlling whether the model should be
+              built when constructor is called. If False, the constructor
+              simply loads the model without compiling.
+
+        Examples:
+            mod = ModelicaSystem()
+            # and then one of the lines below
+            mod.model(name="modelName", file="ModelicaModel.mo", )
+            mod.model(name="modelName", file="ModelicaModel.mo", libraries=["Modelica"])
+            mod.model(name="modelName", file="ModelicaModel.mo", libraries=[("Modelica","3.2.3"), "PowerSystems"])
+        """
+
+        if self._model_name is not None:
+            raise ModelicaSystemError("Can not reuse this instance of ModelicaSystem "
+                                      f"defined for {repr(self._model_name)}!")
+
+        if not isinstance(name, str):
+            raise ModelicaSystemError("A model name must be provided (argument name)!")
+
+        if libraries is None:
+            libraries = []
+
+        if not isinstance(libraries, list):
+            raise ModelicaSystemError(f"Invalid input type for libraries: {type(libraries)} - list expected!")
+
+        # set variables
+        self._model_name = name  # Model class name
+        self._libraries = libraries  # may be needed if model is derived from other model
+        self._file_name = pathlib.Path(file).resolve() if file is not None else None  # Model file/package name
+        self._variable_filter = variable_filter
 
         if self._file_name is not None and not self._file_name.is_file():  # if file does not exist
             raise IOError(f"{self._file_name} does not exist!")
 
-        # set default command Line Options for linearization as
-        # linearize() will use the simulation executable and runtime
-        # flag -l to perform linearization
-        self.setCommandLineOptions("--linearizationDumpLanguage=python")
-        self.setCommandLineOptions("--generateSymbolicLinearization")
-
-        self._work_dir: pathlib.Path = self.setWorkDirectory(customBuildDirectory)
-
+        if self._libraries:
+            self._loadLibrary(libraries=self._libraries)
         if self._file_name is not None:
-            self._loadLibrary(lmodel=self._lmodel)
             self._loadFile(fileName=self._file_name)
 
-        # allow directly loading models from MSL without fileName
-        elif fileName is None and modelName is not None:
-            self._loadLibrary(lmodel=self._lmodel)
-
         if build:
-            self.buildModel(variableFilter)
+            self.buildModel(variable_filter)
 
-    def setCommandLineOptions(self, commandLineOptions: Optional[str] = None):
-        # set commandLineOptions if provided by users
-        if commandLineOptions is None:
-            return
+    def setCommandLineOptions(self, commandLineOptions: str):
+        """
+        Set the provided command line option via OMC setCommandLineOptions().
+        """
         exp = f'setCommandLineOptions("{commandLineOptions}")'
         self.sendExpression(exp)
 
@@ -476,9 +500,9 @@ class ModelicaSystem:
         self.sendExpression(f'loadFile("{fileName.as_posix()}")')
 
     # for loading file/package, loading model and building model
-    def _loadLibrary(self, lmodel: list):
+    def _loadLibrary(self, libraries: list):
         # load Modelica standard libraries or Modelica files if needed
-        for element in lmodel:
+        for element in libraries:
             if element is not None:
                 if isinstance(element, str):
                     if element.endswith(".mo"):
@@ -1513,9 +1537,13 @@ class ModelicaSystem:
 
         return csvfile
 
-    def convertMo2Fmu(self, version: str = "2.0", fmuType: str = "me_cs",
-                      fileNamePrefix: str = "<default>",
-                      includeResources: bool = True) -> str:
+    def convertMo2Fmu(
+            self,
+            version: str = "2.0",
+            fmuType: str = "me_cs",
+            fileNamePrefix: Optional[str] = None,
+            includeResources: bool = True,
+    ) -> str:
         """Translate the model into a Functional Mockup Unit.
 
         Args:
@@ -1531,12 +1559,12 @@ class ModelicaSystem:
             '/tmp/tmpmhfx9umo/CauerLowPassAnalog.fmu'
         """
 
-        if fileNamePrefix == "<default>":
+        if fileNamePrefix is None:
+            if self._model_name is None:
+                raise ModelicaSystemError("Missing model name!")
             fileNamePrefix = self._model_name
-        if includeResources:
-            includeResourcesStr = "true"
-        else:
-            includeResourcesStr = "false"
+        includeResourcesStr = "true" if includeResources else "false"
+
         properties = (f'version="{version}", fmuType="{fmuType}", '
                       f'fileNamePrefix="{fileNamePrefix}", includeResources={includeResourcesStr}')
         fmu = self._requestApi(apiName='buildModelFMU', entity=self._model_name, properties=properties)
