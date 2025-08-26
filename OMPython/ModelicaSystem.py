@@ -1129,6 +1129,36 @@ class ModelicaSystem:
 
         self._simulated = True
 
+    def plot(
+            self,
+            plotdata: str,
+            resultfile: Optional[str | os.PathLike] = None,
+    ) -> None:
+        """
+        Plot a variable using OMC; this will work for local OMC usage only (OMCProcessLocal).
+        """
+
+        if not isinstance(self._getconn.omc_process, OMCProcessLocal):
+            raise ModelicaSystemError("Plot is using the OMC plot functionality; "
+                                      "thus, it is only working if OMC is running locally!")
+
+        plot_result_file = None
+        if resultfile is not None:
+            plot_result_file = pathlib.Path(resultfile)
+        elif self._result_file is not None:
+            plot_result_file = pathlib.Path(self._result_file)
+        else:
+            ModelicaSystemError("No resultfile available - either run simulate() before plotting "
+                                "or provide a result file!")
+
+        if plot_result_file is None:
+            ModelicaSystemError("No resultfile defined!")
+        elif not plot_result_file.is_file():
+            ModelicaSystemError(f"Provided resultfile {repr(plot_result_file.as_posix())} does not exists!")
+        else:
+            expr = f'plot({plotdata}, fileName="{plot_result_file.as_posix()}")'
+            self.sendExpression(expr=expr)
+
     def getSolutions(self, varList: Optional[str | list[str]] = None, resultfile: Optional[str] = None) -> tuple[str] | np.ndarray:
         """Extract simulation results from a result data file.
 
