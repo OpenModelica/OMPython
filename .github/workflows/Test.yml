@@ -14,7 +14,7 @@ jobs:
       matrix:
         python-version: ['3.10', '3.12']
         os: ['ubuntu-latest', 'windows-latest']
-        omc-version: ['stable']
+        omc-version: ['stable', 'nightly']
 
     steps:
       - uses: actions/checkout@v5
@@ -48,9 +48,9 @@ jobs:
             'Modelica 4.0.0'
       - run: "omc --version"
 
-      - name: Pull OpenModelica docker image
-        if: runner.os != 'Windows'
-        run: docker pull openmodelica/openmodelica:v1.25.0-minimal
+      # - name: Pull OpenModelica docker image
+      #   if: runner.os != 'Windows'
+      #   run: docker pull openmodelica/openmodelica:v1.25.0-minimal
 
       - name: Run pytest
         uses: pavelzw/pytest-action@v2
