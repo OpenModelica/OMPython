@@ -14,7 +14,7 @@ jobs:
       matrix:
         python-version: ['3.10', '3.12']
         os: ['ubuntu-latest', 'windows-latest']
-        omc-version: ['nightly']
+        omc-version: ['stable', 'nightly']
 
     steps:
       - uses: actions/checkout@v5
