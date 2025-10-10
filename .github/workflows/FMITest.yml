@@ -6,14 +6,14 @@ on:
     - cron: "0 9 * * *"
 
 jobs:
-  test:
+  FMITest:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
       matrix:
         python-version: ['3.12']
         os: ['ubuntu-latest', 'windows-latest']
-        omc-version: ['stable', 'nightly']
+        omc-version: ['nightly']
 
     steps:
       - uses: actions/checkout@v5

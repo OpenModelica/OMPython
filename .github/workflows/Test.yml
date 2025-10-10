@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  Test:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
