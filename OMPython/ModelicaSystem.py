@@ -42,7 +42,7 @@ import os
 import queue
 import textwrap
 import threading
-from typing import Any, Optional
+from typing import Any, cast, Optional
 import warnings
 import xml.etree.ElementTree as ET
 
@@ -1866,12 +1866,12 @@ class ModelicaSystemDoE:
             fileName: Optional[str | os.PathLike | pathlib.Path] = None,
             modelName: Optional[str] = None,
             lmodel: Optional[list[str | tuple[str, str]]] = None,
-            commandLineOptions: Optional[str] = None,
+            commandLineOptions: Optional[list[str]] = None,
             variableFilter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike | pathlib.Path] = None,
             omhome: Optional[str] = None,
 
-            simargs: Optional[dict[str, Optional[str | dict[str, str]]]] = None,
+            simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,
             timeout: Optional[int] = None,
 
             resultpath: Optional[pathlib.Path] = None,
@@ -1975,7 +1975,7 @@ class ModelicaSystemDoE:
             for idx_pc_simple, pc_simple in enumerate(param_simple_combinations):
                 sim_param_simple = {}
                 for idx_simple, pk_simple in enumerate(param_simple.keys()):
-                    sim_param_simple[pk_simple] = pc_simple[idx_simple]
+                    sim_param_simple[pk_simple] = cast(Any, pc_simple[idx_simple])
 
                 resfilename = f"DOE_{idx_pc_structure:09d}_{idx_pc_simple:09d}.mat"
                 logger.info(f"use result file {repr(resfilename)} "
