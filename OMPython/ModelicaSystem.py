@@ -1165,11 +1165,11 @@ class ModelicaSystem:
 
         if plot_result_file is None:
             raise ModelicaSystemError("No resultfile defined!")
-        elif not plot_result_file.is_file():
+        if not plot_result_file.is_file():
             raise ModelicaSystemError(f"Provided resultfile {repr(plot_result_file.as_posix())} does not exists!")
-        else:
-            expr = f'plot({plotdata}, fileName="{plot_result_file.as_posix()}")'
-            self.sendExpression(expr=expr)
+
+        expr = f'plot({plotdata}, fileName="{plot_result_file.as_posix()}")'
+        self.sendExpression(expr=expr)
 
     def getSolutions(
             self,
