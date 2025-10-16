@@ -1160,13 +1160,13 @@ class ModelicaSystem:
         elif self._result_file is not None:
             plot_result_file = pathlib.Path(self._result_file)
         else:
-            ModelicaSystemError("No resultfile available - either run simulate() before plotting "
-                                "or provide a result file!")
+            raise ModelicaSystemError("No resultfile available - either run simulate() before plotting "
+                                      "or provide a result file!")
 
         if plot_result_file is None:
-            ModelicaSystemError("No resultfile defined!")
+            raise ModelicaSystemError("No resultfile defined!")
         elif not plot_result_file.is_file():
-            ModelicaSystemError(f"Provided resultfile {repr(plot_result_file.as_posix())} does not exists!")
+            raise ModelicaSystemError(f"Provided resultfile {repr(plot_result_file.as_posix())} does not exists!")
         else:
             expr = f'plot({plotdata}, fileName="{plot_result_file.as_posix()}")'
             self.sendExpression(expr=expr)
