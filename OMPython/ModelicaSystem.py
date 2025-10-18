@@ -723,40 +723,37 @@ class ModelicaSystem:
         if not self._simulated:
             if names is None:
                 return self._continuous
-
             if isinstance(names, str):
                 return [self._continuous[names]]
-
             if isinstance(names, list):
                 return [self._continuous[x] for x in names]
-        else:
-            if names is None:
-                for i in self._continuous:
-                    try:
-                        value = self.getSolutions(i)
-                        self._continuous[i] = value[0][-1]
-                    except (OMCSessionException, ModelicaSystemError) as ex:
-                        raise ModelicaSystemError(f"{i} could not be computed") from ex
-                return self._continuous
 
-            if isinstance(names, str):
-                if names in self._continuous:
-                    value = self.getSolutions(names)
-                    self._continuous[names] = value[0][-1]
-                    return [self._continuous[names]]
+        if names is None:
+            for name in self._continuous:
+                try:
+                    value = self.getSolutions(name)
+                    self._continuous[name] = value[0][-1]
+                except (OMCSessionException, ModelicaSystemError) as ex:
+                    raise ModelicaSystemError(f"{name} could not be computed") from ex
+            return self._continuous
+
+        if isinstance(names, str):
+            if names in self._continuous:
+                value = self.getSolutions(names)
+                self._continuous[names] = value[0][-1]
+                return [self._continuous[names]]
+            raise ModelicaSystemError(f"{names} is not continuous")
+
+        if isinstance(names, list):
+            valuelist = []
+            for name in names:
+                if name in self._continuous:
+                    value = self.getSolutions(name)
+                    self._continuous[name] = value[0][-1]
+                    valuelist.append(value[0][-1])
                 else:
-                    raise ModelicaSystemError(f"{names} is not continuous")
-
-            if isinstance(names, list):
-                valuelist = []
-                for i in names:
-                    if i in self._continuous:
-                        value = self.getSolutions(i)
-                        self._continuous[i] = value[0][-1]
-                        valuelist.append(value[0][-1])
-                    else:
-                        raise ModelicaSystemError(f"{i} is not continuous")
-                return valuelist
+                    raise ModelicaSystemError(f"{name} is not continuous")
+            return valuelist
 
         raise ModelicaSystemError("Unhandled input for getContinous()")
 
@@ -784,9 +781,9 @@ class ModelicaSystem:
         """
         if names is None:
             return self._params
-        elif isinstance(names, str):
+        if isinstance(names, str):
             return [self._params[names]]
-        elif isinstance(names, list):
+        if isinstance(names, list):
             return [self._params[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getParameters()")
@@ -818,9 +815,9 @@ class ModelicaSystem:
         """
         if names is None:
             return self._inputs
-        elif isinstance(names, str):
+        if isinstance(names, str):
             return [self._inputs[names]]
-        elif isinstance(names, list):
+        if isinstance(names, list):
             return [self._inputs[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getInputs()")
@@ -863,33 +860,33 @@ class ModelicaSystem:
         if not self._simulated:
             if names is None:
                 return self._outputs
-            elif isinstance(names, str):
+            if isinstance(names, str):
                 return [self._outputs[names]]
-            else:
-                return [self._outputs[x] for x in names]
-        else:
-            if names is None:
-                for i in self._outputs:
-                    value = self.getSolutions(i)
-                    self._outputs[i] = value[0][-1]
-                return self._outputs
-            elif isinstance(names, str):
-                if names in self._outputs:
-                    value = self.getSolutions(names)
-                    self._outputs[names] = value[0][-1]
-                    return [self._outputs[names]]
+            return [self._outputs[x] for x in names]
+
+        if names is None:
+            for name in self._outputs:
+                value = self.getSolutions(name)
+                self._outputs[name] = value[0][-1]
+            return self._outputs
+
+        if isinstance(names, str):
+            if names in self._outputs:
+                value = self.getSolutions(names)
+                self._outputs[names] = value[0][-1]
+                return [self._outputs[names]]
+            raise KeyError(names)
+
+        if isinstance(names, list):
+            valuelist = []
+            for name in names:
+                if name in self._outputs:
+                    value = self.getSolutions(name)
+                    self._outputs[name] = value[0][-1]
+                    valuelist.append(value[0][-1])
                 else:
-                    raise KeyError(names)
-            elif isinstance(names, list):
-                valuelist = []
-                for i in names:
-                    if i in self._outputs:
-                        value = self.getSolutions(i)
-                        self._outputs[i] = value[0][-1]
-                        valuelist.append(value[0][-1])
-                    else:
-                        raise KeyError(i)
-                return valuelist
+                    raise KeyError(name)
+            return valuelist
 
         raise ModelicaSystemError("Unhandled input for getOutputs()")
 
@@ -919,9 +916,9 @@ class ModelicaSystem:
         """
         if names is None:
             return self._simulate_options
-        elif isinstance(names, str):
+        if isinstance(names, str):
             return [self._simulate_options[names]]
-        elif isinstance(names, list):
+        if isinstance(names, list):
             return [self._simulate_options[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getSimulationOptions()")
@@ -954,9 +951,9 @@ class ModelicaSystem:
         """
         if names is None:
             return self._linearization_options
-        elif isinstance(names, str):
+        if isinstance(names, str):
             return [self._linearization_options[names]]
-        elif isinstance(names, list):
+        if isinstance(names, list):
             return [self._linearization_options[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getLinearizationOptions()")
@@ -989,9 +986,9 @@ class ModelicaSystem:
         """
         if names is None:
             return self._optimization_options
-        elif isinstance(names, str):
+        if isinstance(names, str):
             return [self._optimization_options[names]]
-        elif isinstance(names, list):
+        if isinstance(names, list):
             return [self._optimization_options[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
