@@ -16,7 +16,7 @@ jobs:
       matrix:
         python-version: ['3.10', '3.12', '3.13']
         os: ['ubuntu-latest', 'windows-latest']
-        omc-version: ['nightly']
+        omc-version: ['stable', 'nightly']
 
     steps:
       - uses: actions/checkout@v5
@@ -29,7 +29,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip build setuptools wheel twine
           pip install . pytest pytest-md pytest-emoji pre-commit
 
       - name: Set timezone
@@ -50,9 +50,11 @@ jobs:
             'Modelica 4.0.0'
       - run: "omc --version"
 
-      - name: Pull OpenModelica docker image
-        if: runner.os != 'Windows'
-        run: docker pull openmodelica/openmodelica:v1.25.0-minimal
+      - name: Build wheel and sdist packages
+        run: python -m build --wheel --sdist --outdir dist
+
+      - name: Check twine
+        run: python -m twine check dist/*
 
       - name: Run pytest
         uses: pavelzw/pytest-action@v2
