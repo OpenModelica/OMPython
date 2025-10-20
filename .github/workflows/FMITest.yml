@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: "Set up OpenModelica Compiler"
-        uses: OpenModelica/setup-openmodelica@v1.0
+        uses: OpenModelica/setup-openmodelica@v1.0.2
         with:
           version: ${{ matrix.omc-version }}
           packages: |
@@ -30,7 +30,7 @@ jobs:
 
       - uses: actions/checkout@v5
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           architecture: 'x64'
