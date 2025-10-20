@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "OMPython"
-version = "3.6.0"
+version = "4.0.0"
 description = "OpenModelica-Python API Interface"
 readme = "README.md"
 authors = [
@@ -13,7 +13,7 @@ authors = [
 maintainers = [
     {name = "Adeel Asghar", email = "adeel.asghar@liu.se"},
 ]
-license = "BSD-3-Clause OR LicenseRef-OSMC-PL-1.2 OR GPL-3.0-only"
+license = { file = "LICENSE" }
 requires-python = ">=3.10"
 dependencies = [
     "numpy",
