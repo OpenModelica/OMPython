@@ -50,6 +50,10 @@ jobs:
             'Modelica 4.0.0'
       - run: "omc --version"
 
+      - name: Pull OpenModelica docker image
+        if: runner.os != 'Windows'
+        run: docker pull openmodelica/openmodelica:v1.25.0-minimal
+
       - name: Build wheel and sdist packages
         run: python -m build --wheel --sdist --outdir dist
 
