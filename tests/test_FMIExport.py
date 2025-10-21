@@ -4,8 +4,11 @@ import os
 
 
 def test_CauerLowPassAnalog():
-    mod = OMPython.ModelicaSystem(modelName="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
-                                  lmodel=["Modelica"])
+    mod = OMPython.ModelicaSystem()
+    mod.model(
+        name="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
+        libraries=["Modelica"],
+    )
     tmp = mod.getWorkDirectory()
     try:
         fmu = mod.convertMo2Fmu(fileNamePrefix="CauerLowPassAnalog")
@@ -15,7 +18,11 @@ def test_CauerLowPassAnalog():
 
 
 def test_DrumBoiler():
-    mod = OMPython.ModelicaSystem(modelName="Modelica.Fluid.Examples.DrumBoiler.DrumBoiler", lmodel=["Modelica"])
+    mod = OMPython.ModelicaSystem()
+    mod.model(
+        name="Modelica.Fluid.Examples.DrumBoiler.DrumBoiler",
+        libraries=["Modelica"],
+    )
     tmp = mod.getWorkDirectory()
     try:
         fmu = mod.convertMo2Fmu(fileNamePrefix="DrumBoiler")
