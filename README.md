@@ -25,7 +25,7 @@ pip install OMPython
 
 Clone the repository and run:
 
-```
+```bash
 cd <OMPythonPath>
 python -m pip install -U .
 ```
@@ -55,12 +55,28 @@ online.
 
 
 ## Development
+
 It is recommended to set up [`pre-commit`](https://pre-commit.com/) to
 automatically run linters:
 ```sh
 # cd to the root of the repository
 pre-commit install
 ```
+
+## Conda Package
+
+Follow the steps to make a conda package,
+
+ - Update the version number in `recipe/meta.yaml` file.
+ - Update the `sha256` in `recipe/meta.yaml` according to the version number.
+   - You can get the `sha256` from https://pypi.org/project/OMPython/#files
+ - Download and install conda if you don't have one.
+ - Run command `conda install -c conda-forge conda-build` that will install `conda-build` tool into your conda environment.
+ - Build conda recipe `conda build recipe`.
+ - Do a local install and test.
+    - Install locally to test. Run `conda create -n test-ompython -c local -c conda-forge ompython`
+    - Activate the install. Run `conda activate test-ompython`
+    - Now test installed ompython `python -c "import OMPython; print(OMPython.__version__)"`
 
 ## Contact
 
