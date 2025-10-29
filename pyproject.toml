@@ -36,5 +36,4 @@ Download = "https://pypi.org/project/OMPython/#files"
 [tool.flake8]
 extend-ignore = [
     'E501', # line too long
-    'E741', # ambiguous variable name 'l'
 ]

@@ -52,7 +52,7 @@ from pyparsing import (
 )
 
 
-def convertNumbers(s, l, toks):
+def convertNumbers(s, loc, toks):
     n = toks[0]
     try:
         return int(n)
