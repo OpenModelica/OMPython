@@ -911,7 +911,8 @@ class ModelicaSystem:
 
         Examples:
             >>> mod.getSimulationOptions()
-            {'startTime': '0', 'stopTime': '1.234', 'stepSize': '0.002', 'tolerance': '1.1e-08', 'solver': 'dassl', 'outputFormat': 'mat'}
+            {'startTime': '0', 'stopTime': '1.234',
+             'stepSize': '0.002', 'tolerance': '1.1e-08', 'solver': 'dassl', 'outputFormat': 'mat'}
             >>> mod.getSimulationOptions("stopTime")
             ['1.234']
             >>> mod.getSimulationOptions(["tolerance", "stopTime"])
@@ -1095,8 +1096,10 @@ class ModelicaSystem:
         Examples:
             mod.simulate()
             mod.simulate(resultfile="a.mat")
-            mod.simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10")  # set runtime simulation flags, deprecated
-            mod.simulate(simargs={"noEventEmit": None, "noRestart": None, "override": "override": {"e": 0.3, "g": 10}})  # using simargs
+            # set runtime simulation flags, deprecated
+            mod.simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10")
+            # using simargs
+            mod.simulate(simargs={"noEventEmit": None, "noRestart": None, "override": "override": {"e": 0.3, "g": 10}})
         """
 
         if resultfile is None:
@@ -1132,7 +1135,11 @@ class ModelicaSystem:
 
         self._simulated = True
 
-    def getSolutions(self, varList: Optional[str | list[str]] = None, resultfile: Optional[str] = None) -> tuple[str] | np.ndarray:
+    def getSolutions(
+            self,
+            varList: Optional[str | list[str]] = None,
+            resultfile: Optional[str] = None,
+    ) -> tuple[str] | np.ndarray:
         """Extract simulation results from a result data file.
 
         Args:
@@ -1357,7 +1364,8 @@ class ModelicaSystem:
     ) -> bool:
         """
         This method is used to set simulation options. It can be called:
-        with a sequence of simulation options name and assigning corresponding values as arguments as show in the example below:
+        with a sequence of simulation options name and assigning corresponding values as arguments as show in the
+        example below:
         usage
         >>> setSimulationOptions("Name=value")  # depreciated
         >>> setSimulationOptions(["Name1=value1","Name2=value2"])  # depreciated
@@ -1377,7 +1385,8 @@ class ModelicaSystem:
     ) -> bool:
         """
         This method is used to set linearization options. It can be called:
-        with a sequence of linearization options name and assigning corresponding value as arguments as show in the example below
+        with a sequence of linearization options name and assigning corresponding value as arguments as show in the
+        example below
         usage
         >>> setLinearizationOptions("Name=value")  # depreciated
         >>> setLinearizationOptions(["Name1=value1","Name2=value2"])  # depreciated
@@ -1397,7 +1406,8 @@ class ModelicaSystem:
     ) -> bool:
         """
         This method is used to set optimization options. It can be called:
-        with a sequence of optimization options name and assigning corresponding values as arguments as show in the example below:
+        with a sequence of optimization options name and assigning corresponding values as arguments as show in the
+        example below:
         usage
         >>> setOptimizationOptions("Name=value")  # depreciated
         >>> setOptimizationOptions(["Name1=value1","Name2=value2"])  # depreciated
@@ -1530,7 +1540,8 @@ class ModelicaSystem:
         Examples:
             >>> mod.convertMo2Fmu()
             '/tmp/tmpmhfx9umo/CauerLowPassAnalog.fmu'
-            >>> mod.convertMo2Fmu(version="2.0", fmuType="me|cs|me_cs", fileNamePrefix="<default>", includeResources=True)
+            >>> mod.convertMo2Fmu(version="2.0", fmuType="me|cs|me_cs", fileNamePrefix="<default>",
+                                  includeResources=True)
             '/tmp/tmpmhfx9umo/CauerLowPassAnalog.fmu'
         """
 
@@ -1553,7 +1564,8 @@ class ModelicaSystem:
     # to convert FMU to Modelica model
     def convertFmu2Mo(self, fmuName):  # 20
         """
-        In order to load FMU, at first it needs to be translated into Modelica model. This method is used to generate Modelica model from the given FMU. It generates "fmuName_me_FMU.mo".
+        In order to load FMU, at first it needs to be translated into Modelica model. This method is used to generate
+        Modelica model from the given FMU. It generates "fmuName_me_FMU.mo".
         Currently, it only supports Model Exchange conversion.
         usage
         >>> convertFmu2Mo("c:/BouncingBall.Fmu")

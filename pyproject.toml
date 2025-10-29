@@ -34,6 +34,6 @@ Issues = "https://github.com/OpenModelica/OMPython/issues"
 Download = "https://pypi.org/project/OMPython/#files"
 
 [tool.flake8]
+max-line-length = 120
 extend-ignore = [
-    'E501', # line too long
 ]
