@@ -1,6 +1,6 @@
 from OMPython import OMTypedParser
 
-typeCheck = OMTypedParser.parseString
+typeCheck = OMTypedParser.om_parser_typed
 
 
 def test_newline_behaviour():
