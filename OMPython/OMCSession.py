@@ -54,7 +54,7 @@ import warnings
 import zmq
 
 # TODO: replace this with the new parser
-from OMPython.OMTypedParser import parseString as om_parser_typed
+from OMPython.OMTypedParser import om_parser_typed
 from OMPython.OMParser import om_parser_basic
 
 # define logger using the current module name as ID

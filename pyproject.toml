@@ -32,3 +32,8 @@ Documentation = "https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/ompy
 Issues = "https://github.com/OpenModelica/OMPython/issues"
 "Release Notes" = "https://github.com/OpenModelica/OMPython/releases"
 Download = "https://pypi.org/project/OMPython/#files"
+
+[tool.flake8]
+max-line-length = 120
+extend-ignore = [
+]
