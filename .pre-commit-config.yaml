@@ -20,6 +20,8 @@ repos:
     rev: '7.2.0'
     hooks:
       - id: flake8
+        additional_dependencies:
+          - Flake8-pyproject
 
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
