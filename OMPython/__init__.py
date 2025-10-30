@@ -36,20 +36,36 @@ __license__ = """
  CONDITIONS OF OSMC-PL.
 """
 
-from OMPython.ModelicaSystem import LinearizationResult, ModelicaSystem, ModelicaSystemCmd, ModelicaSystemError
-from OMPython.OMCSession import (OMCSessionCmd, OMCSessionException, OMCSessionZMQ,
-                                 OMCProcessPort, OMCProcessLocal, OMCProcessDocker, OMCProcessDockerContainer,
-                                 OMCProcessWSL)
+from OMPython.ModelicaSystem import (
+    LinearizationResult,
+    ModelicaSystem,
+    ModelicaSystemCmd,
+    ModelicaSystemDoE,
+    ModelicaSystemError,
+)
+from OMPython.OMCSession import (
+    OMCSessionCmd,
+    OMCSessionException,
+    OMCSessionRunData,
+    OMCSessionZMQ,
+    OMCProcessPort,
+    OMCProcessLocal,
+    OMCProcessDocker,
+    OMCProcessDockerContainer,
+    OMCProcessWSL,
+)
 
 # global names imported if import 'from OMPython import *' is used
 __all__ = [
     'LinearizationResult',
     'ModelicaSystem',
     'ModelicaSystemCmd',
+    'ModelicaSystemDoE',
     'ModelicaSystemError',
 
     'OMCSessionCmd',
     'OMCSessionException',
+    'OMCSessionRunData',
     'OMCSessionZMQ',
     'OMCProcessPort',
     'OMCProcessLocal',
