@@ -34,12 +34,16 @@ __license__ = """
 
 import ast
 from dataclasses import dataclass
+import itertools
 import logging
 import numbers
 import numpy as np
 import os
+import pathlib
+import queue
 import textwrap
-from typing import Optional, Any
+import threading
+from typing import Any, cast, Optional
 import warnings
 import xml.etree.ElementTree as ET
 
@@ -1729,3 +1733,373 @@ class ModelicaSystem:
     def getLinearStates(self) -> list[str]:
         """Get names of state variables of the linearized model."""
         return self._linearized_states
+
+
+class ModelicaSystemDoE:
+    """
+    Class to run DoEs based on a (Open)Modelica model using ModelicaSystem
+
+    Example
+    -------
+    ```
+    import OMPython
+    import pathlib
+
+
+    def run_doe():
+        mypath = pathlib.Path('.')
+
+        model = mypath / "M.mo"
+        model.write_text(
+            "    model M\n"
+            "      parameter Integer p=1;\n"
+            "      parameter Integer q=1;\n"
+            "      parameter Real a = -1;\n"
+            "      parameter Real b = -1;\n"
+            "      Real x[p];\n"
+            "      Real y[q];\n"
+            "    equation\n"
+            "      der(x) = a * fill(1.0, p);\n"
+            "      der(y) = b * fill(1.0, q);\n"
+            "    end M;\n"
+        )
+
+        param = {
+            # structural
+            'p': [1, 2],
+            'q': [3, 4],
+            # simple
+            'a': [5, 6],
+            'b': [7, 8],
+        }
+
+        resdir = mypath / 'DoE'
+        resdir.mkdir(exist_ok=True)
+
+        doe_mod = OMPython.ModelicaSystemDoE(
+            fileName=model.as_posix(),
+            modelName="M",
+            parameters=param,
+            resultpath=resdir,
+            simargs={"override": {'stopTime': 1.0}},
+        )
+        doe_mod.prepare()
+        doe_dict = doe_mod.get_doe()
+        doe_mod.simulate()
+        doe_sol = doe_mod.get_solutions()
+
+        # ... work with doe_df and doe_sol ...
+
+
+    if __name__ == "__main__":
+        run_doe()
+    ```
+
+    """
+
+    DICT_RESULT_FILENAME: str = 'result filename'
+    DICT_RESULT_AVAILABLE: str = 'result available'
+
+    def __init__(
+            self,
+            fileName: Optional[str | os.PathLike | pathlib.Path] = None,
+            modelName: Optional[str] = None,
+            lmodel: Optional[list[str | tuple[str, str]]] = None,
+            commandLineOptions: Optional[list[str]] = None,
+            variableFilter: Optional[str] = None,
+            customBuildDirectory: Optional[str | os.PathLike | pathlib.Path] = None,
+            omhome: Optional[str] = None,
+
+            simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,
+            timeout: Optional[int] = None,
+
+            resultpath: Optional[pathlib.Path] = None,
+            parameters: Optional[dict[str, list[str] | list[int] | list[float]]] = None,
+    ) -> None:
+        """
+        Initialisation of ModelicaSystemDoE. The parameters are based on: ModelicaSystem.__init__() and
+        ModelicaSystem.simulate(). Additionally, the path to store the result files is needed (= resultpath) as well as
+        a list of parameters to vary for the Doe (= parameters). All possible combinations are considered.
+        """
+        self._lmodel = lmodel
+        self._modelName = modelName
+        self._fileName = fileName
+
+        self._CommandLineOptions = commandLineOptions
+        self._variableFilter = variableFilter
+        self._customBuildDirectory = customBuildDirectory
+        self._omhome = omhome
+
+        # reference for the model; not used for any simulations but to evaluate parameters, etc.
+        self._mod = ModelicaSystem(
+            fileName=self._fileName,
+            modelName=self._modelName,
+            lmodel=self._lmodel,
+            commandLineOptions=self._CommandLineOptions,
+            variableFilter=self._variableFilter,
+            customBuildDirectory=self._customBuildDirectory,
+            omhome=self._omhome,
+        )
+
+        self._simargs = simargs
+        self._timeout = timeout
+
+        if isinstance(resultpath, pathlib.Path):
+            self._resultpath = resultpath
+        else:
+            self._resultpath = pathlib.Path('.')
+
+        if isinstance(parameters, dict):
+            self._parameters = parameters
+        else:
+            self._parameters = {}
+
+        self._sim_dict: Optional[dict[str, dict[str, Any]]] = None
+        self._sim_task_query: queue.Queue = queue.Queue()
+
+    def prepare(self) -> int:
+        """
+        Prepare the DoE by evaluating the parameters. Each structural parameter requires a new instance of
+        ModelicaSystem while the non-structural parameters can just be set on the executable.
+
+        The return value is the number of simulation defined.
+        """
+
+        param_structure = {}
+        param_simple = {}
+        for param_name in self._parameters.keys():
+            changeable = self._mod.isParameterChangeable(name=param_name)
+            logger.info(f"Parameter {repr(param_name)} is changeable? {changeable}")
+
+            if changeable:
+                param_simple[param_name] = self._parameters[param_name]
+            else:
+                param_structure[param_name] = self._parameters[param_name]
+
+        param_structure_combinations = list(itertools.product(*param_structure.values()))
+        param_simple_combinations = list(itertools.product(*param_simple.values()))
+
+        self._sim_dict = {}
+        for idx_pc_structure, pc_structure in enumerate(param_structure_combinations):
+            mod_structure = ModelicaSystem(
+                fileName=self._fileName,
+                modelName=self._modelName,
+                lmodel=self._lmodel,
+                commandLineOptions=self._CommandLineOptions,
+                variableFilter=self._variableFilter,
+                customBuildDirectory=self._customBuildDirectory,
+                omhome=self._omhome,
+                build=False,
+            )
+
+            sim_param_structure = {}
+            for idx_structure, pk_structure in enumerate(param_structure.keys()):
+                sim_param_structure[pk_structure] = pc_structure[idx_structure]
+
+                pk_value = pc_structure[idx_structure]
+                if isinstance(pk_value, str):
+                    expression = f"setParameterValue({self._modelName}, {pk_structure}, \"{pk_value}\")"
+                elif isinstance(pk_value, bool):
+                    pk_value_bool_str = "true" if pk_value else "false"
+                    expression = f"setParameterValue({self._modelName}, {pk_structure}, {pk_value_bool_str});"
+                else:
+                    expression = f"setParameterValue({self._modelName}, {pk_structure}, {pk_value})"
+                res = mod_structure.sendExpression(expression)
+                if not res:
+                    raise ModelicaSystemError(f"Cannot set structural parameter {self._modelName}.{pk_structure} "
+                                              f"to {pk_value} using {repr(expression)}")
+
+            mod_structure.buildModel(variableFilter=self._variableFilter)
+
+            for idx_pc_simple, pc_simple in enumerate(param_simple_combinations):
+                sim_param_simple = {}
+                for idx_simple, pk_simple in enumerate(param_simple.keys()):
+                    sim_param_simple[pk_simple] = cast(Any, pc_simple[idx_simple])
+
+                resfilename = f"DOE_{idx_pc_structure:09d}_{idx_pc_simple:09d}.mat"
+                logger.info(f"use result file {repr(resfilename)} "
+                            f"for structural parameters: {sim_param_structure} "
+                            f"and simple parameters: {sim_param_simple}")
+                resultfile = self._resultpath / resfilename
+
+                df_data = (
+                        {
+                            'ID structure': idx_pc_structure,
+                        }
+                        | sim_param_structure
+                        | {
+                            'ID non-structure': idx_pc_simple,
+                        }
+                        | sim_param_simple
+                        | {
+                            self.DICT_RESULT_AVAILABLE: False,
+                        }
+                )
+
+                self._sim_dict[resfilename] = df_data
+
+                mscmd = mod_structure.simulate_cmd(
+                    result_file=resultfile.absolute().resolve(),
+                    timeout=self._timeout,
+                )
+                if self._simargs is not None:
+                    mscmd.args_set(args=self._simargs)
+                mscmd.args_set(args={"override": sim_param_simple})
+
+                self._sim_task_query.put(mscmd)
+
+        logger.info(f"Prepared {self._sim_task_query.qsize()} simulation definitions for the defined DoE.")
+
+        return self._sim_task_query.qsize()
+
+    def get_doe(self) -> Optional[dict[str, dict[str, Any]]]:
+        """
+        Get the defined DoE as a dict, where each key is the result filename and the value is a dict of simulation
+        settings including structural and non-structural parameters.
+
+        The following code snippet can be used to convert the data to a pandas dataframe:
+
+        ```
+        import pandas as pd
+
+        doe_dict = doe_mod.get_doe()
+        doe_df = pd.DataFrame.from_dict(data=doe_dict, orient='index')
+        ```
+
+        """
+        return self._sim_dict
+
+    def simulate(
+            self,
+            num_workers: int = 3,
+    ) -> bool:
+        """
+        Simulate the DoE using the defined number of workers.
+
+        Returns True if all simulations were done successfully, else False.
+        """
+
+        sim_query_total = self._sim_task_query.qsize()
+        if not isinstance(self._sim_dict, dict) or len(self._sim_dict) == 0:
+            raise ModelicaSystemError("Missing Doe Summary!")
+        sim_dict_total = len(self._sim_dict)
+
+        def worker(worker_id, task_queue):
+            while True:
+                try:
+                    # Get the next task from the queue
+                    mscmd = task_queue.get(block=False)
+                except queue.Empty:
+                    logger.info(f"[Worker {worker_id}] No more simulations to run.")
+                    break
+
+                if mscmd is None:
+                    raise ModelicaSystemError("Missing simulation definition!")
+
+                resultfile = mscmd.arg_get(key='r')
+                resultpath = pathlib.Path(resultfile)
+
+                logger.info(f"[Worker {worker_id}] Performing task: {resultpath.name}")
+
+                try:
+                    mscmd.run()
+                except ModelicaSystemError as ex:
+                    logger.warning(f"Simulation error for {resultpath.name}: {ex}")
+
+                # Mark the task as done
+                task_queue.task_done()
+
+                sim_query_done = sim_query_total - self._sim_task_query.qsize()
+                logger.info(f"[Worker {worker_id}] Task completed: {resultpath.name} "
+                            f"({sim_query_total - sim_query_done}/{sim_query_total} = "
+                            f"{(sim_query_total - sim_query_done) / sim_query_total * 100:.2f}% of tasks left)")
+
+        logger.info(f"Start simulations for DoE with {sim_query_total} simulations "
+                    f"using {num_workers} workers ...")
+
+        # Create and start worker threads
+        threads = []
+        for i in range(num_workers):
+            thread = threading.Thread(target=worker, args=(i, self._sim_task_query))
+            thread.start()
+            threads.append(thread)
+
+        # Wait for all threads to complete
+        for thread in threads:
+            thread.join()
+
+        sim_dict_done = 0
+        for resultfilename in self._sim_dict:
+            resultfile = self._resultpath / resultfilename
+
+            # include check for an empty (=> 0B) result file which indicates a crash of the model executable
+            # see: https://github.com/OpenModelica/OMPython/issues/261
+            # https://github.com/OpenModelica/OpenModelica/issues/13829
+            if resultfile.is_file() and resultfile.stat().st_size > 0:
+                self._sim_dict[resultfilename][self.DICT_RESULT_AVAILABLE] = True
+                sim_dict_done += 1
+
+        logger.info(f"All workers finished ({sim_dict_done} of {sim_dict_total} simulations with a result file).")
+
+        return sim_dict_total == sim_dict_done
+
+    def get_solutions(
+            self,
+            var_list: Optional[list] = None,
+    ) -> Optional[tuple[str] | dict[str, dict[str, np.ndarray]]]:
+        """
+        Get all solutions of the DoE run. The following return values are possible:
+
+        * A list of variables if val_list == None
+
+        * The Solutions as dict[str, pd.DataFrame] if a value list (== val_list) is defined.
+
+        The following code snippet can be used to convert the solution data for each run to a pandas dataframe:
+
+        ```
+        import pandas as pd
+
+        doe_sol = doe_mod.get_solutions()
+        for key in doe_sol:
+            data = doe_sol[key]['data']
+            if data:
+                doe_sol[key]['df'] = pd.DataFrame.from_dict(data=data)
+            else:
+                doe_sol[key]['df'] = None
+        ```
+
+        """
+        if not isinstance(self._sim_dict, dict):
+            return None
+
+        if len(self._sim_dict) == 0:
+            raise ModelicaSystemError("No result files available - all simulations did fail?")
+
+        sol_dict: dict[str, dict[str, Any]] = {}
+        for resultfilename in self._sim_dict:
+            resultfile = self._resultpath / resultfilename
+
+            sol_dict[resultfilename] = {}
+
+            if not self._sim_dict[resultfilename][self.DICT_RESULT_AVAILABLE]:
+                sol_dict[resultfilename]['msg'] = 'No result file available!'
+                sol_dict[resultfilename]['data'] = {}
+                continue
+
+            if var_list is None:
+                var_list_row = list(self._mod.getSolutions(resultfile=resultfile.as_posix()))
+            else:
+                var_list_row = var_list
+
+            try:
+                sol = self._mod.getSolutions(varList=var_list_row, resultfile=resultfile.as_posix())
+                sol_data = {var: sol[idx] for idx, var in enumerate(var_list_row)}
+                sol_dict[resultfilename]['msg'] = 'Simulation available'
+                sol_dict[resultfilename]['data'] = sol_data
+            except ModelicaSystemError as ex:
+                msg = f"Error reading solution for {resultfilename}: {ex}"
+                logger.warning(msg)
+                sol_dict[resultfilename]['msg'] = msg
+                sol_dict[resultfilename]['data'] = {}
+
+        return sol_dict
