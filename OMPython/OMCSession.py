@@ -639,7 +639,8 @@ class OMCSessionZMQ:
                 # see: https://build.openmodelica.org/Documentation/OpenModelica.Scripting.ErrorLevel.html
                 if log_level == 'error':
                     raise OMCSessionException(msg)
-                elif log_level == 'warning':
+
+                if log_level == 'warning':
                     logger.warning(msg)
                 elif log_level == 'notification':
                     logger.info(msg)
