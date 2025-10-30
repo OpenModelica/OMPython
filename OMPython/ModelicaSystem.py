@@ -43,7 +43,7 @@ from typing import Optional, Any
 import warnings
 import xml.etree.ElementTree as ET
 
-from OMPython.OMCSession import OMCSessionException, OMCSessionRunData, OMCSessionZMQ, OMCProcessLocal, OMCPath
+from OMPython.OMCSession import OMCSessionException, OMCSessionRunData, OMCSessionZMQ, OMCProcess, OMCPath
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
@@ -262,7 +262,9 @@ class ModelicaSystemCmd:
             cmd_timeout=self._timeout,
         )
 
-        omc_run_data_updated = self._session.omc_run_data_update(omc_run_data=omc_run_data)
+        omc_run_data_updated = self._session.omc_run_data_update(
+            omc_run_data=omc_run_data,
+        )
 
         return omc_run_data_updated
 
@@ -315,7 +317,7 @@ class ModelicaSystem:
             variableFilter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
-            omc_process: Optional[OMCProcessLocal] = None,
+            omc_process: Optional[OMCProcess] = None,
             build: bool = True,
     ) -> None:
         """Initialize, load and build a model.
@@ -380,8 +382,6 @@ class ModelicaSystem:
         self._linearized_states: list[str] = []  # linearization states list
 
         if omc_process is not None:
-            if not isinstance(omc_process, OMCProcessLocal):
-                raise ModelicaSystemError("Invalid (local) omc process definition provided!")
             self._getconn = OMCSessionZMQ(omc_process=omc_process)
         else:
             self._getconn = OMCSessionZMQ(omhome=omhome)
