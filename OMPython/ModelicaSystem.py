@@ -34,21 +34,19 @@ __license__ = """
 
 import ast
 from dataclasses import dataclass
+import itertools
 import logging
 import numbers
 import numpy as np
 import os
-import pathlib
-import platform
-import re
-import subprocess
-import tempfile
+import queue
 import textwrap
-from typing import Optional, Any
+import threading
+from typing import Any, cast, Optional
 import warnings
 import xml.etree.ElementTree as ET
 
-from OMPython.OMCSession import OMCSessionException, OMCSessionZMQ, OMCProcessLocal
+from OMPython.OMCSession import OMCSessionException, OMCSessionRunData, OMCSessionZMQ, OMCProcess, OMCPath
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
@@ -114,8 +112,15 @@ class LinearizationResult:
 class ModelicaSystemCmd:
     """A compiled model executable."""
 
-    def __init__(self, runpath: pathlib.Path, modelname: str, timeout: Optional[float] = None) -> None:
-        self._runpath = pathlib.Path(runpath).resolve().absolute()
+    def __init__(
+            self,
+            session: OMCSessionZMQ,
+            runpath: OMCPath,
+            modelname: str,
+            timeout: Optional[float] = None,
+    ) -> None:
+        self._session = session
+        self._runpath = runpath
         self._model_name = modelname
         self._timeout = timeout
 
@@ -229,27 +234,12 @@ class ModelicaSystemCmd:
         for arg in args:
             self.arg_set(key=arg, val=args[arg])
 
-    def get_exe(self) -> pathlib.Path:
-        """Get the path to the compiled model executable."""
-        if platform.system() == "Windows":
-            path_exe = self._runpath / f"{self._model_name}.exe"
-        else:
-            path_exe = self._runpath / self._model_name
-
-        if not path_exe.exists():
-            raise ModelicaSystemError(f"Application file path not found: {path_exe}")
-
-        return path_exe
-
-    def get_cmd(self) -> list:
-        """Get a list with the path to the executable and all command line args.
-
-        This can later be used as an argument for subprocess.run().
+    def get_cmd_args(self) -> list[str]:
+        """
+        Get a list with the command arguments for the model executable.
         """
 
-        path_exe = self.get_exe()
-
-        cmdl = [path_exe.as_posix()]
+        cmdl = []
         for key in sorted(self._args):
             if self._args[key] is None:
                 cmdl.append(f"-{key}")
@@ -258,54 +248,28 @@ class ModelicaSystemCmd:
 
         return cmdl
 
-    def run(self) -> int:
-        """Run the requested simulation.
-
-        Returns
-        -------
-            Subprocess return code (0 on success).
+    def definition(self) -> OMCSessionRunData:
         """
+        Define all needed data to run the model executable. The data is stored in an OMCSessionRunData object.
+        """
+        # ensure that a result filename is provided
+        result_file = self.arg_get('r')
+        if not isinstance(result_file, str):
+            result_file = (self._runpath / f"{self._model_name}.mat").as_posix()
 
-        cmdl: list = self.get_cmd()
+        omc_run_data = OMCSessionRunData(
+            cmd_path=self._runpath.as_posix(),
+            cmd_model_name=self._model_name,
+            cmd_args=self.get_cmd_args(),
+            cmd_result_path=result_file,
+            cmd_timeout=self._timeout,
+        )
 
-        logger.debug("Run OM command %s in %s", repr(cmdl), self._runpath.as_posix())
+        omc_run_data_updated = self._session.omc_run_data_update(
+            omc_run_data=omc_run_data,
+        )
 
-        if platform.system() == "Windows":
-            path_dll = ""
-
-            # set the process environment from the generated .bat file in windows which should have all the dependencies
-            path_bat = self._runpath / f"{self._model_name}.bat"
-            if not path_bat.exists():
-                raise ModelicaSystemError("Batch file (*.bat) does not exist " + str(path_bat))
-
-            with open(file=path_bat, mode='r', encoding='utf-8') as fh:
-                for line in fh:
-                    match = re.match(r"^SET PATH=([^%]*)", line, re.IGNORECASE)
-                    if match:
-                        path_dll = match.group(1).strip(';')  # Remove any trailing semicolons
-            my_env = os.environ.copy()
-            my_env["PATH"] = path_dll + os.pathsep + my_env["PATH"]
-        else:
-            # TODO: how to handle path to resources of external libraries for any system not Windows?
-            my_env = None
-
-        try:
-            cmdres = subprocess.run(cmdl, capture_output=True, text=True, env=my_env, cwd=self._runpath,
-                                    timeout=self._timeout, check=True)
-            stdout = cmdres.stdout.strip()
-            stderr = cmdres.stderr.strip()
-            returncode = cmdres.returncode
-
-            logger.debug("OM output for command %s:\n%s", repr(cmdl), stdout)
-
-            if stderr:
-                raise ModelicaSystemError(f"Error running command {repr(cmdl)}: {stderr}")
-        except subprocess.TimeoutExpired as ex:
-            raise ModelicaSystemError(f"Timeout running command {repr(cmdl)}") from ex
-        except subprocess.CalledProcessError as ex:
-            raise ModelicaSystemError(f"Error running command {repr(cmdl)}") from ex
-
-        return returncode
+        return omc_run_data_updated
 
     @staticmethod
     def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, Any] | numbers.Number]]:
@@ -349,14 +313,14 @@ class ModelicaSystemCmd:
 class ModelicaSystem:
     def __init__(
             self,
-            fileName: Optional[str | os.PathLike | pathlib.Path] = None,
+            fileName: Optional[str | os.PathLike] = None,
             modelName: Optional[str] = None,
             lmodel: Optional[list[str | tuple[str, str]]] = None,
             commandLineOptions: Optional[list[str]] = None,
             variableFilter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
-            omc_process: Optional[OMCProcessLocal] = None,
+            omc_process: Optional[OMCProcess] = None,
             build: bool = True,
     ) -> None:
         """Initialize, load and build a model.
@@ -421,11 +385,9 @@ class ModelicaSystem:
         self._linearized_states: list[str] = []  # linearization states list
 
         if omc_process is not None:
-            if not isinstance(omc_process, OMCProcessLocal):
-                raise ModelicaSystemError("Invalid (local) omc process definition provided!")
-            self._getconn = OMCSessionZMQ(omc_process=omc_process)
+            self._session = OMCSessionZMQ(omc_process=omc_process)
         else:
-            self._getconn = OMCSessionZMQ(omhome=omhome)
+            self._session = OMCSessionZMQ(omhome=omhome)
 
         # set commandLineOptions using default values or the user defined list
         if commandLineOptions is None:
@@ -446,15 +408,25 @@ class ModelicaSystem:
 
         self._lmodel = lmodel  # may be needed if model is derived from other model
         self._model_name = modelName  # Model class name
-        self._file_name = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
+        if fileName is not None:
+            file_name = self._session.omcpath(fileName).resolve()
+        else:
+            file_name = None
+        self._file_name: Optional[OMCPath] = file_name  # Model file/package name
         self._simulated = False  # True if the model has already been simulated
-        self._result_file: Optional[pathlib.Path] = None  # for storing result file
+        self._result_file: Optional[OMCPath] = None  # for storing result file
         self._variable_filter = variableFilter
 
         if self._file_name is not None and not self._file_name.is_file():  # if file does not exist
             raise IOError(f"{self._file_name} does not exist!")
 
-        self._work_dir: pathlib.Path = self.setWorkDirectory(customBuildDirectory)
+        # set default command Line Options for linearization as
+        # linearize() will use the simulation executable and runtime
+        # flag -l to perform linearization
+        self.setCommandLineOptions("--linearizationDumpLanguage=python")
+        self.setCommandLineOptions("--generateSymbolicLinearization")
+
+        self._work_dir: OMCPath = self.setWorkDirectory(customBuildDirectory)
 
         if self._file_name is not None:
             self._loadLibrary(lmodel=self._lmodel)
@@ -467,6 +439,9 @@ class ModelicaSystem:
         if build:
             self.buildModel(variableFilter)
 
+    def get_session(self) -> OMCSessionZMQ:
+        return self._session
+
     def setCommandLineOptions(self, commandLineOptions: str):
         """
         Set the provided command line option via OMC setCommandLineOptions().
@@ -474,7 +449,7 @@ class ModelicaSystem:
         exp = f'setCommandLineOptions("{commandLineOptions}")'
         self.sendExpression(exp)
 
-    def _loadFile(self, fileName: pathlib.Path):
+    def _loadFile(self, fileName: OMCPath):
         # load file
         self.sendExpression(f'loadFile("{fileName.as_posix()}")')
 
@@ -502,17 +477,17 @@ class ModelicaSystem:
                                               '1)["Modelica"]\n'
                                               '2)[("Modelica","3.2.3"), "PowerSystems"]\n')
 
-    def setWorkDirectory(self, customBuildDirectory: Optional[str | os.PathLike] = None) -> pathlib.Path:
+    def setWorkDirectory(self, customBuildDirectory: Optional[str | os.PathLike] = None) -> OMCPath:
         """
         Define the work directory for the ModelicaSystem / OpenModelica session. The model is build within this
         directory. If no directory is defined a unique temporary directory is created.
         """
         if customBuildDirectory is not None:
-            workdir = pathlib.Path(customBuildDirectory).absolute()
+            workdir = self._session.omcpath(customBuildDirectory).absolute()
             if not workdir.is_dir():
                 raise IOError(f"Provided work directory does not exists: {customBuildDirectory}!")
         else:
-            workdir = pathlib.Path(tempfile.mkdtemp()).absolute()
+            workdir = self._session.omcpath_tempdir().absolute()
             if not workdir.is_dir():
                 raise IOError(f"{workdir} could not be created")
 
@@ -525,7 +500,7 @@ class ModelicaSystem:
         # ... and also return the defined path
         return workdir
 
-    def getWorkDirectory(self) -> pathlib.Path:
+    def getWorkDirectory(self) -> OMCPath:
         """
         Return the defined working directory for this ModelicaSystem / OpenModelica session.
         """
@@ -546,12 +521,26 @@ class ModelicaSystem:
         buildModelResult = self._requestApi(apiName="buildModel", entity=self._model_name, properties=var_filter)
         logger.debug("OM model build result: %s", buildModelResult)
 
-        xml_file = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
+        # check if the executable exists ...
+        om_cmd = ModelicaSystemCmd(
+            session=self._session,
+            runpath=self.getWorkDirectory(),
+            modelname=self._model_name,
+            timeout=5.0,
+        )
+        # ... by running it - output help for command help
+        om_cmd.arg_set(key="help", val="help")
+        cmd_definition = om_cmd.definition()
+        returncode = self._session.run_model_executable(cmd_run_data=cmd_definition)
+        if returncode != 0:
+            raise ModelicaSystemError("Model executable not working!")
+
+        xml_file = self._session.omcpath(buildModelResult[0]).parent / buildModelResult[1]
         self._xmlparse(xml_file=xml_file)
 
     def sendExpression(self, expr: str, parsed: bool = True) -> Any:
         try:
-            retval = self._getconn.sendExpression(expr, parsed)
+            retval = self._session.sendExpression(expr, parsed)
         except OMCSessionException as ex:
             raise ModelicaSystemError(f"Error executing {repr(expr)}") from ex
 
@@ -578,7 +567,7 @@ class ModelicaSystem:
 
         return self.sendExpression(exp)
 
-    def _xmlparse(self, xml_file: pathlib.Path):
+    def _xmlparse(self, xml_file: OMCPath):
         if not xml_file.is_file():
             raise ModelicaSystemError(f"XML file not generated: {xml_file}")
 
@@ -998,7 +987,7 @@ class ModelicaSystem:
 
     def simulate_cmd(
             self,
-            result_file: pathlib.Path,
+            result_file: OMCPath,
             simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
             timeout: Optional[float] = None,
@@ -1026,6 +1015,7 @@ class ModelicaSystem:
         """
 
         om_cmd = ModelicaSystemCmd(
+            session=self._session,
             runpath=self.getWorkDirectory(),
             modelname=self._model_name,
             timeout=timeout,
@@ -1102,10 +1092,15 @@ class ModelicaSystem:
         if resultfile is None:
             # default result file generated by OM
             self._result_file = self.getWorkDirectory() / f"{self._model_name}_res.mat"
-        elif os.path.exists(resultfile):
-            self._result_file = pathlib.Path(resultfile)
+        elif isinstance(resultfile, OMCPath):
+            self._result_file = resultfile
         else:
-            self._result_file = self.getWorkDirectory() / resultfile
+            self._result_file = self._session.omcpath(resultfile)
+            if not self._result_file.is_absolute():
+                self._result_file = self.getWorkDirectory() / resultfile
+
+        if not isinstance(self._result_file, OMCPath):
+            raise ModelicaSystemError(f"Invalid result file path: {self._result_file} - must be an OMCPath object!")
 
         om_cmd = self.simulate_cmd(
             result_file=self._result_file,
@@ -1118,13 +1113,14 @@ class ModelicaSystem:
         if self._result_file.is_file():
             self._result_file.unlink()
         # ... run simulation ...
-        returncode = om_cmd.run()
+        cmd_definition = om_cmd.definition()
+        returncode = self._session.run_model_executable(cmd_run_data=cmd_definition)
         # and check returncode *AND* resultfile
         if returncode != 0 and self._result_file.is_file():
             # check for an empty (=> 0B) result file which indicates a crash of the model executable
             # see: https://github.com/OpenModelica/OMPython/issues/261
             #      https://github.com/OpenModelica/OpenModelica/issues/13829
-            if self._result_file.stat().st_size == 0:
+            if self._result_file.size() == 0:
                 self._result_file.unlink()
                 raise ModelicaSystemError("Empty result file - this indicates a crash of the model executable!")
 
@@ -1132,7 +1128,11 @@ class ModelicaSystem:
 
         self._simulated = True
 
-    def getSolutions(self, varList: Optional[str | list[str]] = None, resultfile: Optional[str] = None) -> tuple[str] | np.ndarray:
+    def getSolutions(
+            self,
+            varList: Optional[str | list[str]] = None,
+            resultfile: Optional[str | os.PathLike] = None,
+    ) -> tuple[str] | np.ndarray:
         """Extract simulation results from a result data file.
 
         Args:
@@ -1169,7 +1169,7 @@ class ModelicaSystem:
                 raise ModelicaSystemError("No result file found. Run simulate() first.")
             result_file = self._result_file
         else:
-            result_file = pathlib.Path(resultfile)
+            result_file = self._session.omcpath(resultfile)
 
         # check if the result file exits
         if not result_file.is_file():
@@ -1461,7 +1461,7 @@ class ModelicaSystem:
 
         return True
 
-    def _createCSVData(self, csvfile: Optional[pathlib.Path] = None) -> pathlib.Path:
+    def _createCSVData(self, csvfile: Optional[OMCPath] = None) -> OMCPath:
         """
         Create a csv file with inputs for the simulation/optimization of the model. If csvfile is provided as argument,
         this file is used; else a generic file name is created.
@@ -1628,7 +1628,6 @@ class ModelicaSystem:
             * `result = linearize(); A = result[0]` mostly just for backwards
               compatibility, because linearize() used to return `[A, B, C, D]`.
         """
-
         if len(self._quantities) == 0:
             # if self._quantities has no content, the xml file was not parsed; see self._xmlparse()
             raise ModelicaSystemError(
@@ -1637,20 +1636,21 @@ class ModelicaSystem:
             )
 
         om_cmd = ModelicaSystemCmd(
+            session=self._session,
             runpath=self.getWorkDirectory(),
             modelname=self._model_name,
             timeout=timeout,
         )
 
-        overrideLinearFile = self.getWorkDirectory() / f'{self._model_name}_override_linear.txt'
+        override_content = (
+                "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
+                + "\n".join([f"{key}={value}" for key, value in self._linearization_options.items()])
+                + "\n"
+        )
+        override_file = self.getWorkDirectory() / f'{self._model_name}_override_linear.txt'
+        override_file.write_text(override_content)
 
-        with open(file=overrideLinearFile, mode="w", encoding="utf-8") as fh:
-            for key1, value1 in self._override_variables.items():
-                fh.write(f"{key1}={value1}\n")
-            for key2, value2 in self._linearization_options.items():
-                fh.write(f"{key2}={value2}\n")
-
-        om_cmd.arg_set(key="overrideFile", val=overrideLinearFile.as_posix())
+        om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
 
         if self._inputs:
             for key in self._inputs:
@@ -1675,10 +1675,11 @@ class ModelicaSystem:
         linear_file = self.getWorkDirectory() / "linearized_model.py"
         linear_file.unlink(missing_ok=True)
 
-        returncode = om_cmd.run()
+        cmd_definition = om_cmd.definition()
+        returncode = self._session.run_model_executable(cmd_run_data=cmd_definition)
         if returncode != 0:
             raise ModelicaSystemError(f"Linearize failed with return code: {returncode}")
-        if not linear_file.exists():
+        if not linear_file.is_file():
             raise ModelicaSystemError(f"Linearization failed: {linear_file} not found!")
 
         self._simulated = True
@@ -1734,3 +1735,394 @@ class ModelicaSystem:
     def getLinearStates(self) -> list[str]:
         """Get names of state variables of the linearized model."""
         return self._linearized_states
+
+
+class ModelicaSystemDoE:
+    """
+    Class to run DoEs based on a (Open)Modelica model using ModelicaSystem
+
+    Example
+    -------
+    ```
+    import OMPython
+    import pathlib
+
+
+    def run_doe():
+        mypath = pathlib.Path('.')
+
+        model = mypath / "M.mo"
+        model.write_text(
+            "    model M\n"
+            "      parameter Integer p=1;\n"
+            "      parameter Integer q=1;\n"
+            "      parameter Real a = -1;\n"
+            "      parameter Real b = -1;\n"
+            "      Real x[p];\n"
+            "      Real y[q];\n"
+            "    equation\n"
+            "      der(x) = a * fill(1.0, p);\n"
+            "      der(y) = b * fill(1.0, q);\n"
+            "    end M;\n"
+        )
+
+        param = {
+            # structural
+            'p': [1, 2],
+            'q': [3, 4],
+            # simple
+            'a': [5, 6],
+            'b': [7, 8],
+        }
+
+        resdir = mypath / 'DoE'
+        resdir.mkdir(exist_ok=True)
+
+        doe_mod = OMPython.ModelicaSystemDoE(
+            fileName=model.as_posix(),
+            modelName="M",
+            parameters=param,
+            resultpath=resdir,
+            simargs={"override": {'stopTime': 1.0}},
+        )
+        doe_mod.prepare()
+        doe_def = doe_mod.get_doe_definition()
+        doe_mod.simulate()
+        doe_sol = doe_mod.get_doe_solutions()
+
+        # ... work with doe_def and doe_sol ...
+
+
+    if __name__ == "__main__":
+        run_doe()
+    ```
+
+    """
+
+    DICT_RESULT_FILENAME: str = 'result filename'
+    DICT_RESULT_AVAILABLE: str = 'result available'
+
+    def __init__(
+            self,
+            # data to be used for ModelicaSystem
+            fileName: Optional[str | os.PathLike] = None,
+            modelName: Optional[str] = None,
+            lmodel: Optional[list[str | tuple[str, str]]] = None,
+            commandLineOptions: Optional[list[str]] = None,
+            variableFilter: Optional[str] = None,
+            customBuildDirectory: Optional[str | os.PathLike] = None,
+            omhome: Optional[str] = None,
+            omc_process: Optional[OMCProcess] = None,
+            # simulation specific input
+            # TODO: add more settings (simulation options, input options, ...)
+            simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,
+            timeout: Optional[int] = None,
+            # DoE specific inputs
+            resultpath: Optional[str | os.PathLike] = None,
+            parameters: Optional[dict[str, list[str] | list[int] | list[float]]] = None,
+    ) -> None:
+        """
+        Initialisation of ModelicaSystemDoE. The parameters are based on: ModelicaSystem.__init__() and
+        ModelicaSystem.simulate(). Additionally, the path to store the result files is needed (= resultpath) as well as
+        a list of parameters to vary for the Doe (= parameters). All possible combinations are considered.
+        """
+
+        self._mod = ModelicaSystem(
+            fileName=fileName,
+            modelName=modelName,
+            lmodel=lmodel,
+            commandLineOptions=commandLineOptions,
+            variableFilter=variableFilter,
+            customBuildDirectory=customBuildDirectory,
+            omhome=omhome,
+            omc_process=omc_process,
+        )
+
+        self._model_name = modelName
+
+        self._simargs = simargs
+        self._timeout = timeout
+
+        if resultpath is None:
+            self._resultpath = self._mod.get_session().omcpath_tempdir()
+        else:
+            self._resultpath = self._mod.get_session().omcpath(resultpath)
+        if not self._resultpath.is_dir():
+            raise ModelicaSystemError("Argument resultpath must be set to a valid path within the environment used "
+                                      f"for the OpenModelica session: {resultpath}!")
+
+        if isinstance(parameters, dict):
+            self._parameters = parameters
+        else:
+            self._parameters = {}
+
+        self._doe_def: Optional[dict[str, dict[str, Any]]] = None
+        self._doe_cmd: Optional[dict[str, OMCSessionRunData]] = None
+
+    def prepare(self) -> int:
+        """
+        Prepare the DoE by evaluating the parameters. Each structural parameter requires a new instance of
+        ModelicaSystem while the non-structural parameters can just be set on the executable.
+
+        The return value is the number of simulation defined.
+        """
+
+        doe_sim = {}
+        doe_def = {}
+
+        param_structure = {}
+        param_simple = {}
+        for param_name in self._parameters.keys():
+            changeable = self._mod.isParameterChangeable(name=param_name)
+            logger.info(f"Parameter {repr(param_name)} is changeable? {changeable}")
+
+            if changeable:
+                param_simple[param_name] = self._parameters[param_name]
+            else:
+                param_structure[param_name] = self._parameters[param_name]
+
+        param_structure_combinations = list(itertools.product(*param_structure.values()))
+        param_simple_combinations = list(itertools.product(*param_simple.values()))
+
+        for idx_pc_structure, pc_structure in enumerate(param_structure_combinations):
+
+            build_dir = self._resultpath / f"DOE_{idx_pc_structure:09d}"
+            build_dir.mkdir()
+            self._mod.setWorkDirectory(customBuildDirectory=build_dir)
+
+            sim_param_structure = {}
+            for idx_structure, pk_structure in enumerate(param_structure.keys()):
+                sim_param_structure[pk_structure] = pc_structure[idx_structure]
+
+                pk_value = pc_structure[idx_structure]
+                if isinstance(pk_value, str):
+                    expression = f"setParameterValue({self._model_name}, {pk_structure}, \"{pk_value}\")"
+                elif isinstance(pk_value, bool):
+                    pk_value_bool_str = "true" if pk_value else "false"
+                    expression = f"setParameterValue({self._model_name}, {pk_structure}, {pk_value_bool_str});"
+                else:
+                    expression = f"setParameterValue({self._model_name}, {pk_structure}, {pk_value})"
+                res = self._mod.sendExpression(expression)
+                if not res:
+                    raise ModelicaSystemError(f"Cannot set structural parameter {self._model_name}.{pk_structure} "
+                                              f"to {pk_value} using {repr(expression)}")
+
+            self._mod.buildModel()
+
+            for idx_pc_simple, pc_simple in enumerate(param_simple_combinations):
+                sim_param_simple = {}
+                for idx_simple, pk_simple in enumerate(param_simple.keys()):
+                    sim_param_simple[pk_simple] = cast(Any, pc_simple[idx_simple])
+
+                resfilename = f"DOE_{idx_pc_structure:09d}_{idx_pc_simple:09d}.mat"
+                logger.info(f"use result file {repr(resfilename)} "
+                            f"for structural parameters: {sim_param_structure} "
+                            f"and simple parameters: {sim_param_simple}")
+                resultfile = self._resultpath / resfilename
+
+                df_data = (
+                        {
+                            'ID structure': idx_pc_structure,
+                        }
+                        | sim_param_structure
+                        | {
+                            'ID non-structure': idx_pc_simple,
+                        }
+                        | sim_param_simple
+                        | {
+                            self.DICT_RESULT_AVAILABLE: False,
+                        }
+                )
+
+                self._mod.setParameters(sim_param_simple)
+                mscmd = self._mod.simulate_cmd(
+                    result_file=resultfile,
+                    timeout=self._timeout,
+                )
+                if self._simargs is not None:
+                    mscmd.args_set(args=self._simargs)
+                cmd_definition = mscmd.definition()
+                del mscmd
+
+                doe_sim[resfilename] = cmd_definition
+                doe_def[resfilename] = df_data
+
+        logger.info(f"Prepared {len(doe_sim)} simulation definitions for the defined DoE.")
+        self._doe_cmd = doe_sim
+        self._doe_def = doe_def
+
+        return len(doe_sim)
+
+    def get_doe_definition(self) -> Optional[dict[str, dict[str, Any]]]:
+        """
+        Get the defined DoE as a dict, where each key is the result filename and the value is a dict of simulation
+        settings including structural and non-structural parameters.
+
+        The following code snippet can be used to convert the data to a pandas dataframe:
+
+        ```
+        import pandas as pd
+
+        doe_dict = doe_mod.get_doe_definition()
+        doe_df = pd.DataFrame.from_dict(data=doe_dict, orient='index')
+        ```
+
+        """
+        return self._doe_def
+
+    def get_doe_command(self) -> Optional[dict[str, OMCSessionRunData]]:
+        """
+        Get the definitions of simulations commands to run for this DoE.
+        """
+        return self._doe_cmd
+
+    def simulate(
+            self,
+            num_workers: int = 3,
+    ) -> bool:
+        """
+        Simulate the DoE using the defined number of workers.
+
+        Returns True if all simulations were done successfully, else False.
+        """
+
+        if self._doe_cmd is None or self._doe_def is None:
+            raise ModelicaSystemError("DoE preparation missing - call prepare() first!")
+
+        doe_cmd_total = len(self._doe_cmd)
+        doe_def_total = len(self._doe_def)
+
+        if doe_cmd_total != doe_def_total:
+            raise ModelicaSystemError(f"Mismatch between number simulation commands ({doe_cmd_total}) "
+                                      f"and simulation definitions ({doe_def_total}).")
+
+        doe_task_query: queue.Queue = queue.Queue()
+        if self._doe_cmd is not None:
+            for doe_cmd in self._doe_cmd.values():
+                doe_task_query.put(doe_cmd)
+
+        if not isinstance(self._doe_def, dict) or len(self._doe_def) == 0:
+            raise ModelicaSystemError("Missing Doe Summary!")
+
+        def worker(worker_id, task_queue):
+            while True:
+                try:
+                    # Get the next task from the queue
+                    cmd_definition = task_queue.get(block=False)
+                except queue.Empty:
+                    logger.info(f"[Worker {worker_id}] No more simulations to run.")
+                    break
+
+                if cmd_definition is None:
+                    raise ModelicaSystemError("Missing simulation definition!")
+
+                resultfile = cmd_definition.cmd_result_path
+                resultpath = self._mod.get_session().omcpath(resultfile)
+
+                logger.info(f"[Worker {worker_id}] Performing task: {resultpath.name}")
+
+                try:
+                    returncode = self._mod.get_session().run_model_executable(cmd_run_data=cmd_definition)
+                    logger.info(f"[Worker {worker_id}] Simulation {resultpath.name} "
+                                f"finished with return code: {returncode}")
+                except ModelicaSystemError as ex:
+                    logger.warning(f"Simulation error for {resultpath.name}: {ex}")
+
+                # Mark the task as done
+                task_queue.task_done()
+
+                sim_query_done = doe_cmd_total - doe_task_query.qsize()
+                logger.info(f"[Worker {worker_id}] Task completed: {resultpath.name} "
+                            f"({doe_cmd_total - sim_query_done}/{doe_cmd_total} = "
+                            f"{(doe_cmd_total - sim_query_done) / doe_cmd_total * 100:.2f}% of tasks left)")
+
+        # Create and start worker threads
+        logger.info(f"Start simulations for DoE with {doe_cmd_total} simulations "
+                    f"using {num_workers} workers ...")
+        threads = []
+        for i in range(num_workers):
+            thread = threading.Thread(target=worker, args=(i, doe_task_query))
+            thread.start()
+            threads.append(thread)
+
+        # Wait for all threads to complete
+        for thread in threads:
+            thread.join()
+
+        doe_def_done = 0
+        for resultfilename in self._doe_def:
+            resultfile = self._resultpath / resultfilename
+
+            # include check for an empty (=> 0B) result file which indicates a crash of the model executable
+            # see: https://github.com/OpenModelica/OMPython/issues/261
+            # https://github.com/OpenModelica/OpenModelica/issues/13829
+            if resultfile.is_file() and resultfile.size() > 0:
+                self._doe_def[resultfilename][self.DICT_RESULT_AVAILABLE] = True
+                doe_def_done += 1
+
+        logger.info(f"All workers finished ({doe_def_done} of {doe_def_total} simulations with a result file).")
+
+        return doe_def_total == doe_def_done
+
+    def get_doe_solutions(
+            self,
+            var_list: Optional[list] = None,
+    ) -> Optional[tuple[str] | dict[str, dict[str, np.ndarray]]]:
+        """
+        Get all solutions of the DoE run. The following return values are possible:
+
+        * A list of variables if val_list == None
+
+        * The Solutions as dict[str, pd.DataFrame] if a value list (== val_list) is defined.
+
+        The following code snippet can be used to convert the solution data for each run to a pandas dataframe:
+
+        ```
+        import pandas as pd
+
+        doe_sol = doe_mod.get_doe_solutions()
+        for key in doe_sol:
+            data = doe_sol[key]['data']
+            if data:
+                doe_sol[key]['df'] = pd.DataFrame.from_dict(data=data)
+            else:
+                doe_sol[key]['df'] = None
+        ```
+
+        """
+        if not isinstance(self._doe_def, dict):
+            return None
+
+        if len(self._doe_def) == 0:
+            raise ModelicaSystemError("No result files available - all simulations did fail?")
+
+        sol_dict: dict[str, dict[str, Any]] = {}
+        for resultfilename in self._doe_def:
+            resultfile = self._resultpath / resultfilename
+
+            sol_dict[resultfilename] = {}
+
+            if not self._doe_def[resultfilename][self.DICT_RESULT_AVAILABLE]:
+                msg = f"No result file available for {resultfilename}"
+                logger.warning(msg)
+                sol_dict[resultfilename]['msg'] = msg
+                sol_dict[resultfilename]['data'] = {}
+                continue
+
+            if var_list is None:
+                var_list_row = list(self._mod.getSolutions(resultfile=resultfile.as_posix()))
+            else:
+                var_list_row = var_list
+
+            try:
+                sol = self._mod.getSolutions(varList=var_list_row, resultfile=resultfile.as_posix())
+                sol_data = {var: sol[idx] for idx, var in enumerate(var_list_row)}
+                sol_dict[resultfilename]['msg'] = 'Simulation available'
+                sol_dict[resultfilename]['data'] = sol_data
+            except ModelicaSystemError as ex:
+                msg = f"Error reading solution for {resultfilename}: {ex}"
+                logger.warning(msg)
+                sol_dict[resultfilename]['msg'] = msg
+                sol_dict[resultfilename]['data'] = {}
+
+        return sol_dict
