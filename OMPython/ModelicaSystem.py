@@ -39,7 +39,6 @@ import logging
 import numbers
 import numpy as np
 import os
-import pathlib
 import queue
 import textwrap
 import threading
