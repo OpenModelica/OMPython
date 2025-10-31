@@ -702,6 +702,9 @@ class OMCSessionZMQ:
 
         result = self.omc_zmq.recv_string()
 
+        if result.startswith('Error occurred building AST'):
+            raise OMCSessionException(f"OMC error: {result}")
+
         if command == "getErrorString()":
             # no error handling if 'getErrorString()' is called
             if parsed:
