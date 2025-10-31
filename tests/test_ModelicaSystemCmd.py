@@ -27,14 +27,13 @@ def test_simflags(mscmd_firstorder):
 
     mscmd.args_set({
         "noEventEmit": None,
-        "override": {'b': 2}
+        "override": {'b': 2, 'a': 4},
     })
 
     assert mscmd.get_cmd() == [
         mscmd.get_exe().as_posix(),
         '-noEventEmit',
-        '-noRestart',
-        '-override=a=1,b=2,x=3',
+        '-override=a=4,b=2',
     ]
 
     mscmd.args_set({
@@ -44,6 +43,5 @@ def test_simflags(mscmd_firstorder):
     assert mscmd.get_cmd() == [
         mscmd.get_exe().as_posix(),
         '-noEventEmit',
-        '-noRestart',
-        '-override=a=1,x=3',
+        '-override=a=4',
     ]
