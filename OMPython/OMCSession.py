@@ -431,6 +431,13 @@ class OMCPathReal(pathlib.PurePosixPath):
 
         raise OMCSessionException(f"Error reading file size for path {self.as_posix()}!")
 
+    def stat(self):
+        """
+        The function stat() cannot be implemented using OMC.
+        """
+        raise NotImplementedError("The function stat() cannot be implemented using OMC; "
+                                  "use size() to get the file size.")
+
 
 if sys.version_info < (3, 12):
 
