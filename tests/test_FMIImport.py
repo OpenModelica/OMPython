@@ -24,7 +24,7 @@ def test_FMIImport(model_firstorder):
 
     # create model & simulate it
     mod1 = OMPython.ModelicaSystem()
-    mod1.model(file=filePath, name="M")
+    mod1.model(model_file=filePath, model_name="M")
     mod1.simulate()
 
     # create FMU & check
