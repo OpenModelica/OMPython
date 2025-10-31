@@ -1209,16 +1209,6 @@ class ModelicaSystem:
         Convert raw input to a structured dictionary {'key1': 'value1', 'key2': 'value2'}.
         """
 
-        def prepare_str(str_in: str) -> dict[str, str]:
-            str_in = str_in.replace(" ", "")
-            key_val_list: list[str] = str_in.split("=")
-            if len(key_val_list) != 2:
-                raise ModelicaSystemError(f"Invalid 'key=value' pair: {str_in}")
-
-            input_data_from_str: dict[str, str] = {key_val_list[0]: key_val_list[1]}
-
-            return input_data_from_str
-
         input_data: dict[str, str] = {}
 
         if len(input_kwargs):
