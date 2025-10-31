@@ -335,7 +335,8 @@ class OMCPathReal(pathlib.PurePosixPath):
         if not isinstance(data, str):
             raise TypeError(f"data must be str, not {data.__class__.__name__}")
 
-        self._session.sendExpression(f'writeFile("{self.as_posix()}", "{data.replace('"', '\\"')}", false);')
+        data_omc = data.replace('"', '\\"')
+        self._session.sendExpression(f'writeFile("{self.as_posix()}", "{data_omc}", false);')
 
         return len(data)
 
