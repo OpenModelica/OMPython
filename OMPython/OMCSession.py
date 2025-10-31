@@ -39,6 +39,7 @@ import json
 import logging
 import os
 import pathlib
+import platform
 import psutil
 import pyparsing
 import re
