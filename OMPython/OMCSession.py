@@ -276,8 +276,11 @@ class OMCSessionCmd:
 
 class OMCPathReal(pathlib.PurePosixPath):
     """
-    Implementation of a basic Path object which uses OMC as backend. The connection to OMC is provided via a
+    Implementation of a basic (PurePosix)Path object which uses OMC as backend. The connection to OMC is provided via a
     OMCSessionZMQ session object.
+
+    PurePosixPath is selected to cover usage of OMC in docker or via WSL. Usage of specialised function could result in
+    errors as well as usage on a Windows system due to slightly different definitions (PureWindowsPath).
     """
 
     def __init__(self, *path, session: OMCSessionZMQ) -> None:
