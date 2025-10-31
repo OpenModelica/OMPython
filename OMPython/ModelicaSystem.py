@@ -1241,6 +1241,8 @@ class ModelicaSystem:
                     if not isinstance(item, str):
                         raise ModelicaSystemError(f"Invalid input data type for set*() function: {type(item)}!")
                     input_data = input_data | prepare_str(item)
+            elif isinstance(input_arg, dict):
+                input_data = input_data | input_arg
             else:
                 raise ModelicaSystemError(f"Invalid input data type for set*() function: {type(input_arg)}!")
 
