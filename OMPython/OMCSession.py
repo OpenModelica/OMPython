@@ -373,15 +373,20 @@ class OMCPathReal(pathlib.PurePosixPath):
             raise OMCSessionException(f"Path {self.as_posix()} does not exist!")
 
         if self.is_file():
-            omcpath = self._omc_resolve(self.parent.as_posix()) / self.name
+            pathstr_resolved = self._omc_resolve(self.parent.as_posix())
+            omcpath_resolved = self._session.omcpath(pathstr_resolved) / self.name
         elif self.is_dir():
-            omcpath = self._omc_resolve(self.as_posix())
+            pathstr_resolved = self._omc_resolve(self.as_posix())
+            omcpath_resolved = self._session.omcpath(pathstr_resolved)
         else:
             raise OMCSessionException(f"Path {self.as_posix()} is neither a file nor a directory!")
 
-        return omcpath
+        if not omcpath_resolved.is_file() and not omcpath_resolved.is_dir():
+            raise OMCSessionException(f"OMCPath resolve failed for {self.as_posix()} - path does not exist!")
 
-    def _omc_resolve(self, pathstr: str):
+        return omcpath_resolved
+
+    def _omc_resolve(self, pathstr: str) -> str:
         """
         Internal function to resolve the path of the OMCPath object using OMC functions *WITHOUT* changing the cwd
         within OMC.
@@ -395,15 +400,10 @@ class OMCPathReal(pathlib.PurePosixPath):
             result_parts = result.split('\n')
             pathstr_resolved = result_parts[1]
             pathstr_resolved = pathstr_resolved[1:-1]  # remove quotes
-
-            omcpath_resolved = self._session.omcpath(pathstr_resolved)
         except OMCSessionException as ex:
             raise OMCSessionException(f"OMCPath resolve failed for {pathstr}!") from ex
 
-        if not omcpath_resolved.is_file() and not omcpath_resolved.is_dir():
-            raise OMCSessionException(f"OMCPath resolve failed for {pathstr} - path does not exist!")
-
-        return omcpath_resolved
+        return pathstr_resolved
 
     def absolute(self):
         """
