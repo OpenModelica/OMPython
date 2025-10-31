@@ -1926,8 +1926,8 @@ class ModelicaSystemDoE:
         resdir.mkdir(exist_ok=True)
 
         doe_mod = OMPython.ModelicaSystemDoE(
-            fileName=model.as_posix(),
-            modelName="M",
+            model_name="M",
+            model_file=model.as_posix(),
             parameters=param,
             resultpath=resdir,
             simargs={"override": {'stopTime': 1.0}},
@@ -1955,11 +1955,11 @@ class ModelicaSystemDoE:
     def __init__(
             self,
             # data to be used for ModelicaSystem
-            fileName: Optional[str | os.PathLike] = None,
-            modelName: Optional[str] = None,
-            lmodel: Optional[list[str | tuple[str, str]]] = None,
+            model_file: Optional[str | os.PathLike] = None,
+            model_name: Optional[str] = None,
+            libraries: Optional[list[str | tuple[str, str]]] = None,
             commandLineOptions: Optional[list[str]] = None,
-            variableFilter: Optional[str] = None,
+            variable_filter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
             omc_process: Optional[OMCProcess] = None,
@@ -1976,6 +1976,8 @@ class ModelicaSystemDoE:
         ModelicaSystem.simulate(). Additionally, the path to store the result files is needed (= resultpath) as well as
         a list of parameters to vary for the Doe (= parameters). All possible combinations are considered.
         """
+        if model_name is None:
+            raise ModelicaSystemError("No model name provided!")
 
         self._mod = ModelicaSystem(
             commandLineOptions=commandLineOptions,
@@ -1984,13 +1986,13 @@ class ModelicaSystemDoE:
             omc_process=omc_process,
         )
         self._mod.model(
-            model_file=fileName,
-            model_name=modelName,
-            libraries=lmodel,
-            variable_filter=variableFilter,
+            model_file=model_file,
+            model_name=model_name,
+            libraries=libraries,
+            variable_filter=variable_filter,
         )
 
-        self._model_name = modelName
+        self._model_name = model_name
 
         self._simargs = simargs
         self._timeout = timeout
