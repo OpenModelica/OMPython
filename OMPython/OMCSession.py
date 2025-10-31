@@ -307,6 +307,15 @@ class OMCPathReal(pathlib.PurePosixPath):
         """
         return self._session.sendExpression(f'directoryExists("{self.as_posix()}")')
 
+    def is_absolute(self):
+        """
+        Check if the path is an absolute path considering the possibility that we are running locally on Windows. This
+        case needs special handling as the definition of is_absolute() differs.
+        """
+        if isinstance(self._session, OMCProcessLocal) and platform.system() == 'Windows':
+            return pathlib.PureWindowsPath(self.as_posix()).is_absolute()
+        return super().is_absolute()
+
     def read_text(self, encoding=None, errors=None, newline=None) -> str:
         """
         Read the content of the file represented by this path as text.
