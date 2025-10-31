@@ -333,10 +333,11 @@ class OMCPathReal(pathlib.PurePosixPath):
         definitions.
         """
         if not isinstance(data, str):
-            raise TypeError('data must be str, not %s' %
-                            data.__class__.__name__)
+            raise TypeError(f"data must be str, not {data.__class__.__name__}")
 
-        return self._session.sendExpression(f'writeFile("{self.as_posix()}", "{data}", false)')
+        self._session.sendExpression(f'writeFile("{self.as_posix()}", "{data.replace('"', '\\"')}", false);')
+
+        return len(data)
 
     def mkdir(self, mode=0o777, parents=False, exist_ok=False):
         """
