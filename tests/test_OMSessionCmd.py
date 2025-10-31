@@ -10,7 +10,7 @@ def test_isPackage():
 def test_isPackage2():
     mod = OMPython.ModelicaSystem()
     mod.model(
-        name="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
+        model_name="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
         libraries=["Modelica"],
     )
     omccmd = OMPython.OMCSessionCmd(session=mod.session())

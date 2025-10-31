@@ -35,8 +35,8 @@ end BangBang2021;
 
     mod = OMPython.ModelicaSystem()
     mod.model(
-        file=model_file.as_posix(),
-        name="BangBang2021",
+        model_file=model_file.as_posix(),
+        model_name="BangBang2021",
     )
 
     optimizationOptions = {

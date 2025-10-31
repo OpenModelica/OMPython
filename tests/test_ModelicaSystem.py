@@ -40,8 +40,8 @@ def test_ModelicaSystem_loop(model_firstorder):
         filePath = model_firstorder.as_posix()
         mod = OMPython.ModelicaSystem()
         mod.model(
-            file=filePath,
-            name="M",
+            model_file=filePath,
+            model_name="M",
         )
         mod.simulate()
         mod.convertMo2Fmu(fmuType="me")
@@ -55,8 +55,8 @@ def test_setParameters():
     model_path = omc.omcpath(model_path_str)
     mod = OMPython.ModelicaSystem()
     mod.model(
-        file=model_path / "BouncingBall.mo",
-        name="BouncingBall",
+        model_file=model_path / "BouncingBall.mo",
+        model_name="BouncingBall",
     )
 
     # method 1 (test depreciated variants)
@@ -90,8 +90,8 @@ def test_setSimulationOptions():
     model_path = omc.omcpath(model_path_str)
     mod = OMPython.ModelicaSystem()
     mod.model(
-        file=model_path / "BouncingBall.mo",
-        name="BouncingBall",
+        model_file=model_path / "BouncingBall.mo",
+        model_name="BouncingBall",
     )
 
     # method 1
@@ -127,8 +127,8 @@ def test_relative_path(model_firstorder):
 
         mod = OMPython.ModelicaSystem()
         mod.model(
-            file=model_relative,
-            name="M",
+            model_file=model_relative,
+            model_name="M",
         )
         assert float(mod.getParameters("a")[0]) == -1
     finally:
@@ -141,8 +141,8 @@ def test_customBuildDirectory(tmp_path, model_firstorder):
     tmpdir.mkdir()
     mod = OMPython.ModelicaSystem(customBuildDirectory=tmpdir)
     mod.model(
-        file=filePath,
-        name="M",
+        model_file=filePath,
+        model_name="M",
     )
     assert pathlib.Path(mod.getWorkDirectory()).resolve() == tmpdir.resolve()
     result_file = tmpdir / "a.mat"
@@ -161,8 +161,8 @@ def test_getSolutions_docker(model_firstorder):
         omc_process=omc.omc_process,
     )
     mod.model(
-        name="M",
-        file=model_firstorder.as_posix(),
+        model_file=model_firstorder,
+        model_name="M",
     )
 
     _run_getSolutions(mod)
@@ -171,8 +171,8 @@ def test_getSolutions_docker(model_firstorder):
 def test_getSolutions(model_firstorder):
     mod = OMPython.ModelicaSystem()
     mod.model(
-        file=model_firstorder.as_posix(),
-        name="M",
+        model_file=model_firstorder,
+        model_name="M",
     )
 
     _run_getSolutions(mod)
@@ -219,8 +219,8 @@ end M_getters;
 """)
     mod = OMPython.ModelicaSystem()
     mod.model(
-        file=model_file.as_posix(),
-        name="M_getters",
+        model_file=model_file.as_posix(),
+        model_name="M_getters",
     )
 
     q = mod.getQuantities()
@@ -415,8 +415,8 @@ end M_input;
 """)
     mod = OMPython.ModelicaSystem()
     mod.model(
-        file=model_file.as_posix(),
-        name="M_input",
+        model_file=model_file.as_posix(),
+        model_name="M_input",
     )
 
     simOptions = {"stopTime": 1.0}

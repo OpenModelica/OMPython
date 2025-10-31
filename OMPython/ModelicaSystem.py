@@ -400,8 +400,8 @@ class ModelicaSystem:
 
     def model(
             self,
-            name: Optional[str] = None,
-            file: Optional[str | os.PathLike] = None,
+            model_name: Optional[str] = None,
+            model_file: Optional[str | os.PathLike] = None,
             libraries: Optional[list[str | tuple[str, str]]] = None,
             variable_filter: Optional[str] = None,
             build: bool = True,
@@ -411,9 +411,9 @@ class ModelicaSystem:
         This method loads the model file and builds it if requested (build == True).
 
         Args:
-            file: Path to the model file. Either absolute or relative to
+            model_file: Path to the model file. Either absolute or relative to
               the current working directory.
-            name: The name of the model class. If it is contained within
+            model_name: The name of the model class. If it is contained within
               a package, "PackageName.ModelName" should be used.
             libraries: List of libraries to be loaded before the model itself is
               loaded. Two formats are supported for the list elements:
@@ -439,7 +439,7 @@ class ModelicaSystem:
             raise ModelicaSystemError("Can not reuse this instance of ModelicaSystem "
                                       f"defined for {repr(self._model_name)}!")
 
-        if name is None or not isinstance(name, str):
+        if model_name is None or not isinstance(model_name, str):
             raise ModelicaSystemError("A model name must be provided!")
 
         if libraries is None:
@@ -449,7 +449,7 @@ class ModelicaSystem:
             raise ModelicaSystemError(f"Invalid input type for libraries: {type(libraries)} - list expected!")
 
         # set variables
-        self._model_name = name  # Model class name
+        self._model_name = model_name  # Model class name
         self._libraries = libraries  # may be needed if model is derived from other model
         self._variable_filter = variable_filter
 
@@ -457,8 +457,8 @@ class ModelicaSystem:
             self._loadLibrary(libraries=self._libraries)
 
         self._file_name = None
-        if file is not None:
-            file_path = pathlib.Path(file)
+        if model_file is not None:
+            file_path = pathlib.Path(model_file)
             # special handling for OMCProcessLocal - consider a relative path
             if isinstance(self._session.omc_process, OMCProcessLocal) and not file_path.is_absolute():
                 file_path = pathlib.Path.cwd() / file_path
@@ -1709,8 +1709,8 @@ class ModelicaSystem:
             raise ModelicaSystemError(f"Missing file {filepath.as_posix()}")
 
         self.model(
-            name=f"{fmu_path.stem}_me_FMU",
-            file=filepath,
+            model_name=f"{fmu_path.stem}_me_FMU",
+            model_file=filepath,
         )
 
         return filepath
@@ -1984,8 +1984,8 @@ class ModelicaSystemDoE:
             omc_process=omc_process,
         )
         self._mod.model(
-            file=fileName,
-            name=modelName,
+            model_file=fileName,
+            model_name=modelName,
             libraries=lmodel,
             variable_filter=variableFilter,
         )
