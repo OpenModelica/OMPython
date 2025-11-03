@@ -769,7 +769,7 @@ class OMCProcessLocal(OMCProcess):
     def __init__(
             self,
             timeout: float = 10.00,
-            omhome: Optional[str] = None,
+            omhome: Optional[str | os.PathLike] = None,
     ) -> None:
 
         super().__init__(timeout=timeout)
@@ -782,7 +782,7 @@ class OMCProcessLocal(OMCProcess):
         self._omc_port = self._omc_port_get()
 
     @staticmethod
-    def _omc_home_get(omhome: Optional[str] = None) -> pathlib.Path:
+    def _omc_home_get(omhome: Optional[str | os.PathLike] = None) -> pathlib.Path:
         # use the provided path
         if omhome is not None:
             return pathlib.Path(omhome)
@@ -854,7 +854,7 @@ class OMCProcessDockerHelper(OMCProcess):
             self,
             timeout: float = 10.00,
             dockerExtraArgs: Optional[list] = None,
-            dockerOpenModelicaPath: str = "omc",
+            dockerOpenModelicaPath: str | os.PathLike = "omc",
             dockerNetwork: Optional[str] = None,
             port: Optional[int] = None,
     ) -> None:
@@ -864,7 +864,7 @@ class OMCProcessDockerHelper(OMCProcess):
             dockerExtraArgs = []
 
         self._dockerExtraArgs = dockerExtraArgs
-        self._dockerOpenModelicaPath = dockerOpenModelicaPath
+        self._dockerOpenModelicaPath = pathlib.PurePosixPath(dockerOpenModelicaPath)
         self._dockerNetwork = dockerNetwork
 
         self._interactivePort = port
@@ -970,7 +970,7 @@ class OMCProcessDocker(OMCProcessDockerHelper):
             timeout: float = 10.00,
             docker: Optional[str] = None,
             dockerExtraArgs: Optional[list] = None,
-            dockerOpenModelicaPath: str = "omc",
+            dockerOpenModelicaPath: str | os.PathLike = "omc",
             dockerNetwork: Optional[str] = None,
             port: Optional[int] = None,
     ) -> None:
@@ -1053,7 +1053,7 @@ class OMCProcessDocker(OMCProcessDockerHelper):
                        ]
                        + self._dockerExtraArgs
                        + dockerNetworkStr
-                       + [self._docker, self._dockerOpenModelicaPath]
+                       + [self._docker, self._dockerOpenModelicaPath.as_posix()]
                        + omc_path_and_args_list
                        + extraFlags)
 
@@ -1113,7 +1113,7 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
             timeout: float = 10.00,
             dockerContainer: Optional[str] = None,
             dockerExtraArgs: Optional[list] = None,
-            dockerOpenModelicaPath: str = "omc",
+            dockerOpenModelicaPath: str | os.PathLike = "omc",
             dockerNetwork: Optional[str] = None,
             port: Optional[int] = None,
     ) -> None:
@@ -1165,7 +1165,7 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
                            "--user", str(self._getuid()),
                        ]
                        + self._dockerExtraArgs
-                       + [self._dockerCid, self._dockerOpenModelicaPath]
+                       + [self._dockerCid, self._dockerOpenModelicaPath.as_posix()]
                        + omc_path_and_args_list
                        + extraFlags)
 
