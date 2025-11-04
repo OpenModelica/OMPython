@@ -570,7 +570,7 @@ class ModelicaSystem:
         try:
             retval = self._session.sendExpression(expr, parsed)
         except OMCSessionException as ex:
-            raise ModelicaSystemError(f"Error executing {repr(expr)}") from ex
+            raise ModelicaSystemError(f"Error executing {repr(expr)}: {ex}") from ex
 
         logger.debug(f"Result of executing {repr(expr)}: {textwrap.shorten(repr(retval), width=100)}")
 
