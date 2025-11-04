@@ -34,9 +34,9 @@ def test_setParameters():
     model_path = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels/"
     mod = OMPython.ModelicaSystem(model_path + "BouncingBall.mo", "BouncingBall")
 
-    # method 1
-    mod.setParameters(pvals={"e": 1.234})
-    mod.setParameters(pvals={"g": 321.0})
+    # method 1 (test depreciated variants)
+    mod.setParameters("e=1.234")
+    mod.setParameters(["g=321.0"])
     assert mod.getParameters("e") == ["1.234"]
     assert mod.getParameters("g") == ["321.0"]
     assert mod.getParameters() == {
@@ -46,8 +46,9 @@ def test_setParameters():
     with pytest.raises(KeyError):
         mod.getParameters("thisParameterDoesNotExist")
 
-    # method 2
-    mod.setParameters(pvals={"e": 21.3, "g": 0.12})
+    # method 2 (new style)
+    pvals = {"e": 21.3, "g": 0.12}
+    mod.setParameters(**pvals)
     assert mod.getParameters() == {
         "e": "21.3",
         "g": "0.12",
@@ -64,8 +65,8 @@ def test_setSimulationOptions():
     mod = OMPython.ModelicaSystem(fileName=model_path + "BouncingBall.mo", modelName="BouncingBall")
 
     # method 1
-    mod.setSimulationOptions(simOptions={"stopTime": 1.234})
-    mod.setSimulationOptions(simOptions={"tolerance": 1.1e-08})
+    mod.setSimulationOptions(stopTime=1.234)
+    mod.setSimulationOptions(tolerance=1.1e-08)
     assert mod.getSimulationOptions("stopTime") == ["1.234"]
     assert mod.getSimulationOptions("tolerance") == ["1.1e-08"]
     assert mod.getSimulationOptions(["tolerance", "stopTime"]) == ["1.1e-08", "1.234"]
@@ -77,7 +78,7 @@ def test_setSimulationOptions():
         mod.getSimulationOptions("thisOptionDoesNotExist")
 
     # method 2
-    mod.setSimulationOptions(simOptions={"stopTime": 2.1, "tolerance": "1.2e-08"})
+    mod.setSimulationOptions(stopTime=2.1, tolerance=1.2e-08)
     d = mod.getSimulationOptions()
     assert d["stopTime"] == "2.1"
     assert d["tolerance"] == "1.2e-08"
@@ -105,7 +106,7 @@ def test_customBuildDirectory(tmp_path, model_firstorder):
     tmpdir = tmp_path / "tmpdir1"
     tmpdir.mkdir()
     m = OMPython.ModelicaSystem(filePath, "M", customBuildDirectory=tmpdir)
-    assert m.getWorkDirectory().resolve() == tmpdir.resolve()
+    assert pathlib.Path(m.getWorkDirectory()).resolve() == tmpdir.resolve()
     result_file = tmpdir / "a.mat"
     assert not result_file.exists()
     m.simulate(resultfile="a.mat")
@@ -119,7 +120,9 @@ def test_getSolutions(model_firstorder):
     a = -1
     tau = -1 / a
     stopTime = 5*tau
-    mod.setSimulationOptions(simOptions={"stopTime": stopTime, "stepSize": 0.1, "tolerance": 1e-8})
+
+    simOptions = {"stopTime": stopTime, "stepSize": 0.1, "tolerance": 1e-8}
+    mod.setSimulationOptions(**simOptions)
     mod.simulate()
 
     x = mod.getSolutions("x")
@@ -298,7 +301,7 @@ end M_getters;
     x0 = 1.0
     x_analytical = -b/a + (x0 + b/a) * np.exp(a * stopTime)
     dx_analytical = (x0 + b/a) * a * np.exp(a * stopTime)
-    mod.setSimulationOptions(simOptions={"stopTime": stopTime})
+    mod.setSimulationOptions(stopTime=stopTime)
     mod.simulate()
 
     # getOutputs after simulate()
@@ -327,7 +330,7 @@ end M_getters;
         mod.getContinuous("a")  # a is a parameter
 
     with pytest.raises(OMPython.ModelicaSystemError):
-        mod.setSimulationOptions(simOptions={"thisOptionDoesNotExist": 3})
+        mod.setSimulationOptions(thisOptionDoesNotExist=3)
 
 
 def test_simulate_inputs(tmp_path):
@@ -345,7 +348,8 @@ end M_input;
 """)
     mod = OMPython.ModelicaSystem(fileName=model_file.as_posix(), modelName="M_input")
 
-    mod.setSimulationOptions(simOptions={"stopTime": 1.0})
+    simOptions = {"stopTime": 1.0}
+    mod.setSimulationOptions(**simOptions)
 
     # integrate zero (no setInputs call) - it should default to None -> 0
     assert mod.getInputs() == {
@@ -357,7 +361,7 @@ end M_input;
     assert np.isclose(y[-1], 0.0)
 
     # integrate a constant
-    mod.setInputs(name={"u1": 2.5})
+    mod.setInputs(u1=2.5)
     assert mod.getInputs() == {
         "u1": [
             (0.0, 2.5),
@@ -374,7 +378,8 @@ end M_input;
     assert np.isclose(y[-1], 2.5)
 
     # now let's integrate the sum of two ramps
-    mod.setInputs(name={"u1": [(0.0, 0.0), (0.5, 2), (1.0, 0)]})
+    inputs = {"u1": [(0.0, 0.0), (0.5, 2), (1.0, 0)]}
+    mod.setInputs(**inputs)
     assert mod.getInputs("u1") == [[
         (0.0, 0.0),
         (0.5, 2.0),
@@ -387,17 +392,20 @@ end M_input;
     # let's try some edge cases
     # unmatched startTime
     with pytest.raises(OMPython.ModelicaSystemError):
-        mod.setInputs(name={"u1": [(-0.5, 0.0), (1.0, 1)]})
+        mod.setInputs(u1=[(-0.5, 0.0), (1.0, 1)])
         mod.simulate()
     # unmatched stopTime
     with pytest.raises(OMPython.ModelicaSystemError):
-        mod.setInputs(name={"u1": [(0.0, 0.0), (0.5, 1)]})
+        mod.setInputs(u1=[(0.0, 0.0), (0.5, 1)])
         mod.simulate()
 
     # Let's use both inputs, but each one with different number of
     # samples. This has an effect when generating the csv file.
-    mod.setInputs(name={"u1": [(0.0, 0), (1.0, 1)],
-                        "u2": [(0.0, 0), (0.25, 0.5), (0.5, 1.0), (1.0, 0)]})
+    inputs = {
+        "u1": [(0.0, 0), (1.0, 1)],
+        "u2": [(0.0, 0), (0.25, 0.5), (0.5, 1.0), (1.0, 0)],
+    }
+    mod.setInputs(**inputs)
     csv_file = mod._createCSVData()
     assert pathlib.Path(csv_file).read_text() == """time,u1,u2,end
 0.0,0.0,0.0,0
