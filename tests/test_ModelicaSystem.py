@@ -112,7 +112,6 @@ def test_setSimulationOptions():
     assert d["tolerance"] == "1.2e-08"
 
 
-@pytest.mark.skip("will fail / fix available")
 def test_relative_path(model_firstorder):
     cwd = pathlib.Path.cwd()
     (fd, name) = tempfile.mkstemp(prefix='tmpOMPython.tests', dir=cwd, text=True)
