@@ -1962,7 +1962,8 @@ class ModelicaSystemDoE:
 
                 pk_value = pc_structure[idx_structure]
                 if isinstance(pk_value, str):
-                    expression = f"setParameterValue({self._modelName}, {pk_structure}, \"{pk_value}\")"
+                    pk_value_str = pk_value.replace('"', '\\"')
+                    expression = f"setParameterValue({self._modelName}, {pk_structure}, \"{pk_value_str}\")"
                 elif isinstance(pk_value, bool):
                     pk_value_bool_str = "true" if pk_value else "false"
                     expression = f"setParameterValue({self._modelName}, {pk_structure}, {pk_value_bool_str});"
