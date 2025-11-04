@@ -38,17 +38,15 @@ import logging
 import numbers
 import numpy as np
 import os
-import pathlib
 import platform
 import re
 import subprocess
-import tempfile
 import textwrap
 from typing import Optional, Any
 import warnings
 import xml.etree.ElementTree as ET
 
-from OMPython.OMCSession import OMCSessionException, OMCSessionZMQ, OMCProcessLocal
+from OMPython.OMCSession import OMCSessionException, OMCSessionZMQ, OMCProcessLocal, OMCPath
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
@@ -114,8 +112,8 @@ class LinearizationResult:
 class ModelicaSystemCmd:
     """A compiled model executable."""
 
-    def __init__(self, runpath: pathlib.Path, modelname: str, timeout: Optional[float] = None) -> None:
-        self._runpath = pathlib.Path(runpath).resolve().absolute()
+    def __init__(self, runpath: OMCPath, modelname: str, timeout: Optional[float] = None) -> None:
+        self._runpath = runpath
         self._model_name = modelname
         self._timeout = timeout
 
@@ -229,7 +227,7 @@ class ModelicaSystemCmd:
         for arg in args:
             self.arg_set(key=arg, val=args[arg])
 
-    def get_exe(self) -> pathlib.Path:
+    def get_exe(self) -> OMCPath:
         """Get the path to the compiled model executable."""
         if platform.system() == "Windows":
             path_exe = self._runpath / f"{self._model_name}.exe"
@@ -349,7 +347,7 @@ class ModelicaSystemCmd:
 class ModelicaSystem:
     def __init__(
             self,
-            fileName: Optional[str | os.PathLike | pathlib.Path] = None,
+            fileName: Optional[str | os.PathLike] = None,
             modelName: Optional[str] = None,
             lmodel: Optional[list[str | tuple[str, str]]] = None,
             commandLineOptions: Optional[list[str]] = None,
@@ -446,15 +444,25 @@ class ModelicaSystem:
 
         self._lmodel = lmodel  # may be needed if model is derived from other model
         self._model_name = modelName  # Model class name
-        self._file_name = pathlib.Path(fileName).resolve() if fileName is not None else None  # Model file/package name
+        if fileName is not None:
+            file_name = self._getconn.omcpath(fileName).resolve()
+        else:
+            file_name = None
+        self._file_name: Optional[OMCPath] = file_name  # Model file/package name
         self._simulated = False  # True if the model has already been simulated
-        self._result_file: Optional[pathlib.Path] = None  # for storing result file
+        self._result_file: Optional[OMCPath] = None  # for storing result file
         self._variable_filter = variableFilter
 
         if self._file_name is not None and not self._file_name.is_file():  # if file does not exist
             raise IOError(f"{self._file_name} does not exist!")
 
-        self._work_dir: pathlib.Path = self.setWorkDirectory(customBuildDirectory)
+        # set default command Line Options for linearization as
+        # linearize() will use the simulation executable and runtime
+        # flag -l to perform linearization
+        self.setCommandLineOptions("--linearizationDumpLanguage=python")
+        self.setCommandLineOptions("--generateSymbolicLinearization")
+
+        self._work_dir: OMCPath = self.setWorkDirectory(customBuildDirectory)
 
         if self._file_name is not None:
             self._loadLibrary(lmodel=self._lmodel)
@@ -474,7 +482,7 @@ class ModelicaSystem:
         exp = f'setCommandLineOptions("{commandLineOptions}")'
         self.sendExpression(exp)
 
-    def _loadFile(self, fileName: pathlib.Path):
+    def _loadFile(self, fileName: OMCPath):
         # load file
         self.sendExpression(f'loadFile("{fileName.as_posix()}")')
 
@@ -502,17 +510,17 @@ class ModelicaSystem:
                                               '1)["Modelica"]\n'
                                               '2)[("Modelica","3.2.3"), "PowerSystems"]\n')
 
-    def setWorkDirectory(self, customBuildDirectory: Optional[str | os.PathLike] = None) -> pathlib.Path:
+    def setWorkDirectory(self, customBuildDirectory: Optional[str | os.PathLike] = None) -> OMCPath:
         """
         Define the work directory for the ModelicaSystem / OpenModelica session. The model is build within this
         directory. If no directory is defined a unique temporary directory is created.
         """
         if customBuildDirectory is not None:
-            workdir = pathlib.Path(customBuildDirectory).absolute()
+            workdir = self._getconn.omcpath(customBuildDirectory).absolute()
             if not workdir.is_dir():
                 raise IOError(f"Provided work directory does not exists: {customBuildDirectory}!")
         else:
-            workdir = pathlib.Path(tempfile.mkdtemp()).absolute()
+            workdir = self._getconn.omcpath_tempdir().absolute()
             if not workdir.is_dir():
                 raise IOError(f"{workdir} could not be created")
 
@@ -525,7 +533,7 @@ class ModelicaSystem:
         # ... and also return the defined path
         return workdir
 
-    def getWorkDirectory(self) -> pathlib.Path:
+    def getWorkDirectory(self) -> OMCPath:
         """
         Return the defined working directory for this ModelicaSystem / OpenModelica session.
         """
@@ -546,7 +554,7 @@ class ModelicaSystem:
         buildModelResult = self._requestApi(apiName="buildModel", entity=self._model_name, properties=var_filter)
         logger.debug("OM model build result: %s", buildModelResult)
 
-        xml_file = pathlib.Path(buildModelResult[0]).parent / buildModelResult[1]
+        xml_file = self._getconn.omcpath(buildModelResult[0]).parent / buildModelResult[1]
         self._xmlparse(xml_file=xml_file)
 
     def sendExpression(self, expr: str, parsed: bool = True) -> Any:
@@ -578,7 +586,7 @@ class ModelicaSystem:
 
         return self.sendExpression(exp)
 
-    def _xmlparse(self, xml_file: pathlib.Path):
+    def _xmlparse(self, xml_file: OMCPath):
         if not xml_file.is_file():
             raise ModelicaSystemError(f"XML file not generated: {xml_file}")
 
@@ -723,40 +731,37 @@ class ModelicaSystem:
         if not self._simulated:
             if names is None:
                 return self._continuous
-
             if isinstance(names, str):
                 return [self._continuous[names]]
-
             if isinstance(names, list):
                 return [self._continuous[x] for x in names]
-        else:
-            if names is None:
-                for i in self._continuous:
-                    try:
-                        value = self.getSolutions(i)
-                        self._continuous[i] = value[0][-1]
-                    except (OMCSessionException, ModelicaSystemError) as ex:
-                        raise ModelicaSystemError(f"{i} could not be computed") from ex
-                return self._continuous
 
-            if isinstance(names, str):
-                if names in self._continuous:
-                    value = self.getSolutions(names)
-                    self._continuous[names] = value[0][-1]
-                    return [self._continuous[names]]
+        if names is None:
+            for name in self._continuous:
+                try:
+                    value = self.getSolutions(name)
+                    self._continuous[name] = value[0][-1]
+                except (OMCSessionException, ModelicaSystemError) as ex:
+                    raise ModelicaSystemError(f"{name} could not be computed") from ex
+            return self._continuous
+
+        if isinstance(names, str):
+            if names in self._continuous:
+                value = self.getSolutions(names)
+                self._continuous[names] = value[0][-1]
+                return [self._continuous[names]]
+            raise ModelicaSystemError(f"{names} is not continuous")
+
+        if isinstance(names, list):
+            valuelist = []
+            for name in names:
+                if name in self._continuous:
+                    value = self.getSolutions(name)
+                    self._continuous[name] = value[0][-1]
+                    valuelist.append(value[0][-1])
                 else:
-                    raise ModelicaSystemError(f"{names} is not continuous")
-
-            if isinstance(names, list):
-                valuelist = []
-                for i in names:
-                    if i in self._continuous:
-                        value = self.getSolutions(i)
-                        self._continuous[i] = value[0][-1]
-                        valuelist.append(value[0][-1])
-                    else:
-                        raise ModelicaSystemError(f"{i} is not continuous")
-                return valuelist
+                    raise ModelicaSystemError(f"{name} is not continuous")
+            return valuelist
 
         raise ModelicaSystemError("Unhandled input for getContinous()")
 
@@ -784,9 +789,9 @@ class ModelicaSystem:
         """
         if names is None:
             return self._params
-        elif isinstance(names, str):
+        if isinstance(names, str):
             return [self._params[names]]
-        elif isinstance(names, list):
+        if isinstance(names, list):
             return [self._params[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getParameters()")
@@ -818,9 +823,9 @@ class ModelicaSystem:
         """
         if names is None:
             return self._inputs
-        elif isinstance(names, str):
+        if isinstance(names, str):
             return [self._inputs[names]]
-        elif isinstance(names, list):
+        if isinstance(names, list):
             return [self._inputs[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getInputs()")
@@ -863,33 +868,33 @@ class ModelicaSystem:
         if not self._simulated:
             if names is None:
                 return self._outputs
-            elif isinstance(names, str):
+            if isinstance(names, str):
                 return [self._outputs[names]]
-            else:
-                return [self._outputs[x] for x in names]
-        else:
-            if names is None:
-                for i in self._outputs:
-                    value = self.getSolutions(i)
-                    self._outputs[i] = value[0][-1]
-                return self._outputs
-            elif isinstance(names, str):
-                if names in self._outputs:
-                    value = self.getSolutions(names)
-                    self._outputs[names] = value[0][-1]
-                    return [self._outputs[names]]
+            return [self._outputs[x] for x in names]
+
+        if names is None:
+            for name in self._outputs:
+                value = self.getSolutions(name)
+                self._outputs[name] = value[0][-1]
+            return self._outputs
+
+        if isinstance(names, str):
+            if names in self._outputs:
+                value = self.getSolutions(names)
+                self._outputs[names] = value[0][-1]
+                return [self._outputs[names]]
+            raise KeyError(names)
+
+        if isinstance(names, list):
+            valuelist = []
+            for name in names:
+                if name in self._outputs:
+                    value = self.getSolutions(name)
+                    self._outputs[name] = value[0][-1]
+                    valuelist.append(value[0][-1])
                 else:
-                    raise KeyError(names)
-            elif isinstance(names, list):
-                valuelist = []
-                for i in names:
-                    if i in self._outputs:
-                        value = self.getSolutions(i)
-                        self._outputs[i] = value[0][-1]
-                        valuelist.append(value[0][-1])
-                    else:
-                        raise KeyError(i)
-                return valuelist
+                    raise KeyError(name)
+            return valuelist
 
         raise ModelicaSystemError("Unhandled input for getOutputs()")
 
@@ -919,9 +924,9 @@ class ModelicaSystem:
         """
         if names is None:
             return self._simulate_options
-        elif isinstance(names, str):
+        if isinstance(names, str):
             return [self._simulate_options[names]]
-        elif isinstance(names, list):
+        if isinstance(names, list):
             return [self._simulate_options[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getSimulationOptions()")
@@ -954,9 +959,9 @@ class ModelicaSystem:
         """
         if names is None:
             return self._linearization_options
-        elif isinstance(names, str):
+        if isinstance(names, str):
             return [self._linearization_options[names]]
-        elif isinstance(names, list):
+        if isinstance(names, list):
             return [self._linearization_options[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getLinearizationOptions()")
@@ -989,16 +994,16 @@ class ModelicaSystem:
         """
         if names is None:
             return self._optimization_options
-        elif isinstance(names, str):
+        if isinstance(names, str):
             return [self._optimization_options[names]]
-        elif isinstance(names, list):
+        if isinstance(names, list):
             return [self._optimization_options[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
     def simulate_cmd(
             self,
-            result_file: pathlib.Path,
+            result_file: OMCPath,
             simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
             timeout: Optional[float] = None,
@@ -1101,10 +1106,15 @@ class ModelicaSystem:
         if resultfile is None:
             # default result file generated by OM
             self._result_file = self.getWorkDirectory() / f"{self._model_name}_res.mat"
-        elif os.path.exists(resultfile):
-            self._result_file = pathlib.Path(resultfile)
+        elif isinstance(resultfile, OMCPath):
+            self._result_file = resultfile
         else:
-            self._result_file = self.getWorkDirectory() / resultfile
+            self._result_file = self._getconn.omcpath(resultfile)
+            if not self._result_file.is_absolute():
+                self._result_file = self.getWorkDirectory() / resultfile
+
+        if not isinstance(self._result_file, OMCPath):
+            raise ModelicaSystemError(f"Invalid result file path: {self._result_file} - must be an OMCPath object!")
 
         om_cmd = self.simulate_cmd(
             result_file=self._result_file,
@@ -1123,7 +1133,7 @@ class ModelicaSystem:
             # check for an empty (=> 0B) result file which indicates a crash of the model executable
             # see: https://github.com/OpenModelica/OMPython/issues/261
             #      https://github.com/OpenModelica/OpenModelica/issues/13829
-            if self._result_file.stat().st_size == 0:
+            if self._result_file.size() == 0:
                 self._result_file.unlink()
                 raise ModelicaSystemError("Empty result file - this indicates a crash of the model executable!")
 
@@ -1131,7 +1141,11 @@ class ModelicaSystem:
 
         self._simulated = True
 
-    def getSolutions(self, varList: Optional[str | list[str]] = None, resultfile: Optional[str] = None) -> tuple[str] | np.ndarray:
+    def getSolutions(
+            self,
+            varList: Optional[str | list[str]] = None,
+            resultfile: Optional[str | os.PathLike] = None,
+    ) -> tuple[str] | np.ndarray:
         """Extract simulation results from a result data file.
 
         Args:
@@ -1168,7 +1182,7 @@ class ModelicaSystem:
                 raise ModelicaSystemError("No result file found. Run simulate() first.")
             result_file = self._result_file
         else:
-            result_file = pathlib.Path(resultfile)
+            result_file = self._getconn.omcpath(resultfile)
 
         # check if the result file exits
         if not result_file.is_file():
@@ -1202,7 +1216,8 @@ class ModelicaSystem:
 
     @staticmethod
     def _prepare_input_data(
-            raw_input: str | list[str] | dict[str, Any],
+            input_args: Any,
+            input_kwargs: dict[str, Any],
     ) -> dict[str, str]:
         """
         Convert raw input to a structured dictionary {'key1': 'value1', 'key2': 'value2'}.
@@ -1220,38 +1235,44 @@ class ModelicaSystem:
 
         input_data: dict[str, str] = {}
 
-        if isinstance(raw_input, str):
-            warnings.warn(message="The definition of values to set should use a dictionary, "
-                                  "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
-                                  "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
-                          category=DeprecationWarning,
-                          stacklevel=3)
-            return prepare_str(raw_input)
+        for input_arg in input_args:
+            if isinstance(input_arg, str):
+                warnings.warn(message="The definition of values to set should use a dictionary, "
+                                      "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
+                                      "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
+                              category=DeprecationWarning,
+                              stacklevel=3)
+                input_data = input_data | prepare_str(input_arg)
+            elif isinstance(input_arg, list):
+                warnings.warn(message="The definition of values to set should use a dictionary, "
+                                      "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
+                                      "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
+                              category=DeprecationWarning,
+                              stacklevel=3)
 
-        if isinstance(raw_input, list):
-            warnings.warn(message="The definition of values to set should use a dictionary, "
-                                  "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
-                                  "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
-                          category=DeprecationWarning,
-                          stacklevel=3)
+                for item in input_arg:
+                    if not isinstance(item, str):
+                        raise ModelicaSystemError(f"Invalid input data type for set*() function: {type(item)}!")
+                    input_data = input_data | prepare_str(item)
+            elif isinstance(input_arg, dict):
+                input_data = input_data | input_arg
+            else:
+                raise ModelicaSystemError(f"Invalid input data type for set*() function: {type(input_arg)}!")
 
-            for item in raw_input:
-                input_data |= prepare_str(item)
-
-            return input_data
-
-        if isinstance(raw_input, dict):
-            for key, val in raw_input.items():
-                # convert all values to strings to align it on one type: dict[str, str]
-                # spaces have to be removed as setInput() could take list of tuples as input and spaces would
-                str_val = str(val).replace(' ', '')
+        if len(input_kwargs):
+            for key, val in input_kwargs.items():
+                # ensure all values are strings to align it on one type: dict[str, str]
+                if not isinstance(val, str):
+                    # spaces have to be removed as setInput() could take list of tuples as input and spaces would
+                    # result in an error on recreating the input data
+                    str_val = str(val).replace(' ', '')
+                else:
+                    str_val = val
                 if ' ' in key or ' ' in str_val:
                     raise ModelicaSystemError(f"Spaces not allowed in key/value pairs: {repr(key)} = {repr(val)}!")
                 input_data[key] = str_val
 
-            return input_data
-
-        raise ModelicaSystemError(f"Invalid type of input: {type(raw_input)}")
+        return input_data
 
     def _set_method_helper(
             self,
@@ -1283,8 +1304,7 @@ class ModelicaSystem:
 
         for key, val in inputdata.items():
             if key not in classdata:
-                raise ModelicaSystemError("Unhandled case in setMethodHelper.apply_single() - "
-                                          f"{repr(key)} is not a {repr(datatype)} variable")
+                raise ModelicaSystemError(f"Invalid variable for type {repr(datatype)}: {repr(key)}")
 
             if datatype == "parameter" and not self.isParameterChangeable(key):
                 raise ModelicaSystemError(f"It is not possible to set the parameter {repr(key)}. It seems to be "
@@ -1312,7 +1332,8 @@ class ModelicaSystem:
 
     def setContinuous(
             self,
-            cvals: str | list[str] | dict[str, Any],
+            *args: Any,
+            **kwargs: dict[str, Any],
     ) -> bool:
         """
         This method is used to set continuous values. It can be called:
@@ -1320,9 +1341,12 @@ class ModelicaSystem:
         usage
         >>> setContinuous("Name=value")  # depreciated
         >>> setContinuous(["Name1=value1","Name2=value2"])  # depreciated
-        >>> setContinuous(cvals={"Name1": "value1", "Name2": "value2"})
+
+        >>> setContinuous(Name1="value1", Name2="value2")
+        >>> param = {"Name1": "value1", "Name2": "value2"}
+        >>> setContinuous(**param)
         """
-        inputdata = self._prepare_input_data(raw_input=cvals)
+        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1332,7 +1356,8 @@ class ModelicaSystem:
 
     def setParameters(
             self,
-            pvals: str | list[str] | dict[str, Any],
+            *args: Any,
+            **kwargs: dict[str, Any],
     ) -> bool:
         """
         This method is used to set parameter values. It can be called:
@@ -1340,9 +1365,12 @@ class ModelicaSystem:
         usage
         >>> setParameters("Name=value")  # depreciated
         >>> setParameters(["Name1=value1","Name2=value2"])  # depreciated
-        >>> setParameters(pvals={"Name1": "value1", "Name2": "value2"})
+
+        >>> setParameters(Name1="value1", Name2="value2")
+        >>> param = {"Name1": "value1", "Name2": "value2"}
+        >>> setParameters(**param)
         """
-        inputdata = self._prepare_input_data(raw_input=pvals)
+        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1352,7 +1380,8 @@ class ModelicaSystem:
 
     def setSimulationOptions(
             self,
-            simOptions: str | list[str] | dict[str, Any],
+            *args: Any,
+            **kwargs: dict[str, Any],
     ) -> bool:
         """
         This method is used to set simulation options. It can be called:
@@ -1360,9 +1389,12 @@ class ModelicaSystem:
         usage
         >>> setSimulationOptions("Name=value")  # depreciated
         >>> setSimulationOptions(["Name1=value1","Name2=value2"])  # depreciated
-        >>> setSimulationOptions(simOptions={"Name1": "value1", "Name2": "value2"})
+
+        >>> setSimulationOptions(Name1="value1", Name2="value2")
+        >>> param = {"Name1": "value1", "Name2": "value2"}
+        >>> setSimulationOptions(**param)
         """
-        inputdata = self._prepare_input_data(raw_input=simOptions)
+        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1372,7 +1404,8 @@ class ModelicaSystem:
 
     def setLinearizationOptions(
             self,
-            linearizationOptions: str | list[str] | dict[str, Any],
+            *args: Any,
+            **kwargs: dict[str, Any],
     ) -> bool:
         """
         This method is used to set linearization options. It can be called:
@@ -1380,9 +1413,12 @@ class ModelicaSystem:
         usage
         >>> setLinearizationOptions("Name=value")  # depreciated
         >>> setLinearizationOptions(["Name1=value1","Name2=value2"])  # depreciated
-        >>> setLinearizationOptions(linearizationOtions={"Name1": "value1", "Name2": "value2"})
+
+        >>> setLinearizationOptions(Name1="value1", Name2="value2")
+        >>> param = {"Name1": "value1", "Name2": "value2"}
+        >>> setLinearizationOptions(**param)
         """
-        inputdata = self._prepare_input_data(raw_input=linearizationOptions)
+        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1392,7 +1428,8 @@ class ModelicaSystem:
 
     def setOptimizationOptions(
             self,
-            optimizationOptions: str | list[str] | dict[str, Any],
+            *args: Any,
+            **kwargs: dict[str, Any],
     ) -> bool:
         """
         This method is used to set optimization options. It can be called:
@@ -1400,9 +1437,12 @@ class ModelicaSystem:
         usage
         >>> setOptimizationOptions("Name=value")  # depreciated
         >>> setOptimizationOptions(["Name1=value1","Name2=value2"])  # depreciated
-        >>> setOptimizationOptions(optimizationOptions={"Name1": "value1", "Name2": "value2"})
+
+        >>> setOptimizationOptions(Name1="value1", Name2="value2")
+        >>> param = {"Name1": "value1", "Name2": "value2"}
+        >>> setOptimizationOptions(**param)
         """
-        inputdata = self._prepare_input_data(raw_input=optimizationOptions)
+        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1412,7 +1452,8 @@ class ModelicaSystem:
 
     def setInputs(
             self,
-            name: str | list[str] | dict[str, Any],
+            *args: Any,
+            **kwargs: dict[str, Any],
     ) -> bool:
         """
         This method is used to set input values. It can be called with a sequence of input name and assigning
@@ -1422,9 +1463,12 @@ class ModelicaSystem:
 
         >>> setInputs("Name=value")  # depreciated
         >>> setInputs(["Name1=value1","Name2=value2"])  # depreciated
-        >>> setInputs(name={"Name1": "value1", "Name2": "value2"})
+
+        >>> setInputs(Name1="value1", Name2="value2")
+        >>> param = {"Name1": "value1", "Name2": "value2"}
+        >>> setInputs(**param)
         """
-        inputdata = self._prepare_input_data(raw_input=name)
+        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
 
         for key, val in inputdata.items():
             if key not in self._inputs:
@@ -1460,7 +1504,7 @@ class ModelicaSystem:
 
         return True
 
-    def _createCSVData(self, csvfile: Optional[pathlib.Path] = None) -> pathlib.Path:
+    def _createCSVData(self, csvfile: Optional[OMCPath] = None) -> OMCPath:
         """
         Create a csv file with inputs for the simulation/optimization of the model. If csvfile is provided as argument,
         this file is used; else a generic file name is created.
@@ -1627,7 +1671,6 @@ class ModelicaSystem:
             * `result = linearize(); A = result[0]` mostly just for backwards
               compatibility, because linearize() used to return `[A, B, C, D]`.
         """
-
         if len(self._quantities) == 0:
             # if self._quantities has no content, the xml file was not parsed; see self._xmlparse()
             raise ModelicaSystemError(
@@ -1641,15 +1684,15 @@ class ModelicaSystem:
             timeout=timeout,
         )
 
-        overrideLinearFile = self.getWorkDirectory() / f'{self._model_name}_override_linear.txt'
+        override_content = (
+                "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
+                + "\n".join([f"{key}={value}" for key, value in self._linearization_options.items()])
+                + "\n"
+        )
+        override_file = self.getWorkDirectory() / f'{self._model_name}_override_linear.txt'
+        override_file.write_text(override_content)
 
-        with open(file=overrideLinearFile, mode="w", encoding="utf-8") as fh:
-            for key1, value1 in self._override_variables.items():
-                fh.write(f"{key1}={value1}\n")
-            for key2, value2 in self._linearization_options.items():
-                fh.write(f"{key2}={value2}\n")
-
-        om_cmd.arg_set(key="overrideFile", val=overrideLinearFile.as_posix())
+        om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
 
         if self._inputs:
             for key, data in self._inputs.items():
@@ -1676,7 +1719,7 @@ class ModelicaSystem:
         returncode = om_cmd.run()
         if returncode != 0:
             raise ModelicaSystemError(f"Linearize failed with return code: {returncode}")
-        if not linear_file.exists():
+        if not linear_file.is_file():
             raise ModelicaSystemError(f"Linearization failed: {linear_file} not found!")
 
         self._simulated = True
