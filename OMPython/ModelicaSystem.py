@@ -1885,7 +1885,7 @@ class ModelicaSystemDoE:
             # structural
             'p': [1, 2],
             'q': [3, 4],
-            # simple
+            # non-structural
             'a': [5, 6],
             'b': [7, 8],
         }
@@ -2008,7 +2008,7 @@ class ModelicaSystemDoE:
                 param_structure[param_name] = self._parameters[param_name]
 
         param_structure_combinations = list(itertools.product(*param_structure.values()))
-        param_simple_combinations = list(itertools.product(*param_non_structure.values()))
+        param_non_structural_combinations = list(itertools.product(*param_non_structure.values()))
 
         for idx_pc_structure, pc_structure in enumerate(param_structure_combinations):
 
@@ -2036,15 +2036,15 @@ class ModelicaSystemDoE:
 
             self._mod.buildModel()
 
-            for idx_pc_simple, pc_simple in enumerate(param_simple_combinations):
-                sim_param_simple = {}
-                for idx_simple, pk_simple in enumerate(param_non_structure.keys()):
-                    sim_param_simple[pk_simple] = cast(Any, pc_simple[idx_simple])
+            for idx_non_structural, pk_non_structural in enumerate(param_non_structural_combinations):
+                sim_param_non_structural = {}
+                for idx, pk in enumerate(param_non_structure.keys()):
+                    sim_param_non_structural[pk] = cast(Any, pk_non_structural[idx])
 
-                resfilename = f"DOE_{idx_pc_structure:09d}_{idx_pc_simple:09d}.mat"
+                resfilename = f"DOE_{idx_pc_structure:09d}_{idx_non_structural:09d}.mat"
                 logger.info(f"use result file {repr(resfilename)} "
                             f"for structural parameters: {sim_param_structure} "
-                            f"and simple parameters: {sim_param_simple}")
+                            f"and non-structural parameters: {sim_param_non_structural}")
                 resultfile = self._resultpath / resfilename
 
                 df_data = (
@@ -2053,15 +2053,15 @@ class ModelicaSystemDoE:
                         }
                         | sim_param_structure
                         | {
-                            self.DICT_ID_NON_STRUCTURE: idx_pc_simple,
+                            self.DICT_ID_NON_STRUCTURE: idx_non_structural,
                         }
-                        | sim_param_simple
+                        | sim_param_non_structural
                         | {
                             self.DICT_RESULT_AVAILABLE: False,
                         }
                 )
 
-                self._mod.setParameters(sim_param_simple)
+                self._mod.setParameters(sim_param_non_structural)
                 mscmd = self._mod.simulate_cmd(
                     result_file=resultfile,
                     timeout=self._timeout,
