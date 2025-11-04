@@ -1059,8 +1059,7 @@ class ModelicaSystem:
             om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
 
         if self._inputs:  # if model has input quantities
-            for key in self._inputs:
-                val = self._inputs[key]
+            for key, val in self._inputs.items():
                 if val is None:
                     val = [(float(self._simulate_options["startTime"]), 0.0),
                            (float(self._simulate_options["stopTime"]), 0.0)]
@@ -1696,8 +1695,7 @@ class ModelicaSystem:
         om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
 
         if self._inputs:
-            for key in self._inputs:
-                data = self._inputs[key]
+            for key, data in self._inputs.items():
                 if data is not None:
                     for value in data:
                         if value[0] < float(self._simulate_options["startTime"]):
