@@ -1866,18 +1866,18 @@ class ModelicaSystemDoE:
 
     def __init__(
             self,
-            fileName: Optional[str | os.PathLike | pathlib.Path] = None,
+            fileName: Optional[str | os.PathLike] = None,
             modelName: Optional[str] = None,
             lmodel: Optional[list[str | tuple[str, str]]] = None,
             commandLineOptions: Optional[list[str]] = None,
             variableFilter: Optional[str] = None,
-            customBuildDirectory: Optional[str | os.PathLike | pathlib.Path] = None,
+            customBuildDirectory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
 
             simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,
             timeout: Optional[int] = None,
 
-            resultpath: Optional[pathlib.Path] = None,
+            resultpath: Optional[str | os.PathLike] = None,
             parameters: Optional[dict[str, list[str] | list[int] | list[float]]] = None,
     ) -> None:
         """
@@ -1908,10 +1908,13 @@ class ModelicaSystemDoE:
         self._simargs = simargs
         self._timeout = timeout
 
-        if isinstance(resultpath, pathlib.Path):
-            self._resultpath = resultpath
+        if resultpath is not None:
+            self._resultpath = self._mod._getconn.omcpath(resultpath)
         else:
-            self._resultpath = pathlib.Path('.')
+            self._resultpath = self._mod._getconn.omcpath_tempdir()
+
+        if not self._resultpath.is_dir():
+            raise ModelicaSystemError(f"Resultpath {self._resultpath.as_posix()} does not exists!")
 
         if isinstance(parameters, dict):
             self._parameters = parameters
@@ -2062,7 +2065,7 @@ class ModelicaSystemDoE:
                     raise ModelicaSystemError("Missing simulation definition!")
 
                 resultfile = mscmd.arg_get(key='r')
-                resultpath = pathlib.Path(resultfile)
+                resultpath = self._mod._getconn.omcpath(resultfile)
 
                 logger.info(f"[Worker {worker_id}] Performing task: {resultpath.name}")
 
@@ -2100,7 +2103,7 @@ class ModelicaSystemDoE:
             # include check for an empty (=> 0B) result file which indicates a crash of the model executable
             # see: https://github.com/OpenModelica/OMPython/issues/261
             # https://github.com/OpenModelica/OpenModelica/issues/13829
-            if resultfile.is_file() and resultfile.stat().st_size > 0:
+            if resultfile.is_file() and resultfile.size() > 0:
                 self._sim_dict[resultfilename][self.DICT_RESULT_AVAILABLE] = True
                 sim_dict_done += 1
 
