@@ -1147,7 +1147,8 @@ class ModelicaSystem:
             resultfile: Optional[str | os.PathLike] = None,
     ) -> None:
         """
-        Plot a variable using OMC; this will work for local OMC usage only (OMCProcessLocal).
+        Plot a variable using OMC; this will work for local OMC usage only (OMCProcessLocal). The reason is that the
+        plot is created by OMC which needs access to the local display. This is not the case for docker and WSL.
         """
 
         if not isinstance(self._getconn.omc_process, OMCProcessLocal):
