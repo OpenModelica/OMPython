@@ -301,7 +301,7 @@ class ModelicaSystemCmd:
         except subprocess.TimeoutExpired as ex:
             raise ModelicaSystemError(f"Timeout running command {repr(cmdl)}") from ex
         except subprocess.CalledProcessError as ex:
-            raise ModelicaSystemError(f"Error running command {repr(cmdl)}") from ex
+            raise ModelicaSystemError(f"Error running command {repr(cmdl)}\n{ex.stdout}") from ex
 
         return returncode
 
