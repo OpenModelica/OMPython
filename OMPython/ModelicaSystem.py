@@ -2019,7 +2019,7 @@ class ModelicaSystemDoE:
                 self._sim_dict[resfilename] = df_data
 
                 mscmd = mod_structure.simulate_cmd(
-                    result_file=resultfile.absolute().resolve(),
+                    result_file=resultfile,
                     timeout=self._timeout,
                 )
                 if self._simargs is not None:
