@@ -440,6 +440,12 @@ class ModelicaSystem:
         if build:
             self.buildModel(variableFilter)
 
+    def session(self) -> OMCSessionZMQ:
+        """
+        Return the OMC session used for this class.
+        """
+        return self._getconn
+
     def setCommandLineOptions(self, commandLineOptions: str):
         """
         Set the provided command line option via OMC setCommandLineOptions().
@@ -1909,9 +1915,9 @@ class ModelicaSystemDoE:
         self._timeout = timeout
 
         if resultpath is not None:
-            self._resultpath = self._mod._getconn.omcpath(resultpath)
+            self._resultpath = self.session().omcpath(resultpath)
         else:
-            self._resultpath = self._mod._getconn.omcpath_tempdir()
+            self._resultpath = self.session().omcpath_tempdir()
 
         if not self._resultpath.is_dir():
             raise ModelicaSystemError(f"Resultpath {self._resultpath.as_posix()} does not exists!")
@@ -1923,6 +1929,12 @@ class ModelicaSystemDoE:
 
         self._sim_dict: Optional[dict[str, dict[str, Any]]] = None
         self._sim_task_query: queue.Queue = queue.Queue()
+
+    def session(self) -> OMCSessionZMQ:
+        """
+        Return the OMC session used for this class.
+        """
+        return self._mod.session()
 
     def prepare(self) -> int:
         """
@@ -2065,7 +2077,7 @@ class ModelicaSystemDoE:
                     raise ModelicaSystemError("Missing simulation definition!")
 
                 resultfile = mscmd.arg_get(key='r')
-                resultpath = self._mod._getconn.omcpath(resultfile)
+                resultpath = self.session().omcpath(resultfile)
 
                 logger.info(f"[Worker {worker_id}] Performing task: {resultpath.name}")
 
