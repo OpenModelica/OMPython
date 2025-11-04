@@ -1631,7 +1631,7 @@ class ModelicaSystem:
             fmuType: str = "me_cs",
             fileNamePrefix: Optional[str] = None,
             includeResources: bool = True,
-    ) -> pathlib.Path:
+    ) -> OMCPath:
         """Translate the model into a Functional Mockup Unit.
 
         Args:
@@ -1670,7 +1670,7 @@ class ModelicaSystem:
     def convertFmu2Mo(
             self,
             fmu: os.PathLike,
-    ) -> pathlib.Path:
+    ) -> OMCPath:
         """
         In order to load FMU, at first it needs to be translated into Modelica model. This method is used to generate
         Modelica model from the given FMU. It generates "fmuName_me_FMU.mo".
@@ -1679,7 +1679,10 @@ class ModelicaSystem:
         >>> convertFmu2Mo("c:/BouncingBall.Fmu")
         """
 
-        fmu_path = pathlib.Path(fmu)
+        fmu_path = self._getconn.omcpath(fmu)
+
+        if not fmu_path.is_file():
+            raise ModelicaSystemError(f"Missing FMU file: {fmu_path.as_posix()}")
 
         filename = self._requestApi(apiName='importFMU', entity=fmu_path.as_posix())
         filepath = self._work_dir / filename
