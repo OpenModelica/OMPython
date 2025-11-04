@@ -1858,7 +1858,10 @@ class ModelicaSystemDoE:
 
     """
 
-    DICT_RESULT_FILENAME: str = 'result filename'
+    # Dictionary keys used in simulation dict (see _sim_dict or get_doe()). These dict keys contain a space and, thus,
+    # cannot be used as OM variable identifiers. They are defined here as reference for any evaluation of the data.
+    DICT_ID_STRUCTURE: str = 'ID structure'
+    DICT_ID_NON_STRUCTURE: str = 'ID non-structure'
     DICT_RESULT_AVAILABLE: str = 'result available'
 
     def __init__(
@@ -1927,18 +1930,18 @@ class ModelicaSystemDoE:
         """
 
         param_structure = {}
-        param_simple = {}
+        param_non_structure = {}
         for param_name in self._parameters.keys():
             changeable = self._mod.isParameterChangeable(name=param_name)
             logger.info(f"Parameter {repr(param_name)} is changeable? {changeable}")
 
             if changeable:
-                param_simple[param_name] = self._parameters[param_name]
+                param_non_structure[param_name] = self._parameters[param_name]
             else:
                 param_structure[param_name] = self._parameters[param_name]
 
         param_structure_combinations = list(itertools.product(*param_structure.values()))
-        param_simple_combinations = list(itertools.product(*param_simple.values()))
+        param_simple_combinations = list(itertools.product(*param_non_structure.values()))
 
         self._sim_dict = {}
         for idx_pc_structure, pc_structure in enumerate(param_structure_combinations):
@@ -1974,7 +1977,7 @@ class ModelicaSystemDoE:
 
             for idx_pc_simple, pc_simple in enumerate(param_simple_combinations):
                 sim_param_simple = {}
-                for idx_simple, pk_simple in enumerate(param_simple.keys()):
+                for idx_simple, pk_simple in enumerate(param_non_structure.keys()):
                     sim_param_simple[pk_simple] = cast(Any, pc_simple[idx_simple])
 
                 resfilename = f"DOE_{idx_pc_structure:09d}_{idx_pc_simple:09d}.mat"
@@ -1985,11 +1988,11 @@ class ModelicaSystemDoE:
 
                 df_data = (
                         {
-                            'ID structure': idx_pc_structure,
+                            self.DICT_ID_STRUCTURE: idx_pc_structure,
                         }
                         | sim_param_structure
                         | {
-                            'ID non-structure': idx_pc_simple,
+                            self.DICT_ID_NON_STRUCTURE: idx_pc_simple,
                         }
                         | sim_param_simple
                         | {
