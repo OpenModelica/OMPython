@@ -51,10 +51,11 @@ def test_ModelicaSystem_loop(model_firstorder):
 
 def test_setParameters():
     omc = OMPython.OMCSessionZMQ()
-    model_path = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels/"
+    model_path_str = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels"
+    model_path = omc.omcpath(model_path_str)
     mod = OMPython.ModelicaSystem()
     mod.model(
-        file=model_path + "BouncingBall.mo",
+        file=model_path / "BouncingBall.mo",
         name="BouncingBall",
     )
 
@@ -85,10 +86,11 @@ def test_setParameters():
 
 def test_setSimulationOptions():
     omc = OMPython.OMCSessionZMQ()
-    model_path = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels/"
+    model_path_str = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels"
+    model_path = omc.omcpath(model_path_str)
     mod = OMPython.ModelicaSystem()
     mod.model(
-        file=model_path + "BouncingBall.mo",
+        file=model_path / "BouncingBall.mo",
         name="BouncingBall",
     )
 
