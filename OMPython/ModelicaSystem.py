@@ -1154,17 +1154,14 @@ class ModelicaSystem:
             raise ModelicaSystemError("Plot is using the OMC plot functionality; "
                                       "thus, it is only working if OMC is running locally!")
 
-        plot_result_file = None
         if resultfile is not None:
-            plot_result_file = pathlib.Path(resultfile)
+            plot_result_file = self._getconn.omcpath(resultfile)
         elif self._result_file is not None:
-            plot_result_file = pathlib.Path(self._result_file)
+            plot_result_file = self._result_file
         else:
             raise ModelicaSystemError("No resultfile available - either run simulate() before plotting "
                                       "or provide a result file!")
 
-        if plot_result_file is None:
-            raise ModelicaSystemError("No resultfile defined!")
         if not plot_result_file.is_file():
             raise ModelicaSystemError(f"Provided resultfile {repr(plot_result_file.as_posix())} does not exists!")
 
