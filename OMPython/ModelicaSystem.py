@@ -1917,14 +1917,16 @@ class ModelicaSystemDoE:
         """
 
         self._mod = ModelicaSystem(
-            fileName=fileName,
-            modelName=modelName,
-            lmodel=lmodel,
             commandLineOptions=commandLineOptions,
-            variableFilter=variableFilter,
             customBuildDirectory=customBuildDirectory,
             omhome=omhome,
             omc_process=omc_process,
+        )
+        self._mod.model(
+            file=fileName,
+            name=modelName,
+            libraries=lmodel,
+            variable_filter=variableFilter,
         )
 
         self._model_name = modelName
