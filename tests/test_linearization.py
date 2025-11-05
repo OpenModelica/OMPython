@@ -62,7 +62,7 @@ end Pendulum;
 """)
     mod = OMPython.ModelicaSystem()
     mod.model(
-        model_file=model_file.as_posix(),
+        model_file=model_file,
         model_name="Pendulum",
         libraries=["Modelica"],
     )
