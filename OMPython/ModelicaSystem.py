@@ -1104,6 +1104,34 @@ class ModelicaSystem:
 
         self._simulated = True
 
+    def plot(
+            self,
+            plotdata: str,
+            resultfile: Optional[str | os.PathLike] = None,
+    ) -> None:
+        """
+        Plot a variable using OMC; this will work for local OMC usage only (OMCProcessLocal). The reason is that the
+        plot is created by OMC which needs access to the local display. This is not the case for docker and WSL.
+        """
+
+        if not isinstance(self._getconn.omc_process, OMCProcessLocal):
+            raise ModelicaSystemError("Plot is using the OMC plot functionality; "
+                                      "thus, it is only working if OMC is running locally!")
+
+        if resultfile is not None:
+            plot_result_file = self._getconn.omcpath(resultfile)
+        elif self._result_file is not None:
+            plot_result_file = self._result_file
+        else:
+            raise ModelicaSystemError("No resultfile available - either run simulate() before plotting "
+                                      "or provide a result file!")
+
+        if not plot_result_file.is_file():
+            raise ModelicaSystemError(f"Provided resultfile {repr(plot_result_file.as_posix())} does not exists!")
+
+        expr = f'plot({plotdata}, fileName="{plot_result_file.as_posix()}")'
+        self.sendExpression(expr=expr)
+
     def getSolutions(
             self,
             varList: Optional[str | list[str]] = None,
