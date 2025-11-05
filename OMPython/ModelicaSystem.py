@@ -43,7 +43,8 @@ from typing import Optional, Any
 import warnings
 import xml.etree.ElementTree as ET
 
-from OMPython.OMCSession import OMCSessionException, OMCSessionRunData, OMCSessionZMQ, OMCProcessLocal, OMCPath
+from OMPython.OMCSession import (OMCSessionException, OMCSessionRunData, OMCSessionZMQ,
+                                 OMCProcess, OMCProcessLocal, OMCPath)
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
@@ -262,7 +263,9 @@ class ModelicaSystemCmd:
             cmd_timeout=self._timeout,
         )
 
-        omc_run_data_updated = self._session.omc_run_data_update(omc_run_data=omc_run_data)
+        omc_run_data_updated = self._session.omc_run_data_update(
+            omc_run_data=omc_run_data,
+        )
 
         return omc_run_data_updated
 
@@ -315,7 +318,7 @@ class ModelicaSystem:
             variableFilter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
-            omc_process: Optional[OMCProcessLocal] = None,
+            omc_process: Optional[OMCProcess] = None,
             build: bool = True,
     ) -> None:
         """Initialize, load and build a model.
@@ -380,8 +383,6 @@ class ModelicaSystem:
         self._linearized_states: list[str] = []  # linearization states list
 
         if omc_process is not None:
-            if not isinstance(omc_process, OMCProcessLocal):
-                raise ModelicaSystemError("Invalid (local) omc process definition provided!")
             self._getconn = OMCSessionZMQ(omc_process=omc_process)
         else:
             self._getconn = OMCSessionZMQ(omhome=omhome)
@@ -514,6 +515,20 @@ class ModelicaSystem:
 
         buildModelResult = self._requestApi(apiName="buildModel", entity=self._model_name, properties=var_filter)
         logger.debug("OM model build result: %s", buildModelResult)
+
+        # check if the executable exists ...
+        om_cmd = ModelicaSystemCmd(
+            session=self._getconn,
+            runpath=self.getWorkDirectory(),
+            modelname=self._model_name,
+            timeout=5.0,
+        )
+        # ... by running it - output help for command help
+        om_cmd.arg_set(key="help", val="help")
+        cmd_definition = om_cmd.definition()
+        returncode = self._getconn.run_model_executable(cmd_run_data=cmd_definition)
+        if returncode != 0:
+            raise ModelicaSystemError("Model executable not working!")
 
         xml_file = self._getconn.omcpath(buildModelResult[0]).parent / buildModelResult[1]
         self._xmlparse(xml_file=xml_file)
