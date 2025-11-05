@@ -276,8 +276,11 @@ class OMCSessionCmd:
 
 class OMCPathReal(pathlib.PurePosixPath):
     """
-    Implementation of a basic Path object which uses OMC as backend. The connection to OMC is provided via a
+    Implementation of a basic (PurePosix)Path object which uses OMC as backend. The connection to OMC is provided via a
     OMCSessionZMQ session object.
+
+    PurePosixPath is selected to cover usage of OMC in docker or via WSL. Usage of specialised function could result in
+    errors as well as usage on a Windows system due to slightly different definitions (PureWindowsPath).
     """
 
     def __init__(self, *path, session: OMCSessionZMQ) -> None:
@@ -304,6 +307,15 @@ class OMCPathReal(pathlib.PurePosixPath):
         """
         return self._session.sendExpression(f'directoryExists("{self.as_posix()}")')
 
+    def is_absolute(self):
+        """
+        Check if the path is an absolute path considering the possibility that we are running locally on Windows. This
+        case needs special handling as the definition of is_absolute() differs.
+        """
+        if isinstance(self._session, OMCProcessLocal) and platform.system() == 'Windows':
+            return pathlib.PureWindowsPath(self.as_posix()).is_absolute()
+        return super().is_absolute()
+
     def read_text(self, encoding=None, errors=None, newline=None) -> str:
         """
         Read the content of the file represented by this path as text.
@@ -321,10 +333,12 @@ class OMCPathReal(pathlib.PurePosixPath):
         definitions.
         """
         if not isinstance(data, str):
-            raise TypeError('data must be str, not %s' %
-                            data.__class__.__name__)
+            raise TypeError(f"data must be str, not {data.__class__.__name__}")
 
-        return self._session.sendExpression(f'writeFile("{self.as_posix()}", "{data}", false)')
+        data_omc = data.replace('"', '\\"')
+        self._session.sendExpression(f'writeFile("{self.as_posix()}", "{data_omc}", false);')
+
+        return len(data)
 
     def mkdir(self, mode=0o777, parents=False, exist_ok=False):
         """
@@ -360,15 +374,20 @@ class OMCPathReal(pathlib.PurePosixPath):
             raise OMCSessionException(f"Path {self.as_posix()} does not exist!")
 
         if self.is_file():
-            omcpath = self._omc_resolve(self.parent.as_posix()) / self.name
+            pathstr_resolved = self._omc_resolve(self.parent.as_posix())
+            omcpath_resolved = self._session.omcpath(pathstr_resolved) / self.name
         elif self.is_dir():
-            omcpath = self._omc_resolve(self.as_posix())
+            pathstr_resolved = self._omc_resolve(self.as_posix())
+            omcpath_resolved = self._session.omcpath(pathstr_resolved)
         else:
             raise OMCSessionException(f"Path {self.as_posix()} is neither a file nor a directory!")
 
-        return omcpath
+        if not omcpath_resolved.is_file() and not omcpath_resolved.is_dir():
+            raise OMCSessionException(f"OMCPath resolve failed for {self.as_posix()} - path does not exist!")
 
-    def _omc_resolve(self, pathstr: str):
+        return omcpath_resolved
+
+    def _omc_resolve(self, pathstr: str) -> str:
         """
         Internal function to resolve the path of the OMCPath object using OMC functions *WITHOUT* changing the cwd
         within OMC.
@@ -382,15 +401,10 @@ class OMCPathReal(pathlib.PurePosixPath):
             result_parts = result.split('\n')
             pathstr_resolved = result_parts[1]
             pathstr_resolved = pathstr_resolved[1:-1]  # remove quotes
-
-            omcpath_resolved = self._session.omcpath(pathstr_resolved)
         except OMCSessionException as ex:
             raise OMCSessionException(f"OMCPath resolve failed for {pathstr}!") from ex
 
-        if not omcpath_resolved.is_file() and not omcpath_resolved.is_dir():
-            raise OMCSessionException(f"OMCPath resolve failed for {pathstr} - path does not exist!")
-
-        return omcpath_resolved
+        return pathstr_resolved
 
     def absolute(self):
         """
@@ -417,6 +431,13 @@ class OMCPathReal(pathlib.PurePosixPath):
             return int(res[1])
 
         raise OMCSessionException(f"Error reading file size for path {self.as_posix()}!")
+
+    def stat(self):
+        """
+        The function stat() cannot be implemented using OMC.
+        """
+        raise NotImplementedError("The function stat() cannot be implemented using OMC; "
+                                  "use size() to get the file size.")
 
 
 if sys.version_info < (3, 12):
