@@ -388,7 +388,7 @@ class ModelicaSystem:
 
     def model(
             self,
-            name: str,
+            name: Optional[str] = None,
             file: Optional[str | os.PathLike] = None,
             libraries: Optional[list[str | tuple[str, str]]] = None,
             variable_filter: Optional[str] = None,
@@ -427,7 +427,7 @@ class ModelicaSystem:
             raise ModelicaSystemError("Can not reuse this instance of ModelicaSystem "
                                       f"defined for {repr(self._model_name)}!")
 
-        if not isinstance(name, str):
+        if name is None or not isinstance(name, str):
             raise ModelicaSystemError("A model name must be provided!")
 
         if libraries is None:
