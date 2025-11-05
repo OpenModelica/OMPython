@@ -2104,7 +2104,7 @@ class ModelicaSystemDoE:
                 logger.info(f"[Worker {worker_id}] Performing task: {resultpath.name}")
 
                 try:
-                    returncode = self._mod.get_session().run_model_executable(cmd_run_data=cmd_definition)
+                    returncode = self.session().run_model_executable(cmd_run_data=cmd_definition)
                     logger.info(f"[Worker {worker_id}] Simulation {resultpath.name} "
                                 f"finished with return code: {returncode}")
                 except ModelicaSystemError as ex:
