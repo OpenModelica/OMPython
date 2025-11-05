@@ -161,8 +161,8 @@ def test_getSolutions_docker(model_firstorder_content):
 
     file_path = pathlib.Path(modelpath)
     mod = OMPython.ModelicaSystem(
-        fileName=file_path,
-        modelName="M",
+        file=file_path,
+        model="M",
         omc_process=omc.omc_process,
     )
 
