@@ -37,10 +37,9 @@ def model_firstorder(tmp_path, model_firstorder_content):
 
 def test_ModelicaSystem_loop(model_firstorder):
     def worker():
-        filePath = model_firstorder.as_posix()
         mod = OMPython.ModelicaSystem()
         mod.model(
-            model_file=filePath,
+            model_file=model_firstorder,
             model_name="M",
         )
         mod.simulate()
@@ -136,12 +135,11 @@ def test_relative_path(model_firstorder):
 
 
 def test_customBuildDirectory(tmp_path, model_firstorder):
-    filePath = model_firstorder.as_posix()
     tmpdir = tmp_path / "tmpdir1"
     tmpdir.mkdir()
     mod = OMPython.ModelicaSystem(work_directory=tmpdir)
     mod.model(
-        model_file=filePath,
+        model_file=model_firstorder,
         model_name="M",
     )
     assert pathlib.Path(mod.getWorkDirectory()).resolve() == tmpdir.resolve()
@@ -219,7 +217,7 @@ end M_getters;
 """)
     mod = OMPython.ModelicaSystem()
     mod.model(
-        model_file=model_file.as_posix(),
+        model_file=model_file,
         model_name="M_getters",
     )
 
@@ -415,7 +413,7 @@ end M_input;
 """)
     mod = OMPython.ModelicaSystem()
     mod.model(
-        model_file=model_file.as_posix(),
+        model_file=model_file,
         model_name="M_input",
     )
 
