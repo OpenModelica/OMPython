@@ -42,8 +42,6 @@ import logging
 import os
 import pathlib
 import platform
-import psutil
-import pyparsing
 import re
 import shutil
 import signal
@@ -55,6 +53,9 @@ from typing import Any, Optional, Tuple
 import uuid
 import warnings
 import zmq
+
+import psutil
+import pyparsing
 
 # TODO: replace this with the new parser
 from OMPython.OMTypedParser import om_parser_typed
