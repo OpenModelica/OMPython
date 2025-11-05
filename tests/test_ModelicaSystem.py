@@ -153,30 +153,25 @@ def test_customBuildDirectory(tmp_path, model_firstorder):
 
 @skip_on_windows
 @skip_python_older_312
-def test_getSolutions_docker(model_firstorder_content):
+def test_getSolutions_docker(model_firstorder):
     omcp = OMPython.OMCProcessDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
     omc = OMPython.OMCSessionZMQ(omc_process=omcp)
 
-    modelpath = omc.omcpath_tempdir() / 'M.mo'
-    modelpath.write_text(model_firstorder_content)
-
-    file_path = pathlib.Path(modelpath)
     mod = OMPython.ModelicaSystem(
         omc_process=omc.omc_process,
     )
     mod.model(
         name="M",
-        file=file_path,
+        file=model_firstorder.as_posix(),
     )
 
     _run_getSolutions(mod)
 
 
 def test_getSolutions(model_firstorder):
-    filePath = model_firstorder.as_posix()
     mod = OMPython.ModelicaSystem()
     mod.model(
-        file=filePath,
+        file=model_firstorder.as_posix(),
         name="M",
     )
 
