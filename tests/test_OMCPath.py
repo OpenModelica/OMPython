@@ -76,3 +76,17 @@ def _run_OMCPath_checks(om: OMPython.OMCSessionZMQ):
     assert p3.parent.is_dir()
     p3.unlink()
     assert p3.is_file() is False
+
+
+def test_OMCPath_write_file(tmpdir):
+    om = OMPython.OMCSessionZMQ()
+
+    data = "abc # \\t # \" # \\n # xyz"
+
+    p1 = om.omcpath_tempdir()
+    p2 = p1 / 'test.txt'
+    p2.write_text(data=data)
+
+    assert data == p2.read_text()
+
+    del om
