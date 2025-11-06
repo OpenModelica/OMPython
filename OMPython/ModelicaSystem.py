@@ -522,15 +522,15 @@ class ModelicaSystem:
                                               '1)["Modelica"]\n'
                                               '2)[("Modelica","3.2.3"), "PowerSystems"]\n')
 
-    def setWorkDirectory(self, customBuildDirectory: Optional[str | os.PathLike] = None) -> OMCPath:
+    def setWorkDirectory(self, work_directory: Optional[str | os.PathLike] = None) -> OMCPath:
         """
         Define the work directory for the ModelicaSystem / OpenModelica session. The model is build within this
         directory. If no directory is defined a unique temporary directory is created.
         """
-        if customBuildDirectory is not None:
-            workdir = self._session.omcpath(customBuildDirectory).absolute()
+        if work_directory is not None:
+            workdir = self._session.omcpath(work_directory).absolute()
             if not workdir.is_dir():
-                raise IOError(f"Provided work directory does not exists: {customBuildDirectory}!")
+                raise IOError(f"Provided work directory does not exists: {work_directory}!")
         else:
             workdir = self._session.omcpath_tempdir().absolute()
             if not workdir.is_dir():
@@ -2048,7 +2048,7 @@ class ModelicaSystemDoE:
 
             build_dir = self._resultpath / f"DOE_{idx_pc_structure:09d}"
             build_dir.mkdir()
-            self._mod.setWorkDirectory(customBuildDirectory=build_dir)
+            self._mod.setWorkDirectory(work_directory=build_dir)
 
             sim_param_structure = {}
             for idx_structure, pk_structure in enumerate(param_structure.keys()):
