@@ -1960,7 +1960,7 @@ class ModelicaSystemDoE:
             libraries: Optional[list[str | tuple[str, str]]] = None,
             command_line: Optional[list[str]] = None,
             variable_filter: Optional[str] = None,
-            customBuildDirectory: Optional[str | os.PathLike] = None,
+            work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
             omc_process: Optional[OMCProcess] = None,
             # simulation specific input
@@ -1981,7 +1981,7 @@ class ModelicaSystemDoE:
 
         self._mod = ModelicaSystem(
             command_line=command_line,
-            work_directory=customBuildDirectory,
+            work_directory=work_directory,
             omhome=omhome,
             omc_process=omc_process,
         )
