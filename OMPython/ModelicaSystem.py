@@ -386,7 +386,7 @@ class ModelicaSystem:
                 "--generateSymbolicLinearization",
             ]
         for opt in command_line:
-            self.setCommandLineOptions(commandLineOptions=opt)
+            self.set_command_line_options(command_line_option=opt)
 
         self._simulated = False  # True if the model has already been simulated
         self._result_file: Optional[OMCPath] = None  # for storing result file
@@ -487,11 +487,11 @@ class ModelicaSystem:
         """
         return self._session
 
-    def setCommandLineOptions(self, commandLineOptions: str):
+    def set_command_line_options(self, command_line_option: str):
         """
         Set the provided command line option via OMC setCommandLineOptions().
         """
-        exp = f'setCommandLineOptions("{commandLineOptions}")'
+        exp = f'setCommandLineOptions("{command_line_option}")'
         self.sendExpression(exp)
 
     def _loadFile(self, fileName: OMCPath):
@@ -1744,7 +1744,7 @@ class ModelicaSystem:
         """
         cName = self._model_name
         properties = ','.join(f"{key}={val}" for key, val in self._optimization_options.items())
-        self.setCommandLineOptions("-g=Optimica")
+        self.set_command_line_options("-g=Optimica")
         optimizeResult = self._requestApi(apiName='optimize', entity=cName, properties=properties)
 
         return optimizeResult
