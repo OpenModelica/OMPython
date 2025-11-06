@@ -330,7 +330,7 @@ class ModelicaSystem:
     def __init__(
             self,
             command_line: Optional[list[str]] = None,
-            customBuildDirectory: Optional[str | os.PathLike] = None,
+            work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
             omc_process: Optional[OMCProcess] = None,
     ) -> None:
@@ -340,7 +340,7 @@ class ModelicaSystem:
             command_line: List with extra command line options as elements. The list elements are
               provided to omc via setCommandLineOptions(). If set, the default values will be overridden.
               To disable any command line options, use an empty list.
-            customBuildDirectory: Path to a directory to be used for temporary
+            work_directory: Path to a directory to be used for temporary
               files like the model executable. If left unspecified, a tmp
               directory will be created.
             omhome: path to OMC to be used when creating the OMC session (see OMCSessionZMQ).
@@ -391,7 +391,7 @@ class ModelicaSystem:
         self._simulated = False  # True if the model has already been simulated
         self._result_file: Optional[OMCPath] = None  # for storing result file
 
-        self._work_dir: OMCPath = self.setWorkDirectory(customBuildDirectory)
+        self._work_dir: OMCPath = self.setWorkDirectory(work_directory)
 
         self._model_name: Optional[str] = None
         self._libraries: Optional[list[str | tuple[str, str]]] = None
@@ -1981,7 +1981,7 @@ class ModelicaSystemDoE:
 
         self._mod = ModelicaSystem(
             command_line=command_line,
-            customBuildDirectory=customBuildDirectory,
+            work_directory=customBuildDirectory,
             omhome=omhome,
             omc_process=omc_process,
         )
