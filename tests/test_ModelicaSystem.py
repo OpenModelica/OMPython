@@ -139,7 +139,7 @@ def test_customBuildDirectory(tmp_path, model_firstorder):
     filePath = model_firstorder.as_posix()
     tmpdir = tmp_path / "tmpdir1"
     tmpdir.mkdir()
-    mod = OMPython.ModelicaSystem(customBuildDirectory=tmpdir)
+    mod = OMPython.ModelicaSystem(work_directory=tmpdir)
     mod.model(
         model_file=filePath,
         model_name="M",
