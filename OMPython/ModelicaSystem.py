@@ -1958,7 +1958,7 @@ class ModelicaSystemDoE:
             model_file: Optional[str | os.PathLike] = None,
             model_name: Optional[str] = None,
             libraries: Optional[list[str | tuple[str, str]]] = None,
-            commandLineOptions: Optional[list[str]] = None,
+            command_line: Optional[list[str]] = None,
             variable_filter: Optional[str] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
@@ -1980,7 +1980,7 @@ class ModelicaSystemDoE:
             raise ModelicaSystemError("No model name provided!")
 
         self._mod = ModelicaSystem(
-            command_line=commandLineOptions,
+            command_line=command_line,
             customBuildDirectory=customBuildDirectory,
             omhome=omhome,
             omc_process=omc_process,
