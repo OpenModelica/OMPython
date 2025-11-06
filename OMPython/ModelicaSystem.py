@@ -329,7 +329,7 @@ class ModelicaSystem:
 
     def __init__(
             self,
-            commandLineOptions: Optional[list[str]] = None,
+            command_line: Optional[list[str]] = None,
             customBuildDirectory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
             omc_process: Optional[OMCProcess] = None,
@@ -337,7 +337,7 @@ class ModelicaSystem:
         """Create a ModelicaSystem instance. To define the model use model() or convertFmu2Mo().
 
         Args:
-            commandLineOptions: List with extra command line options as elements. The list elements are
+            command_line: List with extra command line options as elements. The list elements are
               provided to omc via setCommandLineOptions(). If set, the default values will be overridden.
               To disable any command line options, use an empty list.
             customBuildDirectory: Path to a directory to be used for temporary
@@ -378,14 +378,14 @@ class ModelicaSystem:
             self._session = OMCSessionZMQ(omhome=omhome)
 
         # set commandLineOptions using default values or the user defined list
-        if commandLineOptions is None:
+        if command_line is None:
             # set default command line options to improve the performance of linearization and to avoid recompilation if
             # the simulation executable is reused in linearize() via the runtime flag '-l'
-            commandLineOptions = [
+            command_line = [
                 "--linearizationDumpLanguage=python",
                 "--generateSymbolicLinearization",
             ]
-        for opt in commandLineOptions:
+        for opt in command_line:
             self.setCommandLineOptions(commandLineOptions=opt)
 
         self._simulated = False  # True if the model has already been simulated
@@ -1980,7 +1980,7 @@ class ModelicaSystemDoE:
             raise ModelicaSystemError("No model name provided!")
 
         self._mod = ModelicaSystem(
-            commandLineOptions=commandLineOptions,
+            command_line=commandLineOptions,
             customBuildDirectory=customBuildDirectory,
             omhome=omhome,
             omc_process=omc_process,
