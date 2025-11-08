@@ -377,7 +377,7 @@ class ModelicaSystem:
 
         self._quantities: list[dict[str, Any]] = []
         self._params: dict[str, str] = {}  # even numerical values are stored as str
-        self._inputs: dict[str, list | None] = {}
+        self._inputs: dict[str, list[tuple[float, float]]] = {}
         # _outputs values are str before simulate(), but they can be
         # np.float64 after simulate().
         self._outputs: dict[str, Any] = {}
@@ -386,8 +386,15 @@ class ModelicaSystem:
         self._simulate_options: dict[str, str] = {}
         self._override_variables: dict[str, str] = {}
         self._simulate_options_override: dict[str, str] = {}
-        self._linearization_options = {'startTime': 0.0, 'stopTime': 1.0, 'stepSize': 0.002, 'tolerance': 1e-8}
-        self._optimization_options = self._linearization_options | {'numberOfIntervals': 500}
+        self._linearization_options: dict[str, str | float] = {
+            'startTime': 0.0,
+            'stopTime': 1.0,
+            'stepSize': 0.002,
+            'tolerance': 1e-8,
+        }
+        self._optimization_options = self._linearization_options | {
+            'numberOfIntervals': 500,
+        }
         self._linearized_inputs: list[str] = []  # linearization input list
         self._linearized_outputs: list[str] = []  # linearization output list
         self._linearized_states: list[str] = []  # linearization states list
@@ -797,7 +804,7 @@ class ModelicaSystem:
     def getInputs(
             self,
             names: Optional[str | list[str]] = None,
-    ) -> dict[str, list[tuple[numbers.Real]]] | list[tuple[numbers.Real]]:
+    ) -> dict[str, list[tuple[float, float]]] | list[list[tuple[float, float]]]:
         """Get values of input signals.
 
         Args:
@@ -942,7 +949,7 @@ class ModelicaSystem:
     def getLinearizationOptions(
             self,
             names: Optional[str | list[str]] = None,
-    ) -> dict[str, str | numbers.Real] | list[str | numbers.Real]:
+    ) -> dict[str, str | float] | list[str | float]:
         """Get simulation options used for linearization.
 
         Args:
@@ -980,7 +987,7 @@ class ModelicaSystem:
     def getOptimizationOptions(
             self,
             names: Optional[str | list[str]] = None,
-    ) -> dict[str, str | numbers.Real] | list[str | numbers.Real]:
+    ) -> dict[str, str | float] | list[str | float]:
         """Get simulation options used for optimization.
 
         Args:
@@ -1789,9 +1796,9 @@ class ModelicaSystem:
                     continue
 
                 target = body_part.targets[0].id  # type: ignore
-                value = ast.literal_eval(body_part.value)
+                value_ast = ast.literal_eval(body_part.value)
 
-                linear_data[target] = value
+                linear_data[target] = value_ast
         except (AttributeError, IndexError, ValueError, SyntaxError, TypeError) as ex:
             raise ModelicaSystemError(f"Error parsing linearization file {linear_file}!") from ex
 
