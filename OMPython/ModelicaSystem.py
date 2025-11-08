@@ -1095,7 +1095,7 @@ class ModelicaSystem:
 
     def simulate(
             self,
-            resultfile: Optional[str] = None,
+            resultfile: Optional[str | os.PathLike] = None,
             simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
             timeout: Optional[float] = None,
