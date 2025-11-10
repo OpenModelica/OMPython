@@ -1622,8 +1622,9 @@ class ModelicaSystem:
 
         if fileNamePrefix is None:
             if self._model_name is None:
-                raise ModelicaSystemError("Missing model name!")
-            fileNamePrefix = self._model_name
+                fileNamePrefix = "<default>"
+            else:
+                fileNamePrefix = self._model_name
         includeResourcesStr = "true" if includeResources else "false"
 
         properties = (f'version="{version}", fmuType="{fmuType}", '
