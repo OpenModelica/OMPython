@@ -25,6 +25,9 @@ dependencies = [
 [tool.setuptools]
 packages = ["OMPython"]
 
+[tool.setuptools.package-data]
+"OMPython" = ["py.typed"]
+
 [project.urls]
 Homepage = "http://openmodelica.org/"
 Documentation = "https://openmodelica.org/doc/OpenModelicaUsersGuide/latest/ompython.html"
