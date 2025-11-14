@@ -38,6 +38,7 @@ import itertools
 import logging
 import numbers
 import os
+import pathlib
 import queue
 import textwrap
 import threading
@@ -324,18 +325,18 @@ class ModelicaSystemCmd:
 class ModelicaSystem:
     def __init__(
             self,
-            commandLineOptions: Optional[list[str]] = None,
-            customBuildDirectory: Optional[str | os.PathLike] = None,
+            command_line: Optional[list[str]] = None,
+            work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
             omc_process: Optional[OMCProcess] = None,
     ) -> None:
         """Create a ModelicaSystem instance. To define the model use model() or convertFmu2Mo().
 
         Args:
-            commandLineOptions: List with extra command line options as elements. The list elements are
+            command_line: List with extra command line options as elements. The list elements are
               provided to omc via setCommandLineOptions(). If set, the default values will be overridden.
               To disable any command line options, use an empty list.
-            customBuildDirectory: Path to a directory to be used for temporary
+            work_directory: Path to a directory to be used for temporary
               files like the model executable. If left unspecified, a tmp
               directory will be created.
             omhome: path to OMC to be used when creating the OMC session (see OMCSessionZMQ).
@@ -373,20 +374,20 @@ class ModelicaSystem:
             self._session = OMCSessionZMQ(omhome=omhome)
 
         # set commandLineOptions using default values or the user defined list
-        if commandLineOptions is None:
+        if command_line is None:
             # set default command line options to improve the performance of linearization and to avoid recompilation if
             # the simulation executable is reused in linearize() via the runtime flag '-l'
-            commandLineOptions = [
+            command_line = [
                 "--linearizationDumpLanguage=python",
                 "--generateSymbolicLinearization",
             ]
-        for opt in commandLineOptions:
-            self.setCommandLineOptions(commandLineOptions=opt)
+        for opt in command_line:
+            self.set_command_line_options(command_line_option=opt)
 
         self._simulated = False  # True if the model has already been simulated
         self._result_file: Optional[OMCPath] = None  # for storing result file
 
-        self._work_dir: OMCPath = self.setWorkDirectory(customBuildDirectory)
+        self._work_dir: OMCPath = self.setWorkDirectory(work_directory)
 
         self._model_name: Optional[str] = None
         self._libraries: Optional[list[str | tuple[str, str]]] = None
@@ -395,8 +396,8 @@ class ModelicaSystem:
 
     def model(
             self,
-            name: Optional[str] = None,
-            file: Optional[str | os.PathLike] = None,
+            model_name: Optional[str] = None,
+            model_file: Optional[str | os.PathLike] = None,
             libraries: Optional[list[str | tuple[str, str]]] = None,
             variable_filter: Optional[str] = None,
             build: bool = True,
@@ -406,9 +407,9 @@ class ModelicaSystem:
         This method loads the model file and builds it if requested (build == True).
 
         Args:
-            file: Path to the model file. Either absolute or relative to
+            model_file: Path to the model file. Either absolute or relative to
               the current working directory.
-            name: The name of the model class. If it is contained within
+            model_name: The name of the model class. If it is contained within
               a package, "PackageName.ModelName" should be used.
             libraries: List of libraries to be loaded before the model itself is
               loaded. Two formats are supported for the list elements:
@@ -434,7 +435,7 @@ class ModelicaSystem:
             raise ModelicaSystemError("Can not reuse this instance of ModelicaSystem "
                                       f"defined for {repr(self._model_name)}!")
 
-        if name is None or not isinstance(name, str):
+        if model_name is None or not isinstance(model_name, str):
             raise ModelicaSystemError("A model name must be provided!")
 
         if libraries is None:
@@ -444,20 +445,32 @@ class ModelicaSystem:
             raise ModelicaSystemError(f"Invalid input type for libraries: {type(libraries)} - list expected!")
 
         # set variables
-        self._model_name = name  # Model class name
+        self._model_name = model_name  # Model class name
         self._libraries = libraries  # may be needed if model is derived from other model
-        if file is not None:
-            file_name = self._session.omcpath(file).resolve()
-        else:
-            file_name = None
-        self._file_name = file_name  # Model file/package name
         self._variable_filter = variable_filter
-
-        if self._file_name is not None and not self._file_name.is_file():  # if file does not exist
-            raise IOError(f"{self._file_name} does not exist!")
 
         if self._libraries:
             self._loadLibrary(libraries=self._libraries)
+
+        self._file_name = None
+        if model_file is not None:
+            file_path = pathlib.Path(model_file)
+            # special handling for OMCProcessLocal - consider a relative path
+            if isinstance(self._session.omc_process, OMCProcessLocal) and not file_path.is_absolute():
+                file_path = pathlib.Path.cwd() / file_path
+            if not file_path.is_file():
+                raise IOError(f"Model file {file_path} does not exist!")
+
+            self._file_name = self.getWorkDirectory() / file_path.name
+            if (isinstance(self._session.omc_process, OMCProcessLocal)
+                    and file_path.as_posix() == self._file_name.as_posix()):
+                pass
+            elif self._file_name.is_file():
+                raise IOError(f"Simulation model file {self._file_name} exist - not overwriting!")
+            else:
+                content = file_path.read_text(encoding='utf-8')
+                self._file_name.write_text(content)
+
         if self._file_name is not None:
             self._loadFile(fileName=self._file_name)
 
@@ -470,11 +483,11 @@ class ModelicaSystem:
         """
         return self._session
 
-    def setCommandLineOptions(self, commandLineOptions: str):
+    def set_command_line_options(self, command_line_option: str):
         """
         Set the provided command line option via OMC setCommandLineOptions().
         """
-        exp = f'setCommandLineOptions("{commandLineOptions}")'
+        exp = f'setCommandLineOptions("{command_line_option}")'
         self.sendExpression(exp)
 
     def _loadFile(self, fileName: OMCPath):
@@ -505,15 +518,15 @@ class ModelicaSystem:
                                               '1)["Modelica"]\n'
                                               '2)[("Modelica","3.2.3"), "PowerSystems"]\n')
 
-    def setWorkDirectory(self, customBuildDirectory: Optional[str | os.PathLike] = None) -> OMCPath:
+    def setWorkDirectory(self, work_directory: Optional[str | os.PathLike] = None) -> OMCPath:
         """
         Define the work directory for the ModelicaSystem / OpenModelica session. The model is build within this
         directory. If no directory is defined a unique temporary directory is created.
         """
-        if customBuildDirectory is not None:
-            workdir = self._session.omcpath(customBuildDirectory).absolute()
+        if work_directory is not None:
+            workdir = self._session.omcpath(work_directory).absolute()
             if not workdir.is_dir():
-                raise IOError(f"Provided work directory does not exists: {customBuildDirectory}!")
+                raise IOError(f"Provided work directory does not exists: {work_directory}!")
         else:
             workdir = self._session.omcpath_tempdir().absolute()
             if not workdir.is_dir():
@@ -1685,15 +1698,15 @@ class ModelicaSystem:
             raise ModelicaSystemError(f"Missing FMU file: {fmu_path.as_posix()}")
 
         filename = self._requestApi(apiName='importFMU', entity=fmu_path.as_posix())
-        filepath = self._work_dir / filename
+        filepath = self.getWorkDirectory() / filename
 
         # report proper error message
         if not filepath.is_file():
             raise ModelicaSystemError(f"Missing file {filepath.as_posix()}")
 
         self.model(
-            name=f"{fmu_path.stem}_me_FMU",
-            file=filepath,
+            model_name=f"{fmu_path.stem}_me_FMU",
+            model_file=filepath,
         )
 
         return filepath
@@ -1727,7 +1740,7 @@ class ModelicaSystem:
         """
         cName = self._model_name
         properties = ','.join(f"{key}={val}" for key, val in self._optimization_options.items())
-        self.setCommandLineOptions("-g=Optimica")
+        self.set_command_line_options("-g=Optimica")
         optimizeResult = self._requestApi(apiName='optimize', entity=cName, properties=properties)
 
         return optimizeResult
@@ -1909,8 +1922,8 @@ class ModelicaSystemDoE:
         resdir.mkdir(exist_ok=True)
 
         doe_mod = OMPython.ModelicaSystemDoE(
-            fileName=model.as_posix(),
-            modelName="M",
+            model_name="M",
+            model_file=model.as_posix(),
             parameters=param,
             resultpath=resdir,
             simargs={"override": {'stopTime': 1.0}},
@@ -1938,12 +1951,12 @@ class ModelicaSystemDoE:
     def __init__(
             self,
             # data to be used for ModelicaSystem
-            fileName: Optional[str | os.PathLike] = None,
-            modelName: Optional[str] = None,
-            lmodel: Optional[list[str | tuple[str, str]]] = None,
-            commandLineOptions: Optional[list[str]] = None,
-            variableFilter: Optional[str] = None,
-            customBuildDirectory: Optional[str | os.PathLike] = None,
+            model_file: Optional[str | os.PathLike] = None,
+            model_name: Optional[str] = None,
+            libraries: Optional[list[str | tuple[str, str]]] = None,
+            command_line: Optional[list[str]] = None,
+            variable_filter: Optional[str] = None,
+            work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
             omc_process: Optional[OMCProcess] = None,
             # simulation specific input
@@ -1959,21 +1972,23 @@ class ModelicaSystemDoE:
         ModelicaSystem.simulate(). Additionally, the path to store the result files is needed (= resultpath) as well as
         a list of parameters to vary for the Doe (= parameters). All possible combinations are considered.
         """
+        if model_name is None:
+            raise ModelicaSystemError("No model name provided!")
 
         self._mod = ModelicaSystem(
-            commandLineOptions=commandLineOptions,
-            customBuildDirectory=customBuildDirectory,
+            command_line=command_line,
+            work_directory=work_directory,
             omhome=omhome,
             omc_process=omc_process,
         )
         self._mod.model(
-            file=fileName,
-            name=modelName,
-            libraries=lmodel,
-            variable_filter=variableFilter,
+            model_file=model_file,
+            model_name=model_name,
+            libraries=libraries,
+            variable_filter=variable_filter,
         )
 
-        self._model_name = modelName
+        self._model_name = model_name
 
         self._simargs = simargs
         self._timeout = timeout
@@ -2029,7 +2044,7 @@ class ModelicaSystemDoE:
 
             build_dir = self._resultpath / f"DOE_{idx_pc_structure:09d}"
             build_dir.mkdir()
-            self._mod.setWorkDirectory(customBuildDirectory=build_dir)
+            self._mod.setWorkDirectory(work_directory=build_dir)
 
             sim_param_structure = {}
             for idx_structure, pk_structure in enumerate(param_structure.keys()):

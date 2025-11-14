@@ -54,8 +54,8 @@ def test_ModelicaSystemDoE_local(tmp_path, model_doe, param_doe):
     tmpdir.mkdir(exist_ok=True)
 
     doe_mod = OMPython.ModelicaSystemDoE(
-        fileName=model_doe.as_posix(),
-        modelName="M",
+        model_file=model_doe.as_posix(),
+        model_name="M",
         parameters=param_doe,
         resultpath=tmpdir,
         simargs={"override": {'stopTime': 1.0}},
@@ -71,15 +71,11 @@ def test_ModelicaSystemDoE_docker(tmp_path, model_doe, param_doe):
     omc = OMPython.OMCSessionZMQ(omc_process=omcp)
     assert omc.sendExpression("getVersion()") == "OpenModelica 1.25.0"
 
-    modelpath = omc.omcpath_tempdir() / 'M.mo'
-    modelpath.write_text(model_doe.read_text())
-
     doe_mod = OMPython.ModelicaSystemDoE(
-        fileName=modelpath.as_posix(),
-        modelName="M",
+        model_file=model_doe.as_posix(),
+        model_name="M",
         parameters=param_doe,
         omc_process=omcp,
-        resultpath=modelpath.parent,
         simargs={"override": {'stopTime': 1.0}},
     )
 
@@ -93,8 +89,8 @@ def test_ModelicaSystemDoE_WSL(tmp_path, model_doe, param_doe):
     tmpdir.mkdir(exist_ok=True)
 
     doe_mod = OMPython.ModelicaSystemDoE(
-        fileName=model_doe.as_posix(),
-        modelName="M",
+        model_file=model_doe.as_posix(),
+        model_name="M",
         parameters=param_doe,
         resultpath=tmpdir,
         simargs={"override": {'stopTime': 1.0}},
