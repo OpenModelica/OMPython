@@ -51,10 +51,11 @@ def test_ModelicaSystem_loop(model_firstorder):
 
 def test_setParameters():
     omc = OMPython.OMCSessionZMQ()
-    model_path = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels/"
+    model_path_str = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels"
+    model_path = omc.omcpath(model_path_str)
     mod = OMPython.ModelicaSystem()
     mod.model(
-        file=model_path + "BouncingBall.mo",
+        file=model_path / "BouncingBall.mo",
         name="BouncingBall",
     )
 
@@ -85,10 +86,11 @@ def test_setParameters():
 
 def test_setSimulationOptions():
     omc = OMPython.OMCSessionZMQ()
-    model_path = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels/"
+    model_path_str = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels"
+    model_path = omc.omcpath(model_path_str)
     mod = OMPython.ModelicaSystem()
     mod.model(
-        file=model_path + "BouncingBall.mo",
+        file=model_path / "BouncingBall.mo",
         name="BouncingBall",
     )
 
@@ -112,7 +114,6 @@ def test_setSimulationOptions():
     assert d["tolerance"] == "1.2e-08"
 
 
-@pytest.mark.skip("will fail / fix available")
 def test_relative_path(model_firstorder):
     cwd = pathlib.Path.cwd()
     (fd, name) = tempfile.mkstemp(prefix='tmpOMPython.tests', dir=cwd, text=True)
@@ -152,30 +153,25 @@ def test_customBuildDirectory(tmp_path, model_firstorder):
 
 @skip_on_windows
 @skip_python_older_312
-def test_getSolutions_docker(model_firstorder_content):
+def test_getSolutions_docker(model_firstorder):
     omcp = OMPython.OMCProcessDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
     omc = OMPython.OMCSessionZMQ(omc_process=omcp)
 
-    modelpath = omc.omcpath_tempdir() / 'M.mo'
-    modelpath.write_text(model_firstorder_content)
-
-    file_path = pathlib.Path(modelpath)
     mod = OMPython.ModelicaSystem(
         omc_process=omc.omc_process,
     )
     mod.model(
         name="M",
-        file=file_path,
+        file=model_firstorder.as_posix(),
     )
 
     _run_getSolutions(mod)
 
 
 def test_getSolutions(model_firstorder):
-    filePath = model_firstorder.as_posix()
     mod = OMPython.ModelicaSystem()
     mod.model(
-        file=filePath,
+        file=model_firstorder.as_posix(),
         name="M",
     )
 
