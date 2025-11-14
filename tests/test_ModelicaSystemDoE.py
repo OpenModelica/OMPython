@@ -71,15 +71,13 @@ def test_ModelicaSystemDoE_docker(tmp_path, model_doe, param_doe):
     omc = OMPython.OMCSessionZMQ(omc_process=omcp)
     assert omc.sendExpression("getVersion()") == "OpenModelica 1.25.0"
 
-    modelpath = omc.omcpath_tempdir() / 'M.mo'
-    modelpath.write_text(model_doe.read_text())
-
+    modelpath = omc.omcpath_tempdir()
     doe_mod = OMPython.ModelicaSystemDoE(
-        fileName=modelpath.as_posix(),
+        fileName=model_doe.as_posix(),
         modelName="M",
         parameters=param_doe,
         omc_process=omcp,
-        resultpath=modelpath.parent,
+        resultpath=modelpath,
         simargs={"override": {'stopTime': 1.0}},
     )
 
