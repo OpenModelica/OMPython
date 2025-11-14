@@ -20,11 +20,12 @@ end M;
 
 
 def test_FMIImport(model_firstorder):
-    filePath = model_firstorder.as_posix()
-
     # create model & simulate it
     mod1 = OMPython.ModelicaSystem()
-    mod1.model(file=filePath, name="M")
+    mod1.model(
+        model_file=model_firstorder,
+        model_name="M",
+    )
     mod1.simulate()
 
     # create FMU & check
@@ -33,7 +34,7 @@ def test_FMIImport(model_firstorder):
 
     # import FMU & check & simulate
     # TODO: why is '--allowNonStandardModelica=reinitInAlgorithms' needed? any example without this possible?
-    mod2 = OMPython.ModelicaSystem(commandLineOptions=['--allowNonStandardModelica=reinitInAlgorithms'])
+    mod2 = OMPython.ModelicaSystem(command_line=['--allowNonStandardModelica=reinitInAlgorithms'])
     mo = mod2.convertFmu2Mo(fmu=fmu)
     assert os.path.exists(mo)
 
