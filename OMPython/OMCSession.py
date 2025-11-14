@@ -794,8 +794,9 @@ class OMCSessionZMQ:
                             f"{log_message}")
                 msg_long_list.append(msg_long)
             if has_error:
+                msg_long_str = '\n'.join(f"{idx:02d}: {msg}" for idx, msg in enumerate(msg_long_list))
                 raise OMCSessionException(f"OMC error occurred for 'sendExpression({command}, {parsed}):\n"
-                                          f"{'\n'.join(f"{idx:2d}: {msg}" for idx, msg in enumerate(msg_long_list))}")
+                                          f"{msg_long_str}")
 
         if parsed is False:
             return result
