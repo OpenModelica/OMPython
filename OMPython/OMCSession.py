@@ -623,8 +623,7 @@ class OMCSessionZMQ:
                 # noinspection PyArgumentList
                 return OMCPath(*path)
             raise OMCSessionException("OMCPath is supported for Python < 3.12 only if OMCProcessLocal is used!")
-        else:
-            return OMCPath(*path, session=self)
+        return OMCPath(*path, session=self)
 
     def omcpath_tempdir(self, tempdir_base: Optional[OMCPath] = None) -> OMCPath:
         """
