@@ -622,8 +622,7 @@ class OMCSessionZMQ:
             if isinstance(self.omc_process, OMCProcessLocal):
                 # noinspection PyArgumentList
                 return OMCPath(*path)
-            else:
-                raise OMCSessionException("OMCPath is supported for Python < 3.12 only if OMCProcessLocal is used!")
+            raise OMCSessionException("OMCPath is supported for Python < 3.12 only if OMCProcessLocal is used!")
         else:
             return OMCPath(*path, session=self)
 
@@ -835,12 +834,12 @@ class OMCSessionZMQ:
 
         try:
             return om_parser_typed(result)
-        except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s. Returning the basic parser result.', ex.msg)
+        except pyparsing.ParseException as ex1:
+            logger.warning('OMTypedParser error: %s. Returning the basic parser result.', ex1.msg)
             try:
                 return om_parser_basic(result)
-            except (TypeError, UnboundLocalError) as ex:
-                raise OMCSessionException("Cannot parse OMC result") from ex
+            except (TypeError, UnboundLocalError) as ex2:
+                raise OMCSessionException("Cannot parse OMC result") from ex2
 
 
 class OMCProcess(metaclass=abc.ABCMeta):
