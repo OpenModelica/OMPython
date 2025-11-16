@@ -479,10 +479,14 @@ if sys.version_info < (3, 12):
             return self.stat().st_size
 
     class OMCPathCompatibilityPosix(pathlib.PosixPath, OMCPathCompatibility):
-        pass
+        """
+        Compatibility class for OMCPath on Posix systems (Python < 3.12)
+        """
 
     class OMCPathCompatibilityWindows(pathlib.WindowsPath, OMCPathCompatibility):
-        pass
+        """
+        Compatibility class for OMCPath on Windows systems (Python < 3.12)
+        """
 
     OMCPath = OMCPathCompatibility
 
