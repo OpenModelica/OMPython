@@ -95,6 +95,9 @@ class OMCSessionException(Exception):
 
 
 class OMCSessionCmd:
+    """
+    Implementation of Open Modelica Compiler API functions. Depreciated!
+    """
 
     def __init__(self, session: OMCSessionZMQ, readonly: bool = False):
         if not isinstance(session, OMCSessionZMQ):
