@@ -536,6 +536,11 @@ class OMCSessionRunData:
 
 
 class OMCSessionZMQ:
+    """
+    This class is handling an OMC session.
+
+    The main method is sendExpression() which is used to send commands to the OMC process.
+    """
 
     def __init__(
             self,
@@ -545,12 +550,6 @@ class OMCSessionZMQ:
     ) -> None:
         """
         Initialisation for OMCSessionZMQ
-
-        Parameters
-        ----------
-        timeout
-        omhome
-        omc_process
         """
 
         self._timeout = timeout
@@ -698,6 +697,9 @@ class OMCSessionZMQ:
     def sendExpression(self, command: str, parsed: bool = True) -> Any:
         """
         Send an expression to the OMC server and return the result.
+
+        The complete error handling of the OMC result is done within this method using '"getMessagesStringInternal()'.
+        Caller should only check for OMCSessionException.
         """
         if self.omc_zmq is None:
             raise OMCSessionException("No OMC running. Create a new instance of OMCProcess!")
