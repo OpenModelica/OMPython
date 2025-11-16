@@ -468,8 +468,7 @@ if sys.version_info < (3, 12):
                 cls = OMCPathCompatibilityWindows if os.name == 'nt' else OMCPathCompatibilityPosix
             self = cls._from_parts(args)
             if not self._flavour.is_supported:
-                raise NotImplementedError("cannot instantiate %r on your system"
-                                          % (cls.__name__,))
+                raise NotImplementedError(f"cannot instantiate {cls.__name__} on your system")
             return self
 
         def size(self) -> int:
