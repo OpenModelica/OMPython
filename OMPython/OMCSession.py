@@ -89,7 +89,9 @@ class DockerPopen:
 
 
 class OMCSessionException(Exception):
-    pass
+    """
+    Exception which is raised by any OMC* class.
+    """
 
 
 class OMCSessionCmd:
