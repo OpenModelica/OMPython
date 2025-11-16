@@ -125,7 +125,7 @@ class OMCSessionCmd:
         try:
             res = self._session.sendExpression(expression, parsed=parsed)
         except OMCSessionException as ex:
-            raise OMCSessionException("OMC _ask() failed: %s (parsed=%s)", (expression, parsed)) from ex
+            raise OMCSessionException(f"OMC _ask() failed: {expression} (parsed={parsed})") from ex
 
         # save response
         self._omc_cache[p] = res
