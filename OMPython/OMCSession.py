@@ -540,6 +540,20 @@ class OMCSessionZMQ:
     This class is handling an OMC session.
 
     The main method is sendExpression() which is used to send commands to the OMC process.
+
+    The class expects an OMCProcess* on initialisation. It defines the type of OMC process to use:
+
+    * OMCProcessLocal
+
+    * OMCProcessPort
+
+    * OMCProcessDocker
+
+    * OMCProcessDockerContainer
+
+    * OMCProcessWSL
+
+    If no OMC process is defined, a local OMC process is initialized.
     """
 
     def __init__(
