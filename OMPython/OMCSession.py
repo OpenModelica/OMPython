@@ -500,6 +500,9 @@ class OMCSessionRunData:
     Data class to store the command line data for running a model executable in the OMC environment.
 
     All data should be defined for the environment, where OMC is running (local, docker or WSL)
+
+    To use this as a definition of an OMC simulation run, it has to be processed within
+    OMCProcess*.omc_run_data_update(). This defines the attribute cmd_model_executable.
     """
     # cmd_path is the expected working directory
     cmd_path: str
@@ -932,6 +935,9 @@ class OMCProcess(metaclass=abc.ABCMeta):
     def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
         Update the OMCSessionRunData object based on the selected OMCProcess implementation.
+
+        The main point is the definition of OMCSessionRunData.cmd_model_executable which contains the specific command
+        to run depending on the selected system.
 
         Needs to be implemented in the subclasses.
         """
