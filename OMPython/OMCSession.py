@@ -843,6 +843,11 @@ class OMCSessionZMQ:
 
 
 class OMCProcess(metaclass=abc.ABCMeta):
+    """
+    Metaclass to be used by all OMCProcess* implementations. The main task is the evaluation of the port to be used to
+    connect to the selected OMC process (method get_port()). Besides that, any implementation should define the method
+    omc_run_data_update() to finalize the definition of an OMC simulation.
+    """
 
     def __init__(
             self,
