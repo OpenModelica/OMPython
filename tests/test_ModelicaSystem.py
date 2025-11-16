@@ -1,10 +1,12 @@
-import OMPython
 import os
 import pathlib
-import pytest
 import sys
 import tempfile
+
 import numpy as np
+import pytest
+
+import OMPython
 
 skip_on_windows = pytest.mark.skipif(
     sys.platform.startswith("win"),
@@ -19,13 +21,14 @@ skip_python_older_312 = pytest.mark.skipif(
 
 @pytest.fixture
 def model_firstorder_content():
-    return ("""model M
+    return """
+model M
   Real x(start = 1, fixed = true);
   parameter Real a = -1;
 equation
   der(x) = x*a;
 end M;
-""")
+"""
 
 
 @pytest.fixture

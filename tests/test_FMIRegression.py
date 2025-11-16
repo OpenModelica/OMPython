@@ -1,8 +1,9 @@
-import OMPython
 import tempfile
 import pathlib
 import shutil
 import os
+
+import OMPython
 
 
 def buildModelFMU(modelName):

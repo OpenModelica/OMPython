@@ -1,7 +1,8 @@
-import OMPython
 import pathlib
 import os
 import pytest
+
+import OMPython
 
 
 @pytest.fixture

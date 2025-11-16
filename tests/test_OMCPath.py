@@ -1,6 +1,8 @@
 import sys
-import OMPython
+
 import pytest
+
+import OMPython
 
 skip_on_windows = pytest.mark.skipif(
     sys.platform.startswith("win"),

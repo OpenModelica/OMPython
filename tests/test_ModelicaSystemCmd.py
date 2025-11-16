@@ -1,5 +1,6 @@
-import OMPython
 import pytest
+
+import OMPython
 
 
 @pytest.fixture

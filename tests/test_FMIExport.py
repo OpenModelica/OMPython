@@ -1,7 +1,8 @@
-import OMPython
 import shutil
 import os
 import pathlib
+
+import OMPython
 
 
 def test_CauerLowPassAnalog():

@@ -1,8 +1,10 @@
-import numpy as np
-import OMPython
 import pathlib
-import pytest
 import sys
+
+import numpy as np
+import pytest
+
+import OMPython
 
 skip_on_windows = pytest.mark.skipif(
     sys.platform.startswith("win"),
