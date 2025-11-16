@@ -1409,6 +1409,10 @@ class ModelicaSystem:
             self,
             name: str,
     ) -> bool:
+        """
+        Return if the parameter defined by name is changeable (= non-structural; can be modified without the need to
+        recompile the model).
+        """
         q = self.getQuantities(name)
         if q[0]["changeable"] == "false":
             return False
