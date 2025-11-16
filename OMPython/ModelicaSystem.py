@@ -119,7 +119,11 @@ class LinearizationResult:
 
 
 class ModelicaSystemCmd:
-    """A compiled model executable."""
+    """
+    All information about a compiled model executable. This should include data about all structured parameters. i.e.
+    parameters which need a recompilation of the model). All non-structured parameters can be easily changed without
+    the need for recompilation.
+    """
 
     def __init__(
             self,
