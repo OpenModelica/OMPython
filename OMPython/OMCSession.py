@@ -65,7 +65,11 @@ from OMPython.OMParser import om_parser_basic
 logger = logging.getLogger(__name__)
 
 
-class DummyPopen:
+class DockerPopen:
+    """
+    Dummy implementation of Popen for a (running) docker process. The process is identified by its process ID (pid).
+    """
+
     def __init__(self, pid):
         self.pid = pid
         self.process = psutil.Process(pid)
@@ -1079,9 +1083,9 @@ class OMCProcessDockerHelper(OMCProcess):
         self._interactivePort = port
 
         self._dockerCid: Optional[str] = None
-        self._docker_process: Optional[DummyPopen] = None
+        self._docker_process: Optional[DockerPopen] = None
 
-    def _docker_process_get(self, docker_cid: str) -> Optional[DummyPopen]:
+    def _docker_process_get(self, docker_cid: str) -> Optional[DockerPopen]:
         if sys.platform == 'win32':
             raise NotImplementedError("Docker not supported on win32!")
 
@@ -1093,7 +1097,7 @@ class OMCProcessDockerHelper(OMCProcess):
                 columns = line.split()
                 if self._random_string in line:
                     try:
-                        docker_process = DummyPopen(int(columns[1]))
+                        docker_process = DockerPopen(int(columns[1]))
                     except psutil.NoSuchProcess as ex:
                         raise OMCSessionException(f"Could not find PID {dockerTop} - "
                                                   "is this a docker instance spawned without --pid=host?") from ex
@@ -1228,7 +1232,7 @@ class OMCProcessDocker(OMCProcessDockerHelper):
 
         super().__del__()
 
-        if isinstance(self._docker_process, DummyPopen):
+        if isinstance(self._docker_process, DockerPopen):
             try:
                 self._docker_process.wait(timeout=2.0)
             except subprocess.TimeoutExpired:
@@ -1290,7 +1294,7 @@ class OMCProcessDocker(OMCProcessDockerHelper):
 
         return omc_command
 
-    def _docker_omc_start(self) -> Tuple[subprocess.Popen, DummyPopen, str]:
+    def _docker_omc_start(self) -> Tuple[subprocess.Popen, DockerPopen, str]:
         my_env = os.environ.copy()
 
         docker_cid_file = self._temp_dir / (self._omc_filebase + ".docker.cid")
@@ -1402,7 +1406,7 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
 
         return omc_command
 
-    def _docker_omc_start(self) -> Tuple[subprocess.Popen, DummyPopen]:
+    def _docker_omc_start(self) -> Tuple[subprocess.Popen, DockerPopen]:
         my_env = os.environ.copy()
 
         omc_command = self._docker_omc_cmd(
