@@ -38,6 +38,7 @@ import itertools
 import logging
 import numbers
 import os
+import pathlib
 import queue
 import textwrap
 import threading
@@ -450,18 +451,30 @@ class ModelicaSystem:
         # set variables
         self._model_name = name  # Model class name
         self._libraries = libraries  # may be needed if model is derived from other model
-        if file is not None:
-            file_name = self._session.omcpath(file).resolve()
-        else:
-            file_name = None
-        self._file_name = file_name  # Model file/package name
         self._variable_filter = variable_filter
-
-        if self._file_name is not None and not self._file_name.is_file():  # if file does not exist
-            raise IOError(f"{self._file_name} does not exist!")
 
         if self._libraries:
             self._loadLibrary(libraries=self._libraries)
+
+        self._file_name = None
+        if file is not None:
+            file_path = pathlib.Path(file)
+            # special handling for OMCProcessLocal - consider a relative path
+            if isinstance(self._session.omc_process, OMCProcessLocal) and not file_path.is_absolute():
+                file_path = pathlib.Path.cwd() / file_path
+            if not file_path.is_file():
+                raise IOError(f"Model file {file_path} does not exist!")
+
+            self._file_name = self.getWorkDirectory() / file_path.name
+            if (isinstance(self._session.omc_process, OMCProcessLocal)
+                    and file_path.as_posix() == self._file_name.as_posix()):
+                pass
+            elif self._file_name.is_file():
+                raise IOError(f"Simulation model file {self._file_name} exist - not overwriting!")
+            else:
+                content = file_path.read_text(encoding='utf-8')
+                self._file_name.write_text(content)
+
         if self._file_name is not None:
             self._loadFile(fileName=self._file_name)
 
@@ -1689,7 +1702,7 @@ class ModelicaSystem:
             raise ModelicaSystemError(f"Missing FMU file: {fmu_path.as_posix()}")
 
         filename = self._requestApi(apiName='importFMU', entity=fmu_path.as_posix())
-        filepath = self._work_dir / filename
+        filepath = self.getWorkDirectory() / filename
 
         # report proper error message
         if not filepath.is_file():
