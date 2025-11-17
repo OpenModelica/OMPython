@@ -322,6 +322,10 @@ class ModelicaSystemCmd:
 
 
 class ModelicaSystem:
+    """
+    Class to simulate a Modelica model using OpenModelica via OMCSessionZMQ.
+    """
+
     def __init__(
             self,
             commandLineOptions: Optional[list[str]] = None,
