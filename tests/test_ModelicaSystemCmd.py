@@ -19,8 +19,8 @@ end M;
 def mscmd_firstorder(model_firstorder):
     mod = OMPython.ModelicaSystem()
     mod.model(
-        file=model_firstorder.as_posix(),
-        name="M",
+        model_file=model_firstorder.as_posix(),
+        model_name="M",
     )
     mscmd = OMPython.ModelicaSystemCmd(
         session=mod.session(),

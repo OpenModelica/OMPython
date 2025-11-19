@@ -7,7 +7,7 @@ import pathlib
 def test_CauerLowPassAnalog():
     mod = OMPython.ModelicaSystem()
     mod.model(
-        name="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
+        model_name="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
         libraries=["Modelica"],
     )
     tmp = pathlib.Path(mod.getWorkDirectory())
@@ -21,7 +21,7 @@ def test_CauerLowPassAnalog():
 def test_DrumBoiler():
     mod = OMPython.ModelicaSystem()
     mod.model(
-        name="Modelica.Fluid.Examples.DrumBoiler.DrumBoiler",
+        model_name="Modelica.Fluid.Examples.DrumBoiler.DrumBoiler",
         libraries=["Modelica"],
     )
     tmp = pathlib.Path(mod.getWorkDirectory())
