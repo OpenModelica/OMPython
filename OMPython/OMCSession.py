@@ -729,6 +729,8 @@ class OMCSessionZMQ:
         self.omc_zmq.send_string('getMessagesStringInternal()', flags=zmq.NOBLOCK)
         error_raw = self.omc_zmq.recv_string()
         # run error handling only if there is something to check
+        msg_long_list = []
+        has_error = False
         if error_raw != "{}\n":
             if not self._re_log_entries:
                 self._re_log_entries = re.compile(pattern=r'record OpenModelica\.Scripting\.ErrorMessage'
@@ -737,41 +739,64 @@ class OMCSessionZMQ:
                                                   flags=re.MULTILINE | re.DOTALL)
             if not self._re_log_raw:
                 self._re_log_raw = re.compile(
-                    pattern=r"\s+message = \"(.*?)\",\n"  # message
-                            r"\s+kind = .OpenModelica.Scripting.ErrorKind.(.*?),\n"  # kind
-                            r"\s+level = .OpenModelica.Scripting.ErrorLevel.(.*?),\n"  # level
-                            r"\s+id = (.*?)"  # id
-                            "(,\n|\n)",  # end marker
+                    pattern=r"\s*info = record OpenModelica\.Scripting\.SourceInfo\n"
+                            r"\s*filename = \"(.*?)\",\n"
+                            r"\s*readonly = (.*?),\n"
+                            r"\s*lineStart = (\d+),\n"
+                            r"\s*columnStart = (\d+),\n"
+                            r"\s*lineEnd = (\d+),\n"
+                            r"\s*columnEnd = (\d+)\n"
+                            r"\s*end OpenModelica\.Scripting\.SourceInfo;,\n"
+                            r"\s*message = \"(.*?)\",\n"  # message
+                            r"\s*kind = \.OpenModelica\.Scripting\.ErrorKind\.(.*?),\n"  # kind
+                            r"\s*level = \.OpenModelica\.Scripting\.ErrorLevel\.(.*?),\n"  # level
+                            r"\s*id = (\d+)",  # id
                     flags=re.MULTILINE | re.DOTALL)
 
             # extract all ErrorMessage records
             log_entries = self._re_log_entries.findall(string=error_raw)
             for log_entry in reversed(log_entries):
                 log_raw = self._re_log_raw.findall(string=log_entry)
-                if len(log_raw) != 1 or len(log_raw[0]) != 5:
+                if len(log_raw) != 1 or len(log_raw[0]) != 10:
                     logger.warning("Invalid ErrorMessage record returned by 'getMessagesStringInternal()':"
                                    f" {repr(log_entry)}!")
                     continue
 
-                log_message = log_raw[0][0].encode().decode('unicode_escape')
-                log_kind = log_raw[0][1]
-                log_level = log_raw[0][2]
-                log_id = log_raw[0][3]
+                log_filename = log_raw[0][0]
+                log_readonly = log_raw[0][1]
+                log_lstart = log_raw[0][2]
+                log_cstart = log_raw[0][3]
+                log_lend = log_raw[0][4]
+                log_cend = log_raw[0][5]
+                log_message = log_raw[0][6].encode().decode('unicode_escape')
+                log_kind = log_raw[0][7]
+                log_level = log_raw[0][8]
+                log_id = log_raw[0][9]
 
-                msg = (f"[OMC log for 'sendExpression({command}, {parsed})']: "
-                       f"[{log_kind}:{log_level}:{log_id}] {log_message}")
+                msg_short = (f"[OMC log for 'sendExpression({command}, {parsed})']: "
+                             f"[{log_kind}:{log_level}:{log_id}] {log_message}")
 
                 # response according to the used log level
                 # see: https://build.openmodelica.org/Documentation/OpenModelica.Scripting.ErrorLevel.html
                 if log_level == 'error':
-                    raise OMCSessionException(msg)
-
-                if log_level == 'warning':
-                    logger.warning(msg)
+                    logger.error(msg_short)
+                    has_error = True
+                elif log_level == 'warning':
+                    logger.warning(msg_short)
                 elif log_level == 'notification':
-                    logger.info(msg)
+                    logger.info(msg_short)
                 else:  # internal
-                    logger.debug(msg)
+                    logger.debug(msg_short)
+
+                # track all messages such that this list can be reported if an error occurred
+                msg_long = (f"[{log_kind}:{log_level}:{log_id}] "
+                            f"[{log_filename}:{log_readonly}:{log_lstart}:{log_cstart}:{log_lend}:{log_cend}] "
+                            f"{log_message}")
+                msg_long_list.append(msg_long)
+            if has_error:
+                msg_long_str = '\n'.join(f"{idx:02d}: {msg}" for idx, msg in enumerate(msg_long_list))
+                raise OMCSessionException(f"OMC error occurred for 'sendExpression({command}, {parsed}):\n"
+                                          f"{msg_long_str}")
 
         if parsed is False:
             return result
