@@ -33,7 +33,7 @@ def test_FMIImport(model_firstorder):
 
     # import FMU & check & simulate
     # TODO: why is '--allowNonStandardModelica=reinitInAlgorithms' needed? any example without this possible?
-    mod2 = OMPython.ModelicaSystem(command_line=['--allowNonStandardModelica=reinitInAlgorithms'])
+    mod2 = OMPython.ModelicaSystem(command_line_options=['--allowNonStandardModelica=reinitInAlgorithms'])
     mo = mod2.convertFmu2Mo(fmu=fmu)
     assert os.path.exists(mo)
 

@@ -329,7 +329,7 @@ class ModelicaSystem:
 
     def __init__(
             self,
-            command_line: Optional[list[str]] = None,
+            command_line_options: Optional[list[str]] = None,
             work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
             omc_process: Optional[OMCProcess] = None,
@@ -337,7 +337,7 @@ class ModelicaSystem:
         """Create a ModelicaSystem instance. To define the model use model() or convertFmu2Mo().
 
         Args:
-            command_line: List with extra command line options as elements. The list elements are
+            command_line_options: List with extra command line options as elements. The list elements are
               provided to omc via setCommandLineOptions(). If set, the default values will be overridden.
               To disable any command line options, use an empty list.
             work_directory: Path to a directory to be used for temporary
@@ -378,14 +378,14 @@ class ModelicaSystem:
             self._session = OMCSessionZMQ(omhome=omhome)
 
         # set commandLineOptions using default values or the user defined list
-        if command_line is None:
+        if command_line_options is None:
             # set default command line options to improve the performance of linearization and to avoid recompilation if
             # the simulation executable is reused in linearize() via the runtime flag '-l'
-            command_line = [
+            command_line_options = [
                 "--linearizationDumpLanguage=python",
                 "--generateSymbolicLinearization",
             ]
-        for opt in command_line:
+        for opt in command_line_options:
             self.set_command_line_options(command_line_option=opt)
 
         self._simulated = False  # True if the model has already been simulated
@@ -1958,7 +1958,7 @@ class ModelicaSystemDoE:
             model_file: Optional[str | os.PathLike] = None,
             model_name: Optional[str] = None,
             libraries: Optional[list[str | tuple[str, str]]] = None,
-            command_line: Optional[list[str]] = None,
+            command_line_options: Optional[list[str]] = None,
             variable_filter: Optional[str] = None,
             work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
@@ -1980,7 +1980,7 @@ class ModelicaSystemDoE:
             raise ModelicaSystemError("No model name provided!")
 
         self._mod = ModelicaSystem(
-            command_line=command_line,
+            command_line_options=command_line_options,
             work_directory=work_directory,
             omhome=omhome,
             omc_process=omc_process,
