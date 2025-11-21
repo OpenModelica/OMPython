@@ -119,7 +119,11 @@ class LinearizationResult:
 
 
 class ModelicaSystemCmd:
-    """A compiled model executable."""
+    """
+    All information about a compiled model executable. This should include data about all structured parameters, i.e.
+    parameters which need a recompilation of the model. All non-structured parameters can be easily changed without
+    the need for recompilation.
+    """
 
     def __init__(
             self,
@@ -505,10 +509,10 @@ class ModelicaSystem:
             if element is not None:
                 if isinstance(element, str):
                     if element.endswith(".mo"):
-                        apiCall = "loadFile"
+                        api_call = "loadFile"
                     else:
-                        apiCall = "loadModel"
-                    self._requestApi(apiName=apiCall, entity=element)
+                        api_call = "loadModel"
+                    self._requestApi(apiName=api_call, entity=element)
                 elif isinstance(element, tuple):
                     if not element[1]:
                         expr_load_lib = f"loadModel({element[0]})"
@@ -563,8 +567,8 @@ class ModelicaSystem:
         else:
             var_filter = 'variableFilter=".*"'
 
-        buildModelResult = self._requestApi(apiName="buildModel", entity=self._model_name, properties=var_filter)
-        logger.debug("OM model build result: %s", buildModelResult)
+        build_model_result = self._requestApi(apiName="buildModel", entity=self._model_name, properties=var_filter)
+        logger.debug("OM model build result: %s", build_model_result)
 
         # check if the executable exists ...
         om_cmd = ModelicaSystemCmd(
@@ -580,7 +584,7 @@ class ModelicaSystem:
         if returncode != 0:
             raise ModelicaSystemError("Model executable not working!")
 
-        xml_file = self._session.omcpath(buildModelResult[0]).parent / buildModelResult[1]
+        xml_file = self._session.omcpath(build_model_result[0]).parent / build_model_result[1]
         self._xmlparse(xml_file=xml_file)
 
     def sendExpression(self, expr: str, parsed: bool = True) -> Any:
@@ -618,13 +622,13 @@ class ModelicaSystem:
 
         xml_content = xml_file.read_text()
         tree = ET.ElementTree(ET.fromstring(xml_content))
-        rootCQ = tree.getroot()
-        for attr in rootCQ.iter('DefaultExperiment'):
+        root = tree.getroot()
+        for attr in root.iter('DefaultExperiment'):
             for key in ("startTime", "stopTime", "stepSize", "tolerance",
                         "solver", "outputFormat"):
                 self._simulate_options[key] = str(attr.get(key))
 
-        for sv in rootCQ.iter('ScalarVariable'):
+        for sv in root.iter('ScalarVariable'):
             translations = {
                 "alias": "alias",
                 "aliasvariable": "aliasVariable",
@@ -1405,6 +1409,10 @@ class ModelicaSystem:
             self,
             name: str,
     ) -> bool:
+        """
+        Return if the parameter defined by name is changeable (= non-structural; can be modified without the need to
+        recompile the model).
+        """
         q = self.getQuantities(name)
         if q[0]["changeable"] == "false":
             return False
@@ -1670,10 +1678,10 @@ class ModelicaSystem:
                 fileNamePrefix = "<default>"
             else:
                 fileNamePrefix = self._model_name
-        includeResourcesStr = "true" if includeResources else "false"
+        include_resources_str = "true" if includeResources else "false"
 
         properties = (f'version="{version}", fmuType="{fmuType}", '
-                      f'fileNamePrefix="{fileNamePrefix}", includeResources={includeResourcesStr}')
+                      f'fileNamePrefix="{fileNamePrefix}", includeResources={include_resources_str}')
         fmu = self._requestApi(apiName='buildModelFMU', entity=self._model_name, properties=properties)
         fmu_path = self._session.omcpath(fmu)
 
@@ -1742,12 +1750,9 @@ class ModelicaSystem:
              'timeTemplates': 0.002007785,
              'timeTotal': 1.079097854}
         """
-        cName = self._model_name
         properties = ','.join(f"{key}={val}" for key, val in self._optimization_options.items())
         self.set_command_line_options("-g=Optimica")
-        optimizeResult = self._requestApi(apiName='optimize', entity=cName, properties=properties)
-
-        return optimizeResult
+        return self._requestApi(apiName='optimize', entity=self._model_name, properties=properties)
 
     def linearize(
             self,

@@ -65,7 +65,11 @@ from OMPython.OMParser import om_parser_basic
 logger = logging.getLogger(__name__)
 
 
-class DummyPopen:
+class DockerPopen:
+    """
+    Dummy implementation of Popen for a (running) docker process. The process is identified by its process ID (pid).
+    """
+
     def __init__(self, pid):
         self.pid = pid
         self.process = psutil.Process(pid)
@@ -85,10 +89,15 @@ class DummyPopen:
 
 
 class OMCSessionException(Exception):
-    pass
+    """
+    Exception which is raised by any OMC* class.
+    """
 
 
 class OMCSessionCmd:
+    """
+    Implementation of Open Modelica Compiler API functions. Depreciated!
+    """
 
     def __init__(self, session: OMCSessionZMQ, readonly: bool = False):
         if not isinstance(session, OMCSessionZMQ):
@@ -116,7 +125,7 @@ class OMCSessionCmd:
         try:
             res = self._session.sendExpression(expression, parsed=parsed)
         except OMCSessionException as ex:
-            raise OMCSessionException("OMC _ask() failed: %s (parsed=%s)", (expression, parsed)) from ex
+            raise OMCSessionException(f"OMC _ask() failed: {expression} (parsed={parsed})") from ex
 
         # save response
         self._omc_cache[p] = res
@@ -459,8 +468,7 @@ if sys.version_info < (3, 12):
                 cls = OMCPathCompatibilityWindows if os.name == 'nt' else OMCPathCompatibilityPosix
             self = cls._from_parts(args)
             if not self._flavour.is_supported:
-                raise NotImplementedError("cannot instantiate %r on your system"
-                                          % (cls.__name__,))
+                raise NotImplementedError(f"cannot instantiate {cls.__name__} on your system")
             return self
 
         def size(self) -> int:
@@ -470,10 +478,14 @@ if sys.version_info < (3, 12):
             return self.stat().st_size
 
     class OMCPathCompatibilityPosix(pathlib.PosixPath, OMCPathCompatibility):
-        pass
+        """
+        Compatibility class for OMCPath on Posix systems (Python < 3.12)
+        """
 
     class OMCPathCompatibilityWindows(pathlib.WindowsPath, OMCPathCompatibility):
-        pass
+        """
+        Compatibility class for OMCPath on Windows systems (Python < 3.12)
+        """
 
     OMCPath = OMCPathCompatibility
 
@@ -487,6 +499,9 @@ class OMCSessionRunData:
     Data class to store the command line data for running a model executable in the OMC environment.
 
     All data should be defined for the environment, where OMC is running (local, docker or WSL)
+
+    To use this as a definition of an OMC simulation run, it has to be processed within
+    OMCProcess*.omc_run_data_update(). This defines the attribute cmd_model_executable.
     """
     # cmd_path is the expected working directory
     cmd_path: str
@@ -523,6 +538,25 @@ class OMCSessionRunData:
 
 
 class OMCSessionZMQ:
+    """
+    This class is handling an OMC session.
+
+    The main method is sendExpression() which is used to send commands to the OMC process.
+
+    The class expects an OMCProcess* on initialisation. It defines the type of OMC process to use:
+
+    * OMCProcessLocal
+
+    * OMCProcessPort
+
+    * OMCProcessDocker
+
+    * OMCProcessDockerContainer
+
+    * OMCProcessWSL
+
+    If no OMC process is defined, a local OMC process is initialized.
+    """
 
     def __init__(
             self,
@@ -532,12 +566,6 @@ class OMCSessionZMQ:
     ) -> None:
         """
         Initialisation for OMCSessionZMQ
-
-        Parameters
-        ----------
-        timeout
-        omhome
-        omc_process
         """
 
         self._timeout = timeout
@@ -593,10 +621,8 @@ class OMCSessionZMQ:
             if isinstance(self.omc_process, OMCProcessLocal):
                 # noinspection PyArgumentList
                 return OMCPath(*path)
-            else:
-                raise OMCSessionException("OMCPath is supported for Python < 3.12 only if OMCProcessLocal is used!")
-        else:
-            return OMCPath(*path, session=self)
+            raise OMCSessionException("OMCPath is supported for Python < 3.12 only if OMCProcessLocal is used!")
+        return OMCPath(*path, session=self)
 
     def omcpath_tempdir(self, tempdir_base: Optional[OMCPath] = None) -> OMCPath:
         """
@@ -685,6 +711,9 @@ class OMCSessionZMQ:
     def sendExpression(self, command: str, parsed: bool = True) -> Any:
         """
         Send an expression to the OMC server and return the result.
+
+        The complete error handling of the OMC result is done within this method using '"getMessagesStringInternal()'.
+        Caller should only check for OMCSessionException.
         """
         if self.omc_zmq is None:
             raise OMCSessionException("No OMC running. Create a new instance of OMCProcess!")
@@ -803,15 +832,20 @@ class OMCSessionZMQ:
 
         try:
             return om_parser_typed(result)
-        except pyparsing.ParseException as ex:
-            logger.warning('OMTypedParser error: %s. Returning the basic parser result.', ex.msg)
+        except pyparsing.ParseException as ex1:
+            logger.warning('OMTypedParser error: %s. Returning the basic parser result.', ex1.msg)
             try:
                 return om_parser_basic(result)
-            except (TypeError, UnboundLocalError) as ex:
-                raise OMCSessionException("Cannot parse OMC result") from ex
+            except (TypeError, UnboundLocalError) as ex2:
+                raise OMCSessionException("Cannot parse OMC result") from ex2
 
 
 class OMCProcess(metaclass=abc.ABCMeta):
+    """
+    Metaclass to be used by all OMCProcess* implementations. The main task is the evaluation of the port to be used to
+    connect to the selected OMC process (method get_port()). Besides that, any implementation should define the method
+    omc_run_data_update() to finalize the definition of an OMC simulation.
+    """
 
     def __init__(
             self,
@@ -903,6 +937,9 @@ class OMCProcess(metaclass=abc.ABCMeta):
     def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
         Update the OMCSessionRunData object based on the selected OMCProcess implementation.
+
+        The main point is the definition of OMCSessionRunData.cmd_model_executable which contains the specific command
+        to run depending on the selected system.
 
         Needs to be implemented in the subclasses.
         """
@@ -1072,30 +1109,30 @@ class OMCProcessDockerHelper(OMCProcess):
         if dockerExtraArgs is None:
             dockerExtraArgs = []
 
-        self._dockerExtraArgs = dockerExtraArgs
-        self._dockerOpenModelicaPath = pathlib.PurePosixPath(dockerOpenModelicaPath)
-        self._dockerNetwork = dockerNetwork
+        self._docker_extra_args = dockerExtraArgs
+        self._docker_open_modelica_path = pathlib.PurePosixPath(dockerOpenModelicaPath)
+        self._docker_network = dockerNetwork
 
-        self._interactivePort = port
+        self._interactive_port = port
 
-        self._dockerCid: Optional[str] = None
-        self._docker_process: Optional[DummyPopen] = None
+        self._docker_container_id: Optional[str] = None
+        self._docker_process: Optional[DockerPopen] = None
 
-    def _docker_process_get(self, docker_cid: str) -> Optional[DummyPopen]:
+    def _docker_process_get(self, docker_cid: str) -> Optional[DockerPopen]:
         if sys.platform == 'win32':
             raise NotImplementedError("Docker not supported on win32!")
 
         docker_process = None
         for _ in range(0, 40):
-            dockerTop = subprocess.check_output(["docker", "top", docker_cid]).decode().strip()
+            docker_top = subprocess.check_output(["docker", "top", docker_cid]).decode().strip()
             docker_process = None
-            for line in dockerTop.split("\n"):
+            for line in docker_top.split("\n"):
                 columns = line.split()
                 if self._random_string in line:
                     try:
-                        docker_process = DummyPopen(int(columns[1]))
+                        docker_process = DockerPopen(int(columns[1]))
                     except psutil.NoSuchProcess as ex:
-                        raise OMCSessionException(f"Could not find PID {dockerTop} - "
+                        raise OMCSessionException(f"Could not find PID {docker_top} - "
                                                   "is this a docker instance spawned without --pid=host?") from ex
 
             if docker_process is not None:
@@ -1118,8 +1155,8 @@ class OMCProcessDockerHelper(OMCProcess):
     def _omc_port_get(self) -> str:
         port = None
 
-        if not isinstance(self._dockerCid, str):
-            raise OMCSessionException(f"Invalid docker container ID: {self._dockerCid}")
+        if not isinstance(self._docker_container_id, str):
+            raise OMCSessionException(f"Invalid docker container ID: {self._docker_container_id}")
 
         # See if the omc server is running
         attempts = 0
@@ -1128,7 +1165,7 @@ class OMCProcessDockerHelper(OMCProcess):
             if omc_portfile_path is not None:
                 try:
                     output = subprocess.check_output(args=["docker",
-                                                           "exec", self._dockerCid,
+                                                           "exec", self._docker_container_id,
                                                            "cat", omc_portfile_path.as_posix()],
                                                      stderr=subprocess.DEVNULL)
                     port = output.decode().strip()
@@ -1153,8 +1190,8 @@ class OMCProcessDockerHelper(OMCProcess):
         """
         Get the server address of the OMC server running in a Docker container.
         """
-        if self._dockerNetwork == "separate" and isinstance(self._dockerCid, str):
-            output = subprocess.check_output(["docker", "inspect", self._dockerCid]).decode().strip()
+        if self._docker_network == "separate" and isinstance(self._docker_container_id, str):
+            output = subprocess.check_output(["docker", "inspect", self._docker_container_id]).decode().strip()
             return json.loads(output)[0]["NetworkSettings"]["IPAddress"]
 
         return None
@@ -1163,10 +1200,10 @@ class OMCProcessDockerHelper(OMCProcess):
         """
         Get the Docker container ID of the Docker container with the OMC server.
         """
-        if not isinstance(self._dockerCid, str):
-            raise OMCSessionException(f"Invalid docker container ID: {self._dockerCid}!")
+        if not isinstance(self._docker_container_id, str):
+            raise OMCSessionException(f"Invalid docker container ID: {self._docker_container_id}!")
 
-        return self._dockerCid
+        return self._docker_container_id
 
     def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
@@ -1180,8 +1217,8 @@ class OMCProcessDockerHelper(OMCProcess):
                     "--user", str(self._getuid()),
                     "--workdir", omc_run_data_copy.cmd_path,
                 ]
-                + self._dockerExtraArgs
-                + [self._dockerCid]
+                + self._docker_extra_args
+                + [self._docker_container_id]
         )
 
         cmd_path = pathlib.PurePosixPath(omc_run_data_copy.cmd_path)
@@ -1220,7 +1257,7 @@ class OMCProcessDocker(OMCProcessDockerHelper):
         self._docker = docker
 
         # start up omc executable in docker container waiting for the ZMQ connection
-        self._omc_process, self._docker_process, self._dockerCid = self._docker_omc_start()
+        self._omc_process, self._docker_process, self._docker_container_id = self._docker_omc_start()
         # connect to the running omc instance using ZMQ
         self._omc_port = self._omc_port_get()
 
@@ -1228,7 +1265,7 @@ class OMCProcessDocker(OMCProcessDockerHelper):
 
         super().__del__()
 
-        if isinstance(self._docker_process, DummyPopen):
+        if isinstance(self._docker_process, DockerPopen):
             try:
                 self._docker_process.wait(timeout=2.0)
             except subprocess.TimeoutExpired:
@@ -1248,33 +1285,33 @@ class OMCProcessDocker(OMCProcessDockerHelper):
         """
         Define the command that will be called by the subprocess module.
         """
-        extraFlags = []
+        extra_flags = []
 
         if sys.platform == "win32":
-            extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
-            if not self._interactivePort:
+            extra_flags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
+            if not self._interactive_port:
                 raise OMCSessionException("docker on Windows requires knowing which port to connect to - "
                                           "please set the interactivePort argument")
 
         if sys.platform == "win32":
-            if isinstance(self._interactivePort, str):
-                port = int(self._interactivePort)
-            elif isinstance(self._interactivePort, int):
-                port = self._interactivePort
+            if isinstance(self._interactive_port, str):
+                port = int(self._interactive_port)
+            elif isinstance(self._interactive_port, int):
+                port = self._interactive_port
             else:
                 raise OMCSessionException("Missing or invalid interactive port!")
-            dockerNetworkStr = ["-p", f"127.0.0.1:{port}:{port}"]
-        elif self._dockerNetwork == "host" or self._dockerNetwork is None:
-            dockerNetworkStr = ["--network=host"]
-        elif self._dockerNetwork == "separate":
-            dockerNetworkStr = []
-            extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
+            docker_network_str = ["-p", f"127.0.0.1:{port}:{port}"]
+        elif self._docker_network == "host" or self._docker_network is None:
+            docker_network_str = ["--network=host"]
+        elif self._docker_network == "separate":
+            docker_network_str = []
+            extra_flags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
         else:
-            raise OMCSessionException(f'dockerNetwork was set to {self._dockerNetwork}, '
+            raise OMCSessionException(f'dockerNetwork was set to {self._docker_network}, '
                                       'but only \"host\" or \"separate\" is allowed')
 
-        if isinstance(self._interactivePort, int):
-            extraFlags = extraFlags + [f"--interactivePort={int(self._interactivePort)}"]
+        if isinstance(self._interactive_port, int):
+            extra_flags = extra_flags + [f"--interactivePort={int(self._interactive_port)}"]
 
         omc_command = ([
                            "docker", "run",
@@ -1282,15 +1319,15 @@ class OMCProcessDocker(OMCProcessDockerHelper):
                            "--rm",
                            "--user", str(self._getuid()),
                        ]
-                       + self._dockerExtraArgs
-                       + dockerNetworkStr
-                       + [self._docker, self._dockerOpenModelicaPath.as_posix()]
+                       + self._docker_extra_args
+                       + docker_network_str
+                       + [self._docker, self._docker_open_modelica_path.as_posix()]
                        + omc_path_and_args_list
-                       + extraFlags)
+                       + extra_flags)
 
         return omc_command
 
-    def _docker_omc_start(self) -> Tuple[subprocess.Popen, DummyPopen, str]:
+    def _docker_omc_start(self) -> Tuple[subprocess.Popen, DockerPopen, str]:
         my_env = os.environ.copy()
 
         docker_cid_file = self._temp_dir / (self._omc_filebase + ".docker.cid")
@@ -1360,7 +1397,7 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
         if not isinstance(dockerContainer, str):
             raise OMCSessionException("Argument dockerContainer must be set!")
 
-        self._dockerCid = dockerContainer
+        self._docker_container_id = dockerContainer
 
         # start up omc executable in docker container waiting for the ZMQ connection
         self._omc_process, self._docker_process = self._docker_omc_start()
@@ -1378,31 +1415,31 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
         """
         Define the command that will be called by the subprocess module.
         """
-        extraFlags: list[str] = []
+        extra_flags: list[str] = []
 
         if sys.platform == "win32":
-            extraFlags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
-            if not self._interactivePort:
+            extra_flags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
+            if not self._interactive_port:
                 raise OMCSessionException("Docker on Windows requires knowing which port to connect to - "
                                           "Please set the interactivePort argument. Furthermore, the container needs "
                                           "to have already manually exposed this port when it was started "
                                           "(-p 127.0.0.1:n:n) or you get an error later.")
 
-        if isinstance(self._interactivePort, int):
-            extraFlags = extraFlags + [f"--interactivePort={int(self._interactivePort)}"]
+        if isinstance(self._interactive_port, int):
+            extra_flags = extra_flags + [f"--interactivePort={int(self._interactive_port)}"]
 
         omc_command = ([
                            "docker", "exec",
                            "--user", str(self._getuid()),
                        ]
-                       + self._dockerExtraArgs
-                       + [self._dockerCid, self._dockerOpenModelicaPath.as_posix()]
+                       + self._docker_extra_args
+                       + [self._docker_container_id, self._docker_open_modelica_path.as_posix()]
                        + omc_path_and_args_list
-                       + extraFlags)
+                       + extra_flags)
 
         return omc_command
 
-    def _docker_omc_start(self) -> Tuple[subprocess.Popen, DummyPopen]:
+    def _docker_omc_start(self) -> Tuple[subprocess.Popen, DockerPopen]:
         my_env = os.environ.copy()
 
         omc_command = self._docker_omc_cmd(
@@ -1417,12 +1454,12 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
                                        env=my_env)
 
         docker_process = None
-        if isinstance(self._dockerCid, str):
-            docker_process = self._docker_process_get(docker_cid=self._dockerCid)
+        if isinstance(self._docker_container_id, str):
+            docker_process = self._docker_process_get(docker_cid=self._docker_container_id)
 
         if docker_process is None:
             raise OMCSessionException(f"Docker top did not contain omc process {self._random_string} "
-                                      f"/ {self._dockerCid}. Log-file says:\n{self.get_log()}")
+                                      f"/ {self._docker_container_id}. Log-file says:\n{self.get_log()}")
 
         return omc_process, docker_process
 

@@ -1,5 +1,6 @@
-import OMPython
 import numpy as np
+
+import OMPython
 
 
 def test_optimization_example(tmp_path):

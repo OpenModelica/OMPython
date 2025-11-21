@@ -1,6 +1,7 @@
-import OMPython
-import pytest
 import numpy as np
+import pytest
+
+import OMPython
 
 
 @pytest.fixture
