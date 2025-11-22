@@ -2276,12 +2276,12 @@ class ModelicaSystemDoE:
                 continue
 
             if var_list is None:
-                var_list_row = list(self._mod.getSolutions(resultfile=resultfile.as_posix()))
+                var_list_row = list(self._mod.getSolutions(resultfile=resultfile))
             else:
                 var_list_row = var_list
 
             try:
-                sol = self._mod.getSolutions(varList=var_list_row, resultfile=resultfile.as_posix())
+                sol = self._mod.getSolutions(varList=var_list_row, resultfile=resultfile)
                 sol_data = {var: sol[idx] for idx, var in enumerate(var_list_row)}
                 sol_dict[resultfilename]['msg'] = 'Simulation available'
                 sol_dict[resultfilename]['data'] = sol_data

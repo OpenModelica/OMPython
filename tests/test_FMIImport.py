@@ -21,11 +21,12 @@ end M;
 
 
 def test_FMIImport(model_firstorder):
-    filePath = model_firstorder.as_posix()
-
     # create model & simulate it
     mod1 = OMPython.ModelicaSystem()
-    mod1.model(model_file=filePath, model_name="M")
+    mod1.model(
+        model_file=model_firstorder,
+        model_name="M",
+    )
     mod1.simulate()
 
     # create FMU & check

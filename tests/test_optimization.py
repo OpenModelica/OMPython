@@ -36,7 +36,7 @@ end BangBang2021;
 
     mod = OMPython.ModelicaSystem()
     mod.model(
-        model_file=model_file.as_posix(),
+        model_file=model_file,
         model_name="BangBang2021",
     )
 
@@ -57,7 +57,10 @@ end BangBang2021;
     # it is necessary to specify resultfile, otherwise it wouldn't find it.
     resultfile_str = r["resultFile"]
     resultfile_omcpath = mod.session().omcpath(resultfile_str)
-    time, f, v = mod.getSolutions(["time", "f", "v"], resultfile=resultfile_omcpath.as_posix())
+    time, f, v = mod.getSolutions(
+        varList=["time", "f", "v"],
+        resultfile=resultfile_omcpath,
+    )
     assert np.isclose(f[0], 10)
     assert np.isclose(f[-1], -10)
 
