@@ -14,58 +14,55 @@ end M;
 
 
 @pytest.fixture
-def om(tmp_path):
+def omcs(tmp_path):
     origDir = pathlib.Path.cwd()
     os.chdir(tmp_path)
-    om = OMPython.OMCSessionZMQ()
+    omcs = OMPython.OMCSessionLocal()
     os.chdir(origDir)
-    return om
+    return omcs
 
 
-def testHelloWorld(om):
-    assert om.sendExpression('"HelloWorld!"') == "HelloWorld!"
+def testHelloWorld(omcs):
+    assert omcs.sendExpression('"HelloWorld!"') == "HelloWorld!"
 
 
-def test_Translate(om, model_time_str):
-    assert om.sendExpression(model_time_str) == ("M",)
-    assert om.sendExpression('translateModel(M)') is True
+def test_Translate(omcs, model_time_str):
+    assert omcs.sendExpression(model_time_str) == ("M",)
+    assert omcs.sendExpression('translateModel(M)') is True
 
 
-def test_Simulate(om, model_time_str):
-    assert om.sendExpression(f'loadString("{model_time_str}")') is True
-    om.sendExpression('res:=simulate(M, stopTime=2.0)')
-    assert om.sendExpression('res.resultFile')
+def test_Simulate(omcs, model_time_str):
+    assert omcs.sendExpression(f'loadString("{model_time_str}")') is True
+    omcs.sendExpression('res:=simulate(M, stopTime=2.0)')
+    assert omcs.sendExpression('res.resultFile')
 
 
-def test_execute(om):
+def test_execute(omcs):
     with pytest.deprecated_call():
-        assert om.execute('"HelloWorld!"') == '"HelloWorld!"\n'
-    assert om.sendExpression('"HelloWorld!"', parsed=False) == '"HelloWorld!"\n'
-    assert om.sendExpression('"HelloWorld!"', parsed=True) == 'HelloWorld!'
+        assert omcs.execute('"HelloWorld!"') == '"HelloWorld!"\n'
+    assert omcs.sendExpression('"HelloWorld!"', parsed=False) == '"HelloWorld!"\n'
+    assert omcs.sendExpression('"HelloWorld!"', parsed=True) == 'HelloWorld!'
 
 
-def test_omcprocessport_execute(om):
-    port = om.omc_process.get_port()
-    omcp = OMPython.OMCSessionPort(omc_port=port)
+def test_omcprocessport_execute(omcs):
+    port = omcs.get_port()
+    omcs2 = OMPython.OMCSessionPort(omc_port=port)
 
     # run 1
-    om1 = OMPython.OMCSessionZMQ(omc_process=omcp)
-    assert om1.sendExpression('"HelloWorld!"', parsed=False) == '"HelloWorld!"\n'
+    assert omcs.sendExpression('"HelloWorld!"', parsed=False) == '"HelloWorld!"\n'
 
     # run 2
-    om2 = OMPython.OMCSessionZMQ(omc_process=omcp)
-    assert om2.sendExpression('"HelloWorld!"', parsed=False) == '"HelloWorld!"\n'
+    assert omcs2.sendExpression('"HelloWorld!"', parsed=False) == '"HelloWorld!"\n'
 
-    del om1
-    del om2
+    del omcs2
 
 
-def test_omcprocessport_simulate(om, model_time_str):
-    port = om.omc_process.get_port()
-    omcp = OMPython.OMCSessionPort(omc_port=port)
+def test_omcprocessport_simulate(omcs, model_time_str):
+    port = omcs.get_port()
+    omcs2 = OMPython.OMCSessionPort(omc_port=port)
 
-    om = OMPython.OMCSessionZMQ(omc_process=omcp)
-    assert om.sendExpression(f'loadString("{model_time_str}")') is True
-    om.sendExpression('res:=simulate(M, stopTime=2.0)')
-    assert om.sendExpression('res.resultFile') != ""
-    del om
+    assert omcs2.sendExpression(f'loadString("{model_time_str}")') is True
+    omcs2.sendExpression('res:=simulate(M, stopTime=2.0)')
+    assert omcs2.sendExpression('res.resultFile') != ""
+
+    del omcs2

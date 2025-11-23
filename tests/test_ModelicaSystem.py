@@ -47,14 +47,15 @@ def test_ModelicaSystem_loop(model_firstorder):
         )
         mod.simulate()
         mod.convertMo2Fmu(fmuType="me")
+
     for _ in range(10):
         worker()
 
 
 def test_setParameters():
-    omc = OMPython.OMCSessionZMQ()
-    model_path_str = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels"
-    model_path = omc.omcpath(model_path_str)
+    omcs = OMPython.OMCSessionLocal()
+    model_path_str = omcs.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels"
+    model_path = omcs.omcpath(model_path_str)
     mod = OMPython.ModelicaSystem()
     mod.model(
         model_file=model_path / "BouncingBall.mo",
@@ -87,9 +88,9 @@ def test_setParameters():
 
 
 def test_setSimulationOptions():
-    omc = OMPython.OMCSessionZMQ()
-    model_path_str = omc.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels"
-    model_path = omc.omcpath(model_path_str)
+    omcs = OMPython.OMCSessionLocal()
+    model_path_str = omcs.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels"
+    model_path = omcs.omcpath(model_path_str)
     mod = OMPython.ModelicaSystem()
     mod.model(
         model_file=model_path / "BouncingBall.mo",
@@ -155,11 +156,9 @@ def test_customBuildDirectory(tmp_path, model_firstorder):
 @skip_on_windows
 @skip_python_older_312
 def test_getSolutions_docker(model_firstorder):
-    omcp = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
-    omc = OMPython.OMCSessionZMQ(omc_process=omcp)
-
+    omcs = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
     mod = OMPython.ModelicaSystem(
-        session=omc.omc_process,
+        session=omcs,
     )
     mod.model(
         model_file=model_firstorder,

@@ -69,15 +69,14 @@ def test_ModelicaSystemDoE_local(tmp_path, model_doe, param_doe):
 @skip_on_windows
 @skip_python_older_312
 def test_ModelicaSystemDoE_docker(tmp_path, model_doe, param_doe):
-    omcp = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
-    omc = OMPython.OMCSessionZMQ(omc_process=omcp)
-    assert omc.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    omcs = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
+    assert omcs.sendExpression("getVersion()") == "OpenModelica 1.25.0"
 
     doe_mod = OMPython.ModelicaSystemDoE(
         model_file=model_doe,
         model_name="M",
         parameters=param_doe,
-        session=omcp,
+        session=omcs,
         simargs={"override": {'stopTime': 1.0}},
     )
 
