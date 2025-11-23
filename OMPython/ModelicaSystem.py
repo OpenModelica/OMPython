@@ -337,6 +337,7 @@ class ModelicaSystem:
             work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
             omc_process: Optional[OMCProcess] = None,
+            timeout: float = 10.0,
     ) -> None:
         """Create a ModelicaSystem instance. To define the model use model() or convertFmu2Mo().
 
@@ -350,6 +351,7 @@ class ModelicaSystem:
             omhome: path to OMC to be used when creating the OMC session (see OMCSessionZMQ).
             omc_process: definition of a (local) OMC process to be used. If
               unspecified, a new local session will be created.
+            timeout: float value to define the timeout; if nothing is defined, a default value of 10s is used
         """
 
         self._quantities: list[dict[str, Any]] = []
@@ -379,7 +381,7 @@ class ModelicaSystem:
         if omc_process is not None:
             self._session = OMCSessionZMQ(omc_process=omc_process)
         else:
-            self._session = OMCSessionZMQ(omhome=omhome)
+            self._session = OMCSessionZMQ(omhome=omhome, timeout=timeout)
 
         # set commandLineOptions using default values or the user defined list
         if command_line_options is None:
@@ -1968,10 +1970,10 @@ class ModelicaSystemDoE:
             work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
             omc_process: Optional[OMCProcess] = None,
+            timeout: float = 10.0,
             # simulation specific input
             # TODO: add more settings (simulation options, input options, ...)
             simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,
-            timeout: Optional[int] = None,
             # DoE specific inputs
             resultpath: Optional[str | os.PathLike] = None,
             parameters: Optional[dict[str, list[str] | list[int] | list[float]]] = None,
@@ -1989,6 +1991,7 @@ class ModelicaSystemDoE:
             work_directory=work_directory,
             omhome=omhome,
             omc_process=omc_process,
+            timeout=timeout,
         )
         self._mod.model(
             model_file=model_file,
