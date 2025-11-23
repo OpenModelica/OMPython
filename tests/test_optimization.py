@@ -56,7 +56,7 @@ end BangBang2021;
     r = mod.optimize()
     # it is necessary to specify resultfile, otherwise it wouldn't find it.
     resultfile_str = r["resultFile"]
-    resultfile_omcpath = mod.session().omcpath(resultfile_str)
+    resultfile_omcpath = mod.get_session().omcpath(resultfile_str)
     time, f, v = mod.getSolutions(
         varList=["time", "f", "v"],
         resultfile=resultfile_omcpath,

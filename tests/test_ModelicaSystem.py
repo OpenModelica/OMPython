@@ -159,7 +159,7 @@ def test_getSolutions_docker(model_firstorder):
     omc = OMPython.OMCSessionZMQ(omc_process=omcp)
 
     mod = OMPython.ModelicaSystem(
-        omc_process=omc.omc_process,
+        session=omc.omc_process,
     )
     mod.model(
         model_file=model_firstorder,

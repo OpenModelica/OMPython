@@ -24,7 +24,7 @@ def mscmd_firstorder(model_firstorder):
         model_name="M",
     )
     mscmd = OMPython.ModelicaSystemCmd(
-        session=mod.session(),
+        session=mod.get_session(),
         runpath=mod.getWorkDirectory(),
         modelname=mod._model_name,
     )

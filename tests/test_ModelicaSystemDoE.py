@@ -77,7 +77,7 @@ def test_ModelicaSystemDoE_docker(tmp_path, model_doe, param_doe):
         model_file=model_doe,
         model_name="M",
         parameters=param_doe,
-        omc_process=omcp,
+        session=omcp,
         simargs={"override": {'stopTime': 1.0}},
     )
 
