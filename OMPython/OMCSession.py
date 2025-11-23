@@ -70,9 +70,9 @@ class OMCSessionCmd:
     Implementation of Open Modelica Compiler API functions. Depreciated!
     """
 
-    def __init__(self, session: OMCSessionZMQ, readonly: bool = False):
-        if not isinstance(session, OMCSessionZMQ):
-            raise OMCSessionException("Invalid session definition!")
+    def __init__(self, session: OMCSession, readonly: bool = False):
+        if not isinstance(session, OMCSession):
+            raise OMCSessionException("Invalid OMC process definition!")
         self._session = session
         self._readonly = readonly
         self._omc_cache: dict[tuple[str, bool], Any] = {}

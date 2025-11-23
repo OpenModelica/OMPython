@@ -3,7 +3,7 @@ import OMPython
 
 def test_isPackage():
     omczmq = OMPython.OMCSessionZMQ()
-    omccmd = OMPython.OMCSessionCmd(session=omczmq)
+    omccmd = OMPython.OMCSessionCmd(session=omczmq.omc_process)
     assert not omccmd.isPackage('Modelica')
 
 
