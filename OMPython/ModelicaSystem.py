@@ -52,8 +52,8 @@ from OMPython.OMCSession import (
     OMCSessionException,
     OMCSessionRunData,
     OMCSessionZMQ,
-    OMCProcess,
-    OMCProcessLocal,
+    OMCSession,
+    OMCSessionLocal,
     OMCPath,
 )
 
@@ -333,7 +333,7 @@ class ModelicaSystem:
             command_line_options: Optional[list[str]] = None,
             work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
-            omc_process: Optional[OMCProcess] = None,
+            omc_process: Optional[OMCSession] = None,
     ) -> None:
         """Create a ModelicaSystem instance. To define the model use model() or convertFmu2Mo().
 
@@ -461,13 +461,13 @@ class ModelicaSystem:
         if model_file is not None:
             file_path = pathlib.Path(model_file)
             # special handling for OMCProcessLocal - consider a relative path
-            if isinstance(self._session.omc_process, OMCProcessLocal) and not file_path.is_absolute():
+            if isinstance(self._session.omc_process, OMCSessionLocal) and not file_path.is_absolute():
                 file_path = pathlib.Path.cwd() / file_path
             if not file_path.is_file():
                 raise IOError(f"Model file {file_path} does not exist!")
 
             self._file_name = self.getWorkDirectory() / file_path.name
-            if (isinstance(self._session.omc_process, OMCProcessLocal)
+            if (isinstance(self._session.omc_process, OMCSessionLocal)
                     and file_path.as_posix() == self._file_name.as_posix()):
                 pass
             elif self._file_name.is_file():
@@ -1197,7 +1197,7 @@ class ModelicaSystem:
         plot is created by OMC which needs access to the local display. This is not the case for docker and WSL.
         """
 
-        if not isinstance(self._session.omc_process, OMCProcessLocal):
+        if not isinstance(self._session.omc_process, OMCSessionLocal):
             raise ModelicaSystemError("Plot is using the OMC plot functionality; "
                                       "thus, it is only working if OMC is running locally!")
 
@@ -1954,7 +1954,7 @@ class ModelicaSystemDoE:
             variable_filter: Optional[str] = None,
             work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
-            omc_process: Optional[OMCProcess] = None,
+            omc_process: Optional[OMCSession] = None,
             # simulation specific input
             # TODO: add more settings (simulation options, input options, ...)
             simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,

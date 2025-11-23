@@ -293,7 +293,7 @@ class OMCPathReal(pathlib.PurePosixPath):
     errors as well as usage on a Windows system due to slightly different definitions (PureWindowsPath).
     """
 
-    def __init__(self, *path, session: OMCProcess) -> None:
+    def __init__(self, *path, session: OMCSession) -> None:
         super().__init__(*path)
         self._session = session
 
@@ -322,7 +322,7 @@ class OMCPathReal(pathlib.PurePosixPath):
         Check if the path is an absolute path considering the possibility that we are running locally on Windows. This
         case needs special handling as the definition of is_absolute() differs.
         """
-        if isinstance(self._session, OMCProcessLocal) and platform.system() == 'Windows':
+        if isinstance(self._session, OMCSessionLocal) and platform.system() == 'Windows':
             return pathlib.PureWindowsPath(self.as_posix()).is_absolute()
         return super().is_absolute()
 
@@ -546,7 +546,7 @@ class OMCSessionZMQ:
             self,
             timeout: float = 10.00,
             omhome: Optional[str] = None,
-            omc_process: Optional[OMCProcess] = None,
+            omc_process: Optional[OMCSession] = None,
     ) -> None:
         """
         Initialisation for OMCSessionZMQ
@@ -557,8 +557,8 @@ class OMCSessionZMQ:
                       stacklevel=2)
 
         if omc_process is None:
-            omc_process = OMCProcessLocal(omhome=omhome, timeout=timeout)
-        elif not isinstance(omc_process, OMCProcess):
+            omc_process = OMCSessionLocal(omhome=omhome, timeout=timeout)
+        elif not isinstance(omc_process, OMCSession):
             raise OMCSessionException("Invalid definition of the OMC process!")
         self.omc_process = omc_process
 
@@ -570,7 +570,7 @@ class OMCSessionZMQ:
         """
         Escape a string such that it can be used as string within OMC expressions, i.e. escape all double quotes.
         """
-        return OMCProcess.escape_str(value=value)
+        return OMCSession.escape_str(value=value)
 
     def omcpath(self, *path) -> OMCPath:
         """
@@ -599,7 +599,7 @@ class OMCSessionZMQ:
         Run the command defined in cmd_run_data. This class is defined as static method such that there is no need to
         keep instances of over classes around.
         """
-        return OMCProcess.run_model_executable(cmd_run_data=cmd_run_data)
+        return OMCSession.run_model_executable(cmd_run_data=cmd_run_data)
 
     def execute(self, command: str):
         return self.omc_process.execute(command=command)
@@ -641,7 +641,7 @@ class PostInitCaller(type):
         return obj
 
 
-class OMCProcessMeta(abc.ABCMeta, PostInitCaller):
+class OMCSessionMeta(abc.ABCMeta, PostInitCaller):
     """
     Helper class to get a combined metaclass of ABCMeta and PostInitCaller.
 
@@ -650,7 +650,7 @@ class OMCProcessMeta(abc.ABCMeta, PostInitCaller):
     """
 
 
-class OMCProcess(metaclass=OMCProcessMeta):
+class OMCSession(metaclass=OMCSessionMeta):
     """
     Base class for an OMC session. This class contains common functionality for all OMC sessions.
 
@@ -771,7 +771,7 @@ class OMCProcess(metaclass=OMCProcessMeta):
 
         # fallback solution for Python < 3.12; a modified pathlib.Path object is used as OMCPath replacement
         if sys.version_info < (3, 12):
-            if isinstance(self, OMCProcessLocal):
+            if isinstance(self, OMCSessionLocal):
                 # noinspection PyArgumentList
                 return OMCPath(*path)
             raise OMCSessionException("OMCPath is supported for Python < 3.12 only if OMCProcessLocal is used!")
@@ -1040,7 +1040,7 @@ class OMCProcess(metaclass=OMCProcessMeta):
         raise NotImplementedError("This method must be implemented in subclasses!")
 
 
-class OMCProcessPort(OMCProcess):
+class OMCSessionPort(OMCSession):
     """
     OMCProcess implementation which uses a port to connect to an already running OMC server.
     """
@@ -1059,7 +1059,7 @@ class OMCProcessPort(OMCProcess):
         raise OMCSessionException("OMCProcessPort does not support omc_run_data_update()!")
 
 
-class OMCProcessLocal(OMCProcess):
+class OMCSessionLocal(OMCSession):
     """
     OMCProcess implementation which runs the OMC server locally on the machine (Linux / Windows).
     """
@@ -1185,7 +1185,7 @@ class OMCProcessLocal(OMCProcess):
         return omc_run_data_copy
 
 
-class OMCProcessDockerHelper(OMCProcess):
+class OMCSessionDockerHelper(OMCSession):
     """
     Base class for OMCProcess implementations which run the OMC server in a Docker container.
     """
@@ -1322,7 +1322,7 @@ class OMCProcessDockerHelper(OMCProcess):
         return omc_run_data_copy
 
 
-class OMCProcessDocker(OMCProcessDockerHelper):
+class OMCSessionDocker(OMCSessionDockerHelper):
     """
     OMC process running in a Docker container.
     """
@@ -1465,7 +1465,7 @@ class OMCProcessDocker(OMCProcessDockerHelper):
         return omc_process, docker_process, docker_cid
 
 
-class OMCProcessDockerContainer(OMCProcessDockerHelper):
+class OMCSessionDockerContainer(OMCSessionDockerHelper):
     """
     OMC process running in a Docker container (by container ID).
     """
@@ -1558,7 +1558,7 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
         return omc_process, docker_process
 
 
-class OMCProcessWSL(OMCProcess):
+class OMCSessionWSL(OMCSession):
     """
     OMC process running in Windows Subsystem for Linux (WSL).
     """
