@@ -576,7 +576,7 @@ class OMCSessionZMQ:
         """
         Create an OMCPath object based on the given path segments and the current OMC session.
         """
-        return self.omc_process.omcpath(path)
+        return self.omc_process.omcpath(*path)
 
     def omcpath_tempdir(self, tempdir_base: Optional[OMCPath] = None) -> OMCPath:
         """
