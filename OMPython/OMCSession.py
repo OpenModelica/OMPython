@@ -601,6 +601,9 @@ class OMCSessionZMQ:
         """
         return OMCProcess.run_model_executable(cmd_run_data=cmd_run_data)
 
+    def execute(self, command: str):
+        return self.omc_process.execute(command=command)
+
     def sendExpression(self, command: str, parsed: bool = True) -> Any:
         """
         Send an expression to the OMC server and return the result.
