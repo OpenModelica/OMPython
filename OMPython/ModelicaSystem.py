@@ -51,7 +51,6 @@ import numpy as np
 from OMPython.OMCSession import (
     OMCSessionException,
     OMCSessionRunData,
-    OMCSessionZMQ,
     OMCSession,
     OMCSessionLocal,
     OMCPath,
@@ -127,7 +126,7 @@ class ModelicaSystemCmd:
 
     def __init__(
             self,
-            session: OMCSessionZMQ,
+            session: OMCSession,
             runpath: OMCPath,
             modelname: Optional[str] = None,
     ) -> None:
@@ -325,7 +324,7 @@ class ModelicaSystemCmd:
 
 class ModelicaSystem:
     """
-    Class to simulate a Modelica model using OpenModelica via OMCSessionZMQ.
+    Class to simulate a Modelica model using OpenModelica via OMCSession.
     """
 
     def __init__(
@@ -344,7 +343,7 @@ class ModelicaSystem:
             work_directory: Path to a directory to be used for temporary
               files like the model executable. If left unspecified, a tmp
               directory will be created.
-            omhome: path to OMC to be used when creating the OMC session (see OMCSessionZMQ).
+            omhome: path to OMC to be used when creating the OMC session (see OMCSession).
             session: definition of a (local) OMC session to be used. If
               unspecified, a new local session will be created.
         """
@@ -374,9 +373,9 @@ class ModelicaSystem:
         self._linearized_states: list[str] = []  # linearization states list
 
         if session is not None:
-            self._session = OMCSessionZMQ(omc_process=session)
+            self._session = session
         else:
-            self._session = OMCSessionZMQ(omhome=omhome)
+            self._session = OMCSession(omhome=omhome)
 
         # set commandLineOptions using default values or the user defined list
         if command_line_options is None:
@@ -461,13 +460,13 @@ class ModelicaSystem:
         if model_file is not None:
             file_path = pathlib.Path(model_file)
             # special handling for OMCProcessLocal - consider a relative path
-            if isinstance(self._session.omc_process, OMCSessionLocal) and not file_path.is_absolute():
+            if isinstance(self._session, OMCSessionLocal) and not file_path.is_absolute():
                 file_path = pathlib.Path.cwd() / file_path
             if not file_path.is_file():
                 raise IOError(f"Model file {file_path} does not exist!")
 
             self._file_name = self.getWorkDirectory() / file_path.name
-            if (isinstance(self._session.omc_process, OMCSessionLocal)
+            if (isinstance(self._session, OMCSessionLocal)
                     and file_path.as_posix() == self._file_name.as_posix()):
                 pass
             elif self._file_name.is_file():
@@ -482,7 +481,7 @@ class ModelicaSystem:
         if build:
             self.buildModel(variable_filter)
 
-    def get_session(self) -> OMCSessionZMQ:
+    def get_session(self) -> OMCSession:
         """
         Return the OMC session used for this class.
         """
@@ -1197,7 +1196,7 @@ class ModelicaSystem:
         plot is created by OMC which needs access to the local display. This is not the case for docker and WSL.
         """
 
-        if not isinstance(self._session.omc_process, OMCSessionLocal):
+        if not isinstance(self._session, OMCSessionLocal):
             raise ModelicaSystemError("Plot is using the OMC plot functionality; "
                                       "thus, it is only working if OMC is running locally!")
 
@@ -2003,7 +2002,7 @@ class ModelicaSystemDoE:
         self._doe_def: Optional[dict[str, dict[str, Any]]] = None
         self._doe_cmd: Optional[dict[str, OMCSessionRunData]] = None
 
-    def get_session(self) -> OMCSessionZMQ:
+    def get_session(self) -> OMCSession:
         """
         Return the OMC session used for this class.
         """
