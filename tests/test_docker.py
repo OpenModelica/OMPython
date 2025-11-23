@@ -10,23 +10,17 @@ skip_on_windows = pytest.mark.skipif(
 
 @skip_on_windows
 def test_docker():
-    omcp = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
-    om = OMPython.OMCSessionZMQ(omc_process=omcp)
-    assert om.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    omcs = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
+    assert omcs.sendExpression("getVersion()") == "OpenModelica 1.25.0"
 
-    omcpInner = OMPython.OMCSessionDockerContainer(dockerContainer=omcp.get_docker_container_id())
-    omInner = OMPython.OMCSessionZMQ(omc_process=omcpInner)
-    assert omInner.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    omcsInner = OMPython.OMCSessionDockerContainer(dockerContainer=omcs.get_docker_container_id())
+    assert omcsInner.sendExpression("getVersion()") == "OpenModelica 1.25.0"
 
-    omcp2 = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal", port=11111)
-    om2 = OMPython.OMCSessionZMQ(omc_process=omcp2)
-    assert om2.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    omcs2 = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal", port=11111)
+    assert omcs2.sendExpression("getVersion()") == "OpenModelica 1.25.0"
 
-    del omcp2
-    del om2
+    del omcs2
 
-    del omcpInner
-    del omInner
+    del omcsInner
 
-    del omcp
-    del om
+    del omcs

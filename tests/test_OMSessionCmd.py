@@ -2,8 +2,8 @@ import OMPython
 
 
 def test_isPackage():
-    omczmq = OMPython.OMCSessionZMQ()
-    omccmd = OMPython.OMCSessionCmd(session=omczmq.omc_process)
+    omcs = OMPython.OMCSessionLocal()
+    omccmd = OMPython.OMCSessionCmd(session=omcs)
     assert not omccmd.isPackage('Modelica')
 
 
