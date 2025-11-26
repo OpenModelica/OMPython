@@ -488,8 +488,6 @@ class OMCSessionRunData:
     cmd_model_executable: Optional[str] = None
     # additional library search path; this is mainly needed if OMCProcessLocal is run on Windows
     cmd_library_path: Optional[str] = None
-    # command timeout
-    cmd_timeout: Optional[float] = 10.0
 
     # working directory to be used on the *local* system
     cmd_cwd_local: Optional[str] = None
@@ -564,13 +562,12 @@ class OMCSessionZMQ:
         """
         return self.omc_process.omc_run_data_update(omc_run_data=omc_run_data)
 
-    @staticmethod
-    def run_model_executable(cmd_run_data: OMCSessionRunData) -> int:
+    def run_model_executable(self, cmd_run_data: OMCSessionRunData) -> int:
         """
         Run the command defined in cmd_run_data. This class is defined as static method such that there is no need to
         keep instances of over classes around.
         """
-        return OMCSession.run_model_executable(cmd_run_data=cmd_run_data)
+        return self.omc_process.run_model_executable(cmd_run_data=cmd_run_data)
 
     def execute(self, command: str):
         return self.omc_process.execute(command=command)
@@ -727,6 +724,19 @@ class OMCSession(metaclass=OMCSessionMeta):
             finally:
                 self._omc_process = None
 
+    def set_timeout(self, timeout: Optional[float] = None) -> float:
+        """
+        Set the timeout to be used for OMC communication (OMCSession).
+
+        The defined value is set and the current value is returned. If None is provided as argument, nothing is changed.
+        """
+        retval = self._timeout
+        if timeout is not None:
+            if timeout <= 0.0:
+                raise OMCSessionException(f"Invalid timeout value: {timeout}!")
+            self._timeout = timeout
+        return retval
+
     @staticmethod
     def escape_str(value: str) -> str:
         """
@@ -778,11 +788,9 @@ class OMCSession(metaclass=OMCSessionMeta):
 
         return tempdir
 
-    @staticmethod
-    def run_model_executable(cmd_run_data: OMCSessionRunData) -> int:
+    def run_model_executable(self, cmd_run_data: OMCSessionRunData) -> int:
         """
-        Run the command defined in cmd_run_data. This class is defined as static method such that there is no need to
-        keep instances of over classes around.
+        Run the command defined in cmd_run_data.
         """
 
         my_env = os.environ.copy()
@@ -799,7 +807,7 @@ class OMCSession(metaclass=OMCSessionMeta):
                 text=True,
                 env=my_env,
                 cwd=cmd_run_data.cmd_cwd_local,
-                timeout=cmd_run_data.cmd_timeout,
+                timeout=self._timeout,
                 check=True,
             )
             stdout = cmdres.stdout.strip()
