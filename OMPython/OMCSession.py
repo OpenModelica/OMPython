@@ -724,6 +724,31 @@ class OMCSession(metaclass=OMCSessionMeta):
             finally:
                 self._omc_process = None
 
+    def _timeout_loop(
+            self,
+            timeout: Optional[float] = None,
+            timestep: float = 0.1,
+    ):
+        """
+        Helper (using yield) for while loops to check OMC startup / response. The loop is executed as long as True is
+        returned, i.e. the first False will stop the while loop.
+        """
+
+        if timeout is None:
+            timeout = self._timeout
+        if timeout <= 0:
+            raise OMCSessionException(f"Invalid timeout: {timeout}")
+
+        timer = 0.0
+        yield True
+        while True:
+            timer += timestep
+            if timer > timeout:
+                break
+            time.sleep(timestep)
+            yield True
+        yield False
+
     def set_timeout(self, timeout: Optional[float] = None) -> float:
         """
         Set the timeout to be used for OMC communication (OMCSession).
@@ -846,17 +871,13 @@ class OMCSession(metaclass=OMCSessionMeta):
 
         logger.debug("sendExpression(%r, parsed=%r)", command, parsed)
 
-        MAX_RETRIES = 50
-        attempts = 0
-        while attempts < MAX_RETRIES:
-            attempts += 1
-
+        loop = self._timeout_loop(timestep=0.05)
+        while next(loop):
             try:
                 self._omc_zmq.send_string(str(command), flags=zmq.NOBLOCK)
                 break
             except zmq.error.Again:
                 pass
-            time.sleep(self._timeout / MAX_RETRIES)
         else:
             # in the deletion process, the content is cleared. Thus, any access to a class attribute must be checked
             try:
@@ -1111,11 +1132,8 @@ class OMCSessionLocal(OMCSession):
         port = None
 
         # See if the omc server is running
-        MAX_RETRIES = 80
-        attempts = 0
-        while attempts < MAX_RETRIES:
-            attempts += 1
-
+        loop = self._timeout_loop(timestep=0.1)
+        while next(loop):
             omc_portfile_path = self._get_portfile_path()
             if omc_portfile_path is not None and omc_portfile_path.is_file():
                 # Read the port file
@@ -1124,7 +1142,6 @@ class OMCSessionLocal(OMCSession):
                 break
             if port is not None:
                 break
-            time.sleep(self._timeout / MAX_RETRIES)
         else:
             logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
             raise OMCSessionException(f"OMC Server did not start (timeout={self._timeout}).")
@@ -1209,11 +1226,8 @@ class OMCSessionDockerHelper(OMCSession):
             raise NotImplementedError("Docker not supported on win32!")
 
         docker_process = None
-        MAX_RETRIES = 40
-        attempts = 0
-        while attempts < MAX_RETRIES:
-            attempts += 1
-
+        loop = self._timeout_loop(timestep=0.2)
+        while next(loop):
             docker_top = subprocess.check_output(["docker", "top", docker_cid]).decode().strip()
             docker_process = None
             for line in docker_top.split("\n"):
@@ -1226,7 +1240,6 @@ class OMCSessionDockerHelper(OMCSession):
                                                   "is this a docker instance spawned without --pid=host?") from ex
             if docker_process is not None:
                 break
-            time.sleep(self._timeout / MAX_RETRIES)
         else:
             logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
             raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}).")
@@ -1251,11 +1264,8 @@ class OMCSessionDockerHelper(OMCSession):
             raise OMCSessionException(f"Invalid docker container ID: {self._docker_container_id}")
 
         # See if the omc server is running
-        MAX_RETRIES = 80
-        attempts = 0
-        while attempts < MAX_RETRIES:
-            attempts += 1
-
+        loop = self._timeout_loop(timestep=0.1)
+        while next(loop):
             omc_portfile_path = self._get_portfile_path()
             if omc_portfile_path is not None:
                 try:
@@ -1268,7 +1278,6 @@ class OMCSessionDockerHelper(OMCSession):
                     pass
             if port is not None:
                 break
-            time.sleep(self._timeout / MAX_RETRIES)
         else:
             logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
             raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}).")
@@ -1439,11 +1448,8 @@ class OMCSessionDocker(OMCSessionDockerHelper):
             raise OMCSessionException(f"Invalid content for docker container ID file path: {docker_cid_file}")
 
         docker_cid = None
-        MAX_RETRIES = 40
-        attempts = 0
-        while attempts < MAX_RETRIES:
-            attempts += 1
-
+        loop = self._timeout_loop(timestep=0.1)
+        while next(loop):
             try:
                 with open(file=docker_cid_file, mode="r", encoding="utf-8") as fh:
                     docker_cid = fh.read().strip()
@@ -1451,7 +1457,6 @@ class OMCSessionDocker(OMCSessionDockerHelper):
                 pass
             if docker_cid is not None:
                 break
-            time.sleep(self._timeout / MAX_RETRIES)
         else:
             logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
             raise OMCSessionException(f"Docker did not start (timeout={self._timeout} might be too short "
@@ -1616,11 +1621,8 @@ class OMCSessionWSL(OMCSession):
         port = None
 
         # See if the omc server is running
-        MAX_RETRIES = 80
-        attempts = 0
-        while attempts < MAX_RETRIES:
-            attempts += 1
-
+        loop = self._timeout_loop(timestep=0.1)
+        while next(loop):
             try:
                 omc_portfile_path = self._get_portfile_path()
                 if omc_portfile_path is not None:
@@ -1633,7 +1635,6 @@ class OMCSessionWSL(OMCSession):
                 pass
             if port is not None:
                 break
-            time.sleep(self._timeout / MAX_RETRIES)
         else:
             logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
             raise OMCSessionException(f"WSL based OMC Server did not start (timeout={self._timeout}).")
