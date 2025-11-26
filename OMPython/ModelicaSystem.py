@@ -346,7 +346,7 @@ class ModelicaSystem:
         if session is not None:
             self._session = session
         else:
-            self._session = OMCSession(omhome=omhome)
+            self._session = OMCSessionLocal(omhome=omhome)
 
         # set commandLineOptions using default values or the user defined list
         if command_line_options is None:
