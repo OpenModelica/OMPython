@@ -1028,7 +1028,7 @@ class OMCSessionPort(OMCSession):
         Run the command defined in cmd_run_data. This class is defined as static method such that there is no need to
         keep instances of over classes around.
         """
-        raise OMCSessionException(f"({self.__class__.__name__}) does not support run_model_executable()!")
+        raise OMCSessionException("OMCSessionPort does not support run_model_executable()!")
 
     def get_log(self) -> str:
         """
