@@ -40,8 +40,8 @@ help(OMPython)
 ```
 
 ```python
-from OMPython import OMCSessionZMQ
-omc = OMCSessionZMQ()
+from OMPython import OMCSessionLocal
+omc = OMCSessionLocal()
 omc.sendExpression("getVersion()")
 ```
 
