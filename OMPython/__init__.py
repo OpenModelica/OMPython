@@ -15,6 +15,7 @@ from OMPython.ModelicaSystem import (
     ModelicaSystemError,
 )
 from OMPython.OMCSession import (
+    OMCPath,
     OMCSession,
     OMCSessionCmd,
     OMCSessionException,
@@ -34,6 +35,8 @@ __all__ = [
     'ModelicaSystemCmd',
     'ModelicaSystemDoE',
     'ModelicaSystemError',
+
+    'OMCPath',
 
     'OMCSession',
     'OMCSessionCmd',
