@@ -155,11 +155,11 @@ def test_customBuildDirectory(tmp_path, model_firstorder):
 @skip_on_windows
 @skip_python_older_312
 def test_getSolutions_docker(model_firstorder):
-    omcp = OMPython.OMCProcessDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
+    omcp = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
     omc = OMPython.OMCSessionZMQ(omc_process=omcp)
 
     mod = OMPython.ModelicaSystem(
-        omc_process=omc.omc_process,
+        session=omc.omc_process,
     )
     mod.model(
         model_file=model_firstorder,
