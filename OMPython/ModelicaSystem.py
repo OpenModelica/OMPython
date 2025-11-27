@@ -130,7 +130,6 @@ class ModelicaSystemCmd:
             session: OMCSessionZMQ,
             runpath: OMCPath,
             modelname: Optional[str] = None,
-            timeout: Optional[float] = None,
     ) -> None:
         if modelname is None:
             raise ModelicaSystemError("Missing model name!")
@@ -138,7 +137,6 @@ class ModelicaSystemCmd:
         self._session = session
         self._runpath = runpath
         self._model_name = modelname
-        self._timeout = timeout
 
         # dictionaries of command line arguments for the model executable
         self._args: dict[str, str | None] = {}
@@ -278,7 +276,6 @@ class ModelicaSystemCmd:
             cmd_model_name=self._model_name,
             cmd_args=self.get_cmd_args(),
             cmd_result_path=result_file,
-            cmd_timeout=self._timeout,
         )
 
         omc_run_data_updated = self._session.omc_run_data_update(
@@ -575,7 +572,6 @@ class ModelicaSystem:
             session=self._session,
             runpath=self.getWorkDirectory(),
             modelname=self._model_name,
-            timeout=5.0,
         )
         # ... by running it - output help for command help
         om_cmd.arg_set(key="help", val="help")
@@ -1058,7 +1054,6 @@ class ModelicaSystem:
             result_file: OMCPath,
             simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
-            timeout: Optional[float] = None,
     ) -> ModelicaSystemCmd:
         """
         This method prepares the simulates model according to the simulation options. It returns an instance of
@@ -1075,7 +1070,6 @@ class ModelicaSystem:
         result_file
         simflags
         simargs
-        timeout
 
         Returns
         -------
@@ -1086,7 +1080,6 @@ class ModelicaSystem:
             session=self._session,
             runpath=self.getWorkDirectory(),
             modelname=self._model_name,
-            timeout=timeout,
         )
 
         # always define the result file to use
@@ -1136,7 +1129,6 @@ class ModelicaSystem:
             resultfile: Optional[str | os.PathLike] = None,
             simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
-            timeout: Optional[float] = None,
     ) -> None:
         """Simulate the model according to simulation options.
 
@@ -1147,7 +1139,6 @@ class ModelicaSystem:
             simflags: String of extra command line flags for the model binary.
               This argument is deprecated, use simargs instead.
             simargs: Dict with simulation runtime flags.
-            timeout: Maximum execution time in seconds.
 
         Examples:
             mod.simulate()
@@ -1175,7 +1166,6 @@ class ModelicaSystem:
             result_file=self._result_file,
             simflags=simflags,
             simargs=simargs,
-            timeout=timeout,
         )
 
         # delete resultfile ...
@@ -1759,7 +1749,6 @@ class ModelicaSystem:
             lintime: Optional[float] = None,
             simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
-            timeout: Optional[float] = None,
     ) -> LinearizationResult:
         """Linearize the model according to linearization options.
 
@@ -1770,7 +1759,6 @@ class ModelicaSystem:
             simflags: String of extra command line flags for the model binary.
               This argument is deprecated, use simargs instead.
             simargs: A dict with command line flags and possible options; example: "simargs={'csvInput': 'a.csv'}"
-            timeout: Maximum execution time in seconds.
 
         Returns:
             A LinearizationResult object is returned. This allows several
@@ -1792,7 +1780,6 @@ class ModelicaSystem:
             session=self._session,
             runpath=self.getWorkDirectory(),
             modelname=self._model_name,
-            timeout=timeout,
         )
 
         override_content = (
@@ -1971,7 +1958,6 @@ class ModelicaSystemDoE:
             # simulation specific input
             # TODO: add more settings (simulation options, input options, ...)
             simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,
-            timeout: Optional[int] = None,
             # DoE specific inputs
             resultpath: Optional[str | os.PathLike] = None,
             parameters: Optional[dict[str, list[str] | list[int] | list[float]]] = None,
@@ -2000,7 +1986,6 @@ class ModelicaSystemDoE:
         self._model_name = model_name
 
         self._simargs = simargs
-        self._timeout = timeout
 
         if resultpath is None:
             self._resultpath = self.session().omcpath_tempdir()
@@ -2103,7 +2088,6 @@ class ModelicaSystemDoE:
                 self._mod.setParameters(sim_param_non_structural)
                 mscmd = self._mod.simulate_cmd(
                     result_file=resultfile,
-                    timeout=self._timeout,
                 )
                 if self._simargs is not None:
                     mscmd.args_set(args=self._simargs)
