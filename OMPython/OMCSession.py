@@ -1012,7 +1012,7 @@ class OMCSession(metaclass=OMCSessionMeta):
                 raise OMCSessionException(f"OMC error occurred for 'sendExpression({command}, {parsed}):\n"
                                           f"{msg_long_str}")
 
-        if parsed is False:
+        if not parsed:
             return result
 
         try:
@@ -1238,7 +1238,6 @@ class OMCSessionDockerHelper(OMCSession):
         if sys.platform == 'win32':
             raise NotImplementedError("Docker not supported on win32!")
 
-        docker_process = None
         loop = self._timeout_loop(timestep=0.2)
         while next(loop):
             docker_top = subprocess.check_output(["docker", "top", docker_cid]).decode().strip()
@@ -1630,7 +1629,6 @@ class OMCSessionWSL(OMCSession):
         return omc_process
 
     def _omc_port_get(self) -> str:
-        omc_portfile_path: Optional[pathlib.Path] = None
         port = None
 
         # See if the omc server is running
