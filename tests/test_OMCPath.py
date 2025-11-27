@@ -24,7 +24,7 @@ def test_OMCPath_OMCSessionZMQ():
 
 
 def test_OMCPath_OMCProcessLocal():
-    omp = OMPython.OMCProcessLocal()
+    omp = OMPython.OMCSessionLocal()
     om = OMPython.OMCSessionZMQ(omc_process=omp)
 
     _run_OMCPath_checks(om)
@@ -35,7 +35,7 @@ def test_OMCPath_OMCProcessLocal():
 @skip_on_windows
 @skip_python_older_312
 def test_OMCPath_OMCProcessDocker():
-    omcp = OMPython.OMCProcessDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
+    omcp = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
     om = OMPython.OMCSessionZMQ(omc_process=omcp)
     assert om.sendExpression("getVersion()") == "OpenModelica 1.25.0"
 
@@ -48,7 +48,7 @@ def test_OMCPath_OMCProcessDocker():
 @pytest.mark.skip(reason="Not able to run WSL on github")
 @skip_python_older_312
 def test_OMCPath_OMCProcessWSL():
-    omcp = OMPython.OMCProcessWSL(
+    omcp = OMPython.OMCSessionWSL(
         wsl_omc='omc',
         wsl_user='omc',
         timeout=30.0,
