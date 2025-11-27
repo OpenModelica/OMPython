@@ -648,7 +648,9 @@ class OMCSession(metaclass=OMCSessionMeta):
         """
 
         # store variables
-        self._timeout = timeout
+        # set_timeout() is used to define the value of _timeout as it includes additional checks
+        self._timeout: float
+        self.set_timeout(timeout=timeout)
         # generate a random string for this instance of OMC
         self._random_string = uuid.uuid4().hex
         # get a temporary directory
