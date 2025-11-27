@@ -848,8 +848,10 @@ class OMCProcess(metaclass=OMCProcessMeta):
         return returncode
 
     def execute(self, command: str):
-        warnings.warn("This function is depreciated and will be removed in future versions; "
-                      "please use sendExpression() instead", DeprecationWarning, stacklevel=2)
+        warnings.warn(message="This function is depreciated and will be removed in future versions; "
+                              "please use sendExpression() instead",
+                      category=DeprecationWarning,
+                      stacklevel=2)
 
         return self.sendExpression(command, parsed=False)
 
