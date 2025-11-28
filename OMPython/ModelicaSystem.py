@@ -290,8 +290,10 @@ class ModelicaSystemCmd:
 
         The return data can be used as input for self.args_set().
         """
-        warnings.warn("The argument 'simflags' is depreciated and will be removed in future versions; "
-                      "please use 'simargs' instead", DeprecationWarning, stacklevel=2)
+        warnings.warn(message="The argument 'simflags' is depreciated and will be removed in future versions; "
+                              "please use 'simargs' instead",
+                      category=DeprecationWarning,
+                      stacklevel=2)
 
         simargs: dict[str, Optional[str | dict[str, Any] | numbers.Number]] = {}
 
@@ -584,7 +586,7 @@ class ModelicaSystem:
 
     def sendExpression(self, expr: str, parsed: bool = True) -> Any:
         try:
-            retval = self._session.sendExpression(expr, parsed)
+            retval = self._session.sendExpression(command=expr, parsed=parsed)
         except OMCSessionException as ex:
             raise ModelicaSystemError(f"Error executing {repr(expr)}: {ex}") from ex
 
@@ -1611,9 +1613,9 @@ class ModelicaSystem:
         for signal_name, signal_values in inputs.items():
             signal = np.array(signal_values)
             interpolated_inputs[signal_name] = np.interp(
-                all_times,
-                signal[:, 0],  # times
-                signal[:, 1],  # values
+                x=all_times,
+                xp=signal[:, 0],  # times
+                fp=signal[:, 1],  # values
             )
 
         # Write CSV file
