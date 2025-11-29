@@ -37,9 +37,9 @@ def test_Simulate(omcs, model_time_str):
     assert omcs.sendExpression('res.resultFile')
 
 
-def test_sendExpression(om):
-    assert om.sendExpression('"HelloWorld!"', parsed=False) == '"HelloWorld!"\n'
-    assert om.sendExpression('"HelloWorld!"', parsed=True) == 'HelloWorld!'
+def test_sendExpression(omcs):
+    assert omcs.sendExpression('"HelloWorld!"', parsed=False) == '"HelloWorld!"\n'
+    assert omcs.sendExpression('"HelloWorld!"', parsed=True) == 'HelloWorld!'
 
 
 def test_omcprocessport_execute(omcs):
