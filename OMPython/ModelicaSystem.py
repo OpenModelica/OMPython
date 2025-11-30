@@ -51,9 +51,8 @@ import numpy as np
 from OMPython.OMCSession import (
     OMCSessionException,
     OMCSessionRunData,
-    OMCSessionZMQ,
-    OMCProcess,
-    OMCProcessLocal,
+    OMCSession,
+    OMCSessionLocal,
     OMCPath,
 )
 
@@ -127,7 +126,7 @@ class ModelicaSystemCmd:
 
     def __init__(
             self,
-            session: OMCSessionZMQ,
+            session: OMCSession,
             runpath: OMCPath,
             modelname: Optional[str] = None,
     ) -> None:
@@ -284,48 +283,10 @@ class ModelicaSystemCmd:
 
         return omc_run_data_updated
 
-    @staticmethod
-    def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, Any] | numbers.Number]]:
-        """
-        Parse a simflag definition; this is deprecated!
-
-        The return data can be used as input for self.args_set().
-        """
-        warnings.warn("The argument 'simflags' is depreciated and will be removed in future versions; "
-                      "please use 'simargs' instead", DeprecationWarning, stacklevel=2)
-
-        simargs: dict[str, Optional[str | dict[str, Any] | numbers.Number]] = {}
-
-        args = [s for s in simflags.split(' ') if s]
-        for arg in args:
-            if arg[0] != '-':
-                raise ModelicaSystemError(f"Invalid simulation flag: {arg}")
-            arg = arg[1:]
-            parts = arg.split('=')
-            if len(parts) == 1:
-                simargs[parts[0]] = None
-            elif parts[0] == 'override':
-                override = '='.join(parts[1:])
-
-                override_dict = {}
-                for item in override.split(','):
-                    kv = item.split('=')
-                    if not 0 < len(kv) < 3:
-                        raise ModelicaSystemError(f"Invalid value for '-override': {override}")
-                    if kv[0]:
-                        try:
-                            override_dict[kv[0]] = kv[1]
-                        except (KeyError, IndexError) as ex:
-                            raise ModelicaSystemError(f"Invalid value for '-override': {override}") from ex
-
-                simargs[parts[0]] = override_dict
-
-        return simargs
-
 
 class ModelicaSystem:
     """
-    Class to simulate a Modelica model using OpenModelica via OMCSessionZMQ.
+    Class to simulate a Modelica model using OpenModelica via OMCSession.
     """
 
     def __init__(
@@ -333,7 +294,7 @@ class ModelicaSystem:
             command_line_options: Optional[list[str]] = None,
             work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
-            omc_process: Optional[OMCProcess] = None,
+            session: Optional[OMCSession] = None,
     ) -> None:
         """Create a ModelicaSystem instance. To define the model use model() or convertFmu2Mo().
 
@@ -344,8 +305,8 @@ class ModelicaSystem:
             work_directory: Path to a directory to be used for temporary
               files like the model executable. If left unspecified, a tmp
               directory will be created.
-            omhome: path to OMC to be used when creating the OMC session (see OMCSessionZMQ).
-            omc_process: definition of a (local) OMC process to be used. If
+            omhome: path to OMC to be used when creating the OMC session (see OMCSession).
+            session: definition of a (local) OMC session to be used. If
               unspecified, a new local session will be created.
         """
 
@@ -373,10 +334,10 @@ class ModelicaSystem:
         self._linearized_outputs: list[str] = []  # linearization output list
         self._linearized_states: list[str] = []  # linearization states list
 
-        if omc_process is not None:
-            self._session = OMCSessionZMQ(omc_process=omc_process)
+        if session is not None:
+            self._session = session
         else:
-            self._session = OMCSessionZMQ(omhome=omhome)
+            self._session = OMCSessionLocal(omhome=omhome)
 
         # set commandLineOptions using default values or the user defined list
         if command_line_options is None:
@@ -461,13 +422,13 @@ class ModelicaSystem:
         if model_file is not None:
             file_path = pathlib.Path(model_file)
             # special handling for OMCProcessLocal - consider a relative path
-            if isinstance(self._session.omc_process, OMCProcessLocal) and not file_path.is_absolute():
+            if isinstance(self._session, OMCSessionLocal) and not file_path.is_absolute():
                 file_path = pathlib.Path.cwd() / file_path
             if not file_path.is_file():
                 raise IOError(f"Model file {file_path} does not exist!")
 
             self._file_name = self.getWorkDirectory() / file_path.name
-            if (isinstance(self._session.omc_process, OMCProcessLocal)
+            if (isinstance(self._session, OMCSessionLocal)
                     and file_path.as_posix() == self._file_name.as_posix()):
                 pass
             elif self._file_name.is_file():
@@ -482,7 +443,7 @@ class ModelicaSystem:
         if build:
             self.buildModel(variable_filter)
 
-    def session(self) -> OMCSessionZMQ:
+    def get_session(self) -> OMCSession:
         """
         Return the OMC session used for this class.
         """
@@ -585,7 +546,7 @@ class ModelicaSystem:
 
     def sendExpression(self, expr: str, parsed: bool = True) -> Any:
         try:
-            retval = self._session.sendExpression(expr, parsed)
+            retval = self._session.sendExpression(command=expr, parsed=parsed)
         except OMCSessionException as ex:
             raise ModelicaSystemError(f"Error executing {repr(expr)}: {ex}") from ex
 
@@ -1052,7 +1013,6 @@ class ModelicaSystem:
     def simulate_cmd(
             self,
             result_file: OMCPath,
-            simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
     ) -> ModelicaSystemCmd:
         """
@@ -1064,12 +1024,6 @@ class ModelicaSystem:
 
         However, if only non-structural parameters are used, it is possible to reuse an existing instance of
         ModelicaSystem to create several version ModelicaSystemCmd to run the model using different settings.
-
-        Parameters
-        ----------
-        result_file
-        simflags
-        simargs
 
         Returns
         -------
@@ -1085,11 +1039,7 @@ class ModelicaSystem:
         # always define the result file to use
         om_cmd.arg_set(key="r", val=result_file.as_posix())
 
-        # allow runtime simulation flags from user input
-        if simflags is not None:
-            om_cmd.args_set(args=om_cmd.parse_simflags(simflags=simflags))
-
-        if simargs:
+        if simargs is not None:
             om_cmd.args_set(args=simargs)
 
         if self._override_variables or self._simulate_options_override:
@@ -1127,7 +1077,6 @@ class ModelicaSystem:
     def simulate(
             self,
             resultfile: Optional[str | os.PathLike] = None,
-            simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
     ) -> None:
         """Simulate the model according to simulation options.
@@ -1136,8 +1085,6 @@ class ModelicaSystem:
 
         Args:
             resultfile: Path to a custom result file
-            simflags: String of extra command line flags for the model binary.
-              This argument is deprecated, use simargs instead.
             simargs: Dict with simulation runtime flags.
 
         Examples:
@@ -1164,7 +1111,6 @@ class ModelicaSystem:
 
         om_cmd = self.simulate_cmd(
             result_file=self._result_file,
-            simflags=simflags,
             simargs=simargs,
         )
 
@@ -1197,7 +1143,7 @@ class ModelicaSystem:
         plot is created by OMC which needs access to the local display. This is not the case for docker and WSL.
         """
 
-        if not isinstance(self._session.omc_process, OMCProcessLocal):
+        if not isinstance(self._session, OMCSessionLocal):
             raise ModelicaSystemError("Plot is using the OMC plot functionality; "
                                       "thus, it is only working if OMC is running locally!")
 
@@ -1612,9 +1558,9 @@ class ModelicaSystem:
         for signal_name, signal_values in inputs.items():
             signal = np.array(signal_values)
             interpolated_inputs[signal_name] = np.interp(
-                all_times,
-                signal[:, 0],  # times
-                signal[:, 1],  # values
+                x=all_times,
+                xp=signal[:, 0],  # times
+                fp=signal[:, 1],  # values
             )
 
         # Write CSV file
@@ -1747,7 +1693,6 @@ class ModelicaSystem:
     def linearize(
             self,
             lintime: Optional[float] = None,
-            simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
     ) -> LinearizationResult:
         """Linearize the model according to linearization options.
@@ -1756,8 +1701,6 @@ class ModelicaSystem:
 
         Args:
             lintime: Override "stopTime" value.
-            simflags: String of extra command line flags for the model binary.
-              This argument is deprecated, use simargs instead.
             simargs: A dict with command line flags and possible options; example: "simargs={'csvInput': 'a.csv'}"
 
         Returns:
@@ -1803,11 +1746,7 @@ class ModelicaSystem:
 
         om_cmd.arg_set(key="l", val=str(lintime or self._linearization_options["stopTime"]))
 
-        # allow runtime simulation flags from user input
-        if simflags is not None:
-            om_cmd.args_set(args=om_cmd.parse_simflags(simflags=simflags))
-
-        if simargs:
+        if simargs is not None:
             om_cmd.args_set(args=simargs)
 
         # the file create by the model executable which contains the matrix and linear inputs, outputs and states
@@ -1954,7 +1893,7 @@ class ModelicaSystemDoE:
             variable_filter: Optional[str] = None,
             work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
-            omc_process: Optional[OMCProcess] = None,
+            session: Optional[OMCSession] = None,
             # simulation specific input
             # TODO: add more settings (simulation options, input options, ...)
             simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,
@@ -1974,7 +1913,7 @@ class ModelicaSystemDoE:
             command_line_options=command_line_options,
             work_directory=work_directory,
             omhome=omhome,
-            omc_process=omc_process,
+            session=session,
         )
         self._mod.model(
             model_file=model_file,
@@ -1988,9 +1927,9 @@ class ModelicaSystemDoE:
         self._simargs = simargs
 
         if resultpath is None:
-            self._resultpath = self.session().omcpath_tempdir()
+            self._resultpath = self.get_session().omcpath_tempdir()
         else:
-            self._resultpath = self.session().omcpath(resultpath)
+            self._resultpath = self.get_session().omcpath(resultpath)
         if not self._resultpath.is_dir():
             raise ModelicaSystemError("Argument resultpath must be set to a valid path within the environment used "
                                       f"for the OpenModelica session: {resultpath}!")
@@ -2003,11 +1942,11 @@ class ModelicaSystemDoE:
         self._doe_def: Optional[dict[str, dict[str, Any]]] = None
         self._doe_cmd: Optional[dict[str, OMCSessionRunData]] = None
 
-    def session(self) -> OMCSessionZMQ:
+    def get_session(self) -> OMCSession:
         """
         Return the OMC session used for this class.
         """
-        return self._mod.session()
+        return self._mod.get_session()
 
     def prepare(self) -> int:
         """
@@ -2046,7 +1985,7 @@ class ModelicaSystemDoE:
 
                 pk_value = pc_structure[idx_structure]
                 if isinstance(pk_value, str):
-                    pk_value_str = self.session().escape_str(pk_value)
+                    pk_value_str = self.get_session().escape_str(pk_value)
                     expression = f"setParameterValue({self._model_name}, {pk_structure}, \"{pk_value_str}\")"
                 elif isinstance(pk_value, bool):
                     pk_value_bool_str = "true" if pk_value else "false"
@@ -2167,12 +2106,12 @@ class ModelicaSystemDoE:
                     raise ModelicaSystemError("Missing simulation definition!")
 
                 resultfile = cmd_definition.cmd_result_path
-                resultpath = self.session().omcpath(resultfile)
+                resultpath = self.get_session().omcpath(resultfile)
 
                 logger.info(f"[Worker {worker_id}] Performing task: {resultpath.name}")
 
                 try:
-                    returncode = self.session().run_model_executable(cmd_run_data=cmd_definition)
+                    returncode = self.get_session().run_model_executable(cmd_run_data=cmd_definition)
                     logger.info(f"[Worker {worker_id}] Simulation {resultpath.name} "
                                 f"finished with return code: {returncode}")
                 except ModelicaSystemError as ex:
