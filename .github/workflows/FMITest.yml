@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: "Set up OpenModelica Compiler"
-        uses: OpenModelica/setup-openmodelica@v1.0.4
+        uses: OpenModelica/setup-openmodelica@v1.0.5
         with:
           version: ${{ matrix.omc-version }}
           packages: |
