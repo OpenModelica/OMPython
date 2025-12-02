@@ -33,9 +33,9 @@
 """
 
 import sys
-from typing import Dict, Any
+from typing import Any
 
-result: Dict[str, Any] = dict()
+result: dict[str, Any] = {}
 
 inner_sets = []
 next_set_list = []
