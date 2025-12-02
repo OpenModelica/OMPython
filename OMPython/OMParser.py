@@ -157,14 +157,9 @@ def make_values(strings, name):
                 varValue = (varValue.replace('{', '').strip()).replace('}', '').strip()
                 multiple_values = varValue.split(",")
 
-            for n in range(len(multiple_values)):
-                each_v = multiple_values[n]
-                multiple_values.pop(n)
-                each_v = typeCheck(each_v)
-                multiple_values.append(each_v)
-
             if len(multiple_values) != 0:
-                result[main_set_name]['Elements'][name]['Properties']['Results'][varName] = multiple_values
+                multiple_values_type_checked = [typeCheck(val) for val in multiple_values]
+                result[main_set_name]['Elements'][name]['Properties']['Results'][varName] = multiple_values_type_checked
             elif varName != "" and varValue != "":
                 result[main_set_name]['Elements'][name]['Properties']['Results'][varName] = varValue
             else:
