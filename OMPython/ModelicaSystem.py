@@ -22,9 +22,8 @@ import numpy as np
 from OMPython.OMCSession import (
     OMCSessionException,
     OMCSessionRunData,
-    OMCSessionZMQ,
-    OMCProcess,
-    OMCProcessLocal,
+    OMCSession,
+    OMCSessionLocal,
     OMCPath,
 )
 
@@ -98,7 +97,7 @@ class ModelicaSystemCmd:
 
     def __init__(
             self,
-            session: OMCSessionZMQ,
+            session: OMCSession,
             runpath: OMCPath,
             modelname: Optional[str] = None,
     ) -> None:
@@ -262,8 +261,10 @@ class ModelicaSystemCmd:
 
         The return data can be used as input for self.args_set().
         """
-        warnings.warn("The argument 'simflags' is depreciated and will be removed in future versions; "
-                      "please use 'simargs' instead", DeprecationWarning, stacklevel=2)
+        warnings.warn(message="The argument 'simflags' is depreciated and will be removed in future versions; "
+                              "please use 'simargs' instead",
+                      category=DeprecationWarning,
+                      stacklevel=2)
 
         simargs: dict[str, Optional[str | dict[str, Any] | numbers.Number]] = {}
 
@@ -296,7 +297,7 @@ class ModelicaSystemCmd:
 
 class ModelicaSystem:
     """
-    Class to simulate a Modelica model using OpenModelica via OMCSessionZMQ.
+    Class to simulate a Modelica model using OpenModelica via OMCSession.
     """
 
     def __init__(
@@ -304,7 +305,7 @@ class ModelicaSystem:
             command_line_options: Optional[list[str]] = None,
             work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
-            omc_process: Optional[OMCProcess] = None,
+            session: Optional[OMCSession] = None,
     ) -> None:
         """Create a ModelicaSystem instance. To define the model use model() or convertFmu2Mo().
 
@@ -315,8 +316,8 @@ class ModelicaSystem:
             work_directory: Path to a directory to be used for temporary
               files like the model executable. If left unspecified, a tmp
               directory will be created.
-            omhome: path to OMC to be used when creating the OMC session (see OMCSessionZMQ).
-            omc_process: definition of a (local) OMC process to be used. If
+            omhome: path to OMC to be used when creating the OMC session (see OMCSession).
+            session: definition of a (local) OMC session to be used. If
               unspecified, a new local session will be created.
         """
 
@@ -344,10 +345,10 @@ class ModelicaSystem:
         self._linearized_outputs: list[str] = []  # linearization output list
         self._linearized_states: list[str] = []  # linearization states list
 
-        if omc_process is not None:
-            self._session = OMCSessionZMQ(omc_process=omc_process)
+        if session is not None:
+            self._session = session
         else:
-            self._session = OMCSessionZMQ(omhome=omhome)
+            self._session = OMCSessionLocal(omhome=omhome)
 
         # set commandLineOptions using default values or the user defined list
         if command_line_options is None:
@@ -432,13 +433,13 @@ class ModelicaSystem:
         if model_file is not None:
             file_path = pathlib.Path(model_file)
             # special handling for OMCProcessLocal - consider a relative path
-            if isinstance(self._session.omc_process, OMCProcessLocal) and not file_path.is_absolute():
+            if isinstance(self._session, OMCSessionLocal) and not file_path.is_absolute():
                 file_path = pathlib.Path.cwd() / file_path
             if not file_path.is_file():
                 raise IOError(f"Model file {file_path} does not exist!")
 
             self._file_name = self.getWorkDirectory() / file_path.name
-            if (isinstance(self._session.omc_process, OMCProcessLocal)
+            if (isinstance(self._session, OMCSessionLocal)
                     and file_path.as_posix() == self._file_name.as_posix()):
                 pass
             elif self._file_name.is_file():
@@ -453,7 +454,7 @@ class ModelicaSystem:
         if build:
             self.buildModel(variable_filter)
 
-    def session(self) -> OMCSessionZMQ:
+    def get_session(self) -> OMCSession:
         """
         Return the OMC session used for this class.
         """
@@ -556,7 +557,7 @@ class ModelicaSystem:
 
     def sendExpression(self, expr: str, parsed: bool = True) -> Any:
         try:
-            retval = self._session.sendExpression(expr, parsed)
+            retval = self._session.sendExpression(command=expr, parsed=parsed)
         except OMCSessionException as ex:
             raise ModelicaSystemError(f"Error executing {repr(expr)}: {ex}") from ex
 
@@ -1168,7 +1169,7 @@ class ModelicaSystem:
         plot is created by OMC which needs access to the local display. This is not the case for docker and WSL.
         """
 
-        if not isinstance(self._session.omc_process, OMCProcessLocal):
+        if not isinstance(self._session, OMCSessionLocal):
             raise ModelicaSystemError("Plot is using the OMC plot functionality; "
                                       "thus, it is only working if OMC is running locally!")
 
@@ -1261,49 +1262,13 @@ class ModelicaSystem:
 
     @staticmethod
     def _prepare_input_data(
-            input_args: Any,
             input_kwargs: dict[str, Any],
     ) -> dict[str, str]:
         """
         Convert raw input to a structured dictionary {'key1': 'value1', 'key2': 'value2'}.
         """
 
-        def prepare_str(str_in: str) -> dict[str, str]:
-            str_in = str_in.replace(" ", "")
-            key_val_list: list[str] = str_in.split("=")
-            if len(key_val_list) != 2:
-                raise ModelicaSystemError(f"Invalid 'key=value' pair: {str_in}")
-
-            input_data_from_str: dict[str, str] = {key_val_list[0]: key_val_list[1]}
-
-            return input_data_from_str
-
         input_data: dict[str, str] = {}
-
-        for input_arg in input_args:
-            if isinstance(input_arg, str):
-                warnings.warn(message="The definition of values to set should use a dictionary, "
-                                      "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
-                                      "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
-                              category=DeprecationWarning,
-                              stacklevel=3)
-                input_data = input_data | prepare_str(input_arg)
-            elif isinstance(input_arg, list):
-                warnings.warn(message="The definition of values to set should use a dictionary, "
-                                      "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
-                                      "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
-                              category=DeprecationWarning,
-                              stacklevel=3)
-
-                for item in input_arg:
-                    if not isinstance(item, str):
-                        raise ModelicaSystemError(f"Invalid input data type for set*() function: {type(item)}!")
-                    input_data = input_data | prepare_str(item)
-            elif isinstance(input_arg, dict):
-                input_data = input_data | input_arg
-            else:
-                raise ModelicaSystemError(f"Invalid input data type for set*() function: {type(input_arg)}!")
-
         if len(input_kwargs):
             for key, val in input_kwargs.items():
                 # ensure all values are strings to align it on one type: dict[str, str]
@@ -1381,21 +1346,15 @@ class ModelicaSystem:
 
     def setContinuous(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set continuous values. It can be called:
-        with a sequence of continuous name and assigning corresponding values as arguments as show in the example below:
-        usage
-        >>> setContinuous("Name=value")  # depreciated
-        >>> setContinuous(["Name1=value1","Name2=value2"])  # depreciated
-
+        This method is used to set continuous values.
         >>> setContinuous(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setContinuous(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1405,21 +1364,15 @@ class ModelicaSystem:
 
     def setParameters(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set parameter values. It can be called:
-        with a sequence of parameter name and assigning corresponding value as arguments as show in the example below:
-        usage
-        >>> setParameters("Name=value")  # depreciated
-        >>> setParameters(["Name1=value1","Name2=value2"])  # depreciated
-
+        This method is used to set parameter values.
         >>> setParameters(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setParameters(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1429,22 +1382,15 @@ class ModelicaSystem:
 
     def setSimulationOptions(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set simulation options. It can be called:
-        with a sequence of simulation options name and assigning corresponding values as arguments as show in the
-        example below:
-        usage
-        >>> setSimulationOptions("Name=value")  # depreciated
-        >>> setSimulationOptions(["Name1=value1","Name2=value2"])  # depreciated
-
+        This method is used to set simulation options.
         >>> setSimulationOptions(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setSimulationOptions(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1454,22 +1400,15 @@ class ModelicaSystem:
 
     def setLinearizationOptions(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set linearization options. It can be called:
-        with a sequence of linearization options name and assigning corresponding value as arguments as show in the
-        example below
-        usage
-        >>> setLinearizationOptions("Name=value")  # depreciated
-        >>> setLinearizationOptions(["Name1=value1","Name2=value2"])  # depreciated
-
+        This method is used to set linearization options.
         >>> setLinearizationOptions(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setLinearizationOptions(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1479,7 +1418,6 @@ class ModelicaSystem:
 
     def setOptimizationOptions(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
@@ -1487,14 +1425,11 @@ class ModelicaSystem:
         with a sequence of optimization options name and assigning corresponding values as arguments as show in the
         example below:
         usage
-        >>> setOptimizationOptions("Name=value")  # depreciated
-        >>> setOptimizationOptions(["Name1=value1","Name2=value2"])  # depreciated
-
         >>> setOptimizationOptions(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setOptimizationOptions(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -1504,23 +1439,18 @@ class ModelicaSystem:
 
     def setInputs(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set input values. It can be called with a sequence of input name and assigning
-        corresponding values as arguments as show in the example below. Compared to other set*() methods this is a
-        special case as value could be a list of tuples - these are converted to a string in _prepare_input_data()
-        and restored here via ast.literal_eval().
+        This method is used to set input values.
 
-        >>> setInputs("Name=value")  # depreciated
-        >>> setInputs(["Name1=value1","Name2=value2"])  # depreciated
-
+        Compared to other set*() methods this is a special case as value could be a list of tuples - these are
+        converted to a string in _prepare_input_data() and restored here via ast.literal_eval().
         >>> setInputs(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setInputs(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         for key, val in inputdata.items():
             if key not in self._inputs:
@@ -1583,9 +1513,9 @@ class ModelicaSystem:
         for signal_name, signal_values in inputs.items():
             signal = np.array(signal_values)
             interpolated_inputs[signal_name] = np.interp(
-                all_times,
-                signal[:, 0],  # times
-                signal[:, 1],  # values
+                x=all_times,
+                xp=signal[:, 0],  # times
+                fp=signal[:, 1],  # values
             )
 
         # Write CSV file
@@ -1925,7 +1855,7 @@ class ModelicaSystemDoE:
             variable_filter: Optional[str] = None,
             work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
-            omc_process: Optional[OMCProcess] = None,
+            session: Optional[OMCSession] = None,
             # simulation specific input
             # TODO: add more settings (simulation options, input options, ...)
             simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,
@@ -1945,7 +1875,7 @@ class ModelicaSystemDoE:
             command_line_options=command_line_options,
             work_directory=work_directory,
             omhome=omhome,
-            omc_process=omc_process,
+            session=session,
         )
         self._mod.model(
             model_file=model_file,
@@ -1959,9 +1889,9 @@ class ModelicaSystemDoE:
         self._simargs = simargs
 
         if resultpath is None:
-            self._resultpath = self.session().omcpath_tempdir()
+            self._resultpath = self.get_session().omcpath_tempdir()
         else:
-            self._resultpath = self.session().omcpath(resultpath)
+            self._resultpath = self.get_session().omcpath(resultpath)
         if not self._resultpath.is_dir():
             raise ModelicaSystemError("Argument resultpath must be set to a valid path within the environment used "
                                       f"for the OpenModelica session: {resultpath}!")
@@ -1974,11 +1904,11 @@ class ModelicaSystemDoE:
         self._doe_def: Optional[dict[str, dict[str, Any]]] = None
         self._doe_cmd: Optional[dict[str, OMCSessionRunData]] = None
 
-    def session(self) -> OMCSessionZMQ:
+    def get_session(self) -> OMCSession:
         """
         Return the OMC session used for this class.
         """
-        return self._mod.session()
+        return self._mod.get_session()
 
     def prepare(self) -> int:
         """
@@ -2017,7 +1947,7 @@ class ModelicaSystemDoE:
 
                 pk_value = pc_structure[idx_structure]
                 if isinstance(pk_value, str):
-                    pk_value_str = self.session().escape_str(pk_value)
+                    pk_value_str = self.get_session().escape_str(pk_value)
                     expression = f"setParameterValue({self._model_name}, {pk_structure}, \"{pk_value_str}\")"
                 elif isinstance(pk_value, bool):
                     pk_value_bool_str = "true" if pk_value else "false"
@@ -2056,7 +1986,7 @@ class ModelicaSystemDoE:
                         }
                 )
 
-                self._mod.setParameters(sim_param_non_structural)
+                self._mod.setParameters(**sim_param_non_structural)
                 mscmd = self._mod.simulate_cmd(
                     result_file=resultfile,
                 )
@@ -2138,12 +2068,12 @@ class ModelicaSystemDoE:
                     raise ModelicaSystemError("Missing simulation definition!")
 
                 resultfile = cmd_definition.cmd_result_path
-                resultpath = self.session().omcpath(resultfile)
+                resultpath = self.get_session().omcpath(resultfile)
 
                 logger.info(f"[Worker {worker_id}] Performing task: {resultpath.name}")
 
                 try:
-                    returncode = self.session().run_model_executable(cmd_run_data=cmd_definition)
+                    returncode = self.get_session().run_model_executable(cmd_run_data=cmd_definition)
                     logger.info(f"[Worker {worker_id}] Simulation {resultpath.name} "
                                 f"finished with return code: {returncode}")
                 except ModelicaSystemError as ex:
