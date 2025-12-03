@@ -2,8 +2,8 @@ import OMPython
 
 
 def test_isPackage():
-    omczmq = OMPython.OMCSessionZMQ()
-    omccmd = OMPython.OMCSessionCmd(session=omczmq)
+    omcs = OMPython.OMCSessionLocal()
+    omccmd = OMPython.OMCSessionCmd(session=omcs)
     assert not omccmd.isPackage('Modelica')
 
 
@@ -13,7 +13,7 @@ def test_isPackage2():
         model_name="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
         libraries=["Modelica"],
     )
-    omccmd = OMPython.OMCSessionCmd(session=mod.session())
+    omccmd = OMPython.OMCSessionCmd(session=mod.get_session())
     assert omccmd.isPackage('Modelica')
 
 
