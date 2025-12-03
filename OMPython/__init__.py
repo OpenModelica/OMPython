@@ -15,15 +15,16 @@ from OMPython.ModelicaSystem import (
     ModelicaSystemError,
 )
 from OMPython.OMCSession import (
+    OMCPath,
     OMCSessionCmd,
     OMCSessionException,
     OMCSessionRunData,
-    OMCSessionZMQ,
-    OMCProcessPort,
-    OMCProcessLocal,
-    OMCProcessDocker,
-    OMCProcessDockerContainer,
-    OMCProcessWSL,
+    OMCSession,
+    OMCSessionPort,
+    OMCSessionLocal,
+    OMCSessionDocker,
+    OMCSessionDockerContainer,
+    OMCSessionWSL,
 )
 
 # global names imported if import 'from OMPython import *' is used
@@ -34,13 +35,15 @@ __all__ = [
     'ModelicaSystemDoE',
     'ModelicaSystemError',
 
+    'OMCPath',
+
     'OMCSessionCmd',
     'OMCSessionException',
     'OMCSessionRunData',
-    'OMCSessionZMQ',
-    'OMCProcessPort',
-    'OMCProcessLocal',
-    'OMCProcessDocker',
-    'OMCProcessDockerContainer',
-    'OMCProcessWSL',
+    'OMCSession',
+    'OMCSessionPort',
+    'OMCSessionLocal',
+    'OMCSessionDocker',
+    'OMCSessionDockerContainer',
+    'OMCSessionWSL',
 ]
