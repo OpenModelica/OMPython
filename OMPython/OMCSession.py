@@ -830,20 +830,23 @@ class OMCSession(metaclass=OMCSessionMeta):
                 env=my_env,
                 cwd=cmd_run_data.cmd_cwd_local,
                 timeout=self._timeout,
-                check=True,
+                check=False,
             )
             stdout = cmdres.stdout.strip()
             stderr = cmdres.stderr.strip()
             returncode = cmdres.returncode
 
-            logger.debug("OM output for command %s:\n%s", repr(cmdl), stdout)
+            if returncode != 0:
+                logger.warning("OM executable run %s with returncode=%d and stdout:\n%s",
+                               repr(cmdl), returncode, stdout)
+            else:
+                logger.debug("OM executable run %s with stdout:\n%s", repr(cmdl), stdout)
 
             if stderr:
                 raise OMCSessionException(f"Error running model executable {repr(cmdl)}: {stderr}")
+
         except subprocess.TimeoutExpired as ex:
             raise OMCSessionException(f"Timeout running model executable {repr(cmdl)}") from ex
-        except subprocess.CalledProcessError as ex:
-            raise OMCSessionException(f"Error running model executable {repr(cmdl)}") from ex
 
         return returncode
 
