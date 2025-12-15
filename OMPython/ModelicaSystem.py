@@ -1185,15 +1185,15 @@ class ModelicaSystem:
         cmd_definition = om_cmd.definition()
         returncode = self._session.run_model_executable(cmd_run_data=cmd_definition)
         # and check returncode *AND* resultfile
-        if returncode != 0 and self._result_file.is_file():
+        if returncode != 0:
             # check for an empty (=> 0B) result file which indicates a crash of the model executable
             # see: https://github.com/OpenModelica/OMPython/issues/261
             #      https://github.com/OpenModelica/OpenModelica/issues/13829
-            if self._result_file.size() == 0:
+            if self._result_file.is_file() and self._result_file.size() == 0:
                 self._result_file.unlink()
                 raise ModelicaSystemError("Empty result file - this indicates a crash of the model executable!")
 
-            logger.warning(f"Return code = {returncode} but result file exists!")
+            logger.warning(f"Return code = {returncode} but result file was created!")
 
         self._simulated = True
 
