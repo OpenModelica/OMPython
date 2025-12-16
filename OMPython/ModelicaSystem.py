@@ -2188,9 +2188,9 @@ class ModelicaSystemDoE:
                 try:
                     returncode = self.get_session().run_model_executable(cmd_run_data=cmd_definition)
                     logger.info(f"[Worker {worker_id}] Simulation {resultpath.name} "
-                                f"finished with return code: {returncode}")
-                except ModelicaSystemError as ex:
-                    logger.warning(f"Simulation error for {resultpath.name}: {ex}")
+                                f"finished with return code {returncode}")
+                except OMCSessionException as ex:
+                    logger.warning(f"Error executing {repr(cmd_definition.get_cmd())}: {ex}")
 
                 # Mark the task as done
                 task_queue.task_done()
