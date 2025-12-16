@@ -257,14 +257,14 @@ class OMCSessionCmd:
 
 class OMCPathReal(pathlib.PurePosixPath):
     """
-    Implementation of a basic (PurePosix)Path object which uses OMC as backend. The connection to OMC is provided via a
-    OMCSessionZMQ session object.
+    Implementation of a basic (PurePosix)Path object which uses OMC as backend. The connection to OMC is provided via an
+    instances of OMCSession* classes.
 
     PurePosixPath is selected to cover usage of OMC in docker or via WSL. Usage of specialised function could result in
     errors as well as usage on a Windows system due to slightly different definitions (PureWindowsPath).
     """
 
-    def __init__(self, *path, session: OMCProcess) -> None:
+    def __init__(self, *path, session: OMCSession) -> None:
         super().__init__(*path)
         self._session = session
 
@@ -272,7 +272,7 @@ class OMCPathReal(pathlib.PurePosixPath):
         """
         Create a new OMCPath object with the given path segments.
 
-        The original definition of Path is overridden to ensure session is set.
+        The original definition of Path is overridden to ensure the OMC session is set.
         """
         return type(self)(*pathsegments, session=self._session)
 
@@ -293,7 +293,7 @@ class OMCPathReal(pathlib.PurePosixPath):
         Check if the path is an absolute path considering the possibility that we are running locally on Windows. This
         case needs special handling as the definition of is_absolute() differs.
         """
-        if isinstance(self._session, OMCProcessLocal) and platform.system() == 'Windows':
+        if isinstance(self._session, OMCSessionLocal) and platform.system() == 'Windows':
             return pathlib.PureWindowsPath(self.as_posix()).is_absolute()
         return super().is_absolute()
 
@@ -510,14 +510,14 @@ class OMCSessionRunData:
 
 class OMCSessionZMQ:
     """
-    This class is handling an OMC session. It is a compatibility class for the new schema using OMCProcess* classes.
+    This class is a compatibility layer for the new schema using OMCSession* classes.
     """
 
     def __init__(
             self,
             timeout: float = 10.00,
             omhome: Optional[str] = None,
-            omc_process: Optional[OMCProcess] = None,
+            omc_process: Optional[OMCSession] = None,
     ) -> None:
         """
         Initialisation for OMCSessionZMQ
@@ -528,8 +528,8 @@ class OMCSessionZMQ:
                       stacklevel=2)
 
         if omc_process is None:
-            omc_process = OMCProcessLocal(omhome=omhome, timeout=timeout)
-        elif not isinstance(omc_process, OMCProcess):
+            omc_process = OMCSessionLocal(omhome=omhome, timeout=timeout)
+        elif not isinstance(omc_process, OMCSession):
             raise OMCSessionException("Invalid definition of the OMC process!")
         self.omc_process = omc_process
 
@@ -541,11 +541,11 @@ class OMCSessionZMQ:
         """
         Escape a string such that it can be used as string within OMC expressions, i.e. escape all double quotes.
         """
-        return OMCProcess.escape_str(value=value)
+        return OMCSession.escape_str(value=value)
 
     def omcpath(self, *path) -> OMCPath:
         """
-        Create an OMCPath object based on the given path segments and the current OMC session.
+        Create an OMCPath object based on the given path segments and the current OMC process definition.
         """
         return self.omc_process.omcpath(*path)
 
@@ -570,7 +570,7 @@ class OMCSessionZMQ:
         Run the command defined in cmd_run_data. This class is defined as static method such that there is no need to
         keep instances of over classes around.
         """
-        return OMCProcess.run_model_executable(cmd_run_data=cmd_run_data)
+        return OMCSession.run_model_executable(cmd_run_data=cmd_run_data)
 
     def execute(self, command: str):
         return self.omc_process.execute(command=command)
@@ -612,7 +612,7 @@ class PostInitCaller(type):
         return obj
 
 
-class OMCProcessMeta(abc.ABCMeta, PostInitCaller):
+class OMCSessionMeta(abc.ABCMeta, PostInitCaller):
     """
     Helper class to get a combined metaclass of ABCMeta and PostInitCaller.
 
@@ -621,25 +621,24 @@ class OMCProcessMeta(abc.ABCMeta, PostInitCaller):
     """
 
 
-class OMCProcess(metaclass=OMCProcessMeta):
+class OMCSession(metaclass=OMCSessionMeta):
     """
-    Base class for an OMC session. This class contains common functionality for all OMC sessions.
+    Base class for an OMC session started via ZMQ. This class contains common functionality for all variants of an
+    OMC session definition.
 
     The main method is sendExpression() which is used to send commands to the OMC process.
 
-    The class expects an OMCProcess* on initialisation. It defines the type of OMC process to use:
+    The following variants are defined:
 
-    * OMCProcessLocal
+    * OMCSessionLocal
 
-    * OMCProcessPort
+    * OMCSessionPort
 
-    * OMCProcessDocker
+    * OMCSessionDocker
 
-    * OMCProcessDockerContainer
+    * OMCSessionDockerContainer
 
-    * OMCProcessWSL
-
-    If no OMC process is defined, a local OMC process is initialized.
+    * OMCSessionWSL
     """
 
     def __init__(
@@ -648,12 +647,12 @@ class OMCProcess(metaclass=OMCProcessMeta):
             **kwargs,
     ) -> None:
         """
-        Initialisation for OMCProcess
+        Initialisation for OMCSession
         """
 
         # store variables
         self._timeout = timeout
-        # generate a random string for this session
+        # generate a random string for this instance of OMC
         self._random_string = uuid.uuid4().hex
         # get a temporary directory
         self._temp_dir = pathlib.Path(tempfile.gettempdir())
@@ -737,15 +736,15 @@ class OMCProcess(metaclass=OMCProcessMeta):
 
     def omcpath(self, *path) -> OMCPath:
         """
-        Create an OMCPath object based on the given path segments and the current OMC session.
+        Create an OMCPath object based on the given path segments and the current OMCSession* class.
         """
 
         # fallback solution for Python < 3.12; a modified pathlib.Path object is used as OMCPath replacement
         if sys.version_info < (3, 12):
-            if isinstance(self, OMCProcessLocal):
+            if isinstance(self, OMCSessionLocal):
                 # noinspection PyArgumentList
                 return OMCPath(*path)
-            raise OMCSessionException("OMCPath is supported for Python < 3.12 only if OMCProcessLocal is used!")
+            raise OMCSessionException("OMCPath is supported for Python < 3.12 only if OMCSessionLocal is used!")
         return OMCPath(*path, session=self)
 
     def omcpath_tempdir(self, tempdir_base: Optional[OMCPath] = None) -> OMCPath:
@@ -839,7 +838,7 @@ class OMCProcess(metaclass=OMCProcessMeta):
             timeout = 1.0
 
         if self._omc_zmq is None:
-            raise OMCSessionException("No OMC running. Please create a new instance of OMCProcess!")
+            raise OMCSessionException("No OMC running. Please create a new instance of OMCSession!")
 
         logger.debug("sendExpression(%r, parsed=%r)", command, parsed)
 
@@ -969,7 +968,7 @@ class OMCProcess(metaclass=OMCProcessMeta):
 
     def get_port(self) -> Optional[str]:
         """
-        Get the port to connect to the OMC process.
+        Get the port to connect to the OMC session.
         """
         if not isinstance(self._omc_port, str):
             raise OMCSessionException(f"Invalid port to connect to OMC process: {self._omc_port}")
@@ -1001,7 +1000,7 @@ class OMCProcess(metaclass=OMCProcessMeta):
     @abc.abstractmethod
     def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
-        Update the OMCSessionRunData object based on the selected OMCProcess implementation.
+        Update the OMCSessionRunData object based on the selected OMCSession implementation.
 
         The main point is the definition of OMCSessionRunData.cmd_model_executable which contains the specific command
         to run depending on the selected system.
@@ -1011,9 +1010,9 @@ class OMCProcess(metaclass=OMCProcessMeta):
         raise NotImplementedError("This method must be implemented in subclasses!")
 
 
-class OMCProcessPort(OMCProcess):
+class OMCSessionPort(OMCSession):
     """
-    OMCProcess implementation which uses a port to connect to an already running OMC server.
+    OMCSession implementation which uses a port to connect to an already running OMC server.
     """
 
     def __init__(
@@ -1025,14 +1024,14 @@ class OMCProcessPort(OMCProcess):
 
     def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
-        Update the OMCSessionRunData object based on the selected OMCProcess implementation.
+        Update the OMCSessionRunData object based on the selected OMCSession implementation.
         """
-        raise OMCSessionException("OMCProcessPort does not support omc_run_data_update()!")
+        raise OMCSessionException("OMCSessionPort does not support omc_run_data_update()!")
 
 
-class OMCProcessLocal(OMCProcess):
+class OMCSessionLocal(OMCSession):
     """
-    OMCProcess implementation which runs the OMC server locally on the machine (Linux / Windows).
+    OMCSession implementation which runs the OMC server locally on the machine (Linux / Windows).
     """
 
     def __init__(
@@ -1115,7 +1114,7 @@ class OMCProcessLocal(OMCProcess):
 
     def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
-        Update the OMCSessionRunData object based on the selected OMCProcess implementation.
+        Update the OMCSessionRunData object based on the selected OMCSession implementation.
         """
         # create a copy of the data
         omc_run_data_copy = dataclasses.replace(omc_run_data)
@@ -1156,9 +1155,9 @@ class OMCProcessLocal(OMCProcess):
         return omc_run_data_copy
 
 
-class OMCProcessDockerHelper(OMCProcess):
+class OMCSessionDockerHelper(OMCSession):
     """
-    Base class for OMCProcess implementations which run the OMC server in a Docker container.
+    Base class for OMCSession implementations which run the OMC server in a Docker container.
     """
 
     def __init__(
@@ -1272,7 +1271,7 @@ class OMCProcessDockerHelper(OMCProcess):
 
     def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
-        Update the OMCSessionRunData object based on the selected OMCProcess implementation.
+        Update the OMCSessionRunData object based on the selected OMCSession implementation.
         """
         omc_run_data_copy = dataclasses.replace(omc_run_data)
 
@@ -1293,7 +1292,7 @@ class OMCProcessDockerHelper(OMCProcess):
         return omc_run_data_copy
 
 
-class OMCProcessDocker(OMCProcessDockerHelper):
+class OMCSessionDocker(OMCSessionDockerHelper):
     """
     OMC process running in a Docker container.
     """
@@ -1436,7 +1435,7 @@ class OMCProcessDocker(OMCProcessDockerHelper):
         return omc_process, docker_process, docker_cid
 
 
-class OMCProcessDockerContainer(OMCProcessDockerHelper):
+class OMCSessionDockerContainer(OMCSessionDockerHelper):
     """
     OMC process running in a Docker container (by container ID).
     """
@@ -1529,7 +1528,7 @@ class OMCProcessDockerContainer(OMCProcessDockerHelper):
         return omc_process, docker_process
 
 
-class OMCProcessWSL(OMCProcess):
+class OMCSessionWSL(OMCSession):
     """
     OMC process running in Windows Subsystem for Linux (WSL).
     """
@@ -1617,7 +1616,7 @@ class OMCProcessWSL(OMCProcess):
 
     def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
-        Update the OMCSessionRunData object based on the selected OMCProcess implementation.
+        Update the OMCSessionRunData object based on the selected OMCSession implementation.
         """
         omc_run_data_copy = dataclasses.replace(omc_run_data)
 
