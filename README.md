@@ -1,4 +1,4 @@
-# OMPython
+# OMPython [![License: OSMC-PL-RT](https://img.shields.io/badge/license-OSMC--PL--RT-lightgrey.svg)](LICENSE)
 
 OMPython is a Python interface that uses ZeroMQ to
 communicate with OpenModelica.
@@ -61,6 +61,10 @@ automatically run linters:
 # cd to the root of the repository
 pre-commit install
 ```
+
+## License
+
+This project is licensed under the OSMC Public Runtime License. See [LICENSE](LICENSE) for details.
 
 ## Contact
 

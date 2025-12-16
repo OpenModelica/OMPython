@@ -16,9 +16,9 @@ jobs:
         omc-version: ['stable', 'nightly']
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: "Set up OpenModelica Compiler"
-        uses: OpenModelica/setup-openmodelica@v1.0.4
+        uses: OpenModelica/setup-openmodelica@v1.0.5
         with:
           version: ${{ matrix.omc-version }}
           packages: |
@@ -28,7 +28,7 @@ jobs:
 
       - run: "omc --version"
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
         with:
