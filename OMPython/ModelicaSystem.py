@@ -1069,7 +1069,7 @@ class ModelicaSystem:
             override_content = "\n".join([
                 "\n".join([f"{key}={value}" for key, value in self._override_variables.items()]),
                 "\n".join([f"{key}={value}" for key, value in self._simulate_options_override.items()])
-            ]) + "\n"
+            ]).strip() + "\n"
 
             override_file.write_text(override_content)
             om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
