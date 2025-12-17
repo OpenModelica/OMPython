@@ -903,10 +903,10 @@ class OMCSession(metaclass=OMCSessionMeta):
                             r"\s*lineEnd = (\d+),\n"
                             r"\s*columnEnd = (\d+)\n"
                             r"\s*end OpenModelica\.Scripting\.SourceInfo;,\n"
-                            r"\s*message = \"(.*?)\",\n"  # message
+                            r"\s*message = \"(.*)\",\n"  # message
                             r"\s*kind = \.OpenModelica\.Scripting\.ErrorKind\.(.*?),\n"  # kind
                             r"\s*level = \.OpenModelica\.Scripting\.ErrorLevel\.(.*?),\n"  # level
-                            r"\s*id = (\d+)",  # id
+                            r"\s*id = (-?\d+)",  # id
                     flags=re.MULTILINE | re.DOTALL)
 
             # extract all ErrorMessage records
