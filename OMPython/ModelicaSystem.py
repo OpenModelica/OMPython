@@ -1066,11 +1066,10 @@ class ModelicaSystem:
         if self._override_variables or self._simulate_options_override:
             override_file = result_file.parent / f"{result_file.stem}_override.txt"
 
-            override_content = (
-                    "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
-                    + "\n".join([f"{key}={value}" for key, value in self._simulate_options_override.items()])
-                    + "\n"
-            )
+            override_content = "\n".join([
+                "\n".join([f"{key}={value}" for key, value in self._override_variables.items()]),
+                "\n".join([f"{key}={value}" for key, value in self._simulate_options_override.items()])
+            ]) + "\n"
 
             override_file.write_text(override_content)
             om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
