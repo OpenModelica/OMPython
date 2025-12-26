@@ -19,6 +19,8 @@ import xml.etree.ElementTree as ET
 
 import numpy as np
 
+import re
+
 from OMPython.OMCSession import (
     OMCSessionException,
     OMCSessionRunData,
@@ -348,6 +350,8 @@ class ModelicaSystem:
         else:
             self._session = OMCSessionLocal(omhome=omhome)
 
+        # get OpenModelica version
+        self._version = self._session.sendExpression("getVersion()", parsed=True)
         # set commandLineOptions using default values or the user defined list
         if command_line_options is None:
             # set default command line options to improve the performance of linearization and to avoid recompilation if
@@ -1019,6 +1023,13 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
+    def parse_om_version(self, version: str) -> tuple[int, int, int]:
+        match = re.search(r"v?(\d+)\.(\d+)\.(\d+)", version)
+        if not match:
+            raise ValueError(f"Version not found in: {version}")
+        major, minor, patch = map(int, match.groups())
+        return major, minor, patch
+
     def simulate_cmd(
             self,
             result_file: OMCPath,
@@ -1065,11 +1076,23 @@ class ModelicaSystem:
         if self._override_variables or self._simulate_options_override:
             override_file = result_file.parent / f"{result_file.stem}_override.txt"
 
-            override_content = (
+            # simulation options are not read from override file from version >= 1.26.0,
+            # pass them to simulation executable directly as individual arguments
+            # see https://github.com/OpenModelica/OpenModelica/pull/14813
+            major, minor, patch = self.parse_om_version(self._version)
+            if (major, minor, patch) >= (1, 26, 0):
+                for key, opt_value in self._simulate_options_override.items():
+                    om_cmd.arg_set(key=key, val=str(opt_value))
+                override_content = (
+                    "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
+                    + "\n"
+                )
+            else:
+                override_content = (
                     "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
                     + "\n".join([f"{key}={value}" for key, value in self._simulate_options_override.items()])
                     + "\n"
-            )
+                )
 
             override_file.write_text(override_content)
             om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
@@ -1752,11 +1775,22 @@ class ModelicaSystem:
             modelname=self._model_name,
         )
 
-        override_content = (
+        # See comment in simulate_cmd regarding override file and OM version
+        major, minor, patch = self.parse_om_version(self._version)
+        if (major, minor, patch) >= (1, 26, 0):
+            for key, opt_value in self._linearization_options.items():
+                om_cmd.arg_set(key=key, val=str(opt_value))
+            override_content = (
+                "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
+                + "\n"
+            )
+        else:
+            override_content = (
                 "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
                 + "\n".join([f"{key}={value}" for key, value in self._linearization_options.items()])
                 + "\n"
-        )
+            )
+
         override_file = self.getWorkDirectory() / f'{self._model_name}_override_linear.txt'
         override_file.write_text(override_content)
 
