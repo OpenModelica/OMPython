@@ -1031,6 +1031,33 @@ class ModelicaSystem:
 
         return major, minor, patch
 
+    def _process_override_data(
+            self,
+            om_cmd: ModelicaSystemCmd,
+            override_file: OMCPath,
+            override_var: dict[str, str],
+            override_sim: dict[str, str],
+    ) -> None:
+        if not override_var and not override_sim:
+            return
+
+        override_content = ""
+        if override_var:
+            override_content += "\n".join([f"{key}={value}" for key, value in override_var.items()]) + "\n"
+
+        # simulation options are not read from override file from version >= 1.26.0,
+        # pass them to simulation executable directly as individual arguments
+        # see https://github.com/OpenModelica/OpenModelica/pull/14813
+        if override_sim:
+            if self._version >= (1, 26, 0):
+                for key, opt_value in override_sim.items():
+                    om_cmd.arg_set(key=key, val=str(opt_value))
+            else:
+                override_content += "\n".join([f"{key}={value}" for key, value in override_sim.items()]) + "\n"
+
+        override_file.write_text(override_content)
+        om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
+
     def simulate_cmd(
             self,
             result_file: OMCPath,
@@ -1074,28 +1101,12 @@ class ModelicaSystem:
         if simargs:
             om_cmd.args_set(args=simargs)
 
-        if self._override_variables or self._simulate_options_override:
-            override_file = result_file.parent / f"{result_file.stem}_override.txt"
-
-            # simulation options are not read from override file from version >= 1.26.0,
-            # pass them to simulation executable directly as individual arguments
-            # see https://github.com/OpenModelica/OpenModelica/pull/14813
-            if self._version >= Version("1.26.0"):
-                for key, opt_value in self._simulate_options_override.items():
-                    om_cmd.arg_set(key=key, val=str(opt_value))
-                override_content = (
-                    "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
-                    + "\n"
-                )
-            else:
-                override_content = (
-                    "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
-                    + "\n".join([f"{key}={value}" for key, value in self._simulate_options_override.items()])
-                    + "\n"
-                )
-
-            override_file.write_text(override_content)
-            om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
+        self._process_override_data(
+            om_cmd=om_cmd,
+            override_file=result_file.parent / f"{result_file.stem}_override.txt",
+            override_var=self._override_variables,
+            override_sim=self._simulate_options_override,
+        )
 
         if self._inputs:  # if model has input quantities
             for key, val in self._inputs.items():
@@ -1775,25 +1786,12 @@ class ModelicaSystem:
             modelname=self._model_name,
         )
 
-        # See comment in simulate_cmd regarding override file and OM version
-        if self._version >= Version("1.26.0"):
-            for key, opt_value in self._linearization_options.items():
-                om_cmd.arg_set(key=key, val=str(opt_value))
-            override_content = (
-                "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
-                + "\n"
-            )
-        else:
-            override_content = (
-                "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
-                + "\n".join([f"{key}={value}" for key, value in self._linearization_options.items()])
-                + "\n"
-            )
-
-        override_file = self.getWorkDirectory() / f'{self._model_name}_override_linear.txt'
-        override_file.write_text(override_content)
-
-        om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
+        self._process_override_data(
+            om_cmd=om_cmd,
+            override_file=self.getWorkDirectory() / f'{self._model_name}_override_linear.txt',
+            override_var=self._override_variables,
+            override_sim=self._linearization_options,
+        )
 
         if self._inputs:
             for key, data in self._inputs.items():
