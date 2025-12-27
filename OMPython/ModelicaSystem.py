@@ -1808,7 +1808,14 @@ class ModelicaSystem:
             csvfile = self._createCSVData()
             om_cmd.arg_set(key="csvInput", val=csvfile.as_posix())
 
-        om_cmd.arg_set(key="l", val=str(lintime or self._linearization_options["stopTime"]))
+        if lintime is None:
+            lintime = float(self._linearization_options["stopTime"])
+        if (float(self._linearization_options["startTime"]) > lintime
+                or float(self._linearization_options["stopTime"]) < lintime):
+            raise ModelicaSystemError(f"Invalid linearisation time: {lintime=}; "
+                                      f"expected value: {self._linearization_options['startTime']} "
+                                      f"<= lintime <= {self._linearization_options['stopTime']}")
+        om_cmd.arg_set(key="l", val=str(lintime))
 
         # allow runtime simulation flags from user input
         if simflags is not None:
