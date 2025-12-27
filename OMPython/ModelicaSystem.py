@@ -350,7 +350,7 @@ class ModelicaSystem:
             self._session = OMCSessionLocal(omhome=omhome)
 
         # get OpenModelica version
-        version_str = self._session.sendExpression("getVersion()", parsed=True)
+        version_str = self.sendExpression(expr="getVersion()")
         self._version = self._parse_om_version(version=version_str)
         # set commandLineOptions using default values or the user defined list
         if command_line_options is None:
