@@ -350,7 +350,8 @@ class ModelicaSystem:
             self._session = OMCSessionLocal(omhome=omhome)
 
         # get OpenModelica version
-        self._version = self._session.sendExpression("getVersion()", parsed=True)
+        version_str = self._session.sendExpression("getVersion()", parsed=True)
+        self._version = self._parse_om_version(version=version_str)
         # set commandLineOptions using default values or the user defined list
         if command_line_options is None:
             # set default command line options to improve the performance of linearization and to avoid recompilation if
@@ -1022,11 +1023,12 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
-    def parse_om_version(self, version: str) -> tuple[int, int, int]:
+    def _parse_om_version(self, version: str) -> tuple[int, int, int]:
         match = re.search(r"v?(\d+)\.(\d+)\.(\d+)", version)
         if not match:
             raise ValueError(f"Version not found in: {version}")
         major, minor, patch = map(int, match.groups())
+
         return major, minor, patch
 
     def simulate_cmd(
@@ -1078,8 +1080,7 @@ class ModelicaSystem:
             # simulation options are not read from override file from version >= 1.26.0,
             # pass them to simulation executable directly as individual arguments
             # see https://github.com/OpenModelica/OpenModelica/pull/14813
-            major, minor, patch = self.parse_om_version(self._version)
-            if (major, minor, patch) >= (1, 26, 0):
+            if self._version >= Version("1.26.0"):
                 for key, opt_value in self._simulate_options_override.items():
                     om_cmd.arg_set(key=key, val=str(opt_value))
                 override_content = (
@@ -1775,8 +1776,7 @@ class ModelicaSystem:
         )
 
         # See comment in simulate_cmd regarding override file and OM version
-        major, minor, patch = self.parse_om_version(self._version)
-        if (major, minor, patch) >= (1, 26, 0):
+        if self._version >= Version("1.26.0"):
             for key, opt_value in self._linearization_options.items():
                 om_cmd.arg_set(key=key, val=str(opt_value))
             override_content = (
