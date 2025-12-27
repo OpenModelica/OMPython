@@ -331,14 +331,14 @@ class ModelicaSystem:
         self._simulate_options: dict[str, str] = {}
         self._override_variables: dict[str, str] = {}
         self._simulate_options_override: dict[str, str] = {}
-        self._linearization_options: dict[str, str | float] = {
-            'startTime': 0.0,
-            'stopTime': 1.0,
-            'stepSize': 0.002,
-            'tolerance': 1e-8,
+        self._linearization_options: dict[str, str] = {
+            'startTime': str(0.0),
+            'stopTime': str(1.0),
+            'stepSize': str(0.002),
+            'tolerance': str(1e-8),
         }
         self._optimization_options = self._linearization_options | {
-            'numberOfIntervals': 500,
+            'numberOfIntervals': str(500),
         }
         self._linearized_inputs: list[str] = []  # linearization input list
         self._linearized_outputs: list[str] = []  # linearization output list
@@ -950,7 +950,7 @@ class ModelicaSystem:
     def getLinearizationOptions(
             self,
             names: Optional[str | list[str]] = None,
-    ) -> dict[str, str | float] | list[str | float]:
+    ) -> dict[str, str] | list[str]:
         """Get simulation options used for linearization.
 
         Args:
@@ -964,17 +964,16 @@ class ModelicaSystem:
             returned.
             If `names` is a list, a list with one value for each option name
             in names is returned: [option1_value, option2_value, ...].
-            Some option values are returned as float when first initialized,
-            but always as strings after setLinearizationOptions is used to
-            change them.
+
+            The option values are always returned as strings.
 
         Examples:
             >>> mod.getLinearizationOptions()
-            {'startTime': 0.0, 'stopTime': 1.0, 'stepSize': 0.002, 'tolerance': 1e-08}
+            {'startTime': '0.0', 'stopTime': '1.0', 'stepSize': '0.002', 'tolerance': '1e-08'}
             >>> mod.getLinearizationOptions("stopTime")
-            [1.0]
+            ['1.0']
             >>> mod.getLinearizationOptions(["tolerance", "stopTime"])
-            [1e-08, 1.0]
+            ['1e-08', '1.0']
         """
         if names is None:
             return self._linearization_options
@@ -988,7 +987,7 @@ class ModelicaSystem:
     def getOptimizationOptions(
             self,
             names: Optional[str | list[str]] = None,
-    ) -> dict[str, str | float] | list[str | float]:
+    ) -> dict[str, str] | list[str]:
         """Get simulation options used for optimization.
 
         Args:
@@ -1002,9 +1001,8 @@ class ModelicaSystem:
             returned.
             If `names` is a list, a list with one value for each option name
             in names is returned: [option1_value, option2_value, ...].
-            Some option values are returned as float when first initialized,
-            but always as strings after setOptimizationOptions is used to
-            change them.
+
+            The option values are always returned as string.
 
         Examples:
             >>> mod.getOptimizationOptions()
