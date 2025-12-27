@@ -1036,7 +1036,7 @@ class ModelicaSystem:
             override_var: dict[str, str],
             override_sim: dict[str, str],
     ) -> None:
-        if not override_var and not override_sim:
+        if len(override_var) == 0 and len(override_sim) == 0:
             return
 
         override_content = ""
