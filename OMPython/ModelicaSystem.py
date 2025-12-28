@@ -1053,8 +1053,9 @@ class ModelicaSystem:
             else:
                 override_content += "\n".join([f"{key}={value}" for key, value in override_sim.items()]) + "\n"
 
-        override_file.write_text(override_content)
-        om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
+        if override_content:
+            override_file.write_text(override_content)
+            om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
 
     def simulate_cmd(
             self,
