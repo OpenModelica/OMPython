@@ -3,6 +3,7 @@ import platform
 import subprocess
 import shlex
 from typing import Optional, Any
+import warnings
 import xml.etree.ElementTree as ET
 import logging
 import numbers
@@ -61,7 +62,7 @@ class ModelicaSystemRunner(object):
             raise ModelicaSystemError("Executable model file not found in {0}".format(exefile))
         self.xmlFileName = modelname + "_init.xml"
         self.xmlFile = os.path.join(self.runpath, self.xmlFileName)
-        self.modelName = modelname  # Model class name
+        self._model_name = modelname  # Model class name
         self.inputFlag = False  # for model with input quantity
         self.simulationFlag = False  # if the model is simulated?
         self.outputFlag = False
@@ -250,7 +251,7 @@ class ModelicaSystemRunner(object):
             return [self._inputs[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getInputs()")
-    
+
     def getOutputs(
             self,
             names: Optional[str | list[str]] = None,
@@ -289,13 +290,12 @@ class ModelicaSystemRunner(object):
             >>> mod.getOutputs(["out1","out2"])
             [np.float64(-0.1234), np.float64(2.1)]
         """
-        # not self.simulationFlag:
+        # not self._simulated:
         if names is None:
-            return self.outputlist
-        elif isinstance(names, str):
-            return [self.outputlist.get(names, "NotExist")]
-        else:
-            return [self.outputlist.get(x, "NotExist") for x in names]
+            return self._outputs
+        if isinstance(names, str):
+            return [self._outputs[names]]
+        return [self._outputs[x] for x in names]
 
     def getSimulationOptions(
             self,
@@ -371,7 +371,7 @@ class ModelicaSystemRunner(object):
             return [self._optimization_options[x] for x in names]
 
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
-    
+
 
     def simulate(self,resultfile=None,simflags=None,overrideaux=None):  # 11
         """
@@ -393,11 +393,11 @@ class ModelicaSystemRunner(object):
         >>> simulate()
         >>> simulate(resultfile="a.mat")
         >>> simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10) set runtime simulation flags
-        >>> simulate(simflags="-noEventEmit -noRestart" ,overrideaux="outputFormat=csv,variableFilter=.*") 
+        >>> simulate(simflags="-noEventEmit -noRestart" ,overrideaux="outputFormat=csv,variableFilter=.*")
         """
         if(resultfile is None):
             r=""
-            self.resultfile = "".join([self.modelName, "_res.mat"])
+            self.resultfile = "".join([self._model_name, "_res.mat"])
         else:
             r=" -r=" + resultfile
             self.resultfile = resultfile
@@ -447,9 +447,9 @@ class ModelicaSystemRunner(object):
             os.chdir(os.path.join(os.path.dirname(self.xmlFile)))
 
         if (platform.system() == "Windows"):
-            getExeFile = os.path.join(os.getcwd(), '{}.{}'.format(self.modelName, "exe")).replace("\\", "/")
+            getExeFile = os.path.join(os.getcwd(), '{}.{}'.format(self._model_name, "exe")).replace("\\", "/")
         else:
-            getExeFile = os.path.join(os.getcwd(), self.modelName).replace("\\", "/")
+            getExeFile = os.path.join(os.getcwd(), self._model_name).replace("\\", "/")
 
         out = None
         if (os.path.exists(getExeFile)):
