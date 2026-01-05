@@ -1,4 +1,5 @@
 import os
+import stat
 import platform
 import subprocess
 import shlex
@@ -15,6 +16,7 @@ class ModelicaSystemError(Exception):
     """
     Exception used in ModelicaSystem and ModelicaSystemCmd classes.
     """
+
 
 class ModelicaSystemRunner(object):
     def __init__(
@@ -372,8 +374,7 @@ class ModelicaSystemRunner(object):
 
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
-
-    def simulate(self,resultfile=None,simflags=None,overrideaux=None):  # 11
+    def simulate(self, resultfile=None, simflags=None, overrideaux=None):  # 11
         """
         This method simulates model according to the simulation options.
 
@@ -406,15 +407,15 @@ class ModelicaSystemRunner(object):
         if(simflags is None):
             simflags=""
         else:
-            simflags=" " + simflags;
+            simflags=" " + simflags
 
         if (self._override_variables or self._simulate_options_override):
             tmpdict=self._override_variables.copy()
             tmpdict.update(self._simulate_options_override)
             values1 = ','.join("%s=%s" % (key, val) for (key, val) in list(tmpdict.items()))
-            override =" -override=" + values1
+            override = " -override=" + values1
         else:
-            override =""
+            override = ""
         # add override flags not parameters or simulation options
         if overrideaux:
             if override:
