@@ -47,7 +47,8 @@ class ModelicaSystemRunner(object):
         # self.simulateOptions={}
         # self.overridevariables={}
         # self.simoptionsoverride={}
-        # self.optimizeOptions={'startTime':0.0, 'stopTime': 1.0, 'numberOfIntervals':500, 'stepSize':0.002, 'tolerance':1e-8}
+        # self.optimizeOptions={'startTime':0.0, 'stopTime': 1.0, 'numberOfIntervals':500, 'stepSize':0.002,
+        # 'tolerance':1e-8}
         # self.linearquantitiesList = []  # linearization  quantity list
         self._linearization_options: dict[str, str | float] = {
             'startTime': 0.0,
@@ -69,7 +70,7 @@ class ModelicaSystemRunner(object):
         self.simulationFlag = False  # if the model is simulated?
         self.outputFlag = False
         self.csvFile = ''  # for storing inputs condition
-        self.resultfile="" # for storing result file
+        self.resultfile = ""  # for storing result file
         self.variableFilter = variableFilter
         self._xmlparse(xml_file=self.xmlFile)
         self._variable_filter: Optional[str] = None
@@ -79,8 +80,8 @@ class ModelicaSystemRunner(object):
         if not os.path.isfile(xml_file):
             raise ModelicaSystemError(f"XML file not generated: {xml_file}")
 
-        #xml_content = xml_file.read_text()
-        #tree = ET.ElementTree(ET.fromstring(xml_content))
+        # xml_content = xml_file.read_text()
+        # tree = ET.ElementTree(ET.fromstring(xml_content))
         tree = ET.parse(xml_file)
         root = tree.getroot()
         for attr in root.iter('DefaultExperiment'):
@@ -375,42 +376,34 @@ class ModelicaSystemRunner(object):
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
     def simulate(self, resultfile=None, simflags=None, overrideaux=None):  # 11
+        """This method simulates model according to the simulation options.
+
+        Args:
+            resultfile: Either str or None, Output file name
+            simflags : Either str or None, Other simulation options not '-override' parameters
+            overrideaux : Either str or None, Specify 'outputFormat' and 'variableFilter
+
+        Examples:
+            >>> simulate()
+            >>> simulate(resultfile="a.mat")
+            >>> simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10) set runtime simulation flags
+            >>> simulate(simflags="-noEventEmit -noRestart" ,overrideaux="outputFormat=csv,variableFilter=.*")
         """
-        This method simulates model according to the simulation options.
-
-        Parameters
-        ----------
-        resultfile : str or None
-            Output file name
-
-        simflags : str or None
-            Other simulation options not '-override' parameters
-
-        overrideaux : str or None
-            Specify 'outputFormat' and 'variableFilter
-
-        usage
-        -----
-        >>> simulate()
-        >>> simulate(resultfile="a.mat")
-        >>> simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10) set runtime simulation flags
-        >>> simulate(simflags="-noEventEmit -noRestart" ,overrideaux="outputFormat=csv,variableFilter=.*")
-        """
-        if(resultfile is None):
-            r=""
+        if resultfile is None:
+            r = ""
             self.resultfile = "".join([self._model_name, "_res.mat"])
         else:
-            r=" -r=" + resultfile
+            r = " -r=" + resultfile
             self.resultfile = resultfile
 
         # allow runtime simulation flags from user input
-        if(simflags is None):
-            simflags=""
+        if simflags is None:
+            simflags = ""
         else:
-            simflags=" " + simflags
+            simflags = " " + simflags
 
         if (self._override_variables or self._simulate_options_override):
-            tmpdict=self._override_variables.copy()
+            tmpdict = self._override_variables.copy()
             tmpdict.update(self._simulate_options_override)
             values1 = ','.join("%s=%s" % (key, val) for (key, val) in list(tmpdict.items()))
             override = " -override=" + values1
@@ -425,23 +418,27 @@ class ModelicaSystemRunner(object):
 
         if (self.inputFlag):  # if model has input quantities
             for i in self._inputs:
-                val=self._inputs[i]
-                if(val==None):
-                    val=[(float(self._simulate_options["startTime"]), 0.0), (float(self._simulate_options["stopTime"]), 0.0)]
-                    self._inputs[i]=[(float(self._simulate_options["startTime"]), 0.0), (float(self._simulate_options["stopTime"]), 0.0)]
+                val = self._inputs[i]
+                if val is None:
+                    val = [
+                        (float(self._simulate_options["startTime"]), 0.0),
+                        (float(self._simulate_options["stopTime"]), 0.0)]
+                    self._inputs[i] = [
+                        (float(self._simulate_options["startTime"]), 0.0),
+                        (float(self._simulate_options["stopTime"]), 0.0)]
                 if float(self._simulate_options["startTime"]) != val[0][0]:
-                    print("!!! startTime not matched for Input ",i)
+                    print("!!! startTime not matched for Input ", i)
                     return
                 if float(self._simulate_options["stopTime"]) != val[-1][0]:
-                    print("!!! stopTime not matched for Input ",i)
+                    print("!!! stopTime not matched for Input ", i)
                     return
                 if val[0][0] < float(self._simulate_options["startTime"]):
                     print('Input time value is less than simulation startTime for inputs', i)
                     return
             # self.__simInput()  # create csv file  # commented by Joerg
-            csvinput=" -csvInput=" + self.csvFile
+            csvinput = " -csvInput=" + self.csvFile
         else:
-            csvinput=""
+            csvinput = ""
 
         if self.xmlFile is not None:
             cwd_current = os.getcwd()
@@ -460,7 +457,10 @@ class ModelicaSystemRunner(object):
             cmd = getExeFile + override + csvinput + r + simflags
             if (platform.system() == "Windows"):
                 omhome = os.path.join(os.environ.get("OPENMODELICAHOME"))
-                dllPath = os.path.join(omhome, "bin").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc").replace("\\", "/") + os.pathsep + os.path.join(omhome, "lib/omc/cpp").replace("\\", "/") +  os.pathsep + os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
+                dllPath = os.path.join(omhome, "bin").replace("\\", "/") + os.pathsep + \
+                    os.path.join(omhome, "lib/omc").replace("\\", "/") + os.pathsep + \
+                    os.path.join(omhome, "lib/omc/cpp").replace("\\", "/") + os.pathsep + \
+                    os.path.join(omhome, "lib/omc/omsicpp").replace("\\", "/")
                 my_env = os.environ.copy()
                 my_env["PATH"] = dllPath + os.pathsep + my_env["PATH"]
                 p = subprocess.Popen(cmd, env=my_env)
@@ -469,7 +469,7 @@ class ModelicaSystemRunner(object):
             else:
                 print(str(cmd))
                 p = subprocess.run(shlex.split(cmd), shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                out = p.stdout # .read()
+                out = p.stdout  # .read()
             self.simulationFlag = True
             if self.xmlFile is not None:
                 os.chdir(cwd_current)
