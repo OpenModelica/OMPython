@@ -1036,6 +1036,11 @@ class ModelicaSystem:
             override_var: dict[str, str],
             override_sim: dict[str, str],
     ) -> None:
+        """
+        Define the override parameters. As the definition of simulation specific override parameter changes with OM
+        1.26.0, version specific code is needed. Please keep in mind, that this will fail if OMC is not used to run the
+        model executable.
+        """
         if len(override_var) == 0 and len(override_sim) == 0:
             return
 
