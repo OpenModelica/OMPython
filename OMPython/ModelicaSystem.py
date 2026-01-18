@@ -1998,7 +1998,7 @@ class ModelicaSystemDoE:
         if resultpath is None:
             self._resultpath = self.get_session().omcpath_tempdir()
         else:
-            self._resultpath = self.get_session().omcpath(resultpath)
+            self._resultpath = self.get_session().omcpath(resultpath).resolve()
         if not self._resultpath.is_dir():
             raise ModelicaSystemError("Argument resultpath must be set to a valid path within the environment used "
                                       f"for the OpenModelica session: {resultpath}!")
