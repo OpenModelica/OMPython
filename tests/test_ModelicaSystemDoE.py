@@ -55,12 +55,17 @@ def test_ModelicaSystemDoE_local(tmp_path, model_doe, param_doe):
     tmpdir = tmp_path / 'DoE'
     tmpdir.mkdir(exist_ok=True)
 
-    doe_mod = OMPython.ModelicaSystemDoE(
+    mod = OMPython.ModelicaSystem()
+    mod.model(
         model_file=model_doe,
         model_name="M",
+    )
+
+    doe_mod = OMPython.ModelicaSystemDoE(
+        mod=mod,
         parameters=param_doe,
         resultpath=tmpdir,
-        simargs={"override": {'stopTime': 1.0}},
+        simargs={"override": {'stopTime': '1.0'}},
     )
 
     _run_ModelicaSystemDoe(doe_mod=doe_mod)
@@ -72,12 +77,18 @@ def test_ModelicaSystemDoE_docker(tmp_path, model_doe, param_doe):
     omcs = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
     assert omcs.sendExpression("getVersion()") == "OpenModelica 1.25.0"
 
-    doe_mod = OMPython.ModelicaSystemDoE(
+    mod = OMPython.ModelicaSystem(
+        session=omcs,
+    )
+    mod.model(
         model_file=model_doe,
         model_name="M",
+    )
+
+    doe_mod = OMPython.ModelicaSystemDoE(
+        mod=mod,
         parameters=param_doe,
-        session=omcs,
-        simargs={"override": {'stopTime': 1.0}},
+        simargs={"override": {'stopTime': '1.0'}},
     )
 
     _run_ModelicaSystemDoe(doe_mod=doe_mod)
@@ -86,15 +97,21 @@ def test_ModelicaSystemDoE_docker(tmp_path, model_doe, param_doe):
 @pytest.mark.skip(reason="Not able to run WSL on github")
 @skip_python_older_312
 def test_ModelicaSystemDoE_WSL(tmp_path, model_doe, param_doe):
-    tmpdir = tmp_path / 'DoE'
-    tmpdir.mkdir(exist_ok=True)
+    omcs = OMPython.OMCSessionWSL()
+    assert omcs.sendExpression("getVersion()") == "OpenModelica 1.25.0"
 
-    doe_mod = OMPython.ModelicaSystemDoE(
+    mod = OMPython.ModelicaSystem(
+        session=omcs,
+    )
+    mod.model(
         model_file=model_doe,
         model_name="M",
+    )
+
+    doe_mod = OMPython.ModelicaSystemDoE(
+        mod=mod,
         parameters=param_doe,
-        resultpath=tmpdir,
-        simargs={"override": {'stopTime': 1.0}},
+        simargs={"override": {'stopTime': '1.0'}},
     )
 
     _run_ModelicaSystemDoe(doe_mod=doe_mod)
