@@ -23,11 +23,15 @@ def mscmd_firstorder(model_firstorder):
         model_file=model_firstorder,
         model_name="M",
     )
-    mscmd = OMPython.ModelicaSystemCmd(
-        session=mod.get_session(),
+
+    mscmd = OMPython.ModelExecutionCmd(
         runpath=mod.getWorkDirectory(),
-        modelname=mod._model_name,
+        cmd_local=mod.get_session().model_execution_local,
+        cmd_windows=mod.get_session().model_execution_windows,
+        cmd_prefix=mod.get_session().model_execution_prefix(cwd=mod.getWorkDirectory()),
+        model_name=mod._model_name,
     )
+
     return mscmd
 
 
