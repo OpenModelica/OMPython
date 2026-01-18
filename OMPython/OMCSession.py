@@ -50,7 +50,7 @@ class DockerPopen:
         return None if self.process.is_running() else True
 
     def kill(self):
-        return os.kill(self.pid, signal.SIGKILL)
+        return os.kill(pid=self.pid, signal=signal.SIGKILL)
 
     def wait(self, timeout):
         try:
@@ -854,10 +854,12 @@ class OMCSession(metaclass=OMCSessionMeta):
         return returncode
 
     def execute(self, command: str):
-        warnings.warn(message="This function is depreciated and will be removed in future versions; "
-                              "please use sendExpression() instead",
-                      category=DeprecationWarning,
-                      stacklevel=2)
+        warnings.warn(
+            message="This function is depreciated and will be removed in future versions; "
+                    "please use sendExpression() instead",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
 
         return self.sendExpression(command, parsed=False)
 
