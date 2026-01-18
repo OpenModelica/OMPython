@@ -2060,9 +2060,13 @@ class ModelicaSystemDoE:
         resdir = mypath / 'DoE'
         resdir.mkdir(exist_ok=True)
 
-        doe_mod = OMPython.ModelicaSystemDoE(
+        mod = OMPython.ModelicaSystem()
+        mod.model(
             model_name="M",
             model_file=model.as_posix(),
+        )
+        doe_mod = OMPython.ModelicaSystemDoE(
+            mod=mod,
             parameters=param,
             resultpath=resdir,
             simargs={"override": {'stopTime': 1.0}},
