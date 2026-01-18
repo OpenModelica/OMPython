@@ -766,6 +766,19 @@ class OMCSession(metaclass=OMCSessionMeta):
         """
         return value.replace("\\", "\\\\").replace('"', '\\"')
 
+    def get_version(self) -> str:
+        """
+        Get the OM version.
+        """
+        return self.sendExpression("getVersion()", parsed=True)
+
+    def set_workdir(self, workdir: OMCPath) -> None:
+        """
+        Set the workdir for this session.
+        """
+        exp = f'cd("{workdir.as_posix()}")'
+        self.sendExpression(exp)
+
     def omcpath(self, *path) -> OMCPath:
         """
         Create an OMCPath object based on the given path segments and the current OMCSession* class.
