@@ -461,6 +461,15 @@ class ModelicaSystem:
         """
         return self._session
 
+    def get_model_name(self) -> str:
+        """
+        Return the defined model name.
+        """
+        if not isinstance(self._model_name, str):
+            raise ModelicaSystemError("No model name defined!")
+
+        return self._model_name
+
     def set_command_line_options(self, command_line_option: str):
         """
         Set the provided command line option via OMC setCommandLineOptions().
@@ -2080,15 +2089,8 @@ class ModelicaSystemDoE:
 
     def __init__(
             self,
-            # data to be used for ModelicaSystem
-            model_file: Optional[str | os.PathLike] = None,
-            model_name: Optional[str] = None,
-            libraries: Optional[list[str | tuple[str, str]]] = None,
-            command_line_options: Optional[list[str]] = None,
-            variable_filter: Optional[str] = None,
-            work_directory: Optional[str | os.PathLike] = None,
-            omhome: Optional[str] = None,
-            session: Optional[OMCSession] = None,
+            # ModelicaSystem definition to use
+            mod: ModelicaSystem,
             # simulation specific input
             # TODO: add more settings (simulation options, input options, ...)
             simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,
@@ -2101,23 +2103,11 @@ class ModelicaSystemDoE:
         ModelicaSystem.simulate(). Additionally, the path to store the result files is needed (= resultpath) as well as
         a list of parameters to vary for the Doe (= parameters). All possible combinations are considered.
         """
-        if model_name is None:
-            raise ModelicaSystemError("No model name provided!")
+        if not isinstance(mod, ModelicaSystem):
+            raise ModelicaSystemError("Missing definition of ModelicaSystem!")
 
-        self._mod = ModelicaSystem(
-            command_line_options=command_line_options,
-            work_directory=work_directory,
-            omhome=omhome,
-            session=session,
-        )
-        self._mod.model(
-            model_file=model_file,
-            model_name=model_name,
-            libraries=libraries,
-            variable_filter=variable_filter,
-        )
-
-        self._model_name = model_name
+        self._mod = mod
+        self._model_name = mod.get_model_name()
 
         self._simargs = simargs
 
