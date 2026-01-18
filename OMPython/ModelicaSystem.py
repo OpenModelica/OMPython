@@ -1024,7 +1024,7 @@ class ModelicaSystem:
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
     def _parse_om_version(self, version: str) -> tuple[int, int, int]:
-        match = re.search(r"v?(\d+)\.(\d+)\.(\d+)", version)
+        match = re.search(pattern=r"v?(\d+)\.(\d+)\.(\d+)", string=version)
         if not match:
             raise ValueError(f"Version not found in: {version}")
         major, minor, patch = map(int, match.groups())
