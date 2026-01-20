@@ -575,6 +575,25 @@ class ModelicaSystem:
         """
         return self._work_dir
 
+    def check_model_executable(self):
+        """
+        Check if the model executable is working
+        """
+        # check if the executable exists ...
+        om_cmd = ModelExecutionCmd(
+            runpath=self.getWorkDirectory(),
+            cmd_local=self._session.model_execution_local,
+            cmd_windows=self._session.model_execution_windows,
+            cmd_prefix=self._session.model_execution_prefix(cwd=self.getWorkDirectory()),
+            model_name=self._model_name,
+        )
+        # ... by running it - output help for command help
+        om_cmd.arg_set(key="help", val="help")
+        cmd_definition = om_cmd.definition()
+        returncode = cmd_definition.run()
+        if returncode != 0:
+            raise ModelicaSystemError("Model executable not working!")
+
     def buildModel(self, variableFilter: Optional[str] = None):
         filter_def: Optional[str] = None
         if variableFilter is not None:
@@ -591,19 +610,7 @@ class ModelicaSystem:
         logger.debug("OM model build result: %s", build_model_result)
 
         # check if the executable exists ...
-        om_cmd = ModelExecutionCmd(
-            runpath=self.getWorkDirectory(),
-            cmd_local=self._session.model_execution_local,
-            cmd_windows=self._session.model_execution_windows,
-            cmd_prefix=self._session.model_execution_prefix(cwd=self.getWorkDirectory()),
-            model_name=self._model_name,
-        )
-        # ... by running it - output help for command help
-        om_cmd.arg_set(key="help", val="help")
-        cmd_definition = om_cmd.definition()
-        returncode = cmd_definition.run()
-        if returncode != 0:
-            raise ModelicaSystemError("Model executable not working!")
+        self.check_model_executable()
 
         xml_file = self._session.omcpath(build_model_result[0]).parent / build_model_result[1]
         self._xmlparse(xml_file=xml_file)
