@@ -816,7 +816,7 @@ class ModelicaSystem:
             {'x': np.float64(0.68), 'der(x)': np.float64(-0.24), 'y': np.float64(-0.24)}
             >>> mod.getContinuous("x")
             [np.float64(0.68)]
-            >>> mod.getOutputs(["y","x"])
+            >>> mod.getContinuous(["y","x"])
             [np.float64(-0.24), np.float64(0.68)]
         """
         if not self._simulated:
