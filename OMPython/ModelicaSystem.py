@@ -762,7 +762,7 @@ class ModelicaSystem:
                     value = self.getSolutions(name)
                     self._continuous[name] = np.float64(value[0][-1])
                 else:
-                    raise ModelicaSystemError(f"{names} is not continuous")
+                    raise KeyError(f"{names} is not continuous")
 
         if names is None:
             get_continuous_solution(name_list=list(self._continuous.keys()))
