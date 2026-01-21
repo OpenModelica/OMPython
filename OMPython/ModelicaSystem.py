@@ -964,7 +964,7 @@ class ModelicaSystem:
                     value = self.getSolutions(name)
                     self._outputs[name] = np.float64(value[0][-1])
                 else:
-                    raise ModelicaSystemError(f"{names} is not a valid output")
+                    raise KeyError(f"{names} is not a valid output")
 
         if names is None:
             get_outputs_solution(name_list=list(self._outputs.keys()))
