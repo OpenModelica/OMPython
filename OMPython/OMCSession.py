@@ -528,9 +528,9 @@ class ModelExecutionData:
             if stderr:
                 raise ModelExecutionException(f"Error running model executable {repr(cmdl)}: {stderr}")
         except subprocess.TimeoutExpired as ex:
-            raise ModelExecutionException(f"Timeout running model executable {repr(cmdl)}") from ex
+            raise ModelExecutionException(f"Timeout running model executable {repr(cmdl)}: {ex}") from ex
         except subprocess.CalledProcessError as ex:
-            raise ModelExecutionException(f"Error running model executable {repr(cmdl)}") from ex
+            raise ModelExecutionException(f"Error running model executable {repr(cmdl)}: {ex}") from ex
 
         return returncode
 
