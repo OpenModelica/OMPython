@@ -2424,7 +2424,7 @@ class ModelicaDoEABC(metaclass=abc.ABCMeta):
         return doe_def_total == doe_def_done
 
 
-class ModelicaSystemDoE(ModelicaDoEABC):
+class ModelicaDoEOMC(ModelicaDoEABC):
     """
     Class to run DoEs based on a (Open)Modelica model using ModelicaSystemOMC
 
@@ -2543,3 +2543,9 @@ class ModelicaSystemDoE(ModelicaDoEABC):
                 sol_dict[resultfilename]['data'] = {}
 
         return sol_dict
+
+
+class ModelicaSystemDoE(ModelicaDoEOMC):
+    """
+    Compatibility class.
+    """
