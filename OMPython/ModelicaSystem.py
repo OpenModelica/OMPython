@@ -15,7 +15,7 @@ import queue
 import re
 import textwrap
 import threading
-from typing import Any, cast, Optional
+from typing import Any, cast, Optional, Tuple
 import warnings
 import xml.etree.ElementTree as ET
 
@@ -2108,9 +2108,9 @@ class ModelicaSystem(ModelicaSystemOMC):
     """
 
 
-class ModelicaSystemDoE:
+class ModelicaDoEABC(metaclass=abc.ABCMeta):
     """
-    Class to run DoEs based on a (Open)Modelica model using ModelicaSystem
+    Base class to run DoEs based on a (Open)Modelica model using ModelicaSystem
 
     Example
     -------
@@ -2252,30 +2252,11 @@ class ModelicaSystemDoE:
         param_non_structural_combinations = list(itertools.product(*param_non_structure.values()))
 
         for idx_pc_structure, pc_structure in enumerate(param_structure_combinations):
-
-            build_dir = self._resultpath / f"DOE_{idx_pc_structure:09d}"
-            build_dir.mkdir()
-            self._mod.setWorkDirectory(work_directory=build_dir)
-
-            sim_param_structure = {}
-            for idx_structure, pk_structure in enumerate(param_structure.keys()):
-                sim_param_structure[pk_structure] = pc_structure[idx_structure]
-
-                pk_value = pc_structure[idx_structure]
-                if isinstance(pk_value, str):
-                    pk_value_str = self.get_session().escape_str(pk_value)
-                    expr = f"setParameterValue({self._model_name}, {pk_structure}, \"{pk_value_str}\")"
-                elif isinstance(pk_value, bool):
-                    pk_value_bool_str = "true" if pk_value else "false"
-                    expr = f"setParameterValue({self._model_name}, {pk_structure}, {pk_value_bool_str});"
-                else:
-                    expr = f"setParameterValue({self._model_name}, {pk_structure}, {pk_value})"
-                res = self._mod.sendExpression(expr=expr)
-                if not res:
-                    raise ModelicaSystemError(f"Cannot set structural parameter {self._model_name}.{pk_structure} "
-                                              f"to {pk_value} using {repr(expr)}")
-
-            self._mod.buildModel()
+            sim_param_structure = self._prepare_structure_parameters(
+                idx_pc_structure=idx_pc_structure,
+                pc_structure=pc_structure,
+                param_structure=param_structure,
+            )
 
             for idx_non_structural, pk_non_structural in enumerate(param_non_structural_combinations):
                 sim_param_non_structural = {}
@@ -2319,6 +2300,17 @@ class ModelicaSystemDoE:
         self._doe_def = doe_def
 
         return len(doe_sim)
+
+    @abc.abstractmethod
+    def _prepare_structure_parameters(
+            self,
+            idx_pc_structure: int,
+            pc_structure: Tuple,
+            param_structure: dict[str, list[str] | list[int] | list[float]],
+    ) -> dict[str, str | int | float]:
+        """
+        Handle structural parameters. This should be implemented by the derived class
+        """
 
     def get_doe_definition(self) -> Optional[dict[str, dict[str, Any]]]:
         """
@@ -2430,6 +2422,64 @@ class ModelicaSystemDoE:
         logger.info(f"All workers finished ({doe_def_done} of {doe_def_total} simulations with a result file).")
 
         return doe_def_total == doe_def_done
+
+
+class ModelicaSystemDoE(ModelicaDoEABC):
+    """
+    Class to run DoEs based on a (Open)Modelica model using ModelicaSystemOMC
+
+    The example is the same as defined for ModelicaDoEABC
+    """
+
+    def __init__(
+            self,
+            # ModelicaSystem definition to use
+            mod: ModelicaSystemOMC,
+            # simulation specific input
+            # TODO: add more settings (simulation options, input options, ...)
+            simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,
+            # DoE specific inputs
+            resultpath: Optional[str | os.PathLike] = None,
+            parameters: Optional[dict[str, list[str] | list[int] | list[float]]] = None,
+    ) -> None:
+        super().__init__(
+            mod=mod,
+            simargs=simargs,
+            resultpath=resultpath,
+            parameters=parameters,
+        )
+
+    def _prepare_structure_parameters(
+            self,
+            idx_pc_structure: int,
+            pc_structure: Tuple,
+            param_structure: dict[str, list[str] | list[int] | list[float]],
+    ) -> dict[str, str | int | float]:
+        build_dir = self._resultpath / f"DOE_{idx_pc_structure:09d}"
+        build_dir.mkdir()
+        self._mod.setWorkDirectory(work_directory=build_dir)
+
+        sim_param_structure = {}
+        for idx_structure, pk_structure in enumerate(param_structure.keys()):
+            sim_param_structure[pk_structure] = pc_structure[idx_structure]
+
+            pk_value = pc_structure[idx_structure]
+            if isinstance(pk_value, str):
+                pk_value_str = self.get_session().escape_str(pk_value)
+                expr = f"setParameterValue({self._model_name}, {pk_structure}, \"{pk_value_str}\")"
+            elif isinstance(pk_value, bool):
+                pk_value_bool_str = "true" if pk_value else "false"
+                expr = f"setParameterValue({self._model_name}, {pk_structure}, {pk_value_bool_str});"
+            else:
+                expr = f"setParameterValue({self._model_name}, {pk_structure}, {pk_value})"
+            res = self._mod.sendExpression(expr=expr)
+            if not res:
+                raise ModelicaSystemError(f"Cannot set structural parameter {self._model_name}.{pk_structure} "
+                                          f"to {pk_value} using {repr(expr)}")
+
+        self._mod.buildModel()
+
+        return sim_param_structure
 
     def get_doe_solutions(
             self,
