@@ -1378,7 +1378,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             # if self._quantities has no content, the xml file was not parsed; see self._xmlparse()
             raise ModelicaSystemError(
                 "Linearization cannot be performed as the model is not build, "
-                "use ModelicaSystem() to build the model first"
+                "use ModelicaSystemOMC() to build the model first"
             )
 
         om_cmd = ModelExecutionCmd(
@@ -1562,7 +1562,7 @@ class ModelicaSystemOMC(ModelicaSystemABC):
               simply loads the model without compiling.
 
         Examples:
-            mod = ModelicaSystem()
+            mod = ModelicaSystemOMC()
             # and then one of the lines below
             mod.model(name="modelName", file="ModelicaModel.mo", )
             mod.model(name="modelName", file="ModelicaModel.mo", libraries=["Modelica"])
@@ -2149,7 +2149,7 @@ class ModelicaSystemDoE:
         resdir = mypath / 'DoE'
         resdir.mkdir(exist_ok=True)
 
-        mod = OMPython.ModelicaSystem()
+        mod = OMPython.ModelicaSystemOMC()
         mod.model(
             model_name="M",
             model_file=model.as_posix(),
