@@ -19,6 +19,8 @@ from OMPython.ModelicaSystem import (
     ModelicaSystemDoE,
     ModelicaDoEOMC,
     ModelicaSystemError,
+
+    doe_get_solutions,
 )
 from OMPython.OMCSession import (
     OMCPath,
@@ -54,6 +56,9 @@ __all__ = [
     'OMCPath',
 
     'OMCSession',
+
+    'doe_get_solutions',
+
     'OMCSessionCmd',
     'OMCSessionDocker',
     'OMCSessionDockerContainer',
