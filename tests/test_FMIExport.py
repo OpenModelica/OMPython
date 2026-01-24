@@ -6,7 +6,7 @@ import OMPython
 
 
 def test_CauerLowPassAnalog():
-    mod = OMPython.ModelicaSystem()
+    mod = OMPython.ModelicaSystemOMC()
     mod.model(
         model_name="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
         libraries=["Modelica"],
@@ -20,7 +20,7 @@ def test_CauerLowPassAnalog():
 
 
 def test_DrumBoiler():
-    mod = OMPython.ModelicaSystem()
+    mod = OMPython.ModelicaSystemOMC()
     mod.model(
         model_name="Modelica.Fluid.Examples.DrumBoiler.DrumBoiler",
         libraries=["Modelica"],
