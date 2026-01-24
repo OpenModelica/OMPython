@@ -2183,7 +2183,7 @@ class ModelicaDoEABC(metaclass=abc.ABCMeta):
     def __init__(
             self,
             # ModelicaSystem definition to use
-            mod: ModelicaSystemOMC,
+            mod: ModelicaSystemABC,
             # simulation specific input
             # TODO: add more settings (simulation options, input options, ...)
             simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,
@@ -2196,7 +2196,7 @@ class ModelicaDoEABC(metaclass=abc.ABCMeta):
         ModelicaSystem.simulate(). Additionally, the path to store the result files is needed (= resultpath) as well as
         a list of parameters to vary for the Doe (= parameters). All possible combinations are considered.
         """
-        if not isinstance(mod, ModelicaSystemOMC):
+        if not isinstance(mod, ModelicaSystemABC):
             raise ModelicaSystemError("Missing definition of ModelicaSystem!")
 
         self._mod = mod
@@ -2442,6 +2442,10 @@ class ModelicaDoEOMC(ModelicaDoEABC):
             resultpath: Optional[str | os.PathLike] = None,
             parameters: Optional[dict[str, list[str] | list[int] | list[float]]] = None,
     ) -> None:
+
+        if not isinstance(mod, ModelicaSystemOMC):
+            raise ModelicaSystemError(f"Invalid definition for mod: {type(mod)} - expect ModelicaSystemOMC!")
+
         super().__init__(
             mod=mod,
             simargs=simargs,
@@ -2458,6 +2462,10 @@ class ModelicaDoEOMC(ModelicaDoEABC):
         build_dir = self._resultpath / f"DOE_{idx_pc_structure:09d}"
         build_dir.mkdir()
         self._mod.setWorkDirectory(work_directory=build_dir)
+
+        # need to repeat this check to make the linters happy
+        if not isinstance(self._mod, ModelicaSystemOMC):
+            raise ModelicaSystemError(f"Invalid definition for mod: {type(self._mod)} - expect ModelicaSystemOMC!")
 
         sim_param_structure = {}
         for idx_structure, pk_structure in enumerate(param_structure.keys()):
@@ -2507,6 +2515,9 @@ class ModelicaDoEOMC(ModelicaDoEABC):
         ```
 
         """
+        if not isinstance(self._mod, ModelicaSystemOMC):
+            raise ModelicaSystemError(f"Invalid definition for mod: {type(self._mod)} - expect ModelicaSystemOMC!")
+
         if not isinstance(self._doe_def, dict):
             return None
 
