@@ -2494,66 +2494,83 @@ class ModelicaDoEOMC(ModelicaDoEABC):
             var_list: Optional[list] = None,
     ) -> Optional[tuple[str] | dict[str, dict[str, np.ndarray]]]:
         """
-        Get all solutions of the DoE run. The following return values are possible:
-
-        * A list of variables if val_list == None
-
-        * The Solutions as dict[str, pd.DataFrame] if a value list (== val_list) is defined.
-
-        The following code snippet can be used to convert the solution data for each run to a pandas dataframe:
-
-        ```
-        import pandas as pd
-
-        doe_sol = doe_mod.get_doe_solutions()
-        for key in doe_sol:
-            data = doe_sol[key]['data']
-            if data:
-                doe_sol[key]['df'] = pd.DataFrame.from_dict(data=data)
-            else:
-                doe_sol[key]['df'] = None
-        ```
-
+        Wrapper for doe_get_solutions()
         """
         if not isinstance(self._mod, ModelicaSystemOMC):
             raise ModelicaSystemError(f"Invalid definition for mod: {type(self._mod)} - expect ModelicaSystemOMC!")
 
-        if not isinstance(self._doe_def, dict):
-            return None
+        return doe_get_solutions(
+            msomc=self._mod,
+            resultpath=self._resultpath,
+            doe_def=self.get_doe_definition(),
+            var_list=var_list,
+        )
 
-        if len(self._doe_def) == 0:
-            raise ModelicaSystemError("No result files available - all simulations did fail?")
 
-        sol_dict: dict[str, dict[str, Any]] = {}
-        for resultfilename in self._doe_def:
-            resultfile = self._resultpath / resultfilename
+def doe_get_solutions(
+        msomc: ModelicaSystemOMC,
+        resultpath: OMCPath,
+        doe_def: Optional[dict] = None,
+        var_list: Optional[list] = None,
+) -> Optional[tuple[str] | dict[str, dict[str, np.ndarray]]]:
+    """
+    Get all solutions of the DoE run. The following return values are possible:
 
-            sol_dict[resultfilename] = {}
+    * A list of variables if val_list == None
 
-            if not self._doe_def[resultfilename][self.DICT_RESULT_AVAILABLE]:
-                msg = f"No result file available for {resultfilename}"
-                logger.warning(msg)
-                sol_dict[resultfilename]['msg'] = msg
-                sol_dict[resultfilename]['data'] = {}
-                continue
+    * The Solutions as dict[str, pd.DataFrame] if a value list (== val_list) is defined.
 
-            if var_list is None:
-                var_list_row = list(self._mod.getSolutions(resultfile=resultfile))
-            else:
-                var_list_row = var_list
+    The following code snippet can be used to convert the solution data for each run to a pandas dataframe:
 
-            try:
-                sol = self._mod.getSolutions(varList=var_list_row, resultfile=resultfile)
-                sol_data = {var: sol[idx] for idx, var in enumerate(var_list_row)}
-                sol_dict[resultfilename]['msg'] = 'Simulation available'
-                sol_dict[resultfilename]['data'] = sol_data
-            except ModelicaSystemError as ex:
-                msg = f"Error reading solution for {resultfilename}: {ex}"
-                logger.warning(msg)
-                sol_dict[resultfilename]['msg'] = msg
-                sol_dict[resultfilename]['data'] = {}
+    ```
+    import pandas as pd
 
-        return sol_dict
+    doe_sol = doe_mod.get_doe_solutions()
+    for key in doe_sol:
+        data = doe_sol[key]['data']
+        if data:
+            doe_sol[key]['df'] = pd.DataFrame.from_dict(data=data)
+        else:
+            doe_sol[key]['df'] = None
+    ```
+
+    """
+    if not isinstance(doe_def, dict):
+        return None
+
+    if len(doe_def) == 0:
+        raise ModelicaSystemError("No result files available - all simulations did fail?")
+
+    sol_dict: dict[str, dict[str, Any]] = {}
+    for resultfilename in doe_def:
+        resultfile = resultpath / resultfilename
+
+        sol_dict[resultfilename] = {}
+
+        if not doe_def[resultfilename][ModelicaDoEABC.DICT_RESULT_AVAILABLE]:
+            msg = f"No result file available for {resultfilename}"
+            logger.warning(msg)
+            sol_dict[resultfilename]['msg'] = msg
+            sol_dict[resultfilename]['data'] = {}
+            continue
+
+        if var_list is None:
+            var_list_row = list(msomc.getSolutions(resultfile=resultfile))
+        else:
+            var_list_row = var_list
+
+        try:
+            sol = msomc.getSolutions(varList=var_list_row, resultfile=resultfile)
+            sol_data = {var: sol[idx] for idx, var in enumerate(var_list_row)}
+            sol_dict[resultfilename]['msg'] = 'Simulation available'
+            sol_dict[resultfilename]['data'] = sol_data
+        except ModelicaSystemError as ex:
+            msg = f"Error reading solution for {resultfilename}: {ex}"
+            logger.warning(msg)
+            sol_dict[resultfilename]['msg'] = msg
+            sol_dict[resultfilename]['data'] = {}
+
+    return sol_dict
 
 
 class ModelicaSystemDoE(ModelicaDoEOMC):
