@@ -1860,7 +1860,7 @@ class ModelicaSystem:
 
                 linear_data[target] = value_ast
         except (AttributeError, IndexError, ValueError, SyntaxError, TypeError) as ex:
-            raise ModelicaSystemError(f"Error parsing linearization file {linear_file}!") from ex
+            raise ModelicaSystemError(f"Error parsing linearization file {linear_file}: {ex}") from ex
 
         # remove the file
         linear_file.unlink()
