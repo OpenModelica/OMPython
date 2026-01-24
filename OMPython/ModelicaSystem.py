@@ -1487,7 +1487,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
         return self._linearized_states
 
 
-class ModelicaSystem(ModelicaSystemABC):
+class ModelicaSystemOMC(ModelicaSystemABC):
     """
     Class to simulate a Modelica model using OpenModelica via OMCSession.
     """
@@ -2102,6 +2102,12 @@ class ModelicaSystem(ModelicaSystemABC):
         return self._requestApi(apiName='optimize', entity=self._model_name, properties=properties)
 
 
+class ModelicaSystem(ModelicaSystemOMC):
+    """
+    Compatibility class.
+    """
+
+
 class ModelicaSystemDoE:
     """
     Class to run DoEs based on a (Open)Modelica model using ModelicaSystem
@@ -2177,7 +2183,7 @@ class ModelicaSystemDoE:
     def __init__(
             self,
             # ModelicaSystem definition to use
-            mod: ModelicaSystem,
+            mod: ModelicaSystemOMC,
             # simulation specific input
             # TODO: add more settings (simulation options, input options, ...)
             simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,
@@ -2190,7 +2196,7 @@ class ModelicaSystemDoE:
         ModelicaSystem.simulate(). Additionally, the path to store the result files is needed (= resultpath) as well as
         a list of parameters to vary for the Doe (= parameters). All possible combinations are considered.
         """
-        if not isinstance(mod, ModelicaSystem):
+        if not isinstance(mod, ModelicaSystemOMC):
             raise ModelicaSystemError("Missing definition of ModelicaSystem!")
 
         self._mod = mod
