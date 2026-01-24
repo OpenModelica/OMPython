@@ -560,6 +560,9 @@ class ModelicaSystem:
         self._xmlparse(xml_file=xml_file)
 
     def sendExpression(self, expr: str, parsed: bool = True) -> Any:
+        """
+        Wrapper for OMCSession.sendExpression().
+        """
         try:
             retval = self._session.sendExpression(expr=expr, parsed=parsed)
         except OMCSessionException as ex:
