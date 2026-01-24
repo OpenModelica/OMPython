@@ -888,7 +888,7 @@ class OMCSession(metaclass=OMCSessionMeta):
             except OMCSessionException:
                 log_content = 'log not available'
 
-            logger.error(f"Docker did not start. Log-file says:\n{log_content}")
+            logger.error(f"OMC did not start. Log-file says:\n{log_content}")
             raise OMCSessionException(f"No connection with OMC (timeout={self._timeout}).")
 
         if command == "quit()":
