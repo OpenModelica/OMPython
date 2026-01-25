@@ -249,172 +249,14 @@ class OMCSessionCmd:
         return self._ask(question='getClassNames', opt=opt)
 
 
-class OMCPathReal(pathlib.PurePosixPath):
-    """
-    Implementation of a basic (PurePosix)Path object which uses OMC as backend. The connection to OMC is provided via an
-    instances of OMCSession* classes.
-
-    PurePosixPath is selected to cover usage of OMC in docker or via WSL. Usage of specialised function could result in
-    errors as well as usage on a Windows system due to slightly different definitions (PureWindowsPath).
-    """
-
-    def __init__(self, *path, session: OMCSession) -> None:
-        super().__init__(*path)
-        self._session = session
-
-    def with_segments(self, *pathsegments):
-        """
-        Create a new OMCPath object with the given path segments.
-
-        The original definition of Path is overridden to ensure the OMC session is set.
-        """
-        return type(self)(*pathsegments, session=self._session)
-
-    def is_file(self, *, follow_symlinks=True) -> bool:
-        """
-        Check if the path is a regular file.
-        """
-        return self._session.sendExpression(expr=f'regularFileExists("{self.as_posix()}")')
-
-    def is_dir(self, *, follow_symlinks=True) -> bool:
-        """
-        Check if the path is a directory.
-        """
-        return self._session.sendExpression(expr=f'directoryExists("{self.as_posix()}")')
-
-    def is_absolute(self):
-        """
-        Check if the path is an absolute path considering the possibility that we are running locally on Windows. This
-        case needs special handling as the definition of is_absolute() differs.
-        """
-        if isinstance(self._session, OMCSessionLocal) and platform.system() == 'Windows':
-            return pathlib.PureWindowsPath(self.as_posix()).is_absolute()
-        return super().is_absolute()
-
-    def read_text(self, encoding=None, errors=None, newline=None) -> str:
-        """
-        Read the content of the file represented by this path as text.
-
-        The additional arguments `encoding`, `errors` and `newline` are only defined for compatibility with Path()
-        definition.
-        """
-        return self._session.sendExpression(expr=f'readFile("{self.as_posix()}")')
-
-    def write_text(self, data: str, encoding=None, errors=None, newline=None):
-        """
-        Write text data to the file represented by this path.
-
-        The additional arguments `encoding`, `errors`, and `newline` are only defined for compatibility with Path()
-        definitions.
-        """
-        if not isinstance(data, str):
-            raise TypeError(f"data must be str, not {data.__class__.__name__}")
-
-        data_omc = self._session.escape_str(data)
-        self._session.sendExpression(expr=f'writeFile("{self.as_posix()}", "{data_omc}", false);')
-
-        return len(data)
-
-    def mkdir(self, mode=0o777, parents=False, exist_ok=False):
-        """
-        Create a directory at the path represented by this OMCPath object.
-
-        The additional arguments `mode`, and `parents` are only defined for compatibility with Path() definitions.
-        """
-        if self.is_dir() and not exist_ok:
-            raise FileExistsError(f"Directory {self.as_posix()} already exists!")
-
-        return self._session.sendExpression(expr=f'mkdir("{self.as_posix()}")')
-
-    def cwd(self):
-        """
-        Returns the current working directory as an OMCPath object.
-        """
-        cwd_str = self._session.sendExpression(expr='cd()')
-        return OMCPath(cwd_str, session=self._session)
-
-    def unlink(self, missing_ok: bool = False) -> None:
-        """
-        Unlink (delete) the file or directory represented by this path.
-        """
-        res = self._session.sendExpression(expr=f'deleteFile("{self.as_posix()}")')
-        if not res and not missing_ok:
-            raise FileNotFoundError(f"Cannot delete file {self.as_posix()} - it does not exists!")
-
-    def resolve(self, strict: bool = False):
-        """
-        Resolve the path to an absolute path. This is done based on available OMC functions.
-        """
-        if strict and not (self.is_file() or self.is_dir()):
-            raise OMCSessionException(f"Path {self.as_posix()} does not exist!")
-
-        if self.is_file():
-            pathstr_resolved = self._omc_resolve(self.parent.as_posix())
-            omcpath_resolved = self._session.omcpath(pathstr_resolved) / self.name
-        elif self.is_dir():
-            pathstr_resolved = self._omc_resolve(self.as_posix())
-            omcpath_resolved = self._session.omcpath(pathstr_resolved)
-        else:
-            raise OMCSessionException(f"Path {self.as_posix()} is neither a file nor a directory!")
-
-        if not omcpath_resolved.is_file() and not omcpath_resolved.is_dir():
-            raise OMCSessionException(f"OMCPath resolve failed for {self.as_posix()} - path does not exist!")
-
-        return omcpath_resolved
-
-    def _omc_resolve(self, pathstr: str) -> str:
-        """
-        Internal function to resolve the path of the OMCPath object using OMC functions *WITHOUT* changing the cwd
-        within OMC.
-        """
-        expr = ('omcpath_cwd := cd(); '
-                f'omcpath_check := cd("{pathstr}"); '  # check requested pathstring
-                'cd(omcpath_cwd)')
-
-        try:
-            result = self._session.sendExpression(expr=expr, parsed=False)
-            result_parts = result.split('\n')
-            pathstr_resolved = result_parts[1]
-            pathstr_resolved = pathstr_resolved[1:-1]  # remove quotes
-        except OMCSessionException as ex:
-            raise OMCSessionException(f"OMCPath resolve failed for {pathstr}!") from ex
-
-        return pathstr_resolved
-
-    def absolute(self):
-        """
-        Resolve the path to an absolute path. This is done by calling resolve() as it is the best we can do
-        using OMC functions.
-        """
-        return self.resolve(strict=True)
-
-    def exists(self, follow_symlinks=True) -> bool:
-        """
-        Semi replacement for pathlib.Path.exists().
-        """
-        return self.is_file() or self.is_dir()
-
-    def size(self) -> int:
-        """
-        Get the size of the file in bytes - this is an extra function and the best we can do using OMC.
-        """
-        if not self.is_file():
-            raise OMCSessionException(f"Path {self.as_posix()} is not a file!")
-
-        res = self._session.sendExpression(expr=f'stat("{self.as_posix()}")')
-        if res[0]:
-            return int(res[1])
-
-        raise OMCSessionException(f"Error reading file size for path {self.as_posix()}!")
-
-
+# due to the compatibility layer to Python < 3.12, the OM(C)Path classes must be hidden behind the following if
+# conditions. This is also the reason for OMPathABC, a simple base class to be used in ModelicaSystem* classes.
+# Reason: before Python 3.12, pathlib.PurePosixPath can not be derived from; therefore, OMPathABC is not possible
 if sys.version_info < (3, 12):
-
-    class OMCPathCompatibility(pathlib.Path):
+    class OMPathCompatibility(pathlib.Path):
         """
-        Compatibility class for OMCPath in Python < 3.12. This allows to run all code which uses OMCPath (mainly
-        ModelicaSystem) on these Python versions. There is one remaining limitation: only OMCProcessLocal will work as
-        OMCPathCompatibility is based on the standard pathlib.Path implementation.
+        Compatibility class for OMPathABC in Python < 3.12. This allows to run all code which uses OMPathABC (mainly
+        ModelicaSystem) on these Python versions. There are remaining limitation as only local execution is possible.
         """
 
         # modified copy of pathlib.Path.__new__() definition
@@ -422,8 +264,8 @@ if sys.version_info < (3, 12):
             logger.warning("Python < 3.12 - using a version of class OMCPath "
                            "based on pathlib.Path for local usage only.")
 
-            if cls is OMCPathCompatibility:
-                cls = OMCPathCompatibilityWindows if os.name == 'nt' else OMCPathCompatibilityPosix
+            if cls is OMPathCompatibility:
+                cls = OMPathCompatibilityWindows if os.name == 'nt' else OMPathCompatibilityPosix
             self = cls._from_parts(args)
             if not self._flavour.is_supported:
                 raise NotImplementedError(f"cannot instantiate {cls.__name__} on your system")
@@ -435,20 +277,244 @@ if sys.version_info < (3, 12):
             """
             return self.stat().st_size
 
-    class OMCPathCompatibilityPosix(pathlib.PosixPath, OMCPathCompatibility):
+    class OMPathCompatibilityPosix(pathlib.PosixPath, OMPathCompatibility):
         """
         Compatibility class for OMCPath on Posix systems (Python < 3.12)
         """
 
-    class OMCPathCompatibilityWindows(pathlib.WindowsPath, OMCPathCompatibility):
+    class OMPathCompatibilityWindows(pathlib.WindowsPath, OMPathCompatibility):
         """
         Compatibility class for OMCPath on Windows systems (Python < 3.12)
         """
 
-    OMCPath = OMCPathCompatibility
-
+    OMPathABC = OMPathCompatibility
+    OMCPath = OMPathCompatibility
 else:
-    OMCPath = OMCPathReal
+    class OMPathABC(pathlib.PurePosixPath, metaclass=abc.ABCMeta):
+        """
+        Implementation of a basic (PurePosix)Path object to be used within OMPython. The derived classes can use OMC as
+        backend and - thus - work on different configurations like docker or WSL. The connection to OMC is provided via
+        an instances of classes derived from BaseSession.
+
+        PurePosixPath is selected as it covers all but Windows systems (Linux, docker, WSL). However, the code is
+        written such that possible Windows system are taken into account. Nevertheless, the overall functionality is
+        limited compared to standard pathlib.Path objects.
+        """
+
+        def __init__(self, *path, session: OMCSession) -> None:
+            super().__init__(*path)
+            self._session = session
+
+        def with_segments(self, *pathsegments):
+            """
+            Create a new OMCPath object with the given path segments.
+
+            The original definition of Path is overridden to ensure the session data is set.
+            """
+            return type(self)(*pathsegments, session=self._session)
+
+        @abc.abstractmethod
+        def is_file(self) -> bool:
+            """
+            Check if the path is a regular file.
+            """
+
+        @abc.abstractmethod
+        def is_dir(self) -> bool:
+            """
+            Check if the path is a directory.
+            """
+
+        @abc.abstractmethod
+        def is_absolute(self):
+            """
+            Check if the path is an absolute path.
+            """
+
+        @abc.abstractmethod
+        def read_text(self) -> str:
+            """
+            Read the content of the file represented by this path as text.
+            """
+
+        @abc.abstractmethod
+        def write_text(self, data: str):
+            """
+            Write text data to the file represented by this path.
+            """
+
+        @abc.abstractmethod
+        def mkdir(self, parents: bool = True, exist_ok: bool = False):
+            """
+            Create a directory at the path represented by this class.
+
+            The argument parents with default value True exists to ensure compatibility with the fallback solution for
+            Python < 3.12. In this case, pathlib.Path is used directly and this option ensures, that missing parent
+            directories are also created.
+            """
+
+        @abc.abstractmethod
+        def cwd(self):
+            """
+            Returns the current working directory as an OMPathABC object.
+            """
+
+        @abc.abstractmethod
+        def unlink(self, missing_ok: bool = False) -> None:
+            """
+            Unlink (delete) the file or directory represented by this path.
+            """
+
+        @abc.abstractmethod
+        def resolve(self, strict: bool = False):
+            """
+            Resolve the path to an absolute path.
+            """
+
+        def absolute(self):
+            """
+            Resolve the path to an absolute path. Just a wrapper for resolve().
+            """
+            return self.resolve()
+
+        def exists(self) -> bool:
+            """
+            Semi replacement for pathlib.Path.exists().
+            """
+            return self.is_file() or self.is_dir()
+
+        @abc.abstractmethod
+        def size(self) -> int:
+            """
+            Get the size of the file in bytes - this is an extra function and the best we can do using OMC.
+            """
+
+    class _OMCPath(OMPathABC):
+        """
+        Implementation of a OMPathABC using OMC as backend. The connection to OMC is provided via an instances of an
+        OMCSession* classes.
+        """
+
+        def is_file(self) -> bool:
+            """
+            Check if the path is a regular file.
+            """
+            return self._session.sendExpression(expr=f'regularFileExists("{self.as_posix()}")')
+
+        def is_dir(self) -> bool:
+            """
+            Check if the path is a directory.
+            """
+            return self._session.sendExpression(expr=f'directoryExists("{self.as_posix()}")')
+
+        def is_absolute(self):
+            """
+            Check if the path is an absolute path.
+            """
+            if isinstance(self._session, OMCSessionLocal) and platform.system() == 'Windows':
+                return pathlib.PureWindowsPath(self.as_posix()).is_absolute()
+            return super().is_absolute()
+
+        def read_text(self) -> str:
+            """
+            Read the content of the file represented by this path as text.
+            """
+            return self._session.sendExpression(expr=f'readFile("{self.as_posix()}")')
+
+        def write_text(self, data: str):
+            """
+            Write text data to the file represented by this path.
+            """
+            if not isinstance(data, str):
+                raise TypeError(f"data must be str, not {data.__class__.__name__}")
+
+            data_omc = self._session.escape_str(data)
+            self._session.sendExpression(expr=f'writeFile("{self.as_posix()}", "{data_omc}", false);')
+
+            return len(data)
+
+        def mkdir(self, parents: bool = True, exist_ok: bool = False):
+            """
+            Create a directory at the path represented by this class.
+
+            The argument parents with default value True exists to ensure compatibility with the fallback solution for
+            Python < 3.12. In this case, pathlib.Path is used directly and this option ensures, that missing parent
+            directories are also created.
+            """
+            if self.is_dir() and not exist_ok:
+                raise FileExistsError(f"Directory {self.as_posix()} already exists!")
+
+            return self._session.sendExpression(expr=f'mkdir("{self.as_posix()}")')
+
+        def cwd(self):
+            """
+            Returns the current working directory as an OMPathABC object.
+            """
+            cwd_str = self._session.sendExpression(expr='cd()')
+            return OMCPath(cwd_str, session=self._session)
+
+        def unlink(self, missing_ok: bool = False) -> None:
+            """
+            Unlink (delete) the file or directory represented by this path.
+            """
+            res = self._session.sendExpression(expr=f'deleteFile("{self.as_posix()}")')
+            if not res and not missing_ok:
+                raise FileNotFoundError(f"Cannot delete file {self.as_posix()} - it does not exists!")
+
+        def resolve(self, strict: bool = False):
+            """
+            Resolve the path to an absolute path. This is done based on available OMC functions.
+            """
+            if strict and not (self.is_file() or self.is_dir()):
+                raise OMCSessionException(f"Path {self.as_posix()} does not exist!")
+
+            if self.is_file():
+                pathstr_resolved = self._omc_resolve(self.parent.as_posix())
+                omcpath_resolved = self._session.omcpath(pathstr_resolved) / self.name
+            elif self.is_dir():
+                pathstr_resolved = self._omc_resolve(self.as_posix())
+                omcpath_resolved = self._session.omcpath(pathstr_resolved)
+            else:
+                raise OMCSessionException(f"Path {self.as_posix()} is neither a file nor a directory!")
+
+            if not omcpath_resolved.is_file() and not omcpath_resolved.is_dir():
+                raise OMCSessionException(f"OMCPath resolve failed for {self.as_posix()} - path does not exist!")
+
+            return omcpath_resolved
+
+        def _omc_resolve(self, pathstr: str) -> str:
+            """
+            Internal function to resolve the path of the OMCPath object using OMC functions *WITHOUT* changing the cwd
+            within OMC.
+            """
+            expr = ('omcpath_cwd := cd(); '
+                    f'omcpath_check := cd("{pathstr}"); '  # check requested pathstring
+                    'cd(omcpath_cwd)')
+
+            try:
+                result = self._session.sendExpression(expr=expr, parsed=False)
+                result_parts = result.split('\n')
+                pathstr_resolved = result_parts[1]
+                pathstr_resolved = pathstr_resolved[1:-1]  # remove quotes
+            except OMCSessionException as ex:
+                raise OMCSessionException(f"OMCPath resolve failed for {pathstr}!") from ex
+
+            return pathstr_resolved
+
+        def size(self) -> int:
+            """
+            Get the size of the file in bytes - this is an extra function and the best we can do using OMC.
+            """
+            if not self.is_file():
+                raise OMCSessionException(f"Path {self.as_posix()} is not a file!")
+
+            res = self._session.sendExpression(expr=f'stat("{self.as_posix()}")')
+            if res[0]:
+                return int(res[1])
+
+            raise OMCSessionException(f"Error reading file size for path {self.as_posix()}!")
+
+    OMCPath = _OMCPath
 
 
 class ModelExecutionException(Exception):
@@ -570,13 +636,13 @@ class OMCSessionZMQ:
         """
         return OMCSession.escape_str(value=value)
 
-    def omcpath(self, *path) -> OMCPath:
+    def omcpath(self, *path) -> OMPathABC:
         """
         Create an OMCPath object based on the given path segments and the current OMC process definition.
         """
         return self.omc_process.omcpath(*path)
 
-    def omcpath_tempdir(self, tempdir_base: Optional[OMCPath] = None) -> OMCPath:
+    def omcpath_tempdir(self, tempdir_base: Optional[OMPathABC] = None) -> OMPathABC:
         """
         Get a temporary directory using OMC. It is our own implementation as non-local usage relies on OMC to run all
         filesystem related access.
@@ -796,21 +862,21 @@ class OMCSession(metaclass=OMCSessionMeta):
         """
         return self.sendExpression("getVersion()", parsed=True)
 
-    def set_workdir(self, workdir: OMCPath) -> None:
+    def set_workdir(self, workdir: OMPathABC) -> None:
         """
         Set the workdir for this session.
         """
         exp = f'cd("{workdir.as_posix()}")'
         self.sendExpression(exp)
 
-    def model_execution_prefix(self, cwd: Optional[OMCPath] = None) -> list[str]:
+    def model_execution_prefix(self, cwd: Optional[OMPathABC] = None) -> list[str]:
         """
         Helper function which returns a command prefix needed for docker and WSL. It defaults to an empty list.
         """
 
         return []
 
-    def omcpath(self, *path) -> OMCPath:
+    def omcpath(self, *path) -> OMPathABC:
         """
         Create an OMCPath object based on the given path segments and the current OMCSession* class.
         """
@@ -823,7 +889,7 @@ class OMCSession(metaclass=OMCSessionMeta):
             raise OMCSessionException("OMCPath is supported for Python < 3.12 only if OMCSessionLocal is used!")
         return OMCPath(*path, session=self)
 
-    def omcpath_tempdir(self, tempdir_base: Optional[OMCPath] = None) -> OMCPath:
+    def omcpath_tempdir(self, tempdir_base: Optional[OMPathABC] = None) -> OMPathABC:
         """
         Get a temporary directory using OMC. It is our own implementation as non-local usage relies on OMC to run all
         filesystem related access.
@@ -840,10 +906,10 @@ class OMCSession(metaclass=OMCSessionMeta):
         return self._tempdir(tempdir_base=tempdir_base)
 
     @staticmethod
-    def _tempdir(tempdir_base: OMCPath) -> OMCPath:
+    def _tempdir(tempdir_base: OMPathABC) -> OMPathABC:
         names = [str(uuid.uuid4()) for _ in range(100)]
 
-        tempdir: Optional[OMCPath] = None
+        tempdir: Optional[OMPathABC] = None
         for name in names:
             # create a unique temporary directory name
             tempdir = tempdir_base / name
@@ -1243,15 +1309,15 @@ class OMCSessionDockerHelper(OMCSession):
 
         return self._docker_container_id
 
-    def model_execution_prefix(self, cwd: Optional[OMCPath] = None) -> list[str]:
+    def model_execution_prefix(self, cwd: Optional[OMPathABC] = None) -> list[str]:
         """
         Helper function which returns a command prefix needed for docker and WSL. It defaults to an empty list.
         """
         docker_cmd = [
             "docker", "exec",
             "--user", str(self._getuid()),
-            ]
-        if isinstance(cwd, OMCPath):
+        ]
+        if isinstance(cwd, OMPathABC):
             docker_cmd += ["--workdir", cwd.as_posix()]
         docker_cmd += self._docker_extra_args
         if isinstance(self._docker_container_id, str):
@@ -1520,7 +1586,7 @@ class OMCSessionWSL(OMCSession):
         # connect to the running omc instance using ZMQ
         self._omc_port = self._omc_port_get()
 
-    def model_execution_prefix(self, cwd: Optional[OMCPath] = None) -> list[str]:
+    def model_execution_prefix(self, cwd: Optional[OMPathABC] = None) -> list[str]:
         """
         Helper function which returns a command prefix needed for docker and WSL. It defaults to an empty list.
         """
@@ -1530,7 +1596,7 @@ class OMCSessionWSL(OMCSession):
             wsl_cmd += ['--distribution', self._wsl_distribution]
         if isinstance(self._wsl_user, str):
             wsl_cmd += ['--user', self._wsl_user]
-        if isinstance(cwd, OMCPath):
+        if isinstance(cwd, OMPathABC):
             wsl_cmd += ['--cd', cwd.as_posix()]
         wsl_cmd += ['--']
 
