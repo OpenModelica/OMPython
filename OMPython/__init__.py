@@ -23,7 +23,9 @@ from OMPython.ModelicaSystem import (
     doe_get_solutions,
 )
 from OMPython.OMCSession import (
+    OMPathABC,
     OMCPath,
+
     OMCSession,
 
     ModelExecutionData,
@@ -53,6 +55,7 @@ __all__ = [
     'ModelicaDoEOMC',
     'ModelicaSystemError',
 
+    'OMPathABC',
     'OMCPath',
 
     'OMCSession',
