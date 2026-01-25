@@ -28,8 +28,11 @@ from OMPython.OMCSession import (
     OMCSessionException,
     OMCSession,
     OMCSessionLocal,
-    OMCPath,
+
+    OMPathABC,
 )
+
+OMCPath = OMPathABC
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
