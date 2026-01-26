@@ -1022,11 +1022,27 @@ class OMCSessionPort(OMCSession):
         super().__init__()
         self._omc_port = omc_port
 
+    @staticmethod
+    def run_model_executable(cmd_run_data: OMCSessionRunData) -> int:
+        """
+        Run the command defined in cmd_run_data. This class is defined as static method such that there is no need to
+        keep instances of over classes around.
+        """
+        raise OMCSessionException("OMCSessionPort does not support run_model_executable()!")
+
+    def get_log(self) -> str:
+        """
+        Get the log file content of the OMC session.
+        """
+        log = f"No log available if OMC session is defined by port ({self.__class__.__name__})"
+
+        return log
+
     def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
         Update the OMCSessionRunData object based on the selected OMCSession implementation.
         """
-        raise OMCSessionException("OMCSessionPort does not support omc_run_data_update()!")
+        raise OMCSessionException(f"({self.__class__.__name__}) does not support omc_run_data_update()!")
 
 
 class OMCSessionLocal(OMCSession):
