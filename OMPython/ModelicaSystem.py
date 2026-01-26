@@ -26,10 +26,11 @@ from OMPython.OMCSession import (
     ModelExecutionException,
 
     OMCSessionException,
-    OMCSession,
     OMCSessionLocal,
 
     OMPathABC,
+
+    OMSessionABC,
 )
 
 # define logger using the current module name as ID
@@ -347,7 +348,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
 
     def __init__(
             self,
-            session: OMCSession,
+            session: OMSessionABC,
             work_directory: Optional[str | os.PathLike] = None,
     ) -> None:
         """Create a ModelicaSystem instance. To define the model use model() or convertFmu2Mo().
@@ -397,7 +398,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
         self._file_name: Optional[OMPathABC] = None
         self._variable_filter: Optional[str] = None
 
-    def get_session(self) -> OMCSession:
+    def get_session(self) -> OMSessionABC:
         """
         Return the OMC session used for this class.
         """
@@ -1498,7 +1499,7 @@ class ModelicaSystemOMC(ModelicaSystemABC):
             command_line_options: Optional[list[str]] = None,
             work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
-            session: Optional[OMCSession] = None,
+            session: Optional[OMSessionABC] = None,
     ) -> None:
         """Create a ModelicaSystem instance. To define the model use model() or convertFmu2Mo().
 
@@ -2221,7 +2222,7 @@ class ModelicaDoEABC(metaclass=abc.ABCMeta):
         self._doe_def: Optional[dict[str, dict[str, Any]]] = None
         self._doe_cmd: Optional[dict[str, ModelExecutionData]] = None
 
-    def get_session(self) -> OMCSession:
+    def get_session(self) -> OMSessionABC:
         """
         Return the OMC session used for this class.
         """
