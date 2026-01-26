@@ -870,7 +870,7 @@ class OMCSession(metaclass=OMCSessionMeta):
         exp = f'cd("{workdir.as_posix()}")'
         self.sendExpression(exp)
 
-    def model_execution_prefix(self, cwd: Optional[OMCPath] = None) -> list[str]:
+    def model_execution_prefix(self, cwd: Optional[OMPathABC] = None) -> list[str]:
         """
         Helper function which returns a command prefix needed for docker and WSL. It defaults to an empty list.
         """
