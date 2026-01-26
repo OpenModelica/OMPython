@@ -15,54 +15,41 @@ skip_python_older_312 = pytest.mark.skipif(
 )
 
 
-def test_OMCPath_OMCSessionZMQ():
-    om = OMPython.OMCSessionZMQ()
-
-    _run_OMCPath_checks(om)
-
-    del om
-
-
 def test_OMCPath_OMCProcessLocal():
-    omp = OMPython.OMCSessionLocal()
-    om = OMPython.OMCSessionZMQ(omc_process=omp)
+    omcs = OMPython.OMCSessionLocal()
 
-    _run_OMCPath_checks(om)
+    _run_OMCPath_checks(omcs)
 
-    del om
+    del omcs
 
 
 @skip_on_windows
 @skip_python_older_312
 def test_OMCPath_OMCProcessDocker():
-    omcp = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
-    om = OMPython.OMCSessionZMQ(omc_process=omcp)
-    assert om.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    omcs = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
+    assert omcs.sendExpression("getVersion()") == "OpenModelica 1.25.0"
 
-    _run_OMCPath_checks(om)
+    _run_OMCPath_checks(omcs)
 
-    del omcp
-    del om
+    del omcs
 
 
 @pytest.mark.skip(reason="Not able to run WSL on github")
 @skip_python_older_312
 def test_OMCPath_OMCProcessWSL():
-    omcp = OMPython.OMCSessionWSL(
+    omcs = OMPython.OMCSessionWSL(
         wsl_omc='omc',
         wsl_user='omc',
         timeout=30.0,
     )
-    om = OMPython.OMCSessionZMQ(omc_process=omcp)
 
-    _run_OMCPath_checks(om)
+    _run_OMCPath_checks(omcs)
 
-    del omcp
-    del om
+    del omcs
 
 
-def _run_OMCPath_checks(om: OMPython.OMCSessionZMQ):
-    p1 = om.omcpath_tempdir()
+def _run_OMCPath_checks(omcs: OMPython.OMCSession):
+    p1 = omcs.omcpath_tempdir()
     p2 = p1 / 'test'
     p2.mkdir()
     assert p2.is_dir()
@@ -81,14 +68,14 @@ def _run_OMCPath_checks(om: OMPython.OMCSessionZMQ):
 
 
 def test_OMCPath_write_file(tmpdir):
-    om = OMPython.OMCSessionZMQ()
+    omcs = OMPython.OMCSessionLocal()
 
     data = "abc # \\t # \" # \\n # xyz"
 
-    p1 = om.omcpath_tempdir()
+    p1 = omcs.omcpath_tempdir()
     p2 = p1 / 'test.txt'
     p2.write_text(data=data)
 
     assert data == p2.read_text()
 
-    del om
+    del omcs
