@@ -26,7 +26,7 @@ from OMPython.OMCSession import (
     OMPathABC,
     OMCPath,
 
-    OMCSession,
+    OMCSessionABC,
 
     ModelExecutionData,
     ModelExecutionException,
@@ -58,7 +58,7 @@ __all__ = [
     'OMPathABC',
     'OMCPath',
 
-    'OMCSession',
+    'OMCSessionABC',
 
     'doe_get_solutions',
 
