@@ -7,12 +7,18 @@ omc = OMCSessionZMQ()
 omc.sendExpression("command")
 """
 
+from OMPython.OMBase import (
+    ModelicaSystemBase,
+    ModelicaSystemError,
+)
 from OMPython.ModelicaSystem import (
     LinearizationResult,
     ModelicaSystem,
     ModelicaSystemCmd,
     ModelicaSystemDoE,
-    ModelicaSystemError,
+)
+from OMPython.OMRunner import (
+    ModelicaSystemRunner,
 )
 from OMPython.OMCSession import (
     OMCSession,
@@ -31,9 +37,11 @@ from OMPython.OMCSession import (
 __all__ = [
     'LinearizationResult',
     'ModelicaSystem',
+    'ModelicaSystemBase',
     'ModelicaSystemCmd',
     'ModelicaSystemDoE',
     'ModelicaSystemError',
+    'ModelicaSystemRunner',
 
     'OMCSession',
     'OMCSessionCmd',
