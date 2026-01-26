@@ -7,21 +7,21 @@ import OMPython
 
 
 def buildModelFMU(modelName):
-    omc = OMPython.OMCSessionZMQ()
+    omcs = OMPython.OMCSessionLocal()
 
     tempdir = pathlib.Path(tempfile.mkdtemp())
     try:
-        omc.sendExpression(f'cd("{tempdir.as_posix()}")')
+        omcs.sendExpression(f'cd("{tempdir.as_posix()}")')
 
-        omc.sendExpression("loadModel(Modelica)")
-        omc.sendExpression("getErrorString()")
+        omcs.sendExpression("loadModel(Modelica)")
+        omcs.sendExpression("getErrorString()")
 
         fileNamePrefix = modelName.split(".")[-1]
         exp = f'buildModelFMU({modelName}, fileNamePrefix="{fileNamePrefix}")'
-        fmu = omc.sendExpression(exp)
+        fmu = omcs.sendExpression(exp)
         assert os.path.exists(fmu)
     finally:
-        del omc
+        del omcs
         shutil.rmtree(tempdir, ignore_errors=True)
 
 
