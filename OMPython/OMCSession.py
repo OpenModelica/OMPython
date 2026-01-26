@@ -70,8 +70,8 @@ class OMCSessionCmd:
     Implementation of Open Modelica Compiler API functions. Depreciated!
     """
 
-    def __init__(self, session: OMCSession, readonly: bool = False):
-        if not isinstance(session, OMCSession):
+    def __init__(self, session: OMSessionABC, readonly: bool = False):
+        if not isinstance(session, OMSessionABC):
             raise OMCSessionException("Invalid OMC process definition!")
         self._session = session
         self._readonly = readonly
@@ -301,7 +301,7 @@ else:
         limited compared to standard pathlib.Path objects.
         """
 
-        def __init__(self, *path, session: OMCSession) -> None:
+        def __init__(self, *path, session: OMSessionABC) -> None:
             super().__init__(*path)
             self._session = session
 
@@ -610,7 +610,7 @@ class OMCSessionZMQ:
             self,
             timeout: float = 10.00,
             omhome: Optional[str] = None,
-            omc_process: Optional[OMCSession] = None,
+            omc_process: Optional[OMCSessionABC] = None,
     ) -> None:
         """
         Initialisation for OMCSessionZMQ
@@ -622,7 +622,7 @@ class OMCSessionZMQ:
 
         if omc_process is None:
             omc_process = OMCSessionLocal(omhome=omhome, timeout=timeout)
-        elif not isinstance(omc_process, OMCSession):
+        elif not isinstance(omc_process, OMCSessionABC):
             raise OMCSessionException("Invalid definition of the OMC process!")
         self.omc_process = omc_process
 
@@ -634,7 +634,7 @@ class OMCSessionZMQ:
         """
         Escape a string such that it can be used as string within OMC expressions, i.e. escape all double quotes.
         """
-        return OMCSession.escape_str(value=value)
+        return OMCSessionABC.escape_str(value=value)
 
     def omcpath(self, *path) -> OMPathABC:
         """
@@ -689,7 +689,7 @@ class PostInitCaller(type):
         return obj
 
 
-class OMCSessionMeta(abc.ABCMeta, PostInitCaller):
+class OMSessionMeta(abc.ABCMeta, PostInitCaller):
     """
     Helper class to get a combined metaclass of ABCMeta and PostInitCaller.
 
@@ -698,7 +698,98 @@ class OMCSessionMeta(abc.ABCMeta, PostInitCaller):
     """
 
 
-class OMCSession(metaclass=OMCSessionMeta):
+class OMSessionABC(metaclass=OMSessionMeta):
+    """
+    This class implements the basic structure a OMPython session definition needs. It provides the structure for an
+    implementation using OMC as backend (via ZMQ) or a dummy implementation which just runs a model executable.
+    """
+
+    def __init__(
+            self,
+            timeout: float = 10.00,
+            **kwargs,
+    ) -> None:
+        """
+        Initialisation for OMSessionBase
+        """
+
+        # some helper data
+        self.model_execution_windows = platform.system() == "Windows"
+        self.model_execution_local = False
+
+        # store variables
+        self._timeout = timeout
+
+    def __post_init__(self) -> None:
+        """
+        Post initialisation method.
+        """
+
+    @staticmethod
+    def escape_str(value: str) -> str:
+        """
+        Escape a string such that it can be used as string within OMC expressions, i.e. escape all double quotes.
+        """
+        return value.replace("\\", "\\\\").replace('"', '\\"')
+
+    @abc.abstractmethod
+    def model_execution_prefix(self, cwd: Optional[OMPathABC] = None) -> list[str]:
+        """
+        Helper function which returns a command prefix.
+        """
+
+    @abc.abstractmethod
+    def get_version(self) -> str:
+        """
+        Get the OM version.
+        """
+
+    @abc.abstractmethod
+    def set_workdir(self, workdir: OMPathABC) -> None:
+        """
+        Set the workdir for this session.
+        """
+
+    @abc.abstractmethod
+    def omcpath(self, *path) -> OMPathABC:
+        """
+        Create an OMPathBase object based on the given path segments and the current class.
+        """
+
+    @abc.abstractmethod
+    def omcpath_tempdir(self, tempdir_base: Optional[OMCPath] = None) -> OMPathABC:
+        """
+        Get a temporary directory based on the specific definition for this session.
+        """
+
+    @staticmethod
+    def _tempdir(tempdir_base: OMPathABC) -> OMPathABC:
+        names = [str(uuid.uuid4()) for _ in range(100)]
+
+        tempdir: Optional[OMPathABC] = None
+        for name in names:
+            # create a unique temporary directory name
+            tempdir = tempdir_base / name
+
+            if tempdir.exists():
+                continue
+
+            tempdir.mkdir(parents=True, exist_ok=False)
+            break
+
+        if tempdir is None or not tempdir.is_dir():
+            raise FileNotFoundError(f"Cannot create a temporary directory in {tempdir_base}!")
+
+        return tempdir
+
+    @abc.abstractmethod
+    def sendExpression(self, expr: str, parsed: bool = True) -> Any:
+        """
+        Function needed to send expressions to the OMC server via ZMQ.
+        """
+
+
+class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
     """
     Base class for an OMC session started via ZMQ. This class contains common functionality for all variants of an
     OMC session definition.
@@ -1104,7 +1195,7 @@ class OMCSession(metaclass=OMCSessionMeta):
         return portfile_path
 
 
-class OMCSessionPort(OMCSession):
+class OMCSessionPort(OMCSessionABC):
     """
     OMCSession implementation which uses a port to connect to an already running OMC server.
     """
@@ -1117,7 +1208,7 @@ class OMCSessionPort(OMCSession):
         self._omc_port = omc_port
 
 
-class OMCSessionLocal(OMCSession):
+class OMCSessionLocal(OMCSessionABC):
     """
     OMCSession implementation which runs the OMC server locally on the machine (Linux / Windows).
     """
@@ -1198,7 +1289,7 @@ class OMCSessionLocal(OMCSession):
         return port
 
 
-class OMCSessionDockerHelper(OMCSession):
+class OMCSessionDockerABC(OMCSessionABC, metaclass=abc.ABCMeta):
     """
     Base class for OMCSession implementations which run the OMC server in a Docker container.
     """
@@ -1326,7 +1417,7 @@ class OMCSessionDockerHelper(OMCSession):
         return docker_cmd
 
 
-class OMCSessionDocker(OMCSessionDockerHelper):
+class OMCSessionDocker(OMCSessionDockerABC):
     """
     OMC process running in a Docker container.
     """
@@ -1468,7 +1559,7 @@ class OMCSessionDocker(OMCSessionDockerHelper):
         return omc_process, docker_process, docker_cid
 
 
-class OMCSessionDockerContainer(OMCSessionDockerHelper):
+class OMCSessionDockerContainer(OMCSessionDockerABC):
     """
     OMC process running in a Docker container (by container ID).
     """
@@ -1561,7 +1652,7 @@ class OMCSessionDockerContainer(OMCSessionDockerHelper):
         return omc_process, docker_process
 
 
-class OMCSessionWSL(OMCSession):
+class OMCSessionWSL(OMCSessionABC):
     """
     OMC process running in Windows Subsystem for Linux (WSL).
     """
