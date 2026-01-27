@@ -664,12 +664,12 @@ class OMCSession(metaclass=OMCSessionMeta):
         self._omc_zmq: Optional[zmq.Socket[bytes]] = None
 
         # setup log file - this file must be closed in the destructor
-        logfile = self._temp_dir / (self._omc_filebase + ".log")
+        self._omc_logfile = self._temp_dir / (self._omc_filebase + ".log")
         self._omc_loghandle: Optional[io.TextIOWrapper] = None
         try:
-            self._omc_loghandle = open(file=logfile, mode="w+", encoding="utf-8")
+            self._omc_loghandle = open(file=self._omc_logfile, mode="w+", encoding="utf-8")
         except OSError as ex:
-            raise OMCSessionException(f"Cannot open log file {logfile}.") from ex
+            raise OMCSessionException(f"Cannot open log file {self._omc_logfile}.") from ex
 
         # variables to store compiled re expressions use in self.sendExpression()
         self._re_log_entries: Optional[re.Pattern[str]] = None
@@ -1146,8 +1146,9 @@ class OMCSessionLocal(OMCSession):
             if port is not None:
                 break
         else:
-            logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
-            raise OMCSessionException(f"OMC Server did not start (timeout={self._timeout}).")
+            logger.error(f"OMC server did not start. Log-file says:\n{self.get_log()}")
+            raise OMCSessionException(f"OMC Server did not start (timeout={self._timeout}, "
+                                      f"logfile={repr(self._omc_logfile)}).")
 
         logger.info(f"Local OMC Server is up and running at ZMQ port {port} "
                     f"pid={self._omc_process.pid if isinstance(self._omc_process, subprocess.Popen) else '?'}")
@@ -1282,7 +1283,8 @@ class OMCSessionDockerHelper(OMCSession):
                 break
         else:
             logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
-            raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}).")
+            raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}, "
+                                      f"logfile={repr(self._omc_logfile)}).")
 
         logger.info(f"Docker based OMC Server is up and running at port {port}")
 
