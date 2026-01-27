@@ -31,6 +31,7 @@ from OMPython.OMCSession import (
     OMPathABC,
 
     OMSessionABC,
+    OMSessionRunner,
 )
 
 # define logger using the current module name as ID
@@ -2228,6 +2229,12 @@ class ModelicaDoEABC(metaclass=abc.ABCMeta):
         """
         return self._mod.get_session()
 
+    def get_resultpath(self) -> OMPathABC:
+        """
+        Get the path there the result data is saved.
+        """
+        return self._resultpath
+
     def prepare(self) -> int:
         """
         Prepare the DoE by evaluating the parameters. Each structural parameter requires a new instance of
@@ -2579,3 +2586,98 @@ class ModelicaSystemDoE(ModelicaDoEOMC):
     """
     Compatibility class.
     """
+
+
+class ModelicaSystemRunner(ModelicaSystemABC):
+    """
+    Class to simulate a Modelica model using a pre-compiled model binary.
+    """
+
+    def __init__(
+            self,
+            work_directory: Optional[str | os.PathLike] = None,
+            session: Optional[OMSessionABC] = None,
+    ) -> None:
+        if session is None:
+            session = OMSessionRunner()
+
+        if not isinstance(session, OMSessionRunner):
+            raise ModelicaSystemError("Only working if OMCsessionDummy is used!")
+
+        super().__init__(
+            work_directory=work_directory,
+            session=session,
+        )
+
+    def setup(
+            self,
+            model_name: Optional[str] = None,
+            variable_filter: Optional[str] = None,
+    ) -> None:
+        """
+        Needed definitions to set up the runner class. This class expects the model (defined by model_name) to exists
+        within the working directory. At least two files are needed:
+
+        * model executable (as '<model_name>' or '<model_name>.exe'; in case of Windows additional '<model_name>.bat'
+          is expected to evaluate the path to needed dlls
+        * the model initialization file (as '<model_name>_init.xml')
+        """
+
+        if self._model_name is not None:
+            raise ModelicaSystemError("Can not reuse this instance of ModelicaSystem "
+                                      f"defined for {repr(self._model_name)}!")
+
+        if model_name is None or not isinstance(model_name, str):
+            raise ModelicaSystemError("A model name must be provided!")
+
+        # set variables
+        self._model_name = model_name  # Model class name
+        self._variable_filter = variable_filter
+
+        # test if the model can be executed
+        self.check_model_executable()
+
+        # read XML file
+        xml_file = self._session.omcpath(self.getWorkDirectory()) / f"{self._model_name}_init.xml"
+        self._xmlparse(xml_file=xml_file)
+
+
+class ModelicaDoERunner(ModelicaDoEABC):
+    """
+    Class to run DoEs based on a (Open)Modelica model using ModelicaSystemRunner
+
+    The example is the same as defined for ModelicaDoEABC
+    """
+
+    def __init__(
+            self,
+            # ModelicaSystem definition to use
+            mod: ModelicaSystemABC,
+            # simulation specific input
+            # TODO: add more settings (simulation options, input options, ...)
+            simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,
+            # DoE specific inputs
+            resultpath: Optional[str | os.PathLike] = None,
+            parameters: Optional[dict[str, list[str] | list[int] | list[float]]] = None,
+    ) -> None:
+        if not isinstance(mod, ModelicaSystemABC):
+            raise ModelicaSystemError(f"Invalid definition for ModelicaSystem*: {type(mod)}!")
+
+        super().__init__(
+            mod=mod,
+            simargs=simargs,
+            resultpath=resultpath,
+            parameters=parameters,
+        )
+
+    def _prepare_structure_parameters(
+            self,
+            idx_pc_structure: int,
+            pc_structure: Tuple,
+            param_structure: dict[str, list[str] | list[int] | list[float]],
+    ) -> dict[str, str | int | float]:
+        if len(param_structure.keys()) > 0:
+            raise ModelicaSystemError(f"{self.__class__.__name__} can not handle structure parameters as it uses a "
+                                      "pre-compiled binary of model.")
+
+        return {}
