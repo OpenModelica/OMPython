@@ -702,8 +702,8 @@ class OMCSession(metaclass=OMCSessionMeta):
         if isinstance(self._omc_zmq, zmq.Socket):
             try:
                 self.sendExpression("quit()")
-            except OMCSessionException:
-                pass
+            except OMCSessionException as exc:
+                logger.warning(f"Exception on sending 'quit()' to OMC: {exc}! Continue nevertheless ...")
             finally:
                 self._omc_zmq = None
 
@@ -720,7 +720,7 @@ class OMCSession(metaclass=OMCSessionMeta):
                 self._omc_process.wait(timeout=2.0)
             except subprocess.TimeoutExpired:
                 if self._omc_process:
-                    logger.warning("OMC did not exit after being sent the quit() command; "
+                    logger.warning("OMC did not exit after being sent the 'quit()' command; "
                                    "killing the process with pid=%s", self._omc_process.pid)
                     self._omc_process.kill()
                     self._omc_process.wait()
