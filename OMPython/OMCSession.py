@@ -702,8 +702,8 @@ class OMCSession(metaclass=OMCSessionMeta):
         if isinstance(self._omc_zmq, zmq.Socket):
             try:
                 self.sendExpression("quit()")
-            except OMCSessionException:
-                pass
+            except OMCSessionException as exc:
+                logger.warning(f"Exception on sending 'quit()' to OMC: {exc}! Continue nevertheless ...")
             finally:
                 self._omc_zmq = None
 
@@ -720,7 +720,7 @@ class OMCSession(metaclass=OMCSessionMeta):
                 self._omc_process.wait(timeout=2.0)
             except subprocess.TimeoutExpired:
                 if self._omc_process:
-                    logger.warning("OMC did not exit after being sent the quit() command; "
+                    logger.warning("OMC did not exit after being sent the 'quit()' command; "
                                    "killing the process with pid=%s", self._omc_process.pid)
                     self._omc_process.kill()
                     self._omc_process.wait()
@@ -818,8 +818,10 @@ class OMCSession(metaclass=OMCSessionMeta):
         return returncode
 
     def execute(self, command: str):
-        warnings.warn("This function is depreciated and will be removed in future versions; "
-                      "please use sendExpression() instead", DeprecationWarning, stacklevel=2)
+        warnings.warn(message="This function is depreciated and will be removed in future versions; "
+                              "please use sendExpression() instead",
+                      category=DeprecationWarning,
+                      stacklevel=2)
 
         return self.sendExpression(command, parsed=False)
 
@@ -1022,11 +1024,27 @@ class OMCSessionPort(OMCSession):
         super().__init__()
         self._omc_port = omc_port
 
+    @staticmethod
+    def run_model_executable(cmd_run_data: OMCSessionRunData) -> int:
+        """
+        Run the command defined in cmd_run_data. This class is defined as static method such that there is no need to
+        keep instances of over classes around.
+        """
+        raise OMCSessionException("OMCSessionPort does not support run_model_executable()!")
+
+    def get_log(self) -> str:
+        """
+        Get the log file content of the OMC session.
+        """
+        log = f"No log available if OMC session is defined by port ({self.__class__.__name__})"
+
+        return log
+
     def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
         """
         Update the OMCSessionRunData object based on the selected OMCSession implementation.
         """
-        raise OMCSessionException("OMCSessionPort does not support omc_run_data_update()!")
+        raise OMCSessionException(f"({self.__class__.__name__}) does not support omc_run_data_update()!")
 
 
 class OMCSessionLocal(OMCSession):
