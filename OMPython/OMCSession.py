@@ -1639,8 +1639,9 @@ class OMCSessionWSL(OMCSession):
             if port is not None:
                 break
         else:
-            logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
-            raise OMCSessionException(f"WSL based OMC Server did not start (timeout={self._timeout}).")
+            logger.error(f"WSL based OMC server did not start. Log-file says:\n{self.get_log()}")
+            raise OMCSessionException(f"WSL based OMC Server did not start (timeout={self._timeout}, "
+                                      f"logfile={repr(self._omc_logfile)}).")
 
         logger.info(f"WSL based OMC Server is up and running at ZMQ port {port} "
                     f"pid={self._omc_process.pid if isinstance(self._omc_process, subprocess.Popen) else '?'}")
