@@ -171,8 +171,6 @@ class OMCSessionCmd:
             logger.warning("Method 'getClassComment(%s)' failed; OMTypedParser error: %s",
                            className, ex.msg)
             return 'No description available'
-        except OMCSessionException:
-            raise
 
     def getNthComponent(self, className, comp_id):
         """ returns with (type, name, description) """
@@ -201,8 +199,6 @@ class OMCSessionCmd:
             logger.warning('OMPython error: %s', ex)
             # FIXME: OMC returns with a different structure for empty parameter set
             return []
-        except OMCSessionException:
-            raise
 
     def getParameterValue(self, className, parameterName):
         try:
@@ -211,8 +207,6 @@ class OMCSessionCmd:
             logger.warning("Method 'getParameterValue(%s, %s)' failed; OMTypedParser error: %s",
                            className, parameterName, ex.msg)
             return ""
-        except OMCSessionException:
-            raise
 
     def getComponentModifierNames(self, className, componentName):
         return self._ask(question='getComponentModifierNames', opt=[className, componentName])

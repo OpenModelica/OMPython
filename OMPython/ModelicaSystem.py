@@ -1800,7 +1800,7 @@ class ModelicaSystem:
         )
 
         if self._inputs:
-            for key, data in self._inputs.items():
+            for data in self._inputs.values():
                 if data is not None:
                     for value in data:
                         if value[0] < float(self._simulate_options["startTime"]):
