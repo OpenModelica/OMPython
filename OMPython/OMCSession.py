@@ -488,8 +488,6 @@ class OMCSessionRunData:
     cmd_model_executable: Optional[str] = None
     # additional library search path; this is mainly needed if OMCProcessLocal is run on Windows
     cmd_library_path: Optional[str] = None
-    # command timeout
-    cmd_timeout: Optional[float] = 10.0
 
     # working directory to be used on the *local* system
     cmd_cwd_local: Optional[str] = None
@@ -564,13 +562,12 @@ class OMCSessionZMQ:
         """
         return self.omc_process.omc_run_data_update(omc_run_data=omc_run_data)
 
-    @staticmethod
-    def run_model_executable(cmd_run_data: OMCSessionRunData) -> int:
+    def run_model_executable(self, cmd_run_data: OMCSessionRunData) -> int:
         """
         Run the command defined in cmd_run_data. This class is defined as static method such that there is no need to
         keep instances of over classes around.
         """
-        return OMCSession.run_model_executable(cmd_run_data=cmd_run_data)
+        return self.omc_process.run_model_executable(cmd_run_data=cmd_run_data)
 
     def execute(self, command: str):
         return self.omc_process.execute(command=command)
@@ -667,12 +664,12 @@ class OMCSession(metaclass=OMCSessionMeta):
         self._omc_zmq: Optional[zmq.Socket[bytes]] = None
 
         # setup log file - this file must be closed in the destructor
-        logfile = self._temp_dir / (self._omc_filebase + ".log")
+        self._omc_logfile = self._temp_dir / (self._omc_filebase + ".log")
         self._omc_loghandle: Optional[io.TextIOWrapper] = None
         try:
-            self._omc_loghandle = open(file=logfile, mode="w+", encoding="utf-8")
+            self._omc_loghandle = open(file=self._omc_logfile, mode="w+", encoding="utf-8")
         except OSError as ex:
-            raise OMCSessionException(f"Cannot open log file {logfile}.") from ex
+            raise OMCSessionException(f"Cannot open log file {self._omc_logfile}.") from ex
 
         # variables to store compiled re expressions use in self.sendExpression()
         self._re_log_entries: Optional[re.Pattern[str]] = None
@@ -685,6 +682,9 @@ class OMCSession(metaclass=OMCSessionMeta):
         """
         Create the connection to the OMC server using ZeroMQ.
         """
+        # set_timeout() is used to define the value of _timeout as it includes additional checks
+        self.set_timeout(timeout=self._timeout)
+
         port = self.get_port()
         if not isinstance(port, str):
             raise OMCSessionException(f"Invalid content for port: {port}")
@@ -726,6 +726,44 @@ class OMCSession(metaclass=OMCSessionMeta):
                     self._omc_process.wait()
             finally:
                 self._omc_process = None
+
+    def _timeout_loop(
+            self,
+            timeout: Optional[float] = None,
+            timestep: float = 0.1,
+    ):
+        """
+        Helper (using yield) for while loops to check OMC startup / response. The loop is executed as long as True is
+        returned, i.e. the first False will stop the while loop.
+        """
+
+        if timeout is None:
+            timeout = self._timeout
+        if timeout <= 0:
+            raise OMCSessionException(f"Invalid timeout: {timeout}")
+
+        timer = 0.0
+        yield True
+        while True:
+            timer += timestep
+            if timer > timeout:
+                break
+            time.sleep(timestep)
+            yield True
+        yield False
+
+    def set_timeout(self, timeout: Optional[float] = None) -> float:
+        """
+        Set the timeout to be used for OMC communication (OMCSession).
+
+        The defined value is set and the current value is returned. If None is provided as argument, nothing is changed.
+        """
+        retval = self._timeout
+        if timeout is not None:
+            if timeout <= 0.0:
+                raise OMCSessionException(f"Invalid timeout value: {timeout}!")
+            self._timeout = timeout
+        return retval
 
     @staticmethod
     def escape_str(value: str) -> str:
@@ -778,11 +816,9 @@ class OMCSession(metaclass=OMCSessionMeta):
 
         return tempdir
 
-    @staticmethod
-    def run_model_executable(cmd_run_data: OMCSessionRunData) -> int:
+    def run_model_executable(self, cmd_run_data: OMCSessionRunData) -> int:
         """
-        Run the command defined in cmd_run_data. This class is defined as static method such that there is no need to
-        keep instances of over classes around.
+        Run the command defined in cmd_run_data.
         """
 
         my_env = os.environ.copy()
@@ -799,7 +835,7 @@ class OMCSession(metaclass=OMCSessionMeta):
                 text=True,
                 env=my_env,
                 cwd=cmd_run_data.cmd_cwd_local,
-                timeout=cmd_run_data.cmd_timeout,
+                timeout=self._timeout,
                 check=True,
             )
             stdout = cmdres.stdout.strip()
@@ -833,34 +869,28 @@ class OMCSession(metaclass=OMCSessionMeta):
         Caller should only check for OMCSessionException.
         """
 
-        # this is needed if the class is not fully initialized or in the process of deletion
-        if hasattr(self, '_timeout'):
-            timeout = self._timeout
-        else:
-            timeout = 1.0
-
         if self._omc_zmq is None:
             raise OMCSessionException("No OMC running. Please create a new instance of OMCSession!")
 
         logger.debug("sendExpression(%r, parsed=%r)", command, parsed)
 
-        attempts = 0
-        while True:
+        loop = self._timeout_loop(timestep=0.05)
+        while next(loop):
             try:
                 self._omc_zmq.send_string(str(command), flags=zmq.NOBLOCK)
                 break
             except zmq.error.Again:
                 pass
-            attempts += 1
-            if attempts >= 50:
-                # in the deletion process, the content is cleared. Thus, any access to a class attribute must be checked
-                try:
-                    log_content = self.get_log()
-                except OMCSessionException:
-                    log_content = 'log not available'
-                raise OMCSessionException(f"No connection with OMC (timeout={timeout}). "
-                                          f"Log-file says: \n{log_content}")
-            time.sleep(timeout / 50.0)
+        else:
+            # in the deletion process, the content is cleared. Thus, any access to a class attribute must be checked
+            try:
+                log_content = self.get_log()
+            except OMCSessionException:
+                log_content = 'log not available'
+
+            logger.error(f"OMC did not start. Log-file says:\n{log_content}")
+            raise OMCSessionException(f"No connection with OMC (timeout={self._timeout}).")
+
         if command == "quit()":
             self._omc_zmq.close()
             self._omc_zmq = None
@@ -956,7 +986,7 @@ class OMCSession(metaclass=OMCSessionMeta):
                 raise OMCSessionException(f"OMC error occurred for 'sendExpression({command}, {parsed}):\n"
                                           f"{msg_long_str}")
 
-        if parsed is False:
+        if not parsed:
             return result
 
         try:
@@ -1105,25 +1135,20 @@ class OMCSessionLocal(OMCSession):
         port = None
 
         # See if the omc server is running
-        attempts = 0
-        while True:
+        loop = self._timeout_loop(timestep=0.1)
+        while next(loop):
             omc_portfile_path = self._get_portfile_path()
-
             if omc_portfile_path is not None and omc_portfile_path.is_file():
                 # Read the port file
                 with open(file=omc_portfile_path, mode='r', encoding="utf-8") as f_p:
                     port = f_p.readline()
                 break
-
             if port is not None:
                 break
-
-            attempts += 1
-            if attempts == 80.0:
-                raise OMCSessionException(f"OMC Server did not start (timeout={self._timeout}). "
-                                          f"Could not open file {omc_portfile_path}. "
-                                          f"Log-file says:\n{self.get_log()}")
-            time.sleep(self._timeout / 80.0)
+        else:
+            logger.error(f"OMC server did not start. Log-file says:\n{self.get_log()}")
+            raise OMCSessionException(f"OMC Server did not start (timeout={self._timeout}, "
+                                      f"logfile={repr(self._omc_logfile)}).")
 
         logger.info(f"Local OMC Server is up and running at ZMQ port {port} "
                     f"pid={self._omc_process.pid if isinstance(self._omc_process, subprocess.Popen) else '?'}")
@@ -1204,8 +1229,8 @@ class OMCSessionDockerHelper(OMCSession):
         if sys.platform == 'win32':
             raise NotImplementedError("Docker not supported on win32!")
 
-        docker_process = None
-        for _ in range(0, 40):
+        loop = self._timeout_loop(timestep=0.2)
+        while next(loop):
             docker_top = subprocess.check_output(["docker", "top", docker_cid]).decode().strip()
             docker_process = None
             for line in docker_top.split("\n"):
@@ -1216,10 +1241,11 @@ class OMCSessionDockerHelper(OMCSession):
                     except psutil.NoSuchProcess as ex:
                         raise OMCSessionException(f"Could not find PID {docker_top} - "
                                                   "is this a docker instance spawned without --pid=host?") from ex
-
             if docker_process is not None:
                 break
-            time.sleep(self._timeout / 40.0)
+        else:
+            logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
+            raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}).")
 
         return docker_process
 
@@ -1241,8 +1267,8 @@ class OMCSessionDockerHelper(OMCSession):
             raise OMCSessionException(f"Invalid docker container ID: {self._docker_container_id}")
 
         # See if the omc server is running
-        attempts = 0
-        while True:
+        loop = self._timeout_loop(timestep=0.1)
+        while next(loop):
             omc_portfile_path = self._get_portfile_path()
             if omc_portfile_path is not None:
                 try:
@@ -1253,16 +1279,12 @@ class OMCSessionDockerHelper(OMCSession):
                     port = output.decode().strip()
                 except subprocess.CalledProcessError:
                     pass
-
             if port is not None:
                 break
-
-            attempts += 1
-            if attempts == 80.0:
-                raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}). "
-                                          f"Could not open port file {omc_portfile_path}. "
-                                          f"Log-file says:\n{self.get_log()}")
-            time.sleep(self._timeout / 80.0)
+        else:
+            logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
+            raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}, "
+                                      f"logfile={repr(self._omc_logfile)}).")
 
         logger.info(f"Docker based OMC Server is up and running at port {port}")
 
@@ -1430,25 +1452,24 @@ class OMCSessionDocker(OMCSessionDockerHelper):
             raise OMCSessionException(f"Invalid content for docker container ID file path: {docker_cid_file}")
 
         docker_cid = None
-        for _ in range(0, 40):
+        loop = self._timeout_loop(timestep=0.1)
+        while next(loop):
             try:
                 with open(file=docker_cid_file, mode="r", encoding="utf-8") as fh:
                     docker_cid = fh.read().strip()
             except IOError:
                 pass
-            if docker_cid:
+            if docker_cid is not None:
                 break
-            time.sleep(self._timeout / 40.0)
-
-        if docker_cid is None:
+        else:
             logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
             raise OMCSessionException(f"Docker did not start (timeout={self._timeout} might be too short "
                                       "especially if you did not docker pull the image before this command).")
 
         docker_process = self._docker_process_get(docker_cid=docker_cid)
         if docker_process is None:
-            raise OMCSessionException(f"Docker top did not contain omc process {self._random_string}. "
-                                      f"Log-file says:\n{self.get_log()}")
+            logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
+            raise OMCSessionException(f"Docker top did not contain omc process {self._random_string}.")
 
         return omc_process, docker_process, docker_cid
 
@@ -1600,12 +1621,11 @@ class OMCSessionWSL(OMCSession):
         return omc_process
 
     def _omc_port_get(self) -> str:
-        omc_portfile_path: Optional[pathlib.Path] = None
         port = None
 
         # See if the omc server is running
-        attempts = 0
-        while True:
+        loop = self._timeout_loop(timestep=0.1)
+        while next(loop):
             try:
                 omc_portfile_path = self._get_portfile_path()
                 if omc_portfile_path is not None:
@@ -1616,16 +1636,12 @@ class OMCSessionWSL(OMCSession):
                     port = output.decode().strip()
             except subprocess.CalledProcessError:
                 pass
-
             if port is not None:
                 break
-
-            attempts += 1
-            if attempts == 80.0:
-                raise OMCSessionException(f"WSL based OMC Server did not start (timeout={self._timeout}). "
-                                          f"Could not open port file {omc_portfile_path}. "
-                                          f"Log-file says:\n{self.get_log()}")
-            time.sleep(self._timeout / 80.0)
+        else:
+            logger.error(f"WSL based OMC server did not start. Log-file says:\n{self.get_log()}")
+            raise OMCSessionException(f"WSL based OMC Server did not start (timeout={self._timeout}, "
+                                      f"logfile={repr(self._omc_logfile)}).")
 
         logger.info(f"WSL based OMC Server is up and running at ZMQ port {port} "
                     f"pid={self._omc_process.pid if isinstance(self._omc_process, subprocess.Popen) else '?'}")
