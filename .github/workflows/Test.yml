@@ -48,7 +48,7 @@ jobs:
         run: 'pre-commit run --all-files'
 
       - name: "Set up OpenModelica Compiler"
-        uses: OpenModelica/setup-openmodelica@v1.0.5
+        uses: OpenModelica/setup-openmodelica@v1.0.6
         with:
           version: ${{ matrix.omc-version }}
           packages: |
