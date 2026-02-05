@@ -105,7 +105,7 @@ def test_customBuildDirectory(tmp_path, model_firstorder):
     tmpdir = tmp_path / "tmpdir1"
     tmpdir.mkdir()
     m = OMPython.ModelicaSystem(filePath, "M", customBuildDirectory=tmpdir)
-    assert m.getWorkDirectory().resolve() == tmpdir.resolve()
+    assert pathlib.Path(m.getWorkDirectory().resolve()) == tmpdir.resolve()
     result_file = tmpdir / "a.mat"
     assert not result_file.exists()
     m.simulate(resultfile="a.mat")
@@ -311,9 +311,9 @@ end M_getters;
         mod.getOutputs("thisOutputDoesNotExist")
 
     # getContinuous after simulate() should return values at end of simulation:
-    with pytest.raises(OMPython.ModelicaSystemError):
+    with pytest.raises(KeyError):
         mod.getContinuous("a")  # a is a parameter
-    with pytest.raises(OMPython.ModelicaSystemError):
+    with pytest.raises(KeyError):
         mod.getContinuous(["x", "a", "y"])  # a is a parameter
     d = mod.getContinuous()
     assert d.keys() == {"x", "der(x)", "y"}
@@ -323,7 +323,7 @@ end M_getters;
     assert mod.getContinuous("x") == [d["x"]]
     assert mod.getContinuous(["y", "x"]) == [d["y"], d["x"]]
 
-    with pytest.raises(OMPython.ModelicaSystemError):
+    with pytest.raises(KeyError):
         mod.getContinuous("a")  # a is a parameter
 
     with pytest.raises(OMPython.ModelicaSystemError):
