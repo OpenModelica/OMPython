@@ -32,7 +32,6 @@
  Version: 1.0
 """
 
-import sys
 from typing import Any
 
 result: dict[str, Any] = {}
@@ -566,8 +565,8 @@ def get_the_set(string):
                     break
             pos += 1
         if count != 0:
-            print("\nParser Error: Are you missing one or more '}'s? \n")
-            sys.exit(1)
+            raise ValueError("Parser Error: Are you missing one or more '}}'s in string? "
+                             f"(string value: {repr(string)}")
 
         if max_count >= 2:
             while position < end_of_main_set:
@@ -745,8 +744,7 @@ def get_the_set(string):
         else:
             return current_set, next_set[0]
     else:
-        print("\nThe following String has no {}s to proceed\n")
-        print(string)
+        raise ValueError(f"The following String has no {{}}s to proceed: {repr(string)}!")
 
     # End of get_the_string()
 
