@@ -250,12 +250,12 @@ class OMCSessionCmd:
 
 
 # due to the compatibility layer to Python < 3.12, the OM(C)Path classes must be hidden behind the following if
-# conditions. This is also the reason for OMPathBase, a simple base class to be used in ModelicaSystem* classes.
+# conditions. This is also the reason for OMPathABC, a simple base class to be used in ModelicaSystem* classes.
 # Reason: before Python 3.12, pathlib.PurePosixPath can not be derived from; therefore, OMPathABC is not possible
 if sys.version_info < (3, 12):
     class OMPathCompatibility(pathlib.Path):
         """
-        Compatibility class for OMPathBase in Python < 3.12. This allows to run all code which uses OMPathBase (mainly
+        Compatibility class for OMPathABC in Python < 3.12. This allows to run all code which uses OMPathABC (mainly
         ModelicaSystem) on these Python versions. There are remaining limitation as only local execution is possible.
         """
 
@@ -287,7 +287,7 @@ if sys.version_info < (3, 12):
         Compatibility class for OMCPath on Windows systems (Python < 3.12)
         """
 
-    OMPathBase = OMPathCompatibility
+    OMPathABC = OMPathCompatibility
     OMCPath = OMPathCompatibility
 else:
     class OMPathABC(pathlib.PurePosixPath, metaclass=abc.ABCMeta):
@@ -356,7 +356,7 @@ else:
         @abc.abstractmethod
         def cwd(self):
             """
-            Returns the current working directory as an OMPathBase object.
+            Returns the current working directory as an OMPathABC object.
             """
 
         @abc.abstractmethod
@@ -391,7 +391,7 @@ else:
 
     class _OMCPath(OMPathABC):
         """
-        Implementation of a OMPathBase using OMC as backend. The connection to OMC is provided via an instances of an
+        Implementation of a OMPathABC using OMC as backend. The connection to OMC is provided via an instances of an
         OMCSession* classes.
         """
 
@@ -448,7 +448,7 @@ else:
 
         def cwd(self):
             """
-            Returns the current working directory as an OMPathBase object.
+            Returns the current working directory as an OMPathABC object.
             """
             cwd_str = self._session.sendExpression(expr='cd()')
             return OMCPath(cwd_str, session=self._session)
@@ -514,7 +514,6 @@ else:
 
             raise OMCSessionException(f"Error reading file size for path {self.as_posix()}!")
 
-    OMPathBase = OMPathABC
     OMCPath = _OMCPath
 
 
