@@ -48,7 +48,7 @@ def test_OMCPath_OMCProcessWSL():
     del omcs
 
 
-def _run_OMCPath_checks(omcs: OMPython.OMCSession):
+def _run_OMCPath_checks(omcs: OMPython.OMCSessionABC):
     p1 = omcs.omcpath_tempdir()
     p2 = p1 / 'test'
     p2.mkdir()
