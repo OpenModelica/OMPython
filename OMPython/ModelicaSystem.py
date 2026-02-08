@@ -2229,6 +2229,12 @@ class ModelicaDoEABC(metaclass=abc.ABCMeta):
         """
         return self._mod.get_session()
 
+    def get_resultpath(self) -> OMPathABC:
+        """
+        Get the path there the result data is saved.
+        """
+        return self._resultpath
+
     def prepare(self) -> int:
         """
         Prepare the DoE by evaluating the parameters. Each structural parameter requires a new instance of
