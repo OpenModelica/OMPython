@@ -1,7 +1,7 @@
-import tempfile
+import os
 import pathlib
 import shutil
-import os
+import tempfile
 
 import OMPython
 
