@@ -30,6 +30,7 @@ from OMPython.OMCSession import (
     OMPathABC,
     OMCPath,
 
+    OMSessionABC,
     OMSessionRunner,
 
     OMCSessionABC,
@@ -77,6 +78,7 @@ __all__ = [
     'OMPathABC',
     'OMCPath',
 
+    'OMSessionABC',
     'OMSessionRunner',
 
     'OMCSessionABC',

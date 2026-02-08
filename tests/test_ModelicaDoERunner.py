@@ -153,6 +153,6 @@ def _check_runner_result(mod, doe_mod):
             'b': float(row['b']),
         }
 
-        for var in var_dict:
-            assert var in sol['data']
-            assert np.isclose(sol['data'][var][-1], var_dict[var])
+        for key, val in var_dict.items():
+            assert key in sol['data']
+            assert np.isclose(sol['data'][key][-1], val)
