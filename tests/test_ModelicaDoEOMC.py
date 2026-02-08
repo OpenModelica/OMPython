@@ -75,7 +75,7 @@ def test_ModelicaDoEOMC_local(tmp_path, model_doe, param_doe):
 @skip_python_older_312
 def test_ModelicaDoEOMC_docker(tmp_path, model_doe, param_doe):
     omcs = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
-    assert omcs.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    assert omcs.get_version() == "OpenModelica 1.25.0"
 
     mod = OMPython.ModelicaSystemOMC(
         session=omcs,
@@ -98,7 +98,7 @@ def test_ModelicaDoEOMC_docker(tmp_path, model_doe, param_doe):
 @skip_python_older_312
 def test_ModelicaDoEOMC_WSL(tmp_path, model_doe, param_doe):
     omcs = OMPython.OMCSessionWSL()
-    assert omcs.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    assert omcs.get_version() == "OpenModelica 1.25.0"
 
     mod = OMPython.ModelicaSystemOMC(
         session=omcs,
@@ -157,6 +157,6 @@ def _run_ModelicaDoEOMC(doe_mod):
             f"y[{row['p']}]": float(row['b']),
         }
 
-        for var in var_dict:
-            assert var in sol['data']
-            assert np.isclose(sol['data'][var][-1], var_dict[var])
+        for key, val in var_dict.items():
+            assert key in sol['data']
+            assert np.isclose(sol['data'][key][-1], val)
