@@ -255,46 +255,6 @@ class ModelicaSystemCmd:
 
         return omc_run_data_updated
 
-    @staticmethod
-    def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, Any] | numbers.Number]]:
-        """
-        Parse a simflag definition; this is deprecated!
-
-        The return data can be used as input for self.args_set().
-        """
-        warnings.warn(message="The argument 'simflags' is depreciated and will be removed in future versions; "
-                              "please use 'simargs' instead",
-                      category=DeprecationWarning,
-                      stacklevel=2)
-
-        simargs: dict[str, Optional[str | dict[str, Any] | numbers.Number]] = {}
-
-        args = [s for s in simflags.split(' ') if s]
-        for arg in args:
-            if arg[0] != '-':
-                raise ModelicaSystemError(f"Invalid simulation flag: {arg}")
-            arg = arg[1:]
-            parts = arg.split('=')
-            if len(parts) == 1:
-                simargs[parts[0]] = None
-            elif parts[0] == 'override':
-                override = '='.join(parts[1:])
-
-                override_dict = {}
-                for item in override.split(','):
-                    kv = item.split('=')
-                    if not 0 < len(kv) < 3:
-                        raise ModelicaSystemError(f"Invalid value for '-override': {override}")
-                    if kv[0]:
-                        try:
-                            override_dict[kv[0]] = kv[1]
-                        except (KeyError, IndexError) as ex:
-                            raise ModelicaSystemError(f"Invalid value for '-override': {override}") from ex
-
-                simargs[parts[0]] = override_dict
-
-        return simargs
-
 
 class ModelicaSystem:
     """
@@ -1067,7 +1027,6 @@ class ModelicaSystem:
     def simulate_cmd(
             self,
             result_file: OMCPath,
-            simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
     ) -> ModelicaSystemCmd:
         """
@@ -1079,12 +1038,6 @@ class ModelicaSystem:
 
         However, if only non-structural parameters are used, it is possible to reuse an existing instance of
         ModelicaSystem to create several version ModelicaSystemCmd to run the model using different settings.
-
-        Parameters
-        ----------
-        result_file
-        simflags
-        simargs
 
         Returns
         -------
@@ -1100,11 +1053,7 @@ class ModelicaSystem:
         # always define the result file to use
         om_cmd.arg_set(key="r", val=result_file.as_posix())
 
-        # allow runtime simulation flags from user input
-        if simflags is not None:
-            om_cmd.args_set(args=om_cmd.parse_simflags(simflags=simflags))
-
-        if simargs:
+        if simargs is not None:
             om_cmd.args_set(args=simargs)
 
         self._process_override_data(
@@ -1137,7 +1086,6 @@ class ModelicaSystem:
     def simulate(
             self,
             resultfile: Optional[str | os.PathLike] = None,
-            simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
     ) -> None:
         """Simulate the model according to simulation options.
@@ -1146,8 +1094,6 @@ class ModelicaSystem:
 
         Args:
             resultfile: Path to a custom result file
-            simflags: String of extra command line flags for the model binary.
-              This argument is deprecated, use simargs instead.
             simargs: Dict with simulation runtime flags.
 
         Examples:
@@ -1174,7 +1120,6 @@ class ModelicaSystem:
 
         om_cmd = self.simulate_cmd(
             result_file=self._result_file,
-            simflags=simflags,
             simargs=simargs,
         )
 
@@ -1757,7 +1702,6 @@ class ModelicaSystem:
     def linearize(
             self,
             lintime: Optional[float] = None,
-            simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
     ) -> LinearizationResult:
         """Linearize the model according to linearization options.
@@ -1766,8 +1710,6 @@ class ModelicaSystem:
 
         Args:
             lintime: Override "stopTime" value.
-            simflags: String of extra command line flags for the model binary.
-              This argument is deprecated, use simargs instead.
             simargs: A dict with command line flags and possible options; example: "simargs={'csvInput': 'a.csv'}"
 
         Returns:
@@ -1817,11 +1759,7 @@ class ModelicaSystem:
                                       f"<= lintime <= {self._linearization_options['stopTime']}")
         om_cmd.arg_set(key="l", val=str(lintime))
 
-        # allow runtime simulation flags from user input
-        if simflags is not None:
-            om_cmd.args_set(args=om_cmd.parse_simflags(simflags=simflags))
-
-        if simargs:
+        if simargs is not None:
             om_cmd.args_set(args=simargs)
 
         # the file create by the model executable which contains the matrix and linear inputs, outputs and states
