@@ -383,21 +383,20 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
         self._linearized_outputs: list[str] = []  # linearization output list
         self._linearized_states: list[str] = []  # linearization states list
 
-        self._session = session
-
-        # get OpenModelica version
-        version_str = self._session.get_version()
-        self._version = self._parse_om_version(version=version_str)
-
         self._simulated = False  # True if the model has already been simulated
         self._result_file: Optional[OMPathABC] = None  # for storing result file
-
-        self._work_dir: OMPathABC = self.setWorkDirectory(work_directory)
 
         self._model_name: Optional[str] = None
         self._libraries: Optional[list[str | tuple[str, str]]] = None
         self._file_name: Optional[OMPathABC] = None
         self._variable_filter: Optional[str] = None
+
+        self._session = session
+        # get OpenModelica version
+        version_str = self._session.get_version()
+        self._version = self._parse_om_version(version=version_str)
+
+        self._work_dir: OMPathABC = self.setWorkDirectory(work_directory)
 
     def get_session(self) -> OMSessionABC:
         """
@@ -468,6 +467,8 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
         xml_content = xml_file.read_text()
         tree = ET.ElementTree(ET.fromstring(xml_content))
         root = tree.getroot()
+        if root is None:
+            raise ModelicaSystemError(f"Cannot read XML file: {xml_file}")
         for attr in root.iter('DefaultExperiment'):
             for key in ("startTime", "stopTime", "stepSize", "tolerance",
                         "solver", "outputFormat"):
@@ -1931,7 +1932,7 @@ class ModelicaSystemOMC(ModelicaSystemABC):
             self,
             varList: Optional[str | list[str]] = None,
             resultfile: Optional[str | os.PathLike] = None,
-    ) -> tuple[str] | np.ndarray:
+    ) -> tuple[str, ...] | np.ndarray:
         """Extract simulation results from a result data file.
 
         Args:
@@ -1980,7 +1981,8 @@ class ModelicaSystemOMC(ModelicaSystemABC):
         result_vars = self.sendExpression(expr=f'readSimulationResultVars("{result_file.as_posix()}")')
         self.sendExpression(expr="closeSimulationResultFile()")
         if varList is None:
-            return result_vars
+            var_list = [str(var) for var in result_vars]
+            return tuple(var_list)
 
         if isinstance(varList, str):
             var_list_checked = [varList]
@@ -2060,6 +2062,8 @@ class ModelicaSystemOMC(ModelicaSystemABC):
             raise ModelicaSystemError(f"Missing FMU file: {fmu_path.as_posix()}")
 
         filename = self._requestApi(apiName='importFMU', entity=fmu_path.as_posix())
+        if not isinstance(filename, str):
+            raise ModelicaSystemError(f"Invalid return value for the FMU filename: {filename}")
         filepath = self.getWorkDirectory() / filename
 
         # report proper error message
@@ -2102,7 +2106,9 @@ class ModelicaSystemOMC(ModelicaSystemABC):
         """
         properties = ','.join(f"{key}={val}" for key, val in self._optimization_options.items())
         self.set_command_line_options("-g=Optimica")
-        return self._requestApi(apiName='optimize', entity=self._model_name, properties=properties)
+        retval = self._requestApi(apiName='optimize', entity=self._model_name, properties=properties)
+        retval = cast(dict, retval)
+        return retval
 
 
 class ModelicaSystem(ModelicaSystemOMC):
