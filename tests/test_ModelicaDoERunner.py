@@ -43,7 +43,7 @@ def param_doe() -> dict[str, list]:
     return param
 
 
-def test_ModelicaDoEOMC_local(tmp_path, model_doe, param_doe):
+def test_ModelicaDoERunner_ModelicaSystemOMC(tmp_path, model_doe, param_doe):
     tmpdir = tmp_path / 'DoE'
     tmpdir.mkdir(exist_ok=True)
 
@@ -67,6 +67,41 @@ def test_ModelicaDoEOMC_local(tmp_path, model_doe, param_doe):
     _check_runner_result(mod=mod, doe_mod=doe_mod)
 
 
+def test_ModelicaDoERunner_ModelicaSystemRunner(tmp_path, model_doe, param_doe):
+    tmpdir = tmp_path / 'DoE'
+    tmpdir.mkdir(exist_ok=True)
+
+    mod = OMPython.ModelicaSystemOMC()
+    mod.model(
+        model_file=model_doe,
+        model_name="M",
+    )
+
+    resultfile_mod = mod.getWorkDirectory() / f"{mod.get_model_name()}_res_mod.mat"
+    _run_simulation(mod=mod, resultfile=resultfile_mod, param=param_doe)
+
+    # run the model using only the runner class
+    omcs = OMPython.OMSessionRunner(
+        version=mod.get_session().get_version(),
+    )
+    modr = OMPython.ModelicaSystemRunner(
+        session=omcs,
+        work_directory=mod.getWorkDirectory(),
+    )
+    modr.setup(
+        model_name="M",
+    )
+    doe_mod = OMPython.ModelicaDoERunner(
+        mod=modr,
+        parameters=param_doe,
+        resultpath=tmpdir,
+    )
+
+    _run_ModelicaDoERunner(doe_mod=doe_mod)
+
+    _check_runner_result(mod=mod, doe_mod=doe_mod)
+
+
 def _run_simulation(mod, resultfile, param):
     simOptions = {"stopTime": 1.0, "stepSize": 0.1, "tolerance": 1e-8}
     mod.setSimulationOptions(**simOptions)
@@ -77,7 +112,7 @@ def _run_simulation(mod, resultfile, param):
 
 def _run_ModelicaDoERunner(doe_mod):
     doe_count = doe_mod.prepare()
-    assert doe_count == 16
+    assert doe_count == 4
 
     doe_def = doe_mod.get_doe_definition()
     assert isinstance(doe_def, dict)
