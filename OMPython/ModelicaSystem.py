@@ -383,21 +383,20 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
         self._linearized_outputs: list[str] = []  # linearization output list
         self._linearized_states: list[str] = []  # linearization states list
 
-        self._session = session
-
-        # get OpenModelica version
-        version_str = self._session.get_version()
-        self._version = self._parse_om_version(version=version_str)
-
         self._simulated = False  # True if the model has already been simulated
         self._result_file: Optional[OMPathABC] = None  # for storing result file
-
-        self._work_dir: OMPathABC = self.setWorkDirectory(work_directory)
 
         self._model_name: Optional[str] = None
         self._libraries: Optional[list[str | tuple[str, str]]] = None
         self._file_name: Optional[OMPathABC] = None
         self._variable_filter: Optional[str] = None
+
+        self._session = session
+        # get OpenModelica version
+        version_str = self._session.get_version()
+        self._version = self._parse_om_version(version=version_str)
+
+        self._work_dir: OMPathABC = self.setWorkDirectory(work_directory)
 
     def get_session(self) -> OMSessionABC:
         """
