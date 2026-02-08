@@ -19,6 +19,8 @@ from OMPython.ModelicaSystem import (
     ModelicaSystemDoE,
     ModelicaDoEOMC,
     ModelicaSystemError,
+    ModelicaSystemRunner,
+    ModelicaDoERunner,
 
     doe_get_solutions,
 )
@@ -56,6 +58,9 @@ __all__ = [
     'ModelicaSystemDoE',
     'ModelicaDoEOMC',
     'ModelicaSystemError',
+
+    'ModelicaSystemRunner',
+    'ModelicaDoERunner',
 
     'OMPathABC',
     'OMCPath',
