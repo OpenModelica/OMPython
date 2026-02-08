@@ -1881,5 +1881,5 @@ class OMSessionRunner(OMSessionABC):
 
         return self._tempdir(tempdir_base=tempdir_base)
 
-    def sendExpression(self, command: str, parsed: bool = True) -> Any:
+    def sendExpression(self, expr: str, parsed: bool = True) -> Any:
         raise OMCSessionException(f"{self.__class__.__name__} does not uses an OMC server!")
