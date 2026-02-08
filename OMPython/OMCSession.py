@@ -287,6 +287,7 @@ if sys.version_info < (3, 12):
         Compatibility class for OMCPath on Windows systems (Python < 3.12)
         """
 
+    OMPathBase = OMPathCompatibility
     OMCPath = OMPathCompatibility
 else:
     class OMPathABC(pathlib.PurePosixPath, metaclass=abc.ABCMeta):
@@ -513,6 +514,7 @@ else:
 
             raise OMCSessionException(f"Error reading file size for path {self.as_posix()}!")
 
+    OMPathBase = OMPathABC
     OMCPath = _OMCPath
 
 
