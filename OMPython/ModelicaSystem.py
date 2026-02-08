@@ -2646,7 +2646,7 @@ class ModelicaDoERunner(ModelicaDoEABC):
     def __init__(
             self,
             # ModelicaSystem definition to use
-            mod: ModelicaSystemOMC,
+            mod: ModelicaSystemABC,
             # simulation specific input
             # TODO: add more settings (simulation options, input options, ...)
             simargs: Optional[dict[str, Optional[str | dict[str, str] | numbers.Number]]] = None,
@@ -2654,8 +2654,8 @@ class ModelicaDoERunner(ModelicaDoEABC):
             resultpath: Optional[str | os.PathLike] = None,
             parameters: Optional[dict[str, list[str] | list[int] | list[float]]] = None,
     ) -> None:
-        if not isinstance(mod, ModelicaSystemRunner):
-            raise ModelicaSystemError(f"Invalid definition for mod: {type(mod)} - expect ModelicaSystemOMC!")
+        if not isinstance(mod, ModelicaSystemABC):
+            raise ModelicaSystemError(f"Invalid definition for ModelicaSystem*: {type(mod)}!")
 
         super().__init__(
             mod=mod,
@@ -2670,5 +2670,8 @@ class ModelicaDoERunner(ModelicaDoEABC):
             pc_structure: Tuple,
             param_structure: dict[str, list[str] | list[int] | list[float]],
     ) -> dict[str, str | int | float]:
-        raise ModelicaSystemError(f"{self.__class__.__name__} can not handle structure parameters as it uses a "
-                                  "pre-compiled binary of model.")
+        if len(param_structure.keys()) > 0:
+            raise ModelicaSystemError(f"{self.__class__.__name__} can not handle structure parameters as it uses a "
+                                      "pre-compiled binary of model.")
+
+        return {}
