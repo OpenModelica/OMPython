@@ -2819,3 +2819,50 @@ class ModelicaDoERunner(ModelicaDoEABC):
                                       "pre-compiled binary of model.")
 
         return {}
+
+
+class ModelicaSystemCmd(ModelExecutionCmd):
+    # TODO: docstring
+
+    def __init__(
+            self,
+            runpath: pathlib.Path,
+            modelname: str,
+            timeout: float = 10.0,
+    ) -> None:
+        super().__init__(
+            runpath=runpath,
+            timeout=timeout,
+            cmd_prefix=[],
+            model_name=modelname,
+        )
+
+    def get_exe(self) -> pathlib.Path:
+        """Get the path to the compiled model executable."""
+        # TODO: move to the top
+        import platform
+
+        path_run = pathlib.Path(self._runpath)
+        if platform.system() == "Windows":
+            path_exe = path_run / f"{self._model_name}.exe"
+        else:
+            path_exe = path_run / self._model_name
+
+        if not path_exe.exists():
+            raise ModelicaSystemError(f"Application file path not found: {path_exe}")
+
+        return path_exe
+
+    def get_cmd(self) -> list:
+        """Get a list with the path to the executable and all command line args.
+
+        This can later be used as an argument for subprocess.run().
+        """
+
+        cmdl = [self.get_exe().as_posix()] + self.get_cmd_args()
+
+        return cmdl
+
+    def run(self):
+        cmd_definition = self.definition()
+        return cmd_definition.run()
