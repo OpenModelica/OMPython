@@ -29,8 +29,7 @@ from OMPython.OMCSession import (
     OMCPath,
 
     OMSessionRunner,
-
-    OMCSessionABC,
+    OMSessionABC,
 
     ModelExecutionData,
     ModelExecutionException,
@@ -74,6 +73,8 @@ __all__ = [
     'OMCSessionCmd',
     'OMCSessionDocker',
     'OMCSessionDockerContainer',
+    'OMSessionABC',
+
     'OMCSessionException',
     'OMCSessionPort',
     'OMCSessionLocal',
