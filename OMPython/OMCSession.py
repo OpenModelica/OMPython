@@ -1432,8 +1432,9 @@ class OMCSessionPort(OMCSessionABC):
     def __init__(
             self,
             omc_port: str,
+            timeout: float = 10.0,
     ) -> None:
-        super().__init__()
+        super().__init__(timeout=timeout)
         self._omc_port = omc_port
 
 
