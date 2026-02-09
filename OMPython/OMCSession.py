@@ -2155,3 +2155,11 @@ class OMSessionRunner(OMSessionABC):
 
     def sendExpression(self, expr: str, parsed: bool = True) -> Any:
         raise OMCSessionException(f"{self.__class__.__name__} does not uses an OMC server!")
+
+
+DummyPopen = DockerPopen
+OMCProcessLocal = OMCSessionLocal
+OMCProcessPort = OMCSessionPort
+OMCProcessDocker = OMCSessionDocker
+OMCProcessDockerContainer = OMCSessionDockerContainer
+OMCProcessWSL = OMCSessionWSL
