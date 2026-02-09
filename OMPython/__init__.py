@@ -41,6 +41,7 @@ from OMPython.OMCSession import (
     OMCSessionLocal,
     OMCSessionPort,
 
+    OMPathRunnerBash,
     OMPathRunnerLocal,
 
     OMCSessionWSL,
@@ -82,6 +83,7 @@ __all__ = [
     'OMCSessionPort',
     'OMCSessionLocal',
 
+    'OMPathRunnerBash',
     'OMPathRunnerLocal',
 
     'OMCSessionWSL',
