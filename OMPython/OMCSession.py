@@ -2048,7 +2048,8 @@ class OMCSessionWSL(OMCSessionABC):
             self._wsl_omc,
             "--locale=C",
             "--interactive=zmq",
-            f"-z={self._random_string}"]
+            f"-z={self._random_string}",
+        ]
 
         omc_process = subprocess.Popen(omc_command,
                                        stdout=self._omc_loghandle,
