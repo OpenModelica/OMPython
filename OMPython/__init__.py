@@ -46,6 +46,11 @@ from OMPython.OMCSession import (
 
     OMCSessionWSL,
     OMCSessionZMQ,
+
+    OMCProcessLocal,
+    OMCProcessPort,
+    OMCProcessDocker,
+    OMCProcessDockerContainer,
 )
 
 # global names imported if import 'from OMPython import *' is used
@@ -88,4 +93,9 @@ __all__ = [
 
     'OMCSessionWSL',
     'OMCSessionZMQ',
+
+    'OMCProcessLocal',
+    'OMCProcessPort',
+    'OMCProcessDocker',
+    'OMCProcessDockerContainer',
 ]
