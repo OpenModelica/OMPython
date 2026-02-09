@@ -809,11 +809,19 @@ class OMSessionABC(metaclass=OMSessionMeta):
 
         # store variables
         self._timeout = timeout
+        # command prefix (to be used for docker or WSL)
+        self._cmd_prefix: list[str] = []
 
     def __post_init__(self) -> None:
         """
         Post initialisation method.
         """
+
+    def get_cmd_prefix(self) -> list[str]:
+        """
+        Get session definition used for this instance of OMPath.
+        """
+        return self._cmd_prefix.copy()
 
     @staticmethod
     def escape_str(value: str) -> str:
@@ -843,7 +851,7 @@ class OMSessionABC(metaclass=OMSessionMeta):
     @abc.abstractmethod
     def omcpath(self, *path) -> OMPathABC:
         """
-        Create an OMPathBase object based on the given path segments and the current class.
+        Create an OMPathABC object based on the given path segments and the current class.
         """
 
     @abc.abstractmethod
@@ -907,13 +915,12 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
         """
         Initialisation for OMCSession
         """
+        super().__init__(timeout=timeout)
 
         # some helper data
         self.model_execution_windows = platform.system() == "Windows"
         self.model_execution_local = False
 
-        # store variables
-        self._timeout = timeout
         # generate a random string for this instance of OMC
         self._random_string = uuid.uuid4().hex
         # get a temporary directory
@@ -990,6 +997,7 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
                     self._omc_process.kill()
                     self._omc_process.wait()
             finally:
+
                 self._omc_process = None
 
     def _timeout_loop(
