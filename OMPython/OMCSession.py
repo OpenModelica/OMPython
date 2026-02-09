@@ -2023,6 +2023,8 @@ class OMCSessionWSL(OMCSessionABC):
         # connect to the running omc instance using ZMQ
         self._omc_port = self._omc_port_get()
 
+        self._cmd_prefix = self.model_execution_prefix()
+
     def model_execution_prefix(self, cwd: Optional[OMPathABC] = None) -> list[str]:
         """
         Helper function which returns a command prefix needed for docker and WSL. It defaults to an empty list.
