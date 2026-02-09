@@ -23,6 +23,8 @@ from OMPython.ModelicaSystem import (
     ModelicaDoERunner,
 
     doe_get_solutions,
+
+    ModelicaSystemCmd,
 )
 from OMPython.OMCSession import (
     OMPathABC,
@@ -62,6 +64,7 @@ __all__ = [
 
     'ModelicaSystem',
     'ModelicaSystemOMC',
+    'ModelicaSystemCmd',
     'ModelExecutionCmd',
     'ModelicaSystemDoE',
     'ModelicaDoEOMC',
