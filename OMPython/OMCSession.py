@@ -544,10 +544,10 @@ else:
 
     class _OMPathRunnerLocal(OMPathRunnerABC):
         """
-        Implementation of OMPathBase which does not use the session data at all. Thus, this implementation can run
+        Implementation of OMPathABC which does not use the session data at all. Thus, this implementation can run
         locally without any usage of OMC.
 
-        This class is based on OMPathBase and, therefore, on pathlib.PurePosixPath. This is working well, but it is not
+        This class is based on OMPathABC and, therefore, on pathlib.PurePosixPath. This is working well, but it is not
         the correct implementation on Windows systems. To get a valid Windows representation of the path, use the
         conversion via pathlib.Path(<OMCPathDummy>.as_posix()).
         """
@@ -564,7 +564,7 @@ else:
             """
             return self._path().is_dir()
 
-        def is_absolute(self):
+        def is_absolute(self) -> bool:
             """
             Check if the path is an absolute path.
             """
@@ -580,9 +580,12 @@ else:
             """
             Write text data to the file represented by this path.
             """
+            if not isinstance(data, str):
+                raise TypeError(f"data must be str, not {data.__class__.__name__}")
+
             return self._path().write_text(data=data, encoding='utf-8')
 
-        def mkdir(self, parents: bool = True, exist_ok: bool = False):
+        def mkdir(self, parents: bool = True, exist_ok: bool = False) -> None:
             """
             Create a directory at the path represented by this class.
 
@@ -590,21 +593,21 @@ else:
             Python < 3.12. In this case, pathlib.Path is used directly and this option ensures, that missing parent
             directories are also created.
             """
-            return self._path().mkdir(parents=parents, exist_ok=exist_ok)
+            self._path().mkdir(parents=parents, exist_ok=exist_ok)
 
-        def cwd(self):
+        def cwd(self) -> OMPathABC:
             """
-            Returns the current working directory as an OMPathBase object.
+            Returns the current working directory as an OMPathABC object.
             """
-            return self._path().cwd()
+            return type(self)(self._path().cwd().as_posix(), session=self._session)
 
         def unlink(self, missing_ok: bool = False) -> None:
             """
             Unlink (delete) the file or directory represented by this path.
             """
-            return self._path().unlink(missing_ok=missing_ok)
+            self._path().unlink(missing_ok=missing_ok)
 
-        def resolve(self, strict: bool = False):
+        def resolve(self, strict: bool = False) -> OMPathABC:
             """
             Resolve the path to an absolute path. This is done based on available OMC functions.
             """
