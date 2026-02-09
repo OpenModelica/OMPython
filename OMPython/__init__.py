@@ -16,6 +16,25 @@ from OMPython.model_execution import (
     ModelExecutionData,
     ModelExecutionException,
 )
+from OMPython.om_session_abc import (
+    OMPathABC,
+    OMSessionABC,
+    OMSessionException,
+)
+from OMPython.om_session_omc import (
+    OMCPath,
+    OMCSessionABC,
+    OMCSessionDocker,
+    OMCSessionDockerContainer,
+    OMCSessionLocal,
+    OMCSessionPort,
+    OMCSessionWSL,
+)
+from OMPython.om_session_runner import (
+    OMPathRunnerBash,
+    OMPathRunnerLocal,
+    OMSessionRunner,
+)
 
 from OMPython.ModelicaSystem import (
     LinearizationResult,
@@ -32,25 +51,9 @@ from OMPython.ModelicaSystem import (
     ModelicaSystemCmd,
 )
 from OMPython.OMCSession import (
-    OMPathABC,
-    OMCPath,
-
-    OMSessionABC,
-    OMSessionRunner,
-
-    OMCSessionABC,
     OMCSessionCmd,
-    OMCSessionDocker,
-    OMCSessionDockerContainer,
-    OMCSessionException,
-    OMCSessionLocal,
-    OMCSessionPort,
-
-    OMPathRunnerBash,
-    OMPathRunnerLocal,
-
-    OMCSessionWSL,
     OMCSessionZMQ,
+    OMCSessionException,
 
     OMCProcessLocal,
     OMCProcessPort,
@@ -66,6 +69,22 @@ __all__ = [
     'ModelExecutionData',
     'ModelExecutionException',
 
+    'OMPathABC',
+    'OMSessionABC',
+    'OMSessionException',
+
+    'OMCPath',
+    'OMCSessionABC',
+    'OMCSessionDocker',
+    'OMCSessionDockerContainer',
+    'OMCSessionLocal',
+    'OMCSessionPort',
+    'OMCSessionWSL',
+
+    'OMPathRunnerBash',
+    'OMPathRunnerLocal',
+    'OMSessionRunner',
+
     'ModelicaSystem',
     'ModelicaSystemOMC',
     'ModelicaSystemCmd',
@@ -76,26 +95,13 @@ __all__ = [
     'ModelicaSystemRunner',
     'ModelicaDoERunner',
 
-    'OMPathABC',
-    'OMCPath',
-
-    'OMSessionABC',
-    'OMSessionRunner',
-
     'doe_get_solutions',
 
     'OMCSessionABC',
     'OMCSessionCmd',
-    'OMCSessionDocker',
-    'OMCSessionDockerContainer',
+
     'OMCSessionException',
-    'OMCSessionPort',
-    'OMCSessionLocal',
 
-    'OMPathRunnerBash',
-    'OMPathRunnerLocal',
-
-    'OMCSessionWSL',
     'OMCSessionZMQ',
 
     'OMCProcessLocal',

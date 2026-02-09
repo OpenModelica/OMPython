@@ -26,13 +26,15 @@ from OMPython.model_execution import (
     ModelExecutionData,
     ModelExecutionException,
 )
-from OMPython.OMCSession import (
-    OMSessionException,
-    OMCSessionLocal,
-
+from OMPython.om_session_abc import (
     OMPathABC,
-
     OMSessionABC,
+    OMSessionException,
+)
+from OMPython.om_session_omc import (
+    OMCSessionLocal,
+)
+from OMPython.om_session_runner import (
     OMSessionRunner,
 )
 
