@@ -40,6 +40,9 @@ from OMPython.OMCSession import (
     OMCSessionException,
     OMCSessionLocal,
     OMCSessionPort,
+
+    OMPathRunnerLocal,
+
     OMCSessionWSL,
     OMCSessionZMQ,
 )
@@ -78,6 +81,9 @@ __all__ = [
     'OMCSessionException',
     'OMCSessionPort',
     'OMCSessionLocal',
+
+    'OMPathRunnerLocal',
+
     'OMCSessionWSL',
     'OMCSessionZMQ',
 ]
