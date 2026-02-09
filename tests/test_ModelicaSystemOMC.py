@@ -495,7 +495,7 @@ end M_input;
     }
     mod.setInputs(**inputs)
     csv_file = mod._createCSVData()
-    assert pathlib.Path(csv_file).read_text() == """time,u1,u2,end
+    assert pathlib.Path(csv_file).read_text(encoding='utf-8') == """time,u1,u2,end
 0.0,0.0,0.0,0
 0.25,0.25,0.5,0
 0.5,0.5,1.0,0
