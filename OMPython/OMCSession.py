@@ -307,7 +307,13 @@ else:
             super().__init__(*path)
             self._session = session
 
-        def with_segments(self, *pathsegments):
+        def get_session(self) -> OMSessionABC:
+            """
+            Get session definition used for this instance of OMPath.
+            """
+            return self._session
+
+        def with_segments(self, *pathsegments) -> OMPathABC:
             """
             Create a new OMCPath object with the given path segments.
 
@@ -328,7 +334,7 @@ else:
             """
 
         @abc.abstractmethod
-        def is_absolute(self):
+        def is_absolute(self) -> bool:
             """
             Check if the path is an absolute path.
             """
@@ -340,13 +346,13 @@ else:
             """
 
         @abc.abstractmethod
-        def write_text(self, data: str):
+        def write_text(self, data: str) -> int:
             """
             Write text data to the file represented by this path.
             """
 
         @abc.abstractmethod
-        def mkdir(self, parents: bool = True, exist_ok: bool = False):
+        def mkdir(self, parents: bool = True, exist_ok: bool = False) -> None:
             """
             Create a directory at the path represented by this class.
 
@@ -356,7 +362,7 @@ else:
             """
 
         @abc.abstractmethod
-        def cwd(self):
+        def cwd(self) -> OMPathABC:
             """
             Returns the current working directory as an OMPathABC object.
             """
@@ -368,12 +374,12 @@ else:
             """
 
         @abc.abstractmethod
-        def resolve(self, strict: bool = False):
+        def resolve(self, strict: bool = False) -> OMPathABC:
             """
             Resolve the path to an absolute path.
             """
 
-        def absolute(self):
+        def absolute(self) -> OMPathABC:
             """
             Resolve the path to an absolute path. Just a wrapper for resolve().
             """
@@ -401,29 +407,38 @@ else:
             """
             Check if the path is a regular file.
             """
-            return self._session.sendExpression(expr=f'regularFileExists("{self.as_posix()}")')
+            retval = self.get_session().sendExpression(expr=f'regularFileExists("{self.as_posix()}")')
+            if not isinstance(retval, bool):
+                raise OMCSessionException(f"Invalid return value for is_file(): {retval} - expect bool")
+            return retval
 
         def is_dir(self) -> bool:
             """
             Check if the path is a directory.
             """
-            return self._session.sendExpression(expr=f'directoryExists("{self.as_posix()}")')
+            retval = self.get_session().sendExpression(expr=f'directoryExists("{self.as_posix()}")')
+            if not isinstance(retval, bool):
+                raise OMCSessionException(f"Invalid return value for is_dir(): {retval} - expect bool")
+            return retval
 
-        def is_absolute(self):
+        def is_absolute(self) -> bool:
             """
-            Check if the path is an absolute path.
+            Check if the path is an absolute path. Special handling to differentiate Windows and Posix definitions.
             """
             if isinstance(self._session, OMCSessionLocal) and platform.system() == 'Windows':
                 return pathlib.PureWindowsPath(self.as_posix()).is_absolute()
-            return super().is_absolute()
+            return pathlib.PurePosixPath(self.as_posix()).is_absolute()
 
         def read_text(self) -> str:
             """
             Read the content of the file represented by this path as text.
             """
-            return self._session.sendExpression(expr=f'readFile("{self.as_posix()}")')
+            retval = self.get_session().sendExpression(expr=f'readFile("{self.as_posix()}")')
+            if not isinstance(retval, str):
+                raise OMCSessionException(f"Invalid return value for read_text(): {retval} - expect str")
+            return retval
 
-        def write_text(self, data: str):
+        def write_text(self, data: str) -> int:
             """
             Write text data to the file represented by this path.
             """
@@ -435,7 +450,7 @@ else:
 
             return len(data)
 
-        def mkdir(self, parents: bool = True, exist_ok: bool = False):
+        def mkdir(self, parents: bool = True, exist_ok: bool = False) -> None:
             """
             Create a directory at the path represented by this class.
 
@@ -446,14 +461,15 @@ else:
             if self.is_dir() and not exist_ok:
                 raise FileExistsError(f"Directory {self.as_posix()} already exists!")
 
-            return self._session.sendExpression(expr=f'mkdir("{self.as_posix()}")')
+            if not self._session.sendExpression(expr=f'mkdir("{self.as_posix()}")'):
+                raise OMCSessionException(f"Error on directory creation for {self.as_posix()}!")
 
-        def cwd(self):
+        def cwd(self) -> OMPathABC:
             """
             Returns the current working directory as an OMPathABC object.
             """
             cwd_str = self._session.sendExpression(expr='cd()')
-            return OMCPath(cwd_str, session=self._session)
+            return type(self)(cwd_str, session=self._session)
 
         def unlink(self, missing_ok: bool = False) -> None:
             """
@@ -463,7 +479,7 @@ else:
             if not res and not missing_ok:
                 raise FileNotFoundError(f"Cannot delete file {self.as_posix()} - it does not exists!")
 
-        def resolve(self, strict: bool = False):
+        def resolve(self, strict: bool = False) -> OMPathABC:
             """
             Resolve the path to an absolute path. This is done based on available OMC functions.
             """
@@ -494,8 +510,10 @@ else:
                     'cd(omcpath_cwd)')
 
             try:
-                result = self._session.sendExpression(expr=expr, parsed=False)
-                result_parts = result.split('\n')
+                retval = self.get_session().sendExpression(expr=expr, parsed=False)
+                if not isinstance(retval, str):
+                    raise OMCSessionException(f"Invalid return value for _omc_resolve(): {retval} - expect str")
+                result_parts = retval.split('\n')
                 pathstr_resolved = result_parts[1]
                 pathstr_resolved = pathstr_resolved[1:-1]  # remove quotes
             except OMCSessionException as ex:
