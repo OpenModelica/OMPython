@@ -307,7 +307,13 @@ else:
             super().__init__(*path)
             self._session = session
 
-        def with_segments(self, *pathsegments):
+        def get_session(self) -> OMSessionABC:
+            """
+            Get session definition used for this instance of OMPath.
+            """
+            return self._session
+
+        def with_segments(self, *pathsegments) -> OMPathABC:
             """
             Create a new OMCPath object with the given path segments.
 
@@ -328,7 +334,7 @@ else:
             """
 
         @abc.abstractmethod
-        def is_absolute(self):
+        def is_absolute(self) -> bool:
             """
             Check if the path is an absolute path.
             """
@@ -340,13 +346,13 @@ else:
             """
 
         @abc.abstractmethod
-        def write_text(self, data: str):
+        def write_text(self, data: str) -> int:
             """
             Write text data to the file represented by this path.
             """
 
         @abc.abstractmethod
-        def mkdir(self, parents: bool = True, exist_ok: bool = False):
+        def mkdir(self, parents: bool = True, exist_ok: bool = False) -> None:
             """
             Create a directory at the path represented by this class.
 
@@ -356,7 +362,7 @@ else:
             """
 
         @abc.abstractmethod
-        def cwd(self):
+        def cwd(self) -> OMPathABC:
             """
             Returns the current working directory as an OMPathABC object.
             """
@@ -368,12 +374,12 @@ else:
             """
 
         @abc.abstractmethod
-        def resolve(self, strict: bool = False):
+        def resolve(self, strict: bool = False) -> OMPathABC:
             """
             Resolve the path to an absolute path.
             """
 
-        def absolute(self):
+        def absolute(self) -> OMPathABC:
             """
             Resolve the path to an absolute path. Just a wrapper for resolve().
             """
