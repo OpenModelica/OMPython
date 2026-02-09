@@ -157,6 +157,6 @@ def _run_ModelicaDoEOMC(doe_mod):
             f"y[{row['p']}]": float(row['b']),
         }
 
-        for var in var_dict:
-            assert var in sol['data']
-            assert np.isclose(sol['data'][var][-1], var_dict[var])
+        for key, val in var_dict.items():
+            assert key in sol['data']
+            assert np.isclose(sol['data'][key][-1], val)
