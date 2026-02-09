@@ -13,13 +13,13 @@ skip_on_windows = pytest.mark.skipif(
 @skip_on_windows
 def test_docker():
     omcs = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
-    assert omcs.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    assert omcs.get_version() == "OpenModelica 1.25.0"
 
     omcsInner = OMPython.OMCSessionDockerContainer(dockerContainer=omcs.get_docker_container_id())
-    assert omcsInner.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    assert omcsInner.get_version() == "OpenModelica 1.25.0"
 
     omcs2 = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal", port=11111)
-    assert omcs2.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    assert omcs2.get_version() == "OpenModelica 1.25.0"
 
     del omcs2
 
