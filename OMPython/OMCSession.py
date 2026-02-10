@@ -757,7 +757,7 @@ class OMSessionABC(metaclass=OMSessionMeta):
         """
 
     @abc.abstractmethod
-    def omcpath_tempdir(self, tempdir_base: Optional[OMCPath] = None) -> OMPathABC:
+    def omcpath_tempdir(self, tempdir_base: Optional[OMPathABC] = None) -> OMPathABC:
         """
         Get a temporary directory based on the specific definition for this session.
         """
