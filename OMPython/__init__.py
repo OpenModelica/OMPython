@@ -11,11 +11,16 @@ omc.sendExpression("command")
 
 """
 
+from OMPython.model_execution import (
+    ModelExecutionCmd,
+    ModelExecutionData,
+    ModelExecutionException,
+)
+
 from OMPython.ModelicaSystem import (
     LinearizationResult,
     ModelicaSystem,
     ModelicaSystemOMC,
-    ModelExecutionCmd,
     ModelicaSystemDoE,
     ModelicaDoEOMC,
     ModelicaSystemError,
@@ -32,9 +37,6 @@ from OMPython.OMCSession import (
 
     OMSessionRunner,
     OMSessionABC,
-
-    ModelExecutionData,
-    ModelExecutionException,
 
     OMCSessionABC,
     OMCSessionCmd,
@@ -60,13 +62,13 @@ from OMPython.OMCSession import (
 __all__ = [
     'LinearizationResult',
 
+    'ModelExecutionCmd',
     'ModelExecutionData',
     'ModelExecutionException',
 
     'ModelicaSystem',
     'ModelicaSystemOMC',
     'ModelicaSystemCmd',
-    'ModelExecutionCmd',
     'ModelicaSystemDoE',
     'ModelicaDoEOMC',
     'ModelicaSystemError',

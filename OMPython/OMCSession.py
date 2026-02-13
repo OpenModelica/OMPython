@@ -6,7 +6,6 @@ Definition of an OMC session.
 from __future__ import annotations
 
 import abc
-import dataclasses
 import io
 import json
 import logging
@@ -810,90 +809,6 @@ else:
     OMCPath = _OMCPath
     OMPathRunnerLocal = _OMPathRunnerLocal
     OMPathRunnerBash = _OMPathRunnerBash
-
-
-class ModelExecutionException(Exception):
-    """
-    Exception which is raised by ModelException* classes.
-    """
-
-
-@dataclasses.dataclass
-class ModelExecutionData:
-    """
-    Data class to store the command line data for running a model executable in the OMC environment.
-
-    All data should be defined for the environment, where OMC is running (local, docker or WSL)
-
-    To use this as a definition of an OMC simulation run, it has to be processed within
-    OMCProcess*.self_update(). This defines the attribute cmd_model_executable.
-    """
-    # cmd_path is the expected working directory
-    cmd_path: str
-    cmd_model_name: str
-    # command prefix data (as list of strings); needed for docker or WSL
-    cmd_prefix: list[str]
-    # cmd_model_executable is build out of cmd_path and cmd_model_name; this is mainly needed on Windows (add *.exe)
-    cmd_model_executable: str
-    # command line arguments for the model executable
-    cmd_args: list[str]
-    # result file with the simulation output
-    cmd_result_file: str
-    # command timeout
-    cmd_timeout: float
-
-    # additional library search path; this is mainly needed if OMCProcessLocal is run on Windows
-    cmd_library_path: Optional[str] = None
-    # working directory to be used on the *local* system
-    cmd_cwd_local: Optional[str] = None
-
-    def get_cmd(self) -> list[str]:
-        """
-        Get the command line to run the model executable in the environment defined by the OMCProcess definition.
-        """
-
-        cmdl = self.cmd_prefix
-        cmdl += [self.cmd_model_executable]
-        cmdl += self.cmd_args
-
-        return cmdl
-
-    def run(self) -> int:
-        """
-        Run the model execution defined in this class.
-        """
-
-        my_env = os.environ.copy()
-        if isinstance(self.cmd_library_path, str):
-            my_env["PATH"] = self.cmd_library_path + os.pathsep + my_env["PATH"]
-
-        cmdl = self.get_cmd()
-
-        logger.debug("Run OM command %s in %s", repr(cmdl), self.cmd_path)
-        try:
-            cmdres = subprocess.run(
-                cmdl,
-                capture_output=True,
-                text=True,
-                env=my_env,
-                cwd=self.cmd_cwd_local,
-                timeout=self.cmd_timeout,
-                check=True,
-            )
-            stdout = cmdres.stdout.strip()
-            stderr = cmdres.stderr.strip()
-            returncode = cmdres.returncode
-
-            logger.debug("OM output for command %s:\n%s", repr(cmdl), stdout)
-
-            if stderr:
-                raise ModelExecutionException(f"Error running model executable {repr(cmdl)}: {stderr}")
-        except subprocess.TimeoutExpired as ex:
-            raise ModelExecutionException(f"Timeout running model executable {repr(cmdl)}: {ex}") from ex
-        except subprocess.CalledProcessError as ex:
-            raise ModelExecutionException(f"Error running model executable {repr(cmdl)}: {ex}") from ex
-
-        return returncode
 
 
 class PostInitCaller(type):
