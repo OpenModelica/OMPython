@@ -1232,26 +1232,6 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
 
         return self._tempdir(tempdir_base=tempdir_base)
 
-    @staticmethod
-    def _tempdir(tempdir_base: OMPathABC) -> OMPathABC:
-        names = [str(uuid.uuid4()) for _ in range(100)]
-
-        tempdir: Optional[OMPathABC] = None
-        for name in names:
-            # create a unique temporary directory name
-            tempdir = tempdir_base / name
-
-            if tempdir.exists():
-                continue
-
-            tempdir.mkdir(parents=True, exist_ok=False)
-            break
-
-        if tempdir is None or not tempdir.is_dir():
-            raise OMCSessionException("Cannot create a temporary directory!")
-
-        return tempdir
-
     def execute(self, command: str):
         warnings.warn(
             message="This function is depreciated and will be removed in future versions; "
