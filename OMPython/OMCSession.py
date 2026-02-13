@@ -1531,6 +1531,8 @@ class OMCSessionZMQ(OMSessionABC):
             raise OMCSessionException("Invalid definition of the OMC process!")
         self.omc_process = omc_process
 
+        super().__init__(timeout=timeout)
+
     def __del__(self):
         if hasattr(self, 'omc_process'):
             del self.omc_process
