@@ -434,7 +434,7 @@ else:
             """
             Check if the path is an absolute path. Special handling to differentiate Windows and Posix definitions.
             """
-            if isinstance(self._session, OMCSessionLocal) and platform.system() == 'Windows':
+            if self._session.model_execution_windows and self._session.model_execution_local:
                 return pathlib.PureWindowsPath(self.as_posix()).is_absolute()
             return pathlib.PurePosixPath(self.as_posix()).is_absolute()
 
