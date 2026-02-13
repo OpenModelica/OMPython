@@ -35,19 +35,32 @@ from OMPython.om_session_runner import (
     OMPathRunnerLocal,
     OMSessionRunner,
 )
-
-from OMPython.ModelicaSystem import (
+from OMPython.modelica_system_abc import (
     LinearizationResult,
-    ModelicaSystem,
-    ModelicaSystemOMC,
-    ModelicaSystemDoE,
-    ModelicaDoEOMC,
+    ModelicaSystemABC,
     ModelicaSystemError,
+)
+from OMPython.modelica_system_omc import (
+    ModelicaSystemOMC,
+)
+from OMPython.modelica_system_runner import (
     ModelicaSystemRunner,
-    ModelicaDoERunner,
-
+)
+from OMPython.modelica_doe_abc import (
+    ModelicaDoEABC,
+)
+from OMPython.modelica_doe_omc import (
     doe_get_solutions,
 
+    ModelicaDoEOMC,
+)
+from OMPython.modelica_doe_runner import (
+    ModelicaDoERunner,
+)
+
+from OMPython.ModelicaSystem import (
+    ModelicaSystem,
+    ModelicaSystemDoE,
     ModelicaSystemCmd,
 )
 from OMPython.OMCSession import (
@@ -63,11 +76,22 @@ from OMPython.OMCSession import (
 
 # global names imported if import 'from OMPython import *' is used
 __all__ = [
+    'doe_get_solutions',
+
     'LinearizationResult',
 
     'ModelExecutionCmd',
     'ModelExecutionData',
     'ModelExecutionException',
+
+    'ModelicaDoEABC',
+    'ModelicaDoEOMC',
+    'ModelicaDoERunner',
+    'ModelicaSystemABC',
+    'ModelicaSystemDoE',
+    'ModelicaSystemError',
+    'ModelicaSystemOMC',
+    'ModelicaSystemRunner',
 
     'OMPathABC',
     'OMSessionABC',
@@ -85,17 +109,8 @@ __all__ = [
     'OMPathRunnerLocal',
     'OMSessionRunner',
 
-    'ModelicaSystem',
-    'ModelicaSystemOMC',
     'ModelicaSystemCmd',
-    'ModelicaSystemDoE',
-    'ModelicaDoEOMC',
-    'ModelicaSystemError',
-
-    'ModelicaSystemRunner',
-    'ModelicaDoERunner',
-
-    'doe_get_solutions',
+    'ModelicaSystem',
 
     'OMCSessionABC',
     'OMCSessionCmd',
