@@ -618,7 +618,7 @@ else:
 
         def size(self) -> int:
             """
-            Get the size of the file in bytes - implementation baseon on pathlib.Path.
+            Get the size of the file in bytes - implementation based on pathlib.Path.
             """
             if not self.is_file():
                 raise OMCSessionException(f"Path {self.as_posix()} is not a file!")
@@ -776,7 +776,7 @@ else:
 
         def size(self) -> int:
             """
-            Get the size of the file in bytes - implementation baseon on pathlib.Path.
+            Get the size of the file in bytes - implementation based on pathlib.Path.
             """
             if not self.is_file():
                 raise OMCSessionException(f"Path {self.as_posix()} is not a file!")
@@ -790,7 +790,7 @@ else:
                 try:
                     return int(stdout)
                 except ValueError as exc:
-                    raise OSError(f"Invalid return value for filesize ({self.as_posix()}): {stdout}") from exc
+                    raise OSError(f"Invalid return value for file size ({self.as_posix()}): {stdout}") from exc
             else:
                 raise OSError(f"Cannot get size for file {self.as_posix()}")
 
@@ -1259,7 +1259,7 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
         """
         Send an expression to the OMC server and return the result.
 
-        The complete error handling of the OMC result is done within this method using '"getMessagesStringInternal()'.
+        The complete error handling of the OMC result is done within this method using 'getMessagesStringInternal()'.
         Caller should only check for OMCSessionException.
         """
 
