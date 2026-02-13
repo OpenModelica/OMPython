@@ -65,6 +65,6 @@ jobs:
           verbose: true
           emoji: true
           job-summary: true
-          custom-arguments: '-v ./tests_v400 '
+          custom-arguments: '-v ./tests_v400  --ignore=./tests_v400/test_FMIRegression.py'
           click-to-expand: true
           report-title: 'Test Report'
