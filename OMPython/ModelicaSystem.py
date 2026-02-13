@@ -25,7 +25,7 @@ from OMPython.OMCSession import (
     ModelExecutionData,
     ModelExecutionException,
 
-    OMCSessionException,
+    OMSessionException,
     OMCSessionLocal,
 
     OMPathABC,
@@ -1681,7 +1681,7 @@ class ModelicaSystemOMC(ModelicaSystemABC):
         """
         try:
             retval = self._session.sendExpression(expr=expr, parsed=parsed)
-        except OMCSessionException as ex:
+        except OMSessionException as ex:
             raise ModelicaSystemError(f"Error executing {repr(expr)}: {ex}") from ex
 
         logger.debug(f"Result of executing {repr(expr)}: {textwrap.shorten(repr(retval), width=100)}")

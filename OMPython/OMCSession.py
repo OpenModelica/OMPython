@@ -59,9 +59,15 @@ class DockerPopen:
             pass
 
 
-class OMCSessionException(Exception):
+class OMSessionException(Exception):
     """
     Exception which is raised by any OMC* class.
+    """
+
+
+class OMCSessionException(OMSessionException):
+    """
+    Just a compatibility layer ...
     """
 
 
@@ -79,7 +85,7 @@ class OMCSessionCmd:
         )
 
         if not isinstance(session, OMSessionABC):
-            raise OMCSessionException("Invalid OMC process definition!")
+            raise OMSessionException("Invalid OMC process definition!")
         self._session = session
         self._readonly = readonly
         self._omc_cache: dict[tuple[str, bool], Any] = {}
@@ -91,7 +97,7 @@ class OMCSessionCmd:
         elif isinstance(opt, list):
             expression = f"{question}({','.join([str(x) for x in opt])})"
         else:
-            raise OMCSessionException(f"Invalid definition of options for {repr(question)}: {repr(opt)}")
+            raise OMSessionException(f"Invalid definition of options for {repr(question)}: {repr(opt)}")
 
         p = (expression, parsed)
 
@@ -102,8 +108,8 @@ class OMCSessionCmd:
 
         try:
             res = self._session.sendExpression(expression, parsed=parsed)
-        except OMCSessionException as ex:
-            raise OMCSessionException(f"OMC _ask() failed: {expression} (parsed={parsed})") from ex
+        except OMSessionException as ex:
+            raise OMSessionException(f"OMC _ask() failed: {expression} (parsed={parsed})") from ex
 
         # save response
         self._omc_cache[p] = res
@@ -418,7 +424,7 @@ else:
             """
             retval = self.get_session().sendExpression(expr=f'regularFileExists("{self.as_posix()}")')
             if not isinstance(retval, bool):
-                raise OMCSessionException(f"Invalid return value for is_file(): {retval} - expect bool")
+                raise OMSessionException(f"Invalid return value for is_file(): {retval} - expect bool")
             return retval
 
         def is_dir(self) -> bool:
@@ -427,7 +433,7 @@ else:
             """
             retval = self.get_session().sendExpression(expr=f'directoryExists("{self.as_posix()}")')
             if not isinstance(retval, bool):
-                raise OMCSessionException(f"Invalid return value for is_dir(): {retval} - expect bool")
+                raise OMSessionException(f"Invalid return value for is_dir(): {retval} - expect bool")
             return retval
 
         def is_absolute(self) -> bool:
@@ -444,7 +450,7 @@ else:
             """
             retval = self.get_session().sendExpression(expr=f'readFile("{self.as_posix()}")')
             if not isinstance(retval, str):
-                raise OMCSessionException(f"Invalid return value for read_text(): {retval} - expect str")
+                raise OMSessionException(f"Invalid return value for read_text(): {retval} - expect str")
             return retval
 
         def write_text(self, data: str) -> int:
@@ -471,7 +477,7 @@ else:
                 raise FileExistsError(f"Directory {self.as_posix()} already exists!")
 
             if not self._session.sendExpression(expr=f'mkdir("{self.as_posix()}")'):
-                raise OMCSessionException(f"Error on directory creation for {self.as_posix()}!")
+                raise OMSessionException(f"Error on directory creation for {self.as_posix()}!")
 
         def cwd(self) -> OMPathABC:
             """
@@ -493,7 +499,7 @@ else:
             Resolve the path to an absolute path. This is done based on available OMC functions.
             """
             if strict and not (self.is_file() or self.is_dir()):
-                raise OMCSessionException(f"Path {self.as_posix()} does not exist!")
+                raise OMSessionException(f"Path {self.as_posix()} does not exist!")
 
             if self.is_file():
                 pathstr_resolved = self._omc_resolve(self.parent.as_posix())
@@ -502,10 +508,10 @@ else:
                 pathstr_resolved = self._omc_resolve(self.as_posix())
                 omcpath_resolved = self._session.omcpath(pathstr_resolved)
             else:
-                raise OMCSessionException(f"Path {self.as_posix()} is neither a file nor a directory!")
+                raise OMSessionException(f"Path {self.as_posix()} is neither a file nor a directory!")
 
             if not omcpath_resolved.is_file() and not omcpath_resolved.is_dir():
-                raise OMCSessionException(f"OMCPath resolve failed for {self.as_posix()} - path does not exist!")
+                raise OMSessionException(f"OMCPath resolve failed for {self.as_posix()} - path does not exist!")
 
             return omcpath_resolved
 
@@ -521,12 +527,12 @@ else:
             try:
                 retval = self.get_session().sendExpression(expr=expr, parsed=False)
                 if not isinstance(retval, str):
-                    raise OMCSessionException(f"Invalid return value for _omc_resolve(): {retval} - expect str")
+                    raise OMSessionException(f"Invalid return value for _omc_resolve(): {retval} - expect str")
                 result_parts = retval.split('\n')
                 pathstr_resolved = result_parts[1]
                 pathstr_resolved = pathstr_resolved[1:-1]  # remove quotes
-            except OMCSessionException as ex:
-                raise OMCSessionException(f"OMCPath resolve failed for {pathstr}!") from ex
+            except OMSessionException as ex:
+                raise OMSessionException(f"OMCPath resolve failed for {pathstr}!") from ex
 
             return pathstr_resolved
 
@@ -535,13 +541,13 @@ else:
             Get the size of the file in bytes - this is an extra function and the best we can do using OMC.
             """
             if not self.is_file():
-                raise OMCSessionException(f"Path {self.as_posix()} is not a file!")
+                raise OMSessionException(f"Path {self.as_posix()} is not a file!")
 
             res = self._session.sendExpression(expr=f'stat("{self.as_posix()}")')
             if res[0]:
                 return int(res[1])
 
-            raise OMCSessionException(f"Error reading file size for path {self.as_posix()}!")
+            raise OMSessionException(f"Error reading file size for path {self.as_posix()}!")
 
     class OMPathRunnerABC(OMPathABC, metaclass=abc.ABCMeta):
         """
@@ -628,7 +634,7 @@ else:
             Get the size of the file in bytes - implementation based on pathlib.Path.
             """
             if not self.is_file():
-                raise OMCSessionException(f"Path {self.as_posix()} is not a file!")
+                raise OMSessionException(f"Path {self.as_posix()} is not a file!")
 
             path = self._path()
             return path.stat().st_size
@@ -736,7 +742,7 @@ else:
             try:
                 subprocess.run(cmdl, check=True)
             except subprocess.CalledProcessError as exc:
-                raise OMCSessionException(f"Error on directory creation for {self.as_posix()}!") from exc
+                raise OMSessionException(f"Error on directory creation for {self.as_posix()}!") from exc
 
         def cwd(self) -> OMPathABC:
             """
@@ -786,7 +792,7 @@ else:
             Get the size of the file in bytes - implementation based on pathlib.Path.
             """
             if not self.is_file():
-                raise OMCSessionException(f"Path {self.as_posix()} is not a file!")
+                raise OMSessionException(f"Path {self.as_posix()} is not a file!")
 
             cmdl = self.get_session().get_cmd_prefix()
             cmdl += ['bash', '-c', f'stat -c %s "{self.as_posix()}"']
@@ -1079,7 +1085,7 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
         try:
             self._omc_loghandle = open(file=self._omc_logfile, mode="w+", encoding="utf-8")
         except OSError as ex:
-            raise OMCSessionException(f"Cannot open log file {self._omc_logfile}.") from ex
+            raise OMSessionException(f"Cannot open log file {self._omc_logfile}.") from ex
 
         # variables to store compiled re expressions use in self.sendExpression()
         self._re_log_entries: Optional[re.Pattern[str]] = None
@@ -1097,7 +1103,7 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
 
         port = self.get_port()
         if not isinstance(port, str):
-            raise OMCSessionException(f"Invalid content for port: {port}")
+            raise OMSessionException(f"Invalid content for port: {port}")
 
         # Create the ZeroMQ socket and connect to OMC server
         context = zmq.Context.instance()
@@ -1112,7 +1118,7 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
         if isinstance(self._omc_zmq, zmq.Socket):
             try:
                 self.sendExpression(expr="quit()")
-            except OMCSessionException as exc:
+            except OMSessionException as exc:
                 logger.warning(f"Exception on sending 'quit()' to OMC: {exc}! Continue nevertheless ...")
             finally:
                 self._omc_zmq = None
@@ -1151,7 +1157,7 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
         if timeout is None:
             timeout = self._timeout
         if timeout <= 0:
-            raise OMCSessionException(f"Invalid timeout: {timeout}")
+            raise OMSessionException(f"Invalid timeout: {timeout}")
 
         timer = 0.0
         yield True
@@ -1172,7 +1178,7 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
         retval = self._timeout
         if timeout is not None:
             if timeout <= 0.0:
-                raise OMCSessionException(f"Invalid timeout value: {timeout}!")
+                raise OMSessionException(f"Invalid timeout value: {timeout}!")
             self._timeout = timeout
         return retval
 
@@ -1213,7 +1219,7 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
             if isinstance(self, OMCSessionLocal):
                 # noinspection PyArgumentList
                 return OMCPath(*path)
-            raise OMCSessionException("OMCPath is supported for Python < 3.12 only if OMCSessionLocal is used!")
+            raise OMSessionException("OMCPath is supported for Python < 3.12 only if OMCSessionLocal is used!")
         return OMCPath(*path, session=self)
 
     def omcpath_tempdir(self, tempdir_base: Optional[OMPathABC] = None) -> OMPathABC:
@@ -1251,7 +1257,7 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
         """
 
         if self._omc_zmq is None:
-            raise OMCSessionException("No OMC running. Please create a new instance of OMCSession!")
+            raise OMSessionException("No OMC running. Please create a new instance of OMCSession!")
 
         logger.debug("sendExpression(expr='%r', parsed=%r)", str(expr), parsed)
 
@@ -1266,11 +1272,11 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
             # in the deletion process, the content is cleared. Thus, any access to a class attribute must be checked
             try:
                 log_content = self.get_log()
-            except OMCSessionException:
+            except OMSessionException:
                 log_content = 'log not available'
 
             logger.error(f"OMC did not start. Log-file says:\n{log_content}")
-            raise OMCSessionException(f"No connection with OMC (timeout={self._timeout}).")
+            raise OMSessionException(f"No connection with OMC (timeout={self._timeout}).")
 
         if expr == "quit()":
             self._omc_zmq.close()
@@ -1280,7 +1286,7 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
         result = self._omc_zmq.recv_string()
 
         if result.startswith('Error occurred building AST'):
-            raise OMCSessionException(f"OMC error: {result}")
+            raise OMSessionException(f"OMC error: {result}")
 
         if expr == "getErrorString()":
             # no error handling if 'getErrorString()' is called
@@ -1364,8 +1370,8 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
                 msg_long_list.append(msg_long)
             if has_error:
                 msg_long_str = '\n'.join(f"{idx:02d}: {msg}" for idx, msg in enumerate(msg_long_list))
-                raise OMCSessionException(f"OMC error occurred for 'sendExpression(expr={expr}, parsed={parsed}):\n"
-                                          f"{msg_long_str}")
+                raise OMSessionException(f"OMC error occurred for 'sendExpression(expr={expr}, parsed={parsed}):\n"
+                                         f"{msg_long_str}")
 
         if not parsed:
             return result
@@ -1377,14 +1383,14 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
             try:
                 return om_parser_basic(result)
             except (TypeError, UnboundLocalError) as ex2:
-                raise OMCSessionException("Cannot parse OMC result") from ex2
+                raise OMSessionException("Cannot parse OMC result") from ex2
 
     def get_port(self) -> Optional[str]:
         """
         Get the port to connect to the OMC session.
         """
         if not isinstance(self._omc_port, str):
-            raise OMCSessionException(f"Invalid port to connect to OMC process: {self._omc_port}")
+            raise OMSessionException(f"Invalid port to connect to OMC process: {self._omc_port}")
         return self._omc_port
 
     def get_log(self) -> str:
@@ -1392,7 +1398,7 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
         Get the log file content of the OMC session.
         """
         if self._omc_loghandle is None:
-            raise OMCSessionException("Log file not available!")
+            raise OMSessionException("Log file not available!")
 
         self._omc_loghandle.seek(0)
         log = self._omc_loghandle.read()
@@ -1463,7 +1469,7 @@ class OMCSessionLocal(OMCSessionABC):
         if path_to_omc is not None:
             return pathlib.Path(path_to_omc).parents[1]
 
-        raise OMCSessionException("Cannot find OpenModelica executable, please install from openmodelica.org")
+        raise OMSessionException("Cannot find OpenModelica executable, please install from openmodelica.org")
 
     def _omc_process_get(self) -> subprocess.Popen:
         my_env = os.environ.copy()
@@ -1497,8 +1503,8 @@ class OMCSessionLocal(OMCSessionABC):
                 break
         else:
             logger.error(f"OMC server did not start. Log-file says:\n{self.get_log()}")
-            raise OMCSessionException(f"OMC Server did not start (timeout={self._timeout}, "
-                                      f"logfile={repr(self._omc_logfile)}).")
+            raise OMSessionException(f"OMC Server did not start (timeout={self._timeout}, "
+                                     f"logfile={repr(self._omc_logfile)}).")
 
         logger.info(f"Local OMC Server is up and running at ZMQ port {port} "
                     f"pid={self._omc_process.pid if isinstance(self._omc_process, subprocess.Popen) else '?'}")
@@ -1528,7 +1534,7 @@ class OMCSessionZMQ(OMSessionABC):
         if omc_process is None:
             omc_process = OMCSessionLocal(omhome=omhome, timeout=timeout)
         elif not isinstance(omc_process, OMCSessionABC):
-            raise OMCSessionException("Invalid definition of the OMC process!")
+            raise OMSessionException("Invalid definition of the OMC process!")
         self.omc_process = omc_process
 
         super().__init__(timeout=timeout)
@@ -1614,7 +1620,7 @@ class OMCSessionDockerABC(OMCSessionABC, metaclass=abc.ABCMeta):
         # connect to the running omc instance using ZMQ
         self._omc_port = self._omc_port_get(docker_cid=self._docker_container_id)
         if port is not None and not self._omc_port.endswith(f":{port}"):
-            raise OMCSessionException(f"Port mismatch: {self._omc_port} is not using the defined port {port}!")
+            raise OMSessionException(f"Port mismatch: {self._omc_port} is not using the defined port {port}!")
 
         self._cmd_prefix = self.model_execution_prefix()
 
@@ -1632,13 +1638,13 @@ class OMCSessionDockerABC(OMCSessionABC, metaclass=abc.ABCMeta):
                     try:
                         docker_process = DockerPopen(int(columns[1]))
                     except psutil.NoSuchProcess as ex:
-                        raise OMCSessionException(f"Could not find PID {docker_top} - "
-                                                  "is this a docker instance spawned without --pid=host?") from ex
+                        raise OMSessionException(f"Could not find PID {docker_top} - "
+                                                 "is this a docker instance spawned without --pid=host?") from ex
             if docker_process is not None:
                 break
         else:
             logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
-            raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}).")
+            raise OMSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}).")
 
         return docker_process
 
@@ -1669,7 +1675,7 @@ class OMCSessionDockerABC(OMCSessionABC, metaclass=abc.ABCMeta):
         port = None
 
         if not isinstance(docker_cid, str):
-            raise OMCSessionException(f"Invalid docker container ID: {docker_cid}")
+            raise OMSessionException(f"Invalid docker container ID: {docker_cid}")
 
         # See if the omc server is running
         loop = self._timeout_loop(timestep=0.1)
@@ -1688,8 +1694,8 @@ class OMCSessionDockerABC(OMCSessionABC, metaclass=abc.ABCMeta):
                 break
         else:
             logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
-            raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}, "
-                                      f"logfile={repr(self._omc_logfile)}).")
+            raise OMSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}, "
+                                     f"logfile={repr(self._omc_logfile)}).")
 
         logger.info(f"Docker based OMC Server is up and running at port {port}")
 
@@ -1703,7 +1709,7 @@ class OMCSessionDockerABC(OMCSessionABC, metaclass=abc.ABCMeta):
             output = subprocess.check_output(["docker", "inspect", self._docker_container_id]).decode().strip()
             address = json.loads(output)[0]["NetworkSettings"]["IPAddress"]
             if not isinstance(address, str):
-                raise OMCSessionException(f"Invalid docker server address: {address}!")
+                raise OMSessionException(f"Invalid docker server address: {address}!")
             return address
 
         return None
@@ -1713,7 +1719,7 @@ class OMCSessionDockerABC(OMCSessionABC, metaclass=abc.ABCMeta):
         Get the Docker container ID of the Docker container with the OMC server.
         """
         if not isinstance(self._docker_container_id, str):
-            raise OMCSessionException(f"Invalid docker container ID: {self._docker_container_id}!")
+            raise OMSessionException(f"Invalid docker container ID: {self._docker_container_id}!")
 
         return self._docker_container_id
 
@@ -1790,8 +1796,8 @@ class OMCSessionDocker(OMCSessionDockerABC):
         if sys.platform == "win32":
             extra_flags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
             if not self._omc_port:
-                raise OMCSessionException("Docker on Windows requires knowing which port to connect to - "
-                                          "please set the interactivePort argument")
+                raise OMSessionException("Docker on Windows requires knowing which port to connect to - "
+                                         "please set the interactivePort argument")
 
         port: Optional[int] = None
         if isinstance(omc_port, str):
@@ -1801,8 +1807,8 @@ class OMCSessionDocker(OMCSessionDockerABC):
 
         if sys.platform == "win32":
             if not isinstance(port, int):
-                raise OMCSessionException("OMC on Windows needs the interactive port - "
-                                          f"missing or invalid value: {repr(omc_port)}!")
+                raise OMSessionException("OMC on Windows needs the interactive port - "
+                                         f"missing or invalid value: {repr(omc_port)}!")
             docker_network_str = ["-p", f"127.0.0.1:{port}:{port}"]
         elif self._docker_network == "host" or self._docker_network is None:
             docker_network_str = ["--network=host"]
@@ -1810,8 +1816,8 @@ class OMCSessionDocker(OMCSessionDockerABC):
             docker_network_str = []
             extra_flags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
         else:
-            raise OMCSessionException(f'dockerNetwork was set to {self._docker_network}, '
-                                      'but only \"host\" or \"separate\" is allowed')
+            raise OMSessionException(f'dockerNetwork was set to {self._docker_network}, '
+                                     'but only \"host\" or \"separate\" is allowed')
 
         if isinstance(port, int):
             extra_flags = extra_flags + [f"--interactivePort={port}"]
@@ -1838,7 +1844,7 @@ class OMCSessionDocker(OMCSessionDockerABC):
     ) -> Tuple[subprocess.Popen, DockerPopen, str]:
 
         if not isinstance(docker_image, str):
-            raise OMCSessionException("A docker image name must be provided!")
+            raise OMSessionException("A docker image name must be provided!")
 
         my_env = os.environ.copy()
 
@@ -1859,7 +1865,7 @@ class OMCSessionDocker(OMCSessionDockerABC):
                                        env=my_env)
 
         if not isinstance(docker_cid_file, pathlib.Path):
-            raise OMCSessionException(f"Invalid content for docker container ID file path: {docker_cid_file}")
+            raise OMSessionException(f"Invalid content for docker container ID file path: {docker_cid_file}")
 
         # the provided value for docker_cid is not used
         docker_cid = None
@@ -1875,14 +1881,14 @@ class OMCSessionDocker(OMCSessionDockerABC):
             time.sleep(self._timeout / 40.0)
 
         if docker_cid is None:
-            raise OMCSessionException(f"Docker did not start (timeout={self._timeout} might be too short "
-                                      "especially if you did not docker pull the image before this command). "
-                                      f"Log-file says:\n{self.get_log()}")
+            raise OMSessionException(f"Docker did not start (timeout={self._timeout} might be too short "
+                                     "especially if you did not docker pull the image before this command). "
+                                     f"Log-file says:\n{self.get_log()}")
 
         docker_process = self._docker_process_get(docker_cid=docker_cid)
         if docker_process is None:
             logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
-            raise OMCSessionException(f"Docker top did not contain omc process {self._random_string}.")
+            raise OMSessionException(f"Docker top did not contain omc process {self._random_string}.")
 
         return omc_process, docker_process, docker_cid
 
@@ -1932,10 +1938,10 @@ class OMCSessionDockerContainer(OMCSessionDockerABC):
         if sys.platform == "win32":
             extra_flags = ["-d=zmqDangerousAcceptConnectionsFromAnywhere"]
             if not isinstance(omc_port, int):
-                raise OMCSessionException("Docker on Windows requires knowing which port to connect to - "
-                                          "Please set the interactivePort argument. Furthermore, the container needs "
-                                          "to have already manually exposed this port when it was started "
-                                          "(-p 127.0.0.1:n:n) or you get an error later.")
+                raise OMSessionException("Docker on Windows requires knowing which port to connect to - "
+                                         "Please set the interactivePort argument. Furthermore, the container needs "
+                                         "to have already manually exposed this port when it was started "
+                                         "(-p 127.0.0.1:n:n) or you get an error later.")
 
         if isinstance(omc_port, int):
             extra_flags = extra_flags + [f"--interactivePort={omc_port}"]
@@ -1959,7 +1965,7 @@ class OMCSessionDockerContainer(OMCSessionDockerABC):
     ) -> Tuple[subprocess.Popen, DockerPopen, str]:
 
         if not isinstance(docker_cid, str):
-            raise OMCSessionException("A docker container ID must be provided!")
+            raise OMSessionException("A docker container ID must be provided!")
 
         my_env = os.environ.copy()
 
@@ -1981,8 +1987,8 @@ class OMCSessionDockerContainer(OMCSessionDockerABC):
             docker_process = self._docker_process_get(docker_cid=docker_cid)
 
         if docker_process is None:
-            raise OMCSessionException(f"Docker top did not contain omc process {self._random_string} "
-                                      f"/ {docker_cid}. Log-file says:\n{self.get_log()}")
+            raise OMSessionException(f"Docker top did not contain omc process {self._random_string} "
+                                     f"/ {docker_cid}. Log-file says:\n{self.get_log()}")
 
         return omc_process, docker_process, docker_cid
 
@@ -2066,8 +2072,8 @@ class OMCSessionWSL(OMCSessionABC):
                 break
         else:
             logger.error(f"WSL based OMC server did not start. Log-file says:\n{self.get_log()}")
-            raise OMCSessionException(f"WSL based OMC Server did not start (timeout={self._timeout}, "
-                                      f"logfile={repr(self._omc_logfile)}).")
+            raise OMSessionException(f"WSL based OMC Server did not start (timeout={self._timeout}, "
+                                     f"logfile={repr(self._omc_logfile)}).")
 
         logger.info(f"WSL based OMC Server is up and running at ZMQ port {port} "
                     f"pid={self._omc_process.pid if isinstance(self._omc_process, subprocess.Popen) else '?'}")
@@ -2092,7 +2098,7 @@ class OMSessionRunnerABC(OMSessionABC, metaclass=abc.ABCMeta):
         self._version = version
 
         if not issubclass(ompath_runner, OMPathRunnerABC):
-            raise OMCSessionException(f"Invalid OMPathRunner class: {type(ompath_runner)}!")
+            raise OMSessionException(f"Invalid OMPathRunner class: {type(ompath_runner)}!")
         self._ompath_runner = ompath_runner
 
         self.model_execution_local = model_execution_local
@@ -2162,7 +2168,7 @@ class OMSessionRunner(OMSessionRunnerABC):
         return self._tempdir(tempdir_base=tempdir_base)
 
     def sendExpression(self, expr: str, parsed: bool = True) -> Any:
-        raise OMCSessionException(f"{self.__class__.__name__} does not uses an OMC server!")
+        raise OMSessionException(f"{self.__class__.__name__} does not uses an OMC server!")
 
 
 DummyPopen = DockerPopen
