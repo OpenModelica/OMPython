@@ -71,6 +71,13 @@ class OMCSessionCmd:
     """
 
     def __init__(self, session: OMSessionABC, readonly: bool = False):
+        warnings.warn(
+            message="The class OMCSessionCMD is depreciated and will be removed in future versions; "
+                    "please use OMCSession*.sendExpression(...) instead!",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+
         if not isinstance(session, OMSessionABC):
             raise OMCSessionException("Invalid OMC process definition!")
         self._session = session
