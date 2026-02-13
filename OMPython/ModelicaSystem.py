@@ -142,31 +142,31 @@ class ModelExecutionCmd:
         """
 
         def override2str(
-                key: str,
-                val: str | bool | numbers.Number,
+                orkey: str,
+                orval: str | bool | numbers.Number,
         ) -> str:
             """
             Convert a value for 'override' to a string taking into account differences between Modelica and Python.
             """
             # check oval for any string representations of numbers (or bool) and convert these to Python representations
-            if isinstance(val, str):
+            if isinstance(orval, str):
                 try:
-                    val_evaluated = ast.literal_eval(val)
+                    val_evaluated = ast.literal_eval(orval)
                     if isinstance(val_evaluated, (numbers.Number, bool)):
-                        val = val_evaluated
+                        orval = val_evaluated
                 except (ValueError, SyntaxError):
                     pass
 
-            if isinstance(val, str):
-                val_str = val.strip()
-            elif isinstance(val, bool):
-                val_str = 'true' if val else 'false'
-            elif isinstance(val, numbers.Number):
-                val_str = str(val)
+            if isinstance(orval, str):
+                val_str = orval.strip()
+            elif isinstance(orval, bool):
+                val_str = 'true' if orval else 'false'
+            elif isinstance(orval, numbers.Number):
+                val_str = str(orval)
             else:
-                raise ModelExecutionException(f"Invalid value for override key {key}: {type(val)}")
+                raise ModelExecutionException(f"Invalid value for override key {orkey}: {type(orval)}")
 
-            return f"{key}={val_str}"
+            return f"{orkey}={val_str}"
 
         if not isinstance(key, str):
             raise ModelExecutionException(f"Invalid argument key: {repr(key)} (type: {type(key)})")
@@ -195,7 +195,7 @@ class ModelExecutionCmd:
                                 f"(was: {repr(self._arg_override[okey])})")
 
                 if oval is not None:
-                    self._arg_override[okey] = override2str(key=okey, val=oval)
+                    self._arg_override[okey] = override2str(orkey=okey, orval=oval)
 
             argval = ','.join(sorted(self._arg_override.values()))
         elif val is None:
