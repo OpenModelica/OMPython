@@ -2822,7 +2822,9 @@ class ModelicaDoERunner(ModelicaDoEABC):
 
 
 class ModelicaSystemCmd(ModelExecutionCmd):
-    # TODO: docstring
+    """
+    Compatibility class; in the new version it is renamed as MOdelExecutionCmd.
+    """
 
     def __init__(
             self,
