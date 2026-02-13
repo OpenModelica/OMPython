@@ -33,11 +33,10 @@ from OMPython.OMCSession import (
     OMSessionABC,
     OMSessionRunner,
 
-    OMCSessionABC,
-
     ModelExecutionData,
     ModelExecutionException,
 
+    OMCSessionABC,
     OMCSessionCmd,
     OMCSessionDocker,
     OMCSessionDockerContainer,
@@ -81,10 +80,9 @@ __all__ = [
     'OMSessionABC',
     'OMSessionRunner',
 
-    'OMCSessionABC',
-
     'doe_get_solutions',
 
+    'OMCSessionABC',
     'OMCSessionCmd',
     'OMCSessionDocker',
     'OMCSessionDockerContainer',
