@@ -2073,16 +2073,16 @@ class OMCSessionWSL(OMCSessionABC):
         return port
 
 
-class OMSessionRunner(OMSessionABC):
+class OMSessionRunnerABC(OMSessionABC, metaclass=abc.ABCMeta):
     """
     Implementation based on OMSessionABC without any use of an OMC server.
     """
 
     def __init__(
             self,
+            ompath_runner: Type[OMPathRunnerABC],
             timeout: float = 10.0,
             version: str = "1.27.0",
-            ompath_runner: Type[OMPathRunnerABC] = OMPathRunnerLocal,
             cmd_prefix: Optional[list[str]] = None,
             model_execution_local: bool = True,
     ) -> None:
@@ -2097,8 +2097,27 @@ class OMSessionRunner(OMSessionABC):
         if cmd_prefix is not None:
             self._cmd_prefix = cmd_prefix
 
-        # TODO: some checking?!
-        # if ompath_runner == Type[OMPathRunnerBash]:
+
+class OMSessionRunner(OMSessionRunnerABC):
+    """
+    Implementation based on OMSessionABC without any use of an OMC server.
+    """
+
+    def __init__(
+            self,
+            ompath_runner: Type[OMPathRunnerABC] = OMPathRunnerLocal,
+            timeout: float = 10.0,
+            version: str = "1.27.0",
+            cmd_prefix: Optional[list[str]] = None,
+            model_execution_local: bool = True,
+    ) -> None:
+        super().__init__(
+            ompath_runner=ompath_runner,
+            timeout=timeout,
+            version=version,
+            cmd_prefix=cmd_prefix,
+            model_execution_local=model_execution_local,
+        )
 
     def __post_init__(self) -> None:
         """
