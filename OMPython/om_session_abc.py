@@ -95,13 +95,13 @@ else:
             return type(self)(*pathsegments, session=self._session)
 
         @abc.abstractmethod
-        def is_file(self) -> bool:
+        def is_file(self, *, follow_symlinks=True) -> bool:
             """
             Check if the path is a regular file.
             """
 
         @abc.abstractmethod
-        def is_dir(self) -> bool:
+        def is_dir(self, *, follow_symlinks: bool = True) -> bool:
             """
             Check if the path is a directory.
             """
@@ -113,19 +113,19 @@ else:
             """
 
         @abc.abstractmethod
-        def read_text(self) -> str:
+        def read_text(self, encoding=None, errors=None, newline=None) -> str:
             """
             Read the content of the file represented by this path as text.
             """
 
         @abc.abstractmethod
-        def write_text(self, data: str) -> int:
+        def write_text(self, data: str, encoding=None, errors=None, newline=None) -> int:
             """
             Write text data to the file represented by this path.
             """
 
         @abc.abstractmethod
-        def mkdir(self, parents: bool = True, exist_ok: bool = False) -> None:
+        def mkdir(self, mode=0o777, parents: bool = False, exist_ok: bool = False) -> None:
             """
             Create a directory at the path represented by this class.
 
@@ -135,7 +135,7 @@ else:
             """
 
         @abc.abstractmethod
-        def cwd(self) -> OMPathABC:
+        def cwd(self) -> OMPathABC:  # pylint: disable=W0221 # is @classmethod in the original; see pathlib.PathBase
             """
             Returns the current working directory as an OMPathABC object.
             """

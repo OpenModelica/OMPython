@@ -1020,7 +1020,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
                 self._inputs[key] = [(float(self._simulate_options["startTime"]), float(val)),
                                      (float(self._simulate_options["stopTime"]), float(val))]
             elif isinstance(val_evaluated, list):
-                if not all([isinstance(item, tuple) for item in val_evaluated]):
+                if not all(isinstance(item, tuple) for item in val_evaluated):
                     raise ModelicaSystemError("Value for setInput() must be in tuple format; "
                                               f"got {repr(val_evaluated)}")
                 if val_evaluated != sorted(val_evaluated, key=lambda x: x[0]):

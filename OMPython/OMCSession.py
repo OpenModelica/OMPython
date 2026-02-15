@@ -282,12 +282,14 @@ class OMCSessionZMQ(OMSessionABC):
     def execute(self, command: str):
         return self.omc_process.execute(command=command)
 
-    def sendExpression(self, command: str, parsed: bool = True) -> Any:
+    def sendExpression(self, command: str, parsed: bool = True) -> Any:  # pylint: disable=W0237
         """
         Send an expression to the OMC server and return the result.
 
-        The complete error handling of the OMC result is done within this method using '"getMessagesStringInternal()'.
+        The complete error handling of the OMC result is done within this method using 'getMessagesStringInternal()'.
         Caller should only check for OMCSessionException.
+
+        Compatibility: 'command' was renamed to 'expr'
         """
         return self.omc_process.sendExpression(expr=command, parsed=parsed)
 

@@ -49,16 +49,20 @@ else:
         conversion via pathlib.Path(<OMCPathDummy>.as_posix()).
         """
 
-        def is_file(self) -> bool:
+        def is_file(self, *, follow_symlinks=True) -> bool:
             """
             Check if the path is a regular file.
             """
+            del follow_symlinks
+
             return self._path().is_file()
 
-        def is_dir(self) -> bool:
+        def is_dir(self, *, follow_symlinks: bool = True) -> bool:
             """
             Check if the path is a directory.
             """
+            del follow_symlinks
+
             return self._path().is_dir()
 
         def is_absolute(self) -> bool:
@@ -67,22 +71,26 @@ else:
             """
             return self._path().is_absolute()
 
-        def read_text(self) -> str:
+        def read_text(self, encoding=None, errors=None, newline=None) -> str:
             """
             Read the content of the file represented by this path as text.
             """
+            del encoding, errors, newline
+
             return self._path().read_text(encoding='utf-8')
 
-        def write_text(self, data: str):
+        def write_text(self, data: str, encoding=None, errors=None, newline=None):
             """
             Write text data to the file represented by this path.
             """
+            del encoding, errors, newline
+
             if not isinstance(data, str):
                 raise TypeError(f"data must be str, not {data.__class__.__name__}")
 
             return self._path().write_text(data=data, encoding='utf-8')
 
-        def mkdir(self, parents: bool = True, exist_ok: bool = False) -> None:
+        def mkdir(self, mode=0o777, parents: bool = False, exist_ok: bool = False) -> None:
             """
             Create a directory at the path represented by this class.
 
@@ -90,9 +98,11 @@ else:
             Python < 3.12. In this case, pathlib.Path is used directly and this option ensures, that missing parent
             directories are also created.
             """
+            del mode
+
             self._path().mkdir(parents=parents, exist_ok=exist_ok)
 
-        def cwd(self) -> OMPathABC:
+        def cwd(self) -> OMPathABC:  # pylint: disable=W0221 # is @classmethod in the original; see pathlib.PathBase
             """
             Returns the current working directory as an OMPathABC object.
             """
@@ -132,10 +142,12 @@ else:
         conversion via pathlib.Path(<OMCPathDummy>.as_posix()).
         """
 
-        def is_file(self) -> bool:
+        def is_file(self, *, follow_symlinks=True) -> bool:
             """
             Check if the path is a regular file.
             """
+            del follow_symlinks
+
             cmdl = self.get_session().get_cmd_prefix()
             cmdl += ['bash', '-c', f'test -f "{self.as_posix()}"']
 
@@ -145,7 +157,7 @@ else:
             except subprocess.CalledProcessError:
                 return False
 
-        def is_dir(self) -> bool:
+        def is_dir(self, *, follow_symlinks: bool = True) -> bool:
             """
             Check if the path is a directory.
             """
@@ -172,10 +184,12 @@ else:
             except subprocess.CalledProcessError:
                 return False
 
-        def read_text(self) -> str:
+        def read_text(self, encoding=None, errors=None, newline=None) -> str:
             """
             Read the content of the file represented by this path as text.
             """
+            del encoding, errors, newline
+
             cmdl = self.get_session().get_cmd_prefix()
             cmdl += ['bash', '-c', f'cat "{self.as_posix()}"']
 
@@ -184,10 +198,12 @@ else:
                 return result.stdout.decode('utf-8')
             raise FileNotFoundError(f"Cannot read file: {self.as_posix()}")
 
-        def write_text(self, data: str) -> int:
+        def write_text(self, data: str, encoding=None, errors=None, newline=None) -> int:
             """
             Write text data to the file represented by this path.
             """
+            del encoding, errors, newline
+
             if not isinstance(data, str):
                 raise TypeError(f"data must be str, not {data.__class__.__name__}")
 
@@ -202,7 +218,7 @@ else:
             except subprocess.CalledProcessError as exc:
                 raise IOError(f"Error writing data to file {self.as_posix()}!") from exc
 
-        def mkdir(self, parents: bool = True, exist_ok: bool = False) -> None:
+        def mkdir(self, mode=0o777, parents: bool = False, exist_ok: bool = False) -> None:
             """
             Create a directory at the path represented by this class.
 
@@ -210,6 +226,7 @@ else:
             Python < 3.12. In this case, pathlib.Path is used directly and this option ensures, that missing parent
             directories are also created.
             """
+            del mode
 
             if self.is_file():
                 raise OSError(f"The given path {self.as_posix()} exists and is a file!")
@@ -226,7 +243,7 @@ else:
             except subprocess.CalledProcessError as exc:
                 raise OMSessionException(f"Error on directory creation for {self.as_posix()}!") from exc
 
-        def cwd(self) -> OMPathABC:
+        def cwd(self) -> OMPathABC:  # pylint: disable=W0221 # is @classmethod in the original; see pathlib.PathBase
             """
             Returns the current working directory as an OMPathABC object.
             """
