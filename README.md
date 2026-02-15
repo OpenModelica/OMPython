@@ -7,7 +7,7 @@ communicate with OpenModelica.
 
 ## Dependencies
 
-  - Python >= 3.10 supported with complete functionality for Python >= 3.12
+  - Python >= 3.12
   - Additional packages: numpy, psutil, pyparsing and pyzmq
 
 ## Installation

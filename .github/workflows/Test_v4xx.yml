@@ -12,13 +12,13 @@ jobs:
         # test for:
         # * oldest supported version
         # * latest available Python version
-        python-version: ['3.10', '3.14']
+        python-version: [ '3.12', '3.14' ]
         # * Linux using ubuntu-latest
         # * Windows using windows-latest
-        os: ['ubuntu-latest', 'windows-latest']
+        os: [ 'ubuntu-latest', 'windows-latest' ]
         # * OM stable - latest stable version
         # * OM nightly - latest nightly build
-        omc-version: ['stable', 'nightly']
+        omc-version: [ 'stable', 'nightly' ]
 
     steps:
       - uses: actions/checkout@v6

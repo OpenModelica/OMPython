@@ -7,10 +7,8 @@ from __future__ import annotations
 
 import abc
 import logging
-import os
 import pathlib
 import platform
-import sys
 from typing import Any, Optional
 import uuid
 
@@ -24,151 +22,110 @@ class OMSessionException(Exception):
     """
 
 
-# due to the compatibility layer to Python < 3.12, the OM(C)Path classes must be hidden behind the following if
-# conditions. This is also the reason for OMPathABC, a simple base class to be used in ModelicaSystem* classes.
-# Reason: before Python 3.12, pathlib.PurePosixPath can not be derived from; therefore, OMPathABC is not possible
-if sys.version_info < (3, 12):
-    class _OMPathCompatibility(pathlib.Path):
-        """
-        Compatibility class for OMPathABC in Python < 3.12. This allows to run all code which uses OMPathABC (mainly
-        ModelicaSystem) on these Python versions. There are remaining limitation as only local execution is possible.
-        """
+class OMPathABC(pathlib.PurePosixPath, metaclass=abc.ABCMeta):
+    """
+    Implementation of a basic (PurePosix)Path object to be used within OMPython. The derived classes can use OMC as
+    backend and - thus - work on different configurations like docker or WSL. The connection to OMC is provided via
+    an instances of classes derived from BaseSession.
 
-        # modified copy of pathlib.Path.__new__() definition
-        def __new__(cls, *args, **kwargs):
-            logger.warning("Python < 3.12 - using a version of class OMCPath "
-                           "based on pathlib.Path for local usage only.")
+    PurePosixPath is selected as it covers all but Windows systems (Linux, docker, WSL). However, the code is
+    written such that possible Windows system are taken into account. Nevertheless, the overall functionality is
+    limited compared to standard pathlib.Path objects.
+    """
 
-            if cls is _OMPathCompatibility:
-                cls = _OMPathCompatibilityWindows if os.name == 'nt' else _OMPathCompatibilityPosix
-            self = cls._from_parts(args)
-            if not self._flavour.is_supported:
-                raise NotImplementedError(f"cannot instantiate {cls.__name__} on your system")
-            return self
+    def __init__(self, *path, session: OMSessionABC) -> None:
+        super().__init__(*path)
+        self._session = session
 
-        def size(self) -> int:
-            """
-            Needed compatibility function to have the same interface as OMCPathReal
-            """
-            return self.stat().st_size
-
-    class _OMPathCompatibilityPosix(pathlib.PosixPath, _OMPathCompatibility):
+    def get_session(self) -> OMSessionABC:
         """
-        Compatibility class for OMCPath on Posix systems (Python < 3.12)
+        Get session definition used for this instance of OMPath.
         """
+        return self._session
 
-    class _OMPathCompatibilityWindows(pathlib.WindowsPath, _OMPathCompatibility):
+    def with_segments(self, *pathsegments) -> OMPathABC:
         """
-        Compatibility class for OMCPath on Windows systems (Python < 3.12)
+        Create a new OMCPath object with the given path segments.
+
+        The original definition of Path is overridden to ensure the session data is set.
+        """
+        return type(self)(*pathsegments, session=self._session)
+
+    @abc.abstractmethod
+    def is_file(self, *, follow_symlinks=True) -> bool:
+        """
+        Check if the path is a regular file.
         """
 
-    OMPathABC = _OMPathCompatibility
-
-else:
-    class OMPathABC(pathlib.PurePosixPath, metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def is_dir(self, *, follow_symlinks: bool = True) -> bool:
         """
-        Implementation of a basic (PurePosix)Path object to be used within OMPython. The derived classes can use OMC as
-        backend and - thus - work on different configurations like docker or WSL. The connection to OMC is provided via
-        an instances of classes derived from BaseSession.
-
-        PurePosixPath is selected as it covers all but Windows systems (Linux, docker, WSL). However, the code is
-        written such that possible Windows system are taken into account. Nevertheless, the overall functionality is
-        limited compared to standard pathlib.Path objects.
+        Check if the path is a directory.
         """
 
-        def __init__(self, *path, session: OMSessionABC) -> None:
-            super().__init__(*path)
-            self._session = session
+    @abc.abstractmethod
+    def is_absolute(self) -> bool:
+        """
+        Check if the path is an absolute path.
+        """
 
-        def get_session(self) -> OMSessionABC:
-            """
-            Get session definition used for this instance of OMPath.
-            """
-            return self._session
+    @abc.abstractmethod
+    def read_text(self, encoding=None, errors=None, newline=None) -> str:
+        """
+        Read the content of the file represented by this path as text.
+        """
 
-        def with_segments(self, *pathsegments) -> OMPathABC:
-            """
-            Create a new OMCPath object with the given path segments.
+    @abc.abstractmethod
+    def write_text(self, data: str, encoding=None, errors=None, newline=None) -> int:
+        """
+        Write text data to the file represented by this path.
+        """
 
-            The original definition of Path is overridden to ensure the session data is set.
-            """
-            return type(self)(*pathsegments, session=self._session)
+    @abc.abstractmethod
+    def mkdir(self, mode=0o777, parents: bool = False, exist_ok: bool = False) -> None:
+        """
+        Create a directory at the path represented by this class.
 
-        @abc.abstractmethod
-        def is_file(self, *, follow_symlinks=True) -> bool:
-            """
-            Check if the path is a regular file.
-            """
+        The argument parents with default value True exists to ensure compatibility with the fallback solution for
+        Python < 3.12. In this case, pathlib.Path is used directly and this option ensures, that missing parent
+        directories are also created.
+        """
 
-        @abc.abstractmethod
-        def is_dir(self, *, follow_symlinks: bool = True) -> bool:
-            """
-            Check if the path is a directory.
-            """
+    @abc.abstractmethod
+    def cwd(self) -> OMPathABC:  # pylint: disable=W0221 # is @classmethod in the original; see pathlib.PathBase
+        """
+        Returns the current working directory as an OMPathABC object.
+        """
 
-        @abc.abstractmethod
-        def is_absolute(self) -> bool:
-            """
-            Check if the path is an absolute path.
-            """
+    @abc.abstractmethod
+    def unlink(self, missing_ok: bool = False) -> None:
+        """
+        Unlink (delete) the file or directory represented by this path.
+        """
 
-        @abc.abstractmethod
-        def read_text(self, encoding=None, errors=None, newline=None) -> str:
-            """
-            Read the content of the file represented by this path as text.
-            """
+    @abc.abstractmethod
+    def resolve(self, strict: bool = False) -> OMPathABC:
+        """
+        Resolve the path to an absolute path.
+        """
 
-        @abc.abstractmethod
-        def write_text(self, data: str, encoding=None, errors=None, newline=None) -> int:
-            """
-            Write text data to the file represented by this path.
-            """
+    def absolute(self) -> OMPathABC:
+        """
+        Resolve the path to an absolute path. Just a wrapper for resolve().
+        """
+        return self.resolve()
 
-        @abc.abstractmethod
-        def mkdir(self, mode=0o777, parents: bool = False, exist_ok: bool = False) -> None:
-            """
-            Create a directory at the path represented by this class.
+    def exists(self) -> bool:
+        """
+        Semi replacement for pathlib.Path.exists().
+        """
+        return self.is_file() or self.is_dir()
 
-            The argument parents with default value True exists to ensure compatibility with the fallback solution for
-            Python < 3.12. In this case, pathlib.Path is used directly and this option ensures, that missing parent
-            directories are also created.
-            """
-
-        @abc.abstractmethod
-        def cwd(self) -> OMPathABC:  # pylint: disable=W0221 # is @classmethod in the original; see pathlib.PathBase
-            """
-            Returns the current working directory as an OMPathABC object.
-            """
-
-        @abc.abstractmethod
-        def unlink(self, missing_ok: bool = False) -> None:
-            """
-            Unlink (delete) the file or directory represented by this path.
-            """
-
-        @abc.abstractmethod
-        def resolve(self, strict: bool = False) -> OMPathABC:
-            """
-            Resolve the path to an absolute path.
-            """
-
-        def absolute(self) -> OMPathABC:
-            """
-            Resolve the path to an absolute path. Just a wrapper for resolve().
-            """
-            return self.resolve()
-
-        def exists(self) -> bool:
-            """
-            Semi replacement for pathlib.Path.exists().
-            """
-            return self.is_file() or self.is_dir()
-
-        @abc.abstractmethod
-        def size(self) -> int:
-            """
-            Get the size of the file in bytes - this is an extra function and the best we can do using OMC.
-            """
+    @abc.abstractmethod
+    def size(self) -> int:
+        """
+        Get the size of the file in bytes - this is an extra function and the best we can do using OMC.
+        """
 
 
 class PostInitCaller(type):
