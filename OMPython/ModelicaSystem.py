@@ -28,10 +28,15 @@ from OMPython.modelica_doe_omc import (
     ModelicaDoEOMC,
 )
 
+from OMPython.compatibility_v400 import (
+    depreciated_class,
+)
+
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
 
 
+@depreciated_class(msg="Please use class ModelicaSystemOMC instead!")
 class ModelicaSystem(ModelicaSystemOMC):
     """
     Compatibility class.
@@ -67,58 +72,167 @@ class ModelicaSystem(ModelicaSystemOMC):
     def setCommandLineOptions(self, commandLineOptions: str):
         super().set_command_line_options(command_line_option=commandLineOptions)
 
-    def setContinuous(  # type: ignore[override]
+    def _set_compatibility_helper(
             self,
-            cvals: str | list[str] | dict[str, Any],
-    ) -> bool:
-        if isinstance(cvals, dict):
-            return super().setContinuous(**cvals)
-        raise ModelicaSystemError("Only dict input supported for setContinuous()")
+            pkey: str,
+            args: Any,
+            kwargs: dict[str, Any],
+    ) -> Any:
+        param = None
+        if len(args) == 1:
+            param = args[0]
+        if param is None and pkey in kwargs:
+            param = kwargs[pkey]
 
-    def setParameters(  # type: ignore[override]
-            self,
-            pvals: str | list[str] | dict[str, Any],
-    ) -> bool:
-        if isinstance(pvals, dict):
-            return super().setParameters(**pvals)
-        raise ModelicaSystemError("Only dict input supported for setParameters()")
+        return param
 
-    def setOptimizationOptions(  # type: ignore[override]
+    def setContinuous(
             self,
-            optimizationOptions: str | list[str] | dict[str, Any],
+            *args: Any,
+            **kwargs: dict[str, Any],
     ) -> bool:
-        if isinstance(optimizationOptions, dict):
-            return super().setOptimizationOptions(**optimizationOptions)
-        raise ModelicaSystemError("Only dict input supported for setOptimizationOptions()")
+        """
+        Compatibility wrapper for setContinuous() from OMPython v4.0.0
 
-    def setInputs(  # type: ignore[override]
-            self,
-            name: str | list[str] | dict[str, Any],
-    ) -> bool:
-        if isinstance(name, dict):
-            return super().setInputs(**name)
-        raise ModelicaSystemError("Only dict input supported for setInputs()")
+        Original definition:
 
-    def setSimulationOptions(  # type: ignore[override]
-            self,
-            simOptions: str | list[str] | dict[str, Any],
-    ) -> bool:
-        if isinstance(simOptions, dict):
-            return super().setSimulationOptions(**simOptions)
-        raise ModelicaSystemError("Only dict input supported for setSimulationOptions()")
+        ```
+        def setContinuous(
+                self,
+                cvals: str | list[str] | dict[str, Any],
+        ) -> bool:
+        ```
+        """
+        param = self._set_compatibility_helper(pkey='cvals', args=args, kwargs=kwargs)
+        if param is None:
+            raise ModelicaSystemError("Invalid input for setContinuous() (v4.0.0 compatibility mode).")
 
-    def setLinearizationOptions(  # type: ignore[override]
+        return super().setContinuous(param)
+
+    def setParameters(
             self,
-            linearizationOptions: str | list[str] | dict[str, Any],
+            *args: Any,
+            **kwargs: dict[str, Any],
     ) -> bool:
-        if isinstance(linearizationOptions, dict):
-            return super().setLinearizationOptions(**linearizationOptions)
-        raise ModelicaSystemError("Only dict input supported for setLinearizationOptions()")
+        """
+        Compatibility wrapper for setParameters() from OMPython v4.0.0
+
+        Original definition:
+
+        ```
+        def setParameters(
+                self,
+                pvals: str | list[str] | dict[str, Any],
+        ) -> bool:
+        ```
+        """
+        param = self._set_compatibility_helper(pkey='pvals', args=args, kwargs=kwargs)
+        if param is None:
+            raise ModelicaSystemError("Invalid input for setParameters() (v4.0.0 compatibility mode).")
+
+        return super().setParameters(param)
+
+    def setOptimizationOptions(
+            self,
+            *args: Any,
+            **kwargs: dict[str, Any],
+    ) -> bool:
+        """
+        Compatibility wrapper for setOptimizationOptions() from OMPython v4.0.0
+
+        Original definition:
+
+        ```
+        def setOptimizationOptions(
+                self,
+                optimizationOptions: str | list[str] | dict[str, Any],
+        ) -> bool:
+        ```
+        """
+        param = self._set_compatibility_helper(pkey='optimizationOptions', args=args, kwargs=kwargs)
+        if param is None:
+            raise ModelicaSystemError("Invalid input for setOptimizationOptions() (v4.0.0 compatibility mode).")
+
+        return super().setOptimizationOptions(param)
+
+    def setInputs(
+            self,
+            *args: Any,
+            **kwargs: dict[str, Any],
+    ) -> bool:
+        """
+        Compatibility wrapper for setInputs() from OMPython v4.0.0
+
+        Original definition:
+
+        ```
+        def setInputs(
+                self,
+                name: str | list[str] | dict[str, Any],
+        ) -> bool:
+        ```
+        """
+        param = self._set_compatibility_helper(pkey='name', args=args, kwargs=kwargs)
+        if param is None:
+            raise ModelicaSystemError("Invalid input for setInputs() (v4.0.0 compatibility mode).")
+
+        return super().setInputs(param)
+
+    def setSimulationOptions(
+            self,
+            *args: Any,
+            **kwargs: dict[str, Any],
+    ) -> bool:
+        """
+        Compatibility wrapper for setSimulationOptions() from OMPython v4.0.0
+
+        Original definition:
+
+        ```
+        def setSimulationOptions(
+                self,
+                simOptions: str | list[str] | dict[str, Any],
+        ) -> bool:
+        ```
+        """
+        param = self._set_compatibility_helper(pkey='simOptions', args=args, kwargs=kwargs)
+        if param is None:
+            raise ModelicaSystemError("Invalid input for setSimulationOptions() (v4.0.0 compatibility mode).")
+
+        return super().setSimulationOptions(param)
+
+    def setLinearizationOptions(
+            self,
+            *args: Any,
+            **kwargs: dict[str, Any],
+    ) -> bool:
+        """
+        Compatibility wrapper for setLinearizationOptions() from OMPython v4.0.0
+
+        Original definition:
+
+        ```
+        def setLinearizationOptions(
+                self,
+                linearizationOptions: str | list[str] | dict[str, Any],
+        ) -> bool:
+        ```
+        """
+        param = self._set_compatibility_helper(pkey='linearizationOptions', args=args, kwargs=kwargs)
+        if param is None:
+            raise ModelicaSystemError("Invalid input for setLinearizationOptions() (v4.0.0 compatibility mode).")
+
+        return super().setLinearizationOptions(param)
 
     def getContinuous(
             self,
             names: Optional[str | list[str]] = None,
     ):
+        """
+        Compatibility wrapper for getContinuous() from OMPython v4.0.0
+
+        If no model simulation was run (self._simulated == False), the return value should be converted to str.
+        """
         retval = super().getContinuous(names=names)
         if self._simulated:
             return retval
@@ -146,6 +260,11 @@ class ModelicaSystem(ModelicaSystemOMC):
             self,
             names: Optional[str | list[str]] = None,
     ):
+        """
+        Compatibility wrapper for getOutputs() from OMPython v4.0.0
+
+        If no model simulation was run (self._simulated == False), the return value should be converted to str.
+        """
         retval = super().getOutputs(names=names)
         if self._simulated:
             return retval
@@ -170,12 +289,14 @@ class ModelicaSystem(ModelicaSystemOMC):
         raise ModelicaSystemError("Invalid data!")
 
 
+@depreciated_class(msg="Please use class ModelicaDoEOMC instead!")
 class ModelicaSystemDoE(ModelicaDoEOMC):
     """
     Compatibility class.
     """
 
 
+@depreciated_class(msg="Please use class ModelExecutionCmd instead!")
 class ModelicaSystemCmd(ModelExecutionCmd):
     """
     Compatibility class; in the new version it is renamed as ModelExecutionCmd.

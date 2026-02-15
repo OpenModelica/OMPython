@@ -1029,7 +1029,6 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
                 raise ModelicaSystemError(f"Invalid data in input for {repr(key)}: {repr(val)}")
 
             val_evaluated = ast.literal_eval(val)
-
             if isinstance(val_evaluated, (int, float)):
                 self._inputs[key] = [(float(self._simulate_options["startTime"]), float(val)),
                                      (float(self._simulate_options["stopTime"]), float(val))]
@@ -1037,19 +1036,30 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
                 if not all(isinstance(item, tuple) for item in val_evaluated):
                     raise ModelicaSystemError("Value for setInput() must be in tuple format; "
                                               f"got {repr(val_evaluated)}")
-                if val_evaluated != sorted(val_evaluated, key=lambda x: x[0]):
-                    raise ModelicaSystemError("Time value should be in increasing order; "
-                                              f"got {repr(val_evaluated)}")
 
+                val_evaluated_checked: list[tuple[float, float]] = []
                 for item in val_evaluated:
-                    if item[0] < float(self._simulate_options["startTime"]):
-                        raise ModelicaSystemError(f"Time value in {repr(item)} of {repr(val_evaluated)} is less "
-                                                  "than the simulation start time")
                     if len(item) != 2:
                         raise ModelicaSystemError(f"Value {repr(item)} of {repr(val_evaluated)} "
                                                   "is in incorrect format!")
 
-                self._inputs[key] = val_evaluated
+                    try:
+                        val_evaluated_checked.append((float(item[0]), float(item[1])))
+                    except (ValueError, TypeError) as exc:
+                        raise ModelicaSystemError("All elements of the input for setInput() should be convertible to "
+                                                  "type Tuple[float, float] - "
+                                                  f"found [{repr(item[0])}, {repr(item[1])}] with types "
+                                                  f"[{type(item[0])}, {type(item[1])}]!") from exc
+
+                    if item[0] < float(self._simulate_options["startTime"]):
+                        raise ModelicaSystemError(f"Time value in {repr(item)} of {repr(val_evaluated)} is less "
+                                                  "than the simulation start time")
+
+                if val_evaluated_checked != sorted(val_evaluated_checked, key=lambda x: x[0]):
+                    raise ModelicaSystemError("Time value should be in increasing order; "
+                                              f"got {repr(val_evaluated_checked)}")
+
+                self._inputs[key] = val_evaluated_checked
             else:
                 raise ModelicaSystemError(f"Data cannot be evaluated for {repr(key)}: {repr(val)}")
 

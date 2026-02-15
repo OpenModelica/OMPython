@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 from typing import Any, Optional
-import warnings
 
 import pyparsing
 
@@ -17,7 +16,6 @@ from OMPython.om_session_abc import (
     OMSessionException,
 )
 from OMPython.om_session_omc import (
-    DockerPopen,
     OMCSessionABC,
     OMCSessionDocker,
     OMCSessionDockerContainer,
@@ -26,30 +24,28 @@ from OMPython.om_session_omc import (
     OMCSessionWSL,
 )
 
+from OMPython.compatibility_v400 import (
+    depreciated_class,
+)
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
 
 
+@depreciated_class(msg="Please use class OMSessionException instead!")
 class OMCSessionException(OMSessionException):
     """
     Just a compatibility layer ...
     """
 
 
+@depreciated_class(msg="Please use OMCSession*.sendExpression(...) instead!")
 class OMCSessionCmd:
     """
     Implementation of Open Modelica Compiler API functions. Depreciated!
     """
 
     def __init__(self, session: OMSessionABC, readonly: bool = False):
-        warnings.warn(
-            message="The class OMCSessionCMD is depreciated and will be removed in future versions; "
-                    "please use OMCSession*.sendExpression(...) instead!",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-
         if not isinstance(session, OMSessionABC):
             raise OMSessionException("Invalid OMC process definition!")
         self._session = session
@@ -228,6 +224,7 @@ class OMCSessionCmd:
         return self._ask(question='getClassNames', opt=opt)
 
 
+@depreciated_class(msg="Please use OMCSession* classes instead!")
 class OMCSessionZMQ(OMSessionABC):
     """
     This class is a compatibility layer for the new schema using OMCSession* classes.
@@ -242,11 +239,6 @@ class OMCSessionZMQ(OMSessionABC):
         """
         Initialisation for OMCSessionZMQ
         """
-        warnings.warn(message="The class OMCSessionZMQ is depreciated and will be removed in future versions; "
-                              "please use OMCProcess* classes instead!",
-                      category=DeprecationWarning,
-                      stacklevel=2)
-
         if omc_process is None:
             omc_process = OMCSessionLocal(omhome=omhome, timeout=timeout)
         elif not isinstance(omc_process, OMCSessionABC):
@@ -303,9 +295,36 @@ class OMCSessionZMQ(OMSessionABC):
         return self.omc_process.set_workdir(workdir=workdir)
 
 
-DummyPopen = DockerPopen
-OMCProcessLocal = OMCSessionLocal
-OMCProcessPort = OMCSessionPort
-OMCProcessDocker = OMCSessionDocker
-OMCProcessDockerContainer = OMCSessionDockerContainer
-OMCProcessWSL = OMCSessionWSL
+@depreciated_class(msg="Please use class OMCSessionLocal instead!")
+class OMCProcessLocal(OMCSessionLocal):
+    """
+    Just a wrapper class; OMCProcessLocal => OMCSessionLocal
+    """
+
+
+@depreciated_class(msg="Please use class OMCSessionPort instead!")
+class OMCProcessPort(OMCSessionPort):
+    """
+    Just a wrapper class; OMCProcessPort => OMCSessionPort
+    """
+
+
+@depreciated_class(msg="Please use class OMCSessionDocker instead!")
+class OMCProcessDocker(OMCSessionDocker):
+    """
+    Just a wrapper class; OMCProcessDocker => OMCSessionDocker
+    """
+
+
+@depreciated_class(msg="Please use class OMCSessionDockerContainer instead!")
+class OMCProcessDockerContainer(OMCSessionDockerContainer):
+    """
+    Just a wrapper class; OMCProcessDockerContainer => OMCSessionDockerContainer
+    """
+
+
+@depreciated_class(msg="Please use class OMCSessionWSL instead!")
+class OMCProcessWSL(OMCSessionWSL):
+    """
+    Just a wrapper class; OMCProcessWSL => OMCSessionWSL
+    """
