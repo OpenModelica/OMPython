@@ -38,161 +38,154 @@ from OMPython.OMParser import om_parser_basic
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
-# due to the compatibility layer to Python < 3.12, the OM(C)Path classes must be hidden behind the following if
-# conditions. This is also the reason for OMPathABC, a simple base class to be used in ModelicaSystem* classes.
-# Reason: before Python 3.12, pathlib.PurePosixPath can not be derived from; therefore, OMPathABC is not possible
-if sys.version_info < (3, 12):
-    OMCPath = OMPathABC
 
-else:
-    class _OMCPath(OMPathABC):
+
+class OMCPath(OMPathABC):
+    """
+    Implementation of a OMPathABC using OMC as backend. The connection to OMC is provided via an instances of an
+    OMCSession* classes.
+    """
+
+    def is_file(self, *, follow_symlinks=True) -> bool:
         """
-        Implementation of a OMPathABC using OMC as backend. The connection to OMC is provided via an instances of an
-        OMCSession* classes.
+        Check if the path is a regular file.
         """
+        del follow_symlinks
 
-        def is_file(self, *, follow_symlinks=True) -> bool:
-            """
-            Check if the path is a regular file.
-            """
-            del follow_symlinks
+        retval = self.get_session().sendExpression(expr=f'regularFileExists("{self.as_posix()}")')
+        if not isinstance(retval, bool):
+            raise OMSessionException(f"Invalid return value for is_file(): {retval} - expect bool")
+        return retval
 
-            retval = self.get_session().sendExpression(expr=f'regularFileExists("{self.as_posix()}")')
-            if not isinstance(retval, bool):
-                raise OMSessionException(f"Invalid return value for is_file(): {retval} - expect bool")
-            return retval
+    def is_dir(self, *, follow_symlinks: bool = True) -> bool:
+        """
+        Check if the path is a directory.
+        """
+        del follow_symlinks
 
-        def is_dir(self, *, follow_symlinks: bool = True) -> bool:
-            """
-            Check if the path is a directory.
-            """
-            del follow_symlinks
+        retval = self.get_session().sendExpression(expr=f'directoryExists("{self.as_posix()}")')
+        if not isinstance(retval, bool):
+            raise OMSessionException(f"Invalid return value for is_dir(): {retval} - expect bool")
+        return retval
 
-            retval = self.get_session().sendExpression(expr=f'directoryExists("{self.as_posix()}")')
-            if not isinstance(retval, bool):
-                raise OMSessionException(f"Invalid return value for is_dir(): {retval} - expect bool")
-            return retval
+    def is_absolute(self) -> bool:
+        """
+        Check if the path is an absolute path. Special handling to differentiate Windows and Posix definitions.
+        """
+        if self._session.model_execution_windows and self._session.model_execution_local:
+            return pathlib.PureWindowsPath(self.as_posix()).is_absolute()
+        return pathlib.PurePosixPath(self.as_posix()).is_absolute()
 
-        def is_absolute(self) -> bool:
-            """
-            Check if the path is an absolute path. Special handling to differentiate Windows and Posix definitions.
-            """
-            if self._session.model_execution_windows and self._session.model_execution_local:
-                return pathlib.PureWindowsPath(self.as_posix()).is_absolute()
-            return pathlib.PurePosixPath(self.as_posix()).is_absolute()
+    def read_text(self, encoding=None, errors=None, newline=None) -> str:
+        """
+        Read the content of the file represented by this path as text.
+        """
+        del encoding, errors, newline
 
-        def read_text(self, encoding=None, errors=None, newline=None) -> str:
-            """
-            Read the content of the file represented by this path as text.
-            """
-            del encoding, errors, newline
+        retval = self.get_session().sendExpression(expr=f'readFile("{self.as_posix()}")')
+        if not isinstance(retval, str):
+            raise OMSessionException(f"Invalid return value for read_text(): {retval} - expect str")
+        return retval
 
-            retval = self.get_session().sendExpression(expr=f'readFile("{self.as_posix()}")')
+    def write_text(self, data: str, encoding=None, errors=None, newline=None) -> int:
+        """
+        Write text data to the file represented by this path.
+        """
+        del encoding, errors, newline
+
+        if not isinstance(data, str):
+            raise TypeError(f"data must be str, not {data.__class__.__name__}")
+
+        data_omc = self._session.escape_str(data)
+        self._session.sendExpression(expr=f'writeFile("{self.as_posix()}", "{data_omc}", false);')
+
+        return len(data)
+
+    def mkdir(self, mode=0o777, parents: bool = False, exist_ok: bool = False) -> None:
+        """
+        Create a directory at the path represented by this class.
+
+        The argument parents with default value True exists to ensure compatibility with the fallback solution for
+        Python < 3.12. In this case, pathlib.Path is used directly and this option ensures, that missing parent
+        directories are also created.
+        """
+        del mode
+
+        if self.is_dir() and not exist_ok:
+            raise FileExistsError(f"Directory {self.as_posix()} already exists!")
+
+        if not self._session.sendExpression(expr=f'mkdir("{self.as_posix()}")'):
+            raise OMSessionException(f"Error on directory creation for {self.as_posix()}!")
+
+    def cwd(self) -> OMPathABC:  # pylint: disable=W0221 # is @classmethod in the original; see pathlib.PathBase
+        """
+        Returns the current working directory as an OMPathABC object.
+        """
+        cwd_str = self._session.sendExpression(expr='cd()')
+        return type(self)(cwd_str, session=self._session)
+
+    def unlink(self, missing_ok: bool = False) -> None:
+        """
+        Unlink (delete) the file or directory represented by this path.
+        """
+        res = self._session.sendExpression(expr=f'deleteFile("{self.as_posix()}")')
+        if not res and not missing_ok:
+            raise FileNotFoundError(f"Cannot delete file {self.as_posix()} - it does not exists!")
+
+    def resolve(self, strict: bool = False) -> OMPathABC:
+        """
+        Resolve the path to an absolute path. This is done based on available OMC functions.
+        """
+        if strict and not (self.is_file() or self.is_dir()):
+            raise OMSessionException(f"Path {self.as_posix()} does not exist!")
+
+        if self.is_file():
+            pathstr_resolved = self._omc_resolve(self.parent.as_posix())
+            omcpath_resolved = self._session.omcpath(pathstr_resolved) / self.name
+        elif self.is_dir():
+            pathstr_resolved = self._omc_resolve(self.as_posix())
+            omcpath_resolved = self._session.omcpath(pathstr_resolved)
+        else:
+            raise OMSessionException(f"Path {self.as_posix()} is neither a file nor a directory!")
+
+        if not omcpath_resolved.is_file() and not omcpath_resolved.is_dir():
+            raise OMSessionException(f"OMCPath resolve failed for {self.as_posix()} - path does not exist!")
+
+        return omcpath_resolved
+
+    def _omc_resolve(self, pathstr: str) -> str:
+        """
+        Internal function to resolve the path of the OMCPath object using OMC functions *WITHOUT* changing the cwd
+        within OMC.
+        """
+        expr = ('omcpath_cwd := cd(); '
+                f'omcpath_check := cd("{pathstr}"); '  # check requested pathstring
+                'cd(omcpath_cwd)')
+
+        try:
+            retval = self.get_session().sendExpression(expr=expr, parsed=False)
             if not isinstance(retval, str):
-                raise OMSessionException(f"Invalid return value for read_text(): {retval} - expect str")
-            return retval
+                raise OMSessionException(f"Invalid return value for _omc_resolve(): {retval} - expect str")
+            result_parts = retval.split('\n')
+            pathstr_resolved = result_parts[1]
+            pathstr_resolved = pathstr_resolved[1:-1]  # remove quotes
+        except OMSessionException as ex:
+            raise OMSessionException(f"OMCPath resolve failed for {pathstr}!") from ex
 
-        def write_text(self, data: str, encoding=None, errors=None, newline=None) -> int:
-            """
-            Write text data to the file represented by this path.
-            """
-            del encoding, errors, newline
+        return pathstr_resolved
 
-            if not isinstance(data, str):
-                raise TypeError(f"data must be str, not {data.__class__.__name__}")
+    def size(self) -> int:
+        """
+        Get the size of the file in bytes - this is an extra function and the best we can do using OMC.
+        """
+        if not self.is_file():
+            raise OMSessionException(f"Path {self.as_posix()} is not a file!")
 
-            data_omc = self._session.escape_str(data)
-            self._session.sendExpression(expr=f'writeFile("{self.as_posix()}", "{data_omc}", false);')
+        res = self._session.sendExpression(expr=f'stat("{self.as_posix()}")')
+        if res[0]:
+            return int(res[1])
 
-            return len(data)
-
-        def mkdir(self, mode=0o777, parents: bool = False, exist_ok: bool = False) -> None:
-            """
-            Create a directory at the path represented by this class.
-
-            The argument parents with default value True exists to ensure compatibility with the fallback solution for
-            Python < 3.12. In this case, pathlib.Path is used directly and this option ensures, that missing parent
-            directories are also created.
-            """
-            del mode
-
-            if self.is_dir() and not exist_ok:
-                raise FileExistsError(f"Directory {self.as_posix()} already exists!")
-
-            if not self._session.sendExpression(expr=f'mkdir("{self.as_posix()}")'):
-                raise OMSessionException(f"Error on directory creation for {self.as_posix()}!")
-
-        def cwd(self) -> OMPathABC:  # pylint: disable=W0221 # is @classmethod in the original; see pathlib.PathBase
-            """
-            Returns the current working directory as an OMPathABC object.
-            """
-            cwd_str = self._session.sendExpression(expr='cd()')
-            return type(self)(cwd_str, session=self._session)
-
-        def unlink(self, missing_ok: bool = False) -> None:
-            """
-            Unlink (delete) the file or directory represented by this path.
-            """
-            res = self._session.sendExpression(expr=f'deleteFile("{self.as_posix()}")')
-            if not res and not missing_ok:
-                raise FileNotFoundError(f"Cannot delete file {self.as_posix()} - it does not exists!")
-
-        def resolve(self, strict: bool = False) -> OMPathABC:
-            """
-            Resolve the path to an absolute path. This is done based on available OMC functions.
-            """
-            if strict and not (self.is_file() or self.is_dir()):
-                raise OMSessionException(f"Path {self.as_posix()} does not exist!")
-
-            if self.is_file():
-                pathstr_resolved = self._omc_resolve(self.parent.as_posix())
-                omcpath_resolved = self._session.omcpath(pathstr_resolved) / self.name
-            elif self.is_dir():
-                pathstr_resolved = self._omc_resolve(self.as_posix())
-                omcpath_resolved = self._session.omcpath(pathstr_resolved)
-            else:
-                raise OMSessionException(f"Path {self.as_posix()} is neither a file nor a directory!")
-
-            if not omcpath_resolved.is_file() and not omcpath_resolved.is_dir():
-                raise OMSessionException(f"OMCPath resolve failed for {self.as_posix()} - path does not exist!")
-
-            return omcpath_resolved
-
-        def _omc_resolve(self, pathstr: str) -> str:
-            """
-            Internal function to resolve the path of the OMCPath object using OMC functions *WITHOUT* changing the cwd
-            within OMC.
-            """
-            expr = ('omcpath_cwd := cd(); '
-                    f'omcpath_check := cd("{pathstr}"); '  # check requested pathstring
-                    'cd(omcpath_cwd)')
-
-            try:
-                retval = self.get_session().sendExpression(expr=expr, parsed=False)
-                if not isinstance(retval, str):
-                    raise OMSessionException(f"Invalid return value for _omc_resolve(): {retval} - expect str")
-                result_parts = retval.split('\n')
-                pathstr_resolved = result_parts[1]
-                pathstr_resolved = pathstr_resolved[1:-1]  # remove quotes
-            except OMSessionException as ex:
-                raise OMSessionException(f"OMCPath resolve failed for {pathstr}!") from ex
-
-            return pathstr_resolved
-
-        def size(self) -> int:
-            """
-            Get the size of the file in bytes - this is an extra function and the best we can do using OMC.
-            """
-            if not self.is_file():
-                raise OMSessionException(f"Path {self.as_posix()} is not a file!")
-
-            res = self._session.sendExpression(expr=f'stat("{self.as_posix()}")')
-            if res[0]:
-                return int(res[1])
-
-            raise OMSessionException(f"Error reading file size for path {self.as_posix()}!")
-
-    OMCPath = _OMCPath
+        raise OMSessionException(f"Error reading file size for path {self.as_posix()}!")
 
 
 class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
