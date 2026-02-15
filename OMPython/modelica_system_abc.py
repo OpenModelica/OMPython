@@ -18,6 +18,7 @@ import numpy as np
 
 from OMPython.model_execution import (
     ModelExecutionCmd,
+    ModelExecutionException,
 )
 from OMPython.om_session_abc import (
     OMPathABC,
@@ -199,7 +200,10 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
         # ... by running it - output help for command help
         om_cmd.arg_set(key="help", val="help")
         cmd_definition = om_cmd.definition()
-        returncode = cmd_definition.run()
+        try:
+            returncode = cmd_definition.run()
+        except ModelExecutionException as exc:
+            raise ModelicaSystemError(f"Cannot execute model: {exc}") from exc
         if returncode != 0:
             raise ModelicaSystemError("Model executable not working!")
 
@@ -730,7 +734,10 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             self._result_file.unlink()
         # ... run simulation ...
         cmd_definition = om_cmd.definition()
-        returncode = cmd_definition.run()
+        try:
+            returncode = cmd_definition.run()
+        except ModelExecutionException as exc:
+            raise ModelicaSystemError(f"Cannot execute model: {exc}") from exc
         # and check returncode *AND* resultfile
         if returncode != 0 and self._result_file.is_file():
             # check for an empty (=> 0B) result file which indicates a crash of the model executable
@@ -758,8 +765,10 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             key_val_list: list[str] = str_in.split("=")
             if len(key_val_list) != 2:
                 raise ModelicaSystemError(f"Invalid 'key=value' pair: {str_in}")
+            if len(key_val_list[0]) == 0:
+                raise ModelicaSystemError(f"Empty key: {str_in}")
 
-            input_data_from_str: dict[str, str] = {key_val_list[0]: key_val_list[1]}
+            input_data_from_str: dict[str, str] = {str(key_val_list[0]): str(key_val_list[1])}
 
             return input_data_from_str
 
@@ -785,7 +794,12 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
                         raise ModelicaSystemError(f"Invalid input data type for set*() function: {type(item)}!")
                     input_data = input_data | prepare_str(item)
             elif isinstance(input_arg, dict):
-                input_data = input_data | input_arg
+                input_arg_str: dict[str, str] = {}
+                for key, val in input_arg.items():
+                    if not isinstance(key, str) or len(key) == 0:
+                        raise ModelicaSystemError(f"Invalid key for set*() functions: {repr(key)}")
+                    input_arg_str[key] = str(val)
+                input_data = input_data | input_arg_str
             else:
                 raise ModelicaSystemError(f"Invalid input data type for set*() function: {type(input_arg)}!")
 
@@ -1173,7 +1187,10 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
         linear_file.unlink(missing_ok=True)
 
         cmd_definition = om_cmd.definition()
-        returncode = cmd_definition.run()
+        try:
+            returncode = cmd_definition.run()
+        except ModelExecutionException as exc:
+            raise ModelicaSystemError(f"Cannot execute model: {exc}") from exc
         if returncode != 0:
             raise ModelicaSystemError(f"Linearize failed with return code: {returncode}")
         if not linear_file.is_file():

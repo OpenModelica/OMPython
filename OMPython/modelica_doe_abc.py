@@ -14,6 +14,7 @@ from typing import Any, cast, Optional, Tuple
 
 from OMPython.model_execution import (
     ModelExecutionData,
+    ModelExecutionException,
 )
 from OMPython.om_session_abc import (
     OMPathABC,
@@ -310,8 +311,8 @@ class ModelicaDoEABC(metaclass=abc.ABCMeta):
                     returncode = cmd_definition.run()
                     logger.info(f"[Worker {worker_id}] Simulation {resultpath.name} "
                                 f"finished with return code: {returncode}")
-                except ModelicaSystemError as ex:
-                    logger.warning(f"Simulation error for {resultpath.name}: {ex}")
+                except ModelExecutionException as exc:
+                    logger.warning(f"Simulation error for {resultpath.name}: {exc}")
 
                 # Mark the task as done
                 task_queue.task_done()

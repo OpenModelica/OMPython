@@ -140,7 +140,7 @@ class ModelicaSystem(ModelicaSystemOMC):
                     retval3.append(str(val))
             return retval3
 
-        raise ModelExecutionException("Invalid data!")
+        raise ModelicaSystemError("Invalid data!")
 
     def getOutputs(
             self,
@@ -167,7 +167,7 @@ class ModelicaSystem(ModelicaSystemOMC):
                     retval3.append(str(val))
             return retval3
 
-        raise ModelExecutionException("Invalid data!")
+        raise ModelicaSystemError("Invalid data!")
 
 
 class ModelicaSystemDoE(ModelicaDoEOMC):
@@ -209,7 +209,8 @@ class ModelicaSystemCmd(ModelExecutionCmd):
         return path_exe
 
     def get_cmd(self) -> list:
-        """Get a list with the path to the executable and all command line args.
+        """
+        Get a list with the path to the executable and all command line args.
 
         This can later be used as an argument for subprocess.run().
         """
@@ -218,6 +219,10 @@ class ModelicaSystemCmd(ModelExecutionCmd):
 
         return cmdl
 
-    def run(self):
+    def run(self) -> int:
         cmd_definition = self.definition()
-        return cmd_definition.run()
+        try:
+            returncode = cmd_definition.run()
+        except ModelExecutionException as exc:
+            raise ModelicaSystemError(f"Cannot execute model: {exc}") from exc
+        return returncode
