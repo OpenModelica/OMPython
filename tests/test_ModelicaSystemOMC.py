@@ -439,6 +439,14 @@ end M_input;
     simOptions = {"stopTime": 1.0}
     mod.setSimulationOptions(**simOptions)
 
+    # check invalid inputs
+    # * 'None' cannot be converted to float
+    with pytest.raises(OMPython.ModelicaSystemError):
+        mod.setInputs(u1=[(0.0, None), (0.5, 1)])
+    # * 'abc' cannot be converted to float
+    with pytest.raises(OMPython.ModelicaSystemError):
+        mod.setInputs(u1=[(0.0, 0.0), ("abc", 1)])
+
     # integrate zero (no setInputs call) - it should default to None -> 0
     assert mod.getInputs() == {
         "u1": None,
