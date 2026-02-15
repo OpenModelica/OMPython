@@ -8,7 +8,7 @@ OMPython is a Python interface that uses ZeroMQ to communicate with OpenModelica
 
 ## Dependencies
 
-  - Python >= 3.10; Python >= 3.12 for `OMPath` functionality (handle file system access via OMC using a `pathlib.Path` compatible abstraction layer)
+  - Python >= 3.12
   - Additional packages: numpy, psutil, pyparsing and pyzmq
 
 ## Installation
