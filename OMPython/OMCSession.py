@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any, Optional
+import warnings
 
 import pyparsing
 
@@ -272,7 +273,13 @@ class OMCSessionZMQ(OMSessionABC):
         return self.omc_process.omcpath_tempdir(tempdir_base=tempdir_base)
 
     def execute(self, command: str):
-        return self.omc_process.execute(command=command)
+        warnings.warn(
+            message="This function is depreciated and will be removed in future versions; "
+                    "please use sendExpression() instead",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.omc_process.sendExpression(expr=command, parsed=False)
 
     def sendExpression(self, command: str, parsed: bool = True) -> Any:  # pylint: disable=W0237
         """

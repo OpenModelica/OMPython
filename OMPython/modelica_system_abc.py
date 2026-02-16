@@ -620,7 +620,6 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
     def simulate_cmd(
             self,
             result_file: OMPathABC,
-            simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
     ) -> ModelExecutionConfig:
         """
@@ -636,7 +635,6 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
         Parameters
         ----------
         result_file
-        simflags
         simargs
 
         Returns
@@ -655,10 +653,6 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
 
         # always define the result file to use
         om_cmd.arg_set(key="r", val=result_file.as_posix())
-
-        # allow runtime simulation flags from user input
-        if simflags is not None:
-            om_cmd.args_set(args=om_cmd.parse_simflags(simflags=simflags))
 
         if simargs:
             om_cmd.args_set(args=simargs)
@@ -693,7 +687,6 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
     def simulate(
             self,
             resultfile: Optional[str | os.PathLike] = None,
-            simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
     ) -> None:
         """Simulate the model according to simulation options.
@@ -702,16 +695,11 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
 
         Args:
             resultfile: Path to a custom result file
-            simflags: String of extra command line flags for the model binary.
-              This argument is deprecated, use simargs instead.
             simargs: Dict with simulation runtime flags.
 
         Examples:
             mod.simulate()
             mod.simulate(resultfile="a.mat")
-            # set runtime simulation flags, deprecated
-            mod.simulate(simflags="-noEventEmit -noRestart -override=e=0.3,g=10")
-            # using simargs
             mod.simulate(simargs={"noEventEmit": None, "noRestart": None, "override": "override": {"e": 0.3, "g": 10}})
         """
 
@@ -730,7 +718,6 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
 
         om_cmd = self.simulate_cmd(
             result_file=self._result_file,
-            simflags=simflags,
             simargs=simargs,
         )
 
@@ -1060,7 +1047,6 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
     def linearize(
             self,
             lintime: Optional[float] = None,
-            simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
     ) -> LinearizationResult:
         """Linearize the model according to linearization options.
@@ -1069,8 +1055,6 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
 
         Args:
             lintime: Override "stopTime" value.
-            simflags: String of extra command line flags for the model binary.
-              This argument is deprecated, use simargs instead.
             simargs: A dict with command line flags and possible options; example: "simargs={'csvInput': 'a.csv'}"
 
         Returns:
@@ -1122,10 +1106,6 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
                                       f"expected value: {self._linearization_options['startTime']} "
                                       f"<= lintime <= {self._linearization_options['stopTime']}")
         om_cmd.arg_set(key="l", val=str(lintime))
-
-        # allow runtime simulation flags from user input
-        if simflags is not None:
-            om_cmd.args_set(args=om_cmd.parse_simflags(simflags=simflags))
 
         if simargs:
             om_cmd.args_set(args=simargs)

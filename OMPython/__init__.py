@@ -61,8 +61,8 @@ from OMPython.modelica_doe_runner import (
 # the imports below are compatibility functionality (OMPython v4.0.0)
 from OMPython.ModelicaSystem import (
     ModelicaSystem,
-    ModelicaSystemCmd,
     ModelicaSystemDoE,
+    parse_simflags,
 )
 from OMPython.OMCSession import (
     OMCSessionCmd,
@@ -109,9 +109,9 @@ __all__ = [
     'OMPathRunnerLocal',
     'OMSessionRunner',
 
-    'ModelicaSystemCmd',
     'ModelicaSystem',
     'ModelicaSystemDoE',
+    'parse_simflags',
 
     'OMCSessionCmd',
 
