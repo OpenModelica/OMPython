@@ -21,7 +21,6 @@ import tempfile
 import time
 from typing import Any, Optional, Tuple
 import uuid
-import warnings
 
 import psutil
 import pyparsing
@@ -402,16 +401,6 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
             tempdir_base = self.omcpath(tempdir_str)
 
         return self._tempdir(tempdir_base=tempdir_base)
-
-    def execute(self, command: str):
-        warnings.warn(
-            message="This function is depreciated and will be removed in future versions; "
-                    "please use sendExpression() instead",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-
-        return self.sendExpression(command, parsed=False)
 
     def sendExpression(self, expr: str, parsed: bool = True) -> Any:
         """

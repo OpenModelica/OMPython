@@ -38,14 +38,12 @@ def test_Simulate(omcs, model_time_str):
     assert omcs.sendExpression('res.resultFile')
 
 
-def test_execute(omcs):
-    with pytest.deprecated_call():
-        assert omcs.execute('"HelloWorld!"') == '"HelloWorld!"\n'
+def test_sendExpression(omcs):
     assert omcs.sendExpression('"HelloWorld!"', parsed=False) == '"HelloWorld!"\n'
     assert omcs.sendExpression('"HelloWorld!"', parsed=True) == 'HelloWorld!'
 
 
-def test_omcprocessport_execute(omcs):
+def test_sendExpression_port(omcs):
     port = omcs.get_port()
     omcs2 = OMPython.OMCSessionPort(omc_port=port)
 
@@ -58,7 +56,7 @@ def test_omcprocessport_execute(omcs):
     del omcs2
 
 
-def test_omcprocessport_simulate(omcs, model_time_str):
+def test_Simulate_port(omcs, model_time_str):
     port = omcs.get_port()
     omcs2 = OMPython.OMCSessionPort(omc_port=port)
 

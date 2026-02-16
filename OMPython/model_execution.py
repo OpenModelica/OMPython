@@ -12,7 +12,6 @@ import pathlib
 import re
 import subprocess
 from typing import Any, Optional
-import warnings
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
@@ -305,45 +304,3 @@ class ModelExecutionCmd:
         )
 
         return omc_run_data
-
-    @staticmethod
-    def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, Any] | numbers.Number]]:
-        """
-        Parse a simflag definition; this is deprecated!
-
-        The return data can be used as input for self.args_set().
-        """
-        warnings.warn(
-            message="The argument 'simflags' is depreciated and will be removed in future versions; "
-                    "please use 'simargs' instead",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-
-        simargs: dict[str, Optional[str | dict[str, Any] | numbers.Number]] = {}
-
-        args = [s for s in simflags.split(' ') if s]
-        for arg in args:
-            if arg[0] != '-':
-                raise ModelExecutionException(f"Invalid simulation flag: {arg}")
-            arg = arg[1:]
-            parts = arg.split('=')
-            if len(parts) == 1:
-                simargs[parts[0]] = None
-            elif parts[0] == 'override':
-                override = '='.join(parts[1:])
-
-                override_dict = {}
-                for item in override.split(','):
-                    kv = item.split('=')
-                    if not 0 < len(kv) < 3:
-                        raise ModelExecutionException(f"Invalid value for '-override': {override}")
-                    if kv[0]:
-                        try:
-                            override_dict[kv[0]] = kv[1]
-                        except (KeyError, IndexError) as ex:
-                            raise ModelExecutionException(f"Invalid value for '-override': {override}") from ex
-
-                simargs[parts[0]] = override_dict
-
-        return simargs
