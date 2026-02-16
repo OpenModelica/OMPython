@@ -4,9 +4,9 @@ Definition of main class to run Modelica simulations - ModelicaSystem.
 """
 
 import logging
+import numbers
 import os
 import pathlib
-import platform
 from typing import Any, Optional
 import warnings
 
@@ -16,10 +16,14 @@ from OMPython.model_execution import (
     ModelExecutionConfig,
     ModelExecutionException,
 )
+from OMPython.om_session_abc import (
+    OMPathABC,
+)
 from OMPython.om_session_omc import (
     OMCSessionLocal,
 )
 from OMPython.modelica_system_abc import (
+    LinearizationResult,
     ModelicaSystemError,
 )
 from OMPython.modelica_system_omc import (
@@ -73,8 +77,73 @@ class ModelicaSystem(ModelicaSystemOMC):
     def setCommandLineOptions(self, commandLineOptions: str):
         super().set_command_line_options(command_line_option=commandLineOptions)
 
-    def _set_compatibility_helper(
+    def simulate_cmd(  # type: ignore[override]
             self,
+            result_file: OMPathABC,
+            simflags: Optional[str] = None,
+            simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
+    ) -> ModelExecutionCmd:
+        """
+        Compatibility layer for OMPython v4.0.0 - keep simflags available and use ModelicaSystemCmd!
+        """
+
+        if simargs is None:
+            simargs = {}
+
+        if simflags is not None:
+            simargs_extra = parse_simflags(simflags=simflags)
+            simargs = simargs | simargs_extra
+
+        return super().simulate_cmd(
+            result_file=result_file,
+            simargs=simargs,
+        )
+
+    def simulate(  # type: ignore[override]
+            self,
+            resultfile: Optional[str | os.PathLike] = None,
+            simflags: Optional[str] = None,
+            simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
+    ) -> None:
+        """
+        Compatibility layer for OMPython v4.0.0 - keep simflags available and use ModelicaSystemCmd!
+        """
+
+        if simargs is None:
+            simargs = {}
+
+        if simflags is not None:
+            simargs_extra = parse_simflags(simflags=simflags)
+            simargs = simargs | simargs_extra
+
+        return super().simulate(
+            resultfile=resultfile,
+            simargs=simargs,
+        )
+
+    def linearize(  # type: ignore[override]
+            self,
+            lintime: Optional[float] = None,
+            simflags: Optional[str] = None,
+            simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
+    ) -> LinearizationResult:
+        """
+        Compatibility layer for OMPython v4.0.0 - keep simflags available and use ModelicaSystemCmd!
+        """
+        if simargs is None:
+            simargs = {}
+
+        if simflags is not None:
+            simargs_extra = parse_simflags(simflags=simflags)
+            simargs = simargs | simargs_extra
+
+        return super().linearize(
+            lintime=lintime,
+            simargs=simargs,
+        )
+
+    @staticmethod
+    def _set_compatibility_helper(
             pkey: str,
             args: Any,
             kwargs: dict[str, Any],
@@ -330,7 +399,12 @@ class ModelicaSystemDoE(ModelicaDoEOMC):
 @depreciated_class(msg="Please use class ModelExecutionConfig instead!")
 class ModelicaSystemCmd(ModelExecutionConfig):
     """
-    Compatibility class; in the new version it is renamed as ModelExecutionConfig.
+    Compatibility class; not much content.
+
+    Missing definitions:
+    * get_exe() - see self.definition.cmd_model_executable
+    * get_cmd() - use self.get_cmd_args() or self.definition().get_cmd()
+    * run() - use self.definition().run()
     """
 
     def __init__(
@@ -346,35 +420,44 @@ class ModelicaSystemCmd(ModelExecutionConfig):
             model_name=modelname,
         )
 
-    def get_exe(self) -> pathlib.Path:
-        """Get the path to the compiled model executable."""
 
-        path_run = pathlib.Path(self._runpath)
-        if platform.system() == "Windows":
-            path_exe = path_run / f"{self._model_name}.exe"
-        else:
-            path_exe = path_run / self._model_name
+def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, Any] | numbers.Number]]:
+    """
+    Parse a simflag definition; this is deprecated!
 
-        if not path_exe.exists():
-            raise ModelicaSystemError(f"Application file path not found: {path_exe}")
+    The return data can be used as input for self.args_set().
+    """
+    warnings.warn(
+        message="The argument 'simflags' is depreciated and will be removed in future versions; "
+                "please use 'simargs' instead",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
 
-        return path_exe
+    simargs: dict[str, Optional[str | dict[str, Any] | numbers.Number]] = {}
 
-    def get_cmd(self) -> list:
-        """
-        Get a list with the path to the executable and all command line args.
+    args = [s for s in simflags.split(' ') if s]
+    for arg in args:
+        if arg[0] != '-':
+            raise ModelExecutionException(f"Invalid simulation flag: {arg}")
+        arg = arg[1:]
+        parts = arg.split('=')
+        if len(parts) == 1:
+            simargs[parts[0]] = None
+        elif parts[0] == 'override':
+            override = '='.join(parts[1:])
 
-        This can later be used as an argument for subprocess.run().
-        """
+            override_dict = {}
+            for item in override.split(','):
+                kv = item.split('=')
+                if not 0 < len(kv) < 3:
+                    raise ModelExecutionException(f"Invalid value for '-override': {override}")
+                if kv[0]:
+                    try:
+                        override_dict[kv[0]] = kv[1]
+                    except (KeyError, IndexError) as ex:
+                        raise ModelExecutionException(f"Invalid value for '-override': {override}") from ex
 
-        cmdl = [self.get_exe().as_posix()] + self.get_cmd_args()
+            simargs[parts[0]] = override_dict
 
-        return cmdl
-
-    def run(self) -> int:
-        cmd_definition = self.definition()
-        try:
-            returncode = cmd_definition.run()
-        except ModelExecutionException as exc:
-            raise ModelicaSystemError(f"Cannot execute model: {exc}") from exc
-        return returncode
+    return simargs
