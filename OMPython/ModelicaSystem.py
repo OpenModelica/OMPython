@@ -130,31 +130,31 @@ class ModelicaSystemCmd:
         """
 
         def override2str(
-                okey: str,
-                oval: str | bool | numbers.Number,
+                key: str,
+                val: str | bool | numbers.Number,
         ) -> str:
             """
             Convert a value for 'override' to a string taking into account differences between Modelica and Python.
             """
             # check oval for any string representations of numbers (or bool) and convert these to Python representations
-            if isinstance(oval, str):
+            if isinstance(val, str):
                 try:
-                    oval_evaluated = ast.literal_eval(oval)
-                    if isinstance(oval_evaluated, (numbers.Number, bool)):
-                        oval = oval_evaluated
+                    val_evaluated = ast.literal_eval(val)
+                    if isinstance(val_evaluated, (numbers.Number, bool)):
+                        val = val_evaluated
                 except (ValueError, SyntaxError):
                     pass
 
-            if isinstance(oval, str):
-                oval_str = oval.strip()
-            elif isinstance(oval, bool):
-                oval_str = 'true' if oval else 'false'
-            elif isinstance(oval, numbers.Number):
-                oval_str = str(oval)
+            if isinstance(val, str):
+                val_str = val.strip()
+            elif isinstance(val, bool):
+                val_str = 'true' if val else 'false'
+            elif isinstance(val, numbers.Number):
+                val_str = str(val)
             else:
-                raise ModelicaSystemError(f"Invalid value for override key {okey}: {type(oval)}")
+                raise ModelicaSystemError(f"Invalid value for override key {key}: {type(val)}")
 
-            return f"{okey}={oval_str}"
+            return f"{key}={val_str}"
 
         if not isinstance(key, str):
             raise ModelicaSystemError(f"Invalid argument key: {repr(key)} (type: {type(key)})")
@@ -183,7 +183,7 @@ class ModelicaSystemCmd:
                                 f"(was: {repr(self._arg_override[okey])})")
 
                 if oval is not None:
-                    self._arg_override[okey] = override2str(okey=okey, oval=oval)
+                    self._arg_override[okey] = override2str(key=okey, val=oval)
 
             argval = ','.join(sorted(self._arg_override.values()))
         elif val is None:
