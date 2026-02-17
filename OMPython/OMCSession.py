@@ -451,31 +451,38 @@ else:
     OMCPath = OMCPathReal
 
 
+class ModelExecutionException(Exception):
+    """
+    Exception which is raised by ModelException* classes.
+    """
+
+
 @dataclasses.dataclass
-class OMCSessionRunData:
+class ModelExecutionData:
     """
     Data class to store the command line data for running a model executable in the OMC environment.
 
     All data should be defined for the environment, where OMC is running (local, docker or WSL)
 
     To use this as a definition of an OMC simulation run, it has to be processed within
-    OMCProcess*.omc_run_data_update(). This defines the attribute cmd_model_executable.
+    OMCProcess*.self_update(). This defines the attribute cmd_model_executable.
     """
     # cmd_path is the expected working directory
     cmd_path: str
     cmd_model_name: str
+    # command prefix data (as list of strings); needed for docker or WSL
+    cmd_prefix: list[str]
+    # cmd_model_executable is build out of cmd_path and cmd_model_name; this is mainly needed on Windows (add *.exe)
+    cmd_model_executable: str
     # command line arguments for the model executable
     cmd_args: list[str]
     # result file with the simulation output
-    cmd_result_path: str
+    cmd_result_file: str
+    # command timeout
+    cmd_timeout: float
 
-    # command prefix data (as list of strings); needed for docker or WSL
-    cmd_prefix: Optional[list[str]] = None
-    # cmd_model_executable is build out of cmd_path and cmd_model_name; this is mainly needed on Windows (add *.exe)
-    cmd_model_executable: Optional[str] = None
     # additional library search path; this is mainly needed if OMCProcessLocal is run on Windows
     cmd_library_path: Optional[str] = None
-
     # working directory to be used on the *local* system
     cmd_cwd_local: Optional[str] = None
 
@@ -484,13 +491,48 @@ class OMCSessionRunData:
         Get the command line to run the model executable in the environment defined by the OMCProcess definition.
         """
 
-        if self.cmd_model_executable is None:
-            raise OMCSessionException("No model file defined for the model executable!")
-
-        cmdl = [] if self.cmd_prefix is None else self.cmd_prefix
-        cmdl += [self.cmd_model_executable] + self.cmd_args
+        cmdl = self.cmd_prefix
+        cmdl += [self.cmd_model_executable]
+        cmdl += self.cmd_args
 
         return cmdl
+
+    def run(self) -> int:
+        """
+        Run the model execution defined in this class.
+        """
+
+        my_env = os.environ.copy()
+        if isinstance(self.cmd_library_path, str):
+            my_env["PATH"] = self.cmd_library_path + os.pathsep + my_env["PATH"]
+
+        cmdl = self.get_cmd()
+
+        logger.debug("Run OM command %s in %s", repr(cmdl), self.cmd_path)
+        try:
+            cmdres = subprocess.run(
+                cmdl,
+                capture_output=True,
+                text=True,
+                env=my_env,
+                cwd=self.cmd_cwd_local,
+                timeout=self.cmd_timeout,
+                check=True,
+            )
+            stdout = cmdres.stdout.strip()
+            stderr = cmdres.stderr.strip()
+            returncode = cmdres.returncode
+
+            logger.debug("OM output for command %s:\n%s", repr(cmdl), stdout)
+
+            if stderr:
+                raise ModelExecutionException(f"Error running model executable {repr(cmdl)}: {stderr}")
+        except subprocess.TimeoutExpired as ex:
+            raise ModelExecutionException(f"Timeout running model executable {repr(cmdl)}: {ex}") from ex
+        except subprocess.CalledProcessError as ex:
+            raise ModelExecutionException(f"Error running model executable {repr(cmdl)}: {ex}") from ex
+
+        return returncode
 
 
 class OMCSessionZMQ:
@@ -540,21 +582,6 @@ class OMCSessionZMQ:
         filesystem related access.
         """
         return self.omc_process.omcpath_tempdir(tempdir_base=tempdir_base)
-
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
-        """
-        Modify data based on the selected OMCProcess implementation.
-
-        Needs to be implemented in the subclasses.
-        """
-        return self.omc_process.omc_run_data_update(omc_run_data=omc_run_data)
-
-    def run_model_executable(self, cmd_run_data: OMCSessionRunData) -> int:
-        """
-        Run the command defined in cmd_run_data. This class is defined as static method such that there is no need to
-        keep instances of over classes around.
-        """
-        return self.omc_process.run_model_executable(cmd_run_data=cmd_run_data)
 
     def execute(self, command: str):
         return self.omc_process.execute(command=command)
@@ -633,6 +660,10 @@ class OMCSession(metaclass=OMCSessionMeta):
         """
         Initialisation for OMCSession
         """
+
+        # some helper data
+        self.model_execution_windows = platform.system() == "Windows"
+        self.model_execution_local = False
 
         # store variables
         self._timeout = timeout
@@ -772,6 +803,13 @@ class OMCSession(metaclass=OMCSessionMeta):
         exp = f'cd("{workdir.as_posix()}")'
         self.sendExpression(exp)
 
+    def model_execution_prefix(self, cwd: Optional[OMCPath] = None) -> list[str]:
+        """
+        Helper function which returns a command prefix needed for docker and WSL. It defaults to an empty list.
+        """
+
+        return []
+
     def omcpath(self, *path) -> OMCPath:
         """
         Create an OMCPath object based on the given path segments and the current OMCSession* class.
@@ -790,7 +828,6 @@ class OMCSession(metaclass=OMCSessionMeta):
         Get a temporary directory using OMC. It is our own implementation as non-local usage relies on OMC to run all
         filesystem related access.
         """
-        names = [str(uuid.uuid4()) for _ in range(100)]
 
         if tempdir_base is None:
             # fallback solution for Python < 3.12; a modified pathlib.Path object is used as OMCPath replacement
@@ -799,6 +836,12 @@ class OMCSession(metaclass=OMCSessionMeta):
             else:
                 tempdir_str = self.sendExpression(expr="getTempDirectoryPath()")
             tempdir_base = self.omcpath(tempdir_str)
+
+        return self._tempdir(tempdir_base=tempdir_base)
+
+    @staticmethod
+    def _tempdir(tempdir_base: OMCPath) -> OMCPath:
+        names = [str(uuid.uuid4()) for _ in range(100)]
 
         tempdir: Optional[OMCPath] = None
         for name in names:
@@ -815,43 +858,6 @@ class OMCSession(metaclass=OMCSessionMeta):
             raise OMCSessionException("Cannot create a temporary directory!")
 
         return tempdir
-
-    def run_model_executable(self, cmd_run_data: OMCSessionRunData) -> int:
-        """
-        Run the command defined in cmd_run_data.
-        """
-
-        my_env = os.environ.copy()
-        if isinstance(cmd_run_data.cmd_library_path, str):
-            my_env["PATH"] = cmd_run_data.cmd_library_path + os.pathsep + my_env["PATH"]
-
-        cmdl = cmd_run_data.get_cmd()
-
-        logger.debug("Run OM command %s in %s", repr(cmdl), cmd_run_data.cmd_path)
-        try:
-            cmdres = subprocess.run(
-                cmdl,
-                capture_output=True,
-                text=True,
-                env=my_env,
-                cwd=cmd_run_data.cmd_cwd_local,
-                timeout=self._timeout,
-                check=True,
-            )
-            stdout = cmdres.stdout.strip()
-            stderr = cmdres.stderr.strip()
-            returncode = cmdres.returncode
-
-            logger.debug("OM output for command %s:\n%s", repr(cmdl), stdout)
-
-            if stderr:
-                raise OMCSessionException(f"Error running model executable {repr(cmdl)}: {stderr}")
-        except subprocess.TimeoutExpired as ex:
-            raise OMCSessionException(f"Timeout running model executable {repr(cmdl)}") from ex
-        except subprocess.CalledProcessError as ex:
-            raise OMCSessionException(f"Error running model executable {repr(cmdl)}") from ex
-
-        return returncode
 
     def execute(self, command: str):
         warnings.warn(
@@ -1031,18 +1037,6 @@ class OMCSession(metaclass=OMCSessionMeta):
 
         return portfile_path
 
-    @abc.abstractmethod
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
-        """
-        Update the OMCSessionRunData object based on the selected OMCSession implementation.
-
-        The main point is the definition of OMCSessionRunData.cmd_model_executable which contains the specific command
-        to run depending on the selected system.
-
-        Needs to be implemented in the subclasses.
-        """
-        raise NotImplementedError("This method must be implemented in subclasses!")
-
 
 class OMCSessionPort(OMCSession):
     """
@@ -1055,28 +1049,6 @@ class OMCSessionPort(OMCSession):
     ) -> None:
         super().__init__()
         self._omc_port = omc_port
-
-    @staticmethod
-    def run_model_executable(cmd_run_data: OMCSessionRunData) -> int:
-        """
-        Run the command defined in cmd_run_data. This class is defined as static method such that there is no need to
-        keep instances of over classes around.
-        """
-        raise OMCSessionException("OMCSessionPort does not support run_model_executable()!")
-
-    def get_log(self) -> str:
-        """
-        Get the log file content of the OMC session.
-        """
-        log = f"No log available if OMC session is defined by port ({self.__class__.__name__})"
-
-        return log
-
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
-        """
-        Update the OMCSessionRunData object based on the selected OMCSession implementation.
-        """
-        raise OMCSessionException(f"({self.__class__.__name__}) does not support omc_run_data_update()!")
 
 
 class OMCSessionLocal(OMCSession):
@@ -1091,6 +1063,8 @@ class OMCSessionLocal(OMCSession):
     ) -> None:
 
         super().__init__(timeout=timeout)
+
+        self.model_execution_local = True
 
         # where to find OpenModelica
         self._omhome = self._omc_home_get(omhome=omhome)
@@ -1156,48 +1130,6 @@ class OMCSessionLocal(OMCSession):
                     f"pid={self._omc_process.pid if isinstance(self._omc_process, subprocess.Popen) else '?'}")
 
         return port
-
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
-        """
-        Update the OMCSessionRunData object based on the selected OMCSession implementation.
-        """
-        # create a copy of the data
-        omc_run_data_copy = dataclasses.replace(omc_run_data)
-
-        # as this is the local implementation, pathlib.Path can be used
-        cmd_path = pathlib.Path(omc_run_data_copy.cmd_path)
-
-        if platform.system() == "Windows":
-            path_dll = ""
-
-            # set the process environment from the generated .bat file in windows which should have all the dependencies
-            path_bat = cmd_path / f"{omc_run_data.cmd_model_name}.bat"
-            if not path_bat.is_file():
-                raise OMCSessionException("Batch file (*.bat) does not exist " + str(path_bat))
-
-            content = path_bat.read_text(encoding='utf-8')
-            for line in content.splitlines():
-                match = re.match(r"^SET PATH=([^%]*)", line, re.IGNORECASE)
-                if match:
-                    path_dll = match.group(1).strip(';')  # Remove any trailing semicolons
-            my_env = os.environ.copy()
-            my_env["PATH"] = path_dll + os.pathsep + my_env["PATH"]
-
-            omc_run_data_copy.cmd_library_path = path_dll
-
-            cmd_model_executable = cmd_path / f"{omc_run_data_copy.cmd_model_name}.exe"
-        else:
-            # for Linux the paths to the needed libraries should be included in the executable (using rpath)
-            cmd_model_executable = cmd_path / omc_run_data_copy.cmd_model_name
-
-        if not cmd_model_executable.is_file():
-            raise OMCSessionException(f"Application file path not found: {cmd_model_executable}")
-        omc_run_data_copy.cmd_model_executable = cmd_model_executable.as_posix()
-
-        # define local(!) working directory
-        omc_run_data_copy.cmd_cwd_local = omc_run_data.cmd_path
-
-        return omc_run_data_copy
 
 
 class OMCSessionDockerHelper(OMCSession):
@@ -1311,27 +1243,21 @@ class OMCSessionDockerHelper(OMCSession):
 
         return self._docker_container_id
 
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
+    def model_execution_prefix(self, cwd: Optional[OMCPath] = None) -> list[str]:
         """
-        Update the OMCSessionRunData object based on the selected OMCSession implementation.
+        Helper function which returns a command prefix needed for docker and WSL. It defaults to an empty list.
         """
-        omc_run_data_copy = dataclasses.replace(omc_run_data)
+        docker_cmd = [
+            "docker", "exec",
+            "--user", str(self._getuid()),
+            ]
+        if isinstance(cwd, OMCPath):
+            docker_cmd += ["--workdir", cwd.as_posix()]
+        docker_cmd += self._docker_extra_args
+        if isinstance(self._docker_container_id, str):
+            docker_cmd += [self._docker_container_id]
 
-        omc_run_data_copy.cmd_prefix = (
-                [
-                    "docker", "exec",
-                    "--user", str(self._getuid()),
-                    "--workdir", omc_run_data_copy.cmd_path,
-                ]
-                + self._docker_extra_args
-                + [self._docker_container_id]
-        )
-
-        cmd_path = pathlib.PurePosixPath(omc_run_data_copy.cmd_path)
-        cmd_model_executable = cmd_path / omc_run_data_copy.cmd_model_name
-        omc_run_data_copy.cmd_model_executable = cmd_model_executable.as_posix()
-
-        return omc_run_data_copy
+        return docker_cmd
 
 
 class OMCSessionDocker(OMCSessionDockerHelper):
@@ -1594,15 +1520,18 @@ class OMCSessionWSL(OMCSession):
         # connect to the running omc instance using ZMQ
         self._omc_port = self._omc_port_get()
 
-    def _wsl_cmd(self, wsl_cwd: Optional[str] = None) -> list[str]:
+    def model_execution_prefix(self, cwd: Optional[OMCPath] = None) -> list[str]:
+        """
+        Helper function which returns a command prefix needed for docker and WSL. It defaults to an empty list.
+        """
         # get wsl base command
         wsl_cmd = ['wsl']
         if isinstance(self._wsl_distribution, str):
             wsl_cmd += ['--distribution', self._wsl_distribution]
         if isinstance(self._wsl_user, str):
             wsl_cmd += ['--user', self._wsl_user]
-        if isinstance(wsl_cwd, str):
-            wsl_cmd += ['--cd', wsl_cwd]
+        if isinstance(cwd, OMCPath):
+            wsl_cmd += ['--cd', cwd.as_posix()]
         wsl_cmd += ['--']
 
         return wsl_cmd
@@ -1610,7 +1539,7 @@ class OMCSessionWSL(OMCSession):
     def _omc_process_get(self) -> subprocess.Popen:
         my_env = os.environ.copy()
 
-        omc_command = self._wsl_cmd() + [
+        omc_command = self.model_execution_prefix() + [
             self._wsl_omc,
             "--locale=C",
             "--interactive=zmq",
@@ -1632,7 +1561,7 @@ class OMCSessionWSL(OMCSession):
                 omc_portfile_path = self._get_portfile_path()
                 if omc_portfile_path is not None:
                     output = subprocess.check_output(
-                        args=self._wsl_cmd() + ["cat", omc_portfile_path.as_posix()],
+                        args=self.model_execution_prefix() + ["cat", omc_portfile_path.as_posix()],
                         stderr=subprocess.DEVNULL,
                     )
                     port = output.decode().strip()
@@ -1649,17 +1578,3 @@ class OMCSessionWSL(OMCSession):
                     f"pid={self._omc_process.pid if isinstance(self._omc_process, subprocess.Popen) else '?'}")
 
         return port
-
-    def omc_run_data_update(self, omc_run_data: OMCSessionRunData) -> OMCSessionRunData:
-        """
-        Update the OMCSessionRunData object based on the selected OMCSession implementation.
-        """
-        omc_run_data_copy = dataclasses.replace(omc_run_data)
-
-        omc_run_data_copy.cmd_prefix = self._wsl_cmd(wsl_cwd=omc_run_data.cmd_path)
-
-        cmd_path = pathlib.PurePosixPath(omc_run_data_copy.cmd_path)
-        cmd_model_executable = cmd_path / omc_run_data_copy.cmd_model_name
-        omc_run_data_copy.cmd_model_executable = cmd_model_executable.as_posix()
-
-        return omc_run_data_copy
