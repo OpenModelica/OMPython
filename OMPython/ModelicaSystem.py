@@ -1197,7 +1197,7 @@ class ModelicaSystem:
 
     def _process_override_data(
             self,
-            om_cmd: ModelicaSystemCmd,
+            om_cmd: ModelExecutionCmd,
             override_file: OMCPath,
             override_var: dict[str, str],
             override_sim: dict[str, str],
