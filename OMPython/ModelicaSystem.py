@@ -556,6 +556,9 @@ class ModelicaSystem:
         self._xmlparse(xml_file=xml_file)
 
     def sendExpression(self, expr: str, parsed: bool = True) -> Any:
+        """
+        Wrapper for OMCSession.sendExpression().
+        """
         try:
             retval = self._session.sendExpression(expr=expr, parsed=parsed)
         except OMCSessionException as ex:
@@ -1136,8 +1139,12 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getOptimizationOptions()")
 
-    def _parse_om_version(self, version: str) -> tuple[int, int, int]:
-        match = re.search(r"v?(\d+)\.(\d+)\.(\d+)", version)
+    @staticmethod
+    def _parse_om_version(version: str) -> tuple[int, int, int]:
+        """
+        Evaluate an OMC version string and return a tuple of (epoch, major, minor).
+        """
+        match = re.search(pattern=r"v?(\d+)\.(\d+)\.(\d+)", string=version)
         if not match:
             raise ValueError(f"Version not found in: {version}")
         major, minor, patch = map(int, match.groups())
@@ -1966,7 +1973,7 @@ class ModelicaSystem:
 
                 linear_data[target] = value_ast
         except (AttributeError, IndexError, ValueError, SyntaxError, TypeError) as ex:
-            raise ModelicaSystemError(f"Error parsing linearization file {linear_file}!") from ex
+            raise ModelicaSystemError(f"Error parsing linearization file {linear_file}: {ex}") from ex
 
         # remove the file
         linear_file.unlink()
