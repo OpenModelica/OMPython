@@ -22,19 +22,20 @@ from OMPython.OMCSession import (
     OMCPath,
     OMCSession,
     OMCSessionCmd,
-    OMCSessionException,
-    OMCSessionRunData,
-    OMCSessionZMQ,
-    OMCSessionPort,
-    OMCSessionLocal,
     OMCSessionDocker,
     OMCSessionDockerContainer,
+    OMCSessionException,
+    OMCSessionLocal,
+    OMCSessionPort,
+    OMCSessionRunData,
     OMCSessionWSL,
+    OMCSessionZMQ,
 )
 
 # global names imported if import 'from OMPython import *' is used
 __all__ = [
     'LinearizationResult',
+
     'ModelicaSystem',
     'ModelicaSystemCmd',
     'ModelicaSystemDoE',
@@ -44,12 +45,12 @@ __all__ = [
 
     'OMCSession',
     'OMCSessionCmd',
-    'OMCSessionException',
-    'OMCSessionRunData',
-    'OMCSessionZMQ',
-    'OMCSessionPort',
-    'OMCSessionLocal',
     'OMCSessionDocker',
     'OMCSessionDockerContainer',
+    'OMCSessionException',
+    'OMCSessionPort',
+    'OMCSessionLocal',
+    'OMCSessionRunData',
     'OMCSessionWSL',
+    'OMCSessionZMQ',
 ]
