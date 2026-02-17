@@ -468,12 +468,12 @@ class ModelicaSystem:
         """
         Set the provided command line option via OMC setCommandLineOptions().
         """
-        exp = f'setCommandLineOptions("{command_line_option}")'
-        self.sendExpression(exp)
+        expr = f'setCommandLineOptions("{command_line_option}")'
+        self.sendExpression(expr=expr)
 
     def _loadFile(self, fileName: OMCPath):
         # load file
-        self.sendExpression(f'loadFile("{fileName.as_posix()}")')
+        self.sendExpression(expr=f'loadFile("{fileName.as_posix()}")')
 
     # for loading file/package, loading model and building model
     def _loadLibrary(self, libraries: list):
@@ -491,7 +491,7 @@ class ModelicaSystem:
                         expr_load_lib = f"loadModel({element[0]})"
                     else:
                         expr_load_lib = f'loadModel({element[0]}, {{"{element[1]}"}})'
-                    self.sendExpression(expr_load_lib)
+                    self.sendExpression(expr=expr_load_lib)
                 else:
                     raise ModelicaSystemError("loadLibrary() failed, Unknown type detected: "
                                               f"{element} is of type {type(element)}, "
@@ -514,8 +514,8 @@ class ModelicaSystem:
                 raise IOError(f"{workdir} could not be created")
 
         logger.info("Define work dir as %s", workdir)
-        exp = f'cd("{workdir.as_posix()}")'
-        self.sendExpression(exp)
+        expr = f'cd("{workdir.as_posix()}")'
+        self.sendExpression(expr=expr)
 
         # set the class variable _work_dir ...
         self._work_dir = workdir
@@ -561,7 +561,7 @@ class ModelicaSystem:
 
     def sendExpression(self, expr: str, parsed: bool = True) -> Any:
         try:
-            retval = self._session.sendExpression(command=expr, parsed=parsed)
+            retval = self._session.sendExpression(expr=expr, parsed=parsed)
         except OMCSessionException as ex:
             raise ModelicaSystemError(f"Error executing {repr(expr)}: {ex}") from ex
 
@@ -577,16 +577,16 @@ class ModelicaSystem:
             properties: Optional[str] = None,
     ) -> Any:
         if entity is not None and properties is not None:
-            exp = f'{apiName}({entity}, {properties})'
+            expr = f'{apiName}({entity}, {properties})'
         elif entity is not None and properties is None:
             if apiName in ("loadFile", "importFMU"):
-                exp = f'{apiName}("{entity}")'
+                expr = f'{apiName}("{entity}")'
             else:
-                exp = f'{apiName}({entity})'
+                expr = f'{apiName}({entity})'
         else:
-            exp = f'{apiName}()'
+            expr = f'{apiName}()'
 
-        return self.sendExpression(exp)
+        return self.sendExpression(expr=expr)
 
     def _xmlparse(self, xml_file: OMCPath):
         if not xml_file.is_file():
@@ -1275,8 +1275,8 @@ class ModelicaSystem:
         # get absolute path
         result_file = result_file.absolute()
 
-        result_vars = self.sendExpression(f'readSimulationResultVars("{result_file.as_posix()}")')
-        self.sendExpression("closeSimulationResultFile()")
+        result_vars = self.sendExpression(expr=f'readSimulationResultVars("{result_file.as_posix()}")')
+        self.sendExpression(expr="closeSimulationResultFile()")
         if varList is None:
             return result_vars
 
@@ -1293,9 +1293,9 @@ class ModelicaSystem:
             if var not in result_vars:
                 raise ModelicaSystemError(f"Requested data {repr(var)} does not exist")
         variables = ",".join(var_list_checked)
-        res = self.sendExpression(f'readSimulationResult("{result_file.as_posix()}",{{{variables}}})')
+        res = self.sendExpression(expr=f'readSimulationResult("{result_file.as_posix()}",{{{variables}}})')
         np_res = np.array(res)
-        self.sendExpression("closeSimulationResultFile()")
+        self.sendExpression(expr="closeSimulationResultFile()")
         return np_res
 
     @staticmethod
@@ -1395,7 +1395,7 @@ class ModelicaSystem:
                                           "structural, final, protected, evaluated or has a non-constant binding. "
                                           "Use sendExpression(...) and rebuild the model using buildModel() API; "
                                           "command to set the parameter before rebuilding the model: "
-                                          "sendExpression(\"setParameterValue("
+                                          "sendExpression(expr=\"setParameterValue("
                                           f"{self._model_name}, {key}, {val if val is not None else '<?value?>'}"
                                           ")\").")
 
@@ -2061,16 +2061,16 @@ class ModelicaSystemDoE:
                 pk_value = pc_structure[idx_structure]
                 if isinstance(pk_value, str):
                     pk_value_str = self.get_session().escape_str(pk_value)
-                    expression = f"setParameterValue({self._model_name}, {pk_structure}, \"{pk_value_str}\")"
+                    expr = f"setParameterValue({self._model_name}, {pk_structure}, \"{pk_value_str}\")"
                 elif isinstance(pk_value, bool):
                     pk_value_bool_str = "true" if pk_value else "false"
-                    expression = f"setParameterValue({self._model_name}, {pk_structure}, {pk_value_bool_str});"
+                    expr = f"setParameterValue({self._model_name}, {pk_structure}, {pk_value_bool_str});"
                 else:
-                    expression = f"setParameterValue({self._model_name}, {pk_structure}, {pk_value})"
-                res = self._mod.sendExpression(expression)
+                    expr = f"setParameterValue({self._model_name}, {pk_structure}, {pk_value})"
+                res = self._mod.sendExpression(expr=expr)
                 if not res:
                     raise ModelicaSystemError(f"Cannot set structural parameter {self._model_name}.{pk_structure} "
-                                              f"to {pk_value} using {repr(expression)}")
+                                              f"to {pk_value} using {repr(expr)}")
 
             self._mod.buildModel()
 
