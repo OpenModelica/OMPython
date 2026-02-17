@@ -77,7 +77,6 @@ __all__ = [
     'OMCSessionException',
     'OMCSessionPort',
     'OMCSessionLocal',
-    'OMCSessionRunData',
     'OMCSessionWSL',
     'OMCSessionZMQ',
 ]
