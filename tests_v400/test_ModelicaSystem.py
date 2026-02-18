@@ -35,7 +35,7 @@ def test_setParameters():
     mod = OMPython.ModelicaSystem(model_path + "BouncingBall.mo", "BouncingBall")
 
     # method 1
-    mod.setParameters(pvals={"e": 1.234})
+    mod.setParameters(pvals="e=1.234")
     mod.setParameters(pvals={"g": 321.0})
     assert mod.getParameters("e") == ["1.234"]
     assert mod.getParameters("g") == ["321.0"]
