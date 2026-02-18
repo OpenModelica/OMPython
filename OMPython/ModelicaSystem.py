@@ -77,14 +77,62 @@ class ModelicaSystem(ModelicaSystemOMC):
             pkey: str,
             args: Any,
             kwargs: dict[str, Any],
-    ) -> Any:
-        param = None
+    ) -> dict[str, Any]:
+        input_args = []
         if len(args) == 1:
-            param = args[0]
-        if param is None and pkey in kwargs:
-            param = kwargs[pkey]
+            input_args.append(args[0])
+        elif pkey in kwargs:
+            input_args.append(kwargs[pkey])
 
-        return param
+        # the code below is based on _prepare_input_data2()
+
+        def prepare_str(str_in: str) -> dict[str, str]:
+            str_in = str_in.replace(" ", "")
+            key_val_list: list[str] = str_in.split("=")
+            if len(key_val_list) != 2:
+                raise ModelicaSystemError(f"Invalid 'key=value' pair: {str_in}")
+            if len(key_val_list[0]) == 0:
+                raise ModelicaSystemError(f"Empty key: {str_in}")
+
+            input_data_from_str: dict[str, str] = {str(key_val_list[0]): str(key_val_list[1])}
+
+            return input_data_from_str
+
+        input_data: dict[str, str] = {}
+
+        if input_args is None:
+            return input_data
+
+        for input_arg in input_args:
+            if isinstance(input_arg, str):
+                warnings.warn(message="The definition of values to set should use a dictionary, "
+                                      "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
+                                      "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
+                              category=DeprecationWarning,
+                              stacklevel=3)
+                input_data = input_data | prepare_str(input_arg)
+            elif isinstance(input_arg, list):
+                warnings.warn(message="The definition of values to set should use a dictionary, "
+                                      "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
+                                      "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
+                              category=DeprecationWarning,
+                              stacklevel=3)
+
+                for item in input_arg:
+                    if not isinstance(item, str):
+                        raise ModelicaSystemError(f"Invalid input data type for set*() function: {type(item)}!")
+                    input_data = input_data | prepare_str(item)
+            elif isinstance(input_arg, dict):
+                input_arg_str: dict[str, str] = {}
+                for key, val in input_arg.items():
+                    if not isinstance(key, str) or len(key) == 0:
+                        raise ModelicaSystemError(f"Invalid key for set*() functions: {repr(key)}")
+                    input_arg_str[key] = str(val).replace(' ', '')
+                input_data = input_data | input_arg_str
+            else:
+                raise ModelicaSystemError(f"Invalid input data type for set*() function: {type(input_arg)}!")
+
+        return input_data
 
     def setContinuous(
             self,
@@ -104,10 +152,7 @@ class ModelicaSystem(ModelicaSystemOMC):
         ```
         """
         param = self._set_compatibility_helper(pkey='cvals', args=args, kwargs=kwargs)
-        if param is None:
-            raise ModelicaSystemError("Invalid input for setContinuous() (v4.0.0 compatibility mode).")
-
-        return super().setContinuous(param)
+        return super().setContinuous(**param)
 
     def setParameters(
             self,
@@ -127,10 +172,7 @@ class ModelicaSystem(ModelicaSystemOMC):
         ```
         """
         param = self._set_compatibility_helper(pkey='pvals', args=args, kwargs=kwargs)
-        if param is None:
-            raise ModelicaSystemError("Invalid input for setParameters() (v4.0.0 compatibility mode).")
-
-        return super().setParameters(param)
+        return super().setParameters(**param)
 
     def setOptimizationOptions(
             self,
@@ -150,10 +192,7 @@ class ModelicaSystem(ModelicaSystemOMC):
         ```
         """
         param = self._set_compatibility_helper(pkey='optimizationOptions', args=args, kwargs=kwargs)
-        if param is None:
-            raise ModelicaSystemError("Invalid input for setOptimizationOptions() (v4.0.0 compatibility mode).")
-
-        return super().setOptimizationOptions(param)
+        return super().setOptimizationOptions(**param)
 
     def setInputs(
             self,
@@ -173,10 +212,7 @@ class ModelicaSystem(ModelicaSystemOMC):
         ```
         """
         param = self._set_compatibility_helper(pkey='name', args=args, kwargs=kwargs)
-        if param is None:
-            raise ModelicaSystemError("Invalid input for setInputs() (v4.0.0 compatibility mode).")
-
-        return super().setInputs(param)
+        return super().setInputs(**param)
 
     def setSimulationOptions(
             self,
@@ -196,10 +232,7 @@ class ModelicaSystem(ModelicaSystemOMC):
         ```
         """
         param = self._set_compatibility_helper(pkey='simOptions', args=args, kwargs=kwargs)
-        if param is None:
-            raise ModelicaSystemError("Invalid input for setSimulationOptions() (v4.0.0 compatibility mode).")
-
-        return super().setSimulationOptions(param)
+        return super().setSimulationOptions(**param)
 
     def setLinearizationOptions(
             self,
@@ -219,10 +252,7 @@ class ModelicaSystem(ModelicaSystemOMC):
         ```
         """
         param = self._set_compatibility_helper(pkey='linearizationOptions', args=args, kwargs=kwargs)
-        if param is None:
-            raise ModelicaSystemError("Invalid input for setLinearizationOptions() (v4.0.0 compatibility mode).")
-
-        return super().setLinearizationOptions(param)
+        return super().setLinearizationOptions(**param)
 
     def getContinuous(
             self,
