@@ -1,11 +1,6 @@
-name: Test-Publish
+name: Test-v4.x.x
 
 on:
-  push:
-    branches: ['master']
-    tags:
-      - 'v*'   # only publish when pushing version tags (e.g., v1.0.0)
-  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -73,38 +68,6 @@ jobs:
           verbose: true
           emoji: true
           job-summary: true
-          custom-arguments: '-v --ignore=./tests/test_FMIRegression.py'
+          custom-arguments: '-v ./tests --ignore=./tests/test_FMIRegression.py'
           click-to-expand: true
           report-title: 'Test Report'
-
-  Publish:
-    name: Publish to PyPI
-    runs-on: ${{ matrix.os }}
-    needs: test
-    strategy:
-      matrix:
-        python-version: ['3.10']
-        os: ['ubuntu-latest']
-    if: startsWith(github.ref, 'refs/tags/')
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-          architecture: 'x64'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip build setuptools wheel twine
-
-      - name: Build wheel and sdist packages
-        run: python -m build --wheel --sdist --outdir dist
-
-      - name: Publish wheel and sdist packages to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_OMPYTHON_API_TOKEN }}
-        run: |
-          python -m twine upload dist/* --skip-existing
