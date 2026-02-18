@@ -274,13 +274,13 @@ class OMCPathReal(pathlib.PurePosixPath):
         """
         Check if the path is a regular file.
         """
-        return self._session.sendExpression(f'regularFileExists("{self.as_posix()}")')
+        return self._session.sendExpression(expr=f'regularFileExists("{self.as_posix()}")')
 
     def is_dir(self, *, follow_symlinks=True) -> bool:
         """
         Check if the path is a directory.
         """
-        return self._session.sendExpression(f'directoryExists("{self.as_posix()}")')
+        return self._session.sendExpression(expr=f'directoryExists("{self.as_posix()}")')
 
     def is_absolute(self):
         """
@@ -298,7 +298,7 @@ class OMCPathReal(pathlib.PurePosixPath):
         The additional arguments `encoding`, `errors` and `newline` are only defined for compatibility with Path()
         definition.
         """
-        return self._session.sendExpression(f'readFile("{self.as_posix()}")')
+        return self._session.sendExpression(expr=f'readFile("{self.as_posix()}")')
 
     def write_text(self, data: str, encoding=None, errors=None, newline=None):
         """
@@ -311,7 +311,7 @@ class OMCPathReal(pathlib.PurePosixPath):
             raise TypeError(f"data must be str, not {data.__class__.__name__}")
 
         data_omc = self._session.escape_str(data)
-        self._session.sendExpression(f'writeFile("{self.as_posix()}", "{data_omc}", false);')
+        self._session.sendExpression(expr=f'writeFile("{self.as_posix()}", "{data_omc}", false);')
 
         return len(data)
 
@@ -324,20 +324,20 @@ class OMCPathReal(pathlib.PurePosixPath):
         if self.is_dir() and not exist_ok:
             raise FileExistsError(f"Directory {self.as_posix()} already exists!")
 
-        return self._session.sendExpression(f'mkdir("{self.as_posix()}")')
+        return self._session.sendExpression(expr=f'mkdir("{self.as_posix()}")')
 
     def cwd(self):
         """
         Returns the current working directory as an OMCPath object.
         """
-        cwd_str = self._session.sendExpression('cd()')
+        cwd_str = self._session.sendExpression(expr='cd()')
         return OMCPath(cwd_str, session=self._session)
 
     def unlink(self, missing_ok: bool = False) -> None:
         """
         Unlink (delete) the file or directory represented by this path.
         """
-        res = self._session.sendExpression(f'deleteFile("{self.as_posix()}")')
+        res = self._session.sendExpression(expr=f'deleteFile("{self.as_posix()}")')
         if not res and not missing_ok:
             raise FileNotFoundError(f"Cannot delete file {self.as_posix()} - it does not exists!")
 
@@ -367,12 +367,12 @@ class OMCPathReal(pathlib.PurePosixPath):
         Internal function to resolve the path of the OMCPath object using OMC functions *WITHOUT* changing the cwd
         within OMC.
         """
-        expression = ('omcpath_cwd := cd(); '
-                      f'omcpath_check := cd("{pathstr}"); '  # check requested pathstring
-                      'cd(omcpath_cwd)')
+        expr = ('omcpath_cwd := cd(); '
+                f'omcpath_check := cd("{pathstr}"); '  # check requested pathstring
+                'cd(omcpath_cwd)')
 
         try:
-            result = self._session.sendExpression(command=expression, parsed=False)
+            result = self._session.sendExpression(expr=expr, parsed=False)
             result_parts = result.split('\n')
             pathstr_resolved = result_parts[1]
             pathstr_resolved = pathstr_resolved[1:-1]  # remove quotes
@@ -401,7 +401,7 @@ class OMCPathReal(pathlib.PurePosixPath):
         if not self.is_file():
             raise OMCSessionException(f"Path {self.as_posix()} is not a file!")
 
-        res = self._session.sendExpression(f'stat("{self.as_posix()}")')
+        res = self._session.sendExpression(expr=f'stat("{self.as_posix()}")')
         if res[0]:
             return int(res[1])
 
@@ -573,7 +573,7 @@ class OMCSessionZMQ:
         The complete error handling of the OMC result is done within this method using '"getMessagesStringInternal()'.
         Caller should only check for OMCSessionException.
         """
-        return self.omc_process.sendExpression(command=command, parsed=parsed)
+        return self.omc_process.sendExpression(expr=command, parsed=parsed)
 
 
 class PostInitCaller(type):
@@ -695,7 +695,7 @@ class OMCSession(metaclass=OMCSessionMeta):
     def __del__(self):
         if isinstance(self._omc_zmq, zmq.Socket):
             try:
-                self.sendExpression("quit()")
+                self.sendExpression(expr="quit()")
             except OMCSessionException as exc:
                 logger.warning(f"Exception on sending 'quit()' to OMC: {exc}! Continue nevertheless ...")
             finally:
@@ -791,7 +791,7 @@ class OMCSession(metaclass=OMCSessionMeta):
             if sys.version_info < (3, 12):
                 tempdir_str = tempfile.gettempdir()
             else:
-                tempdir_str = self.sendExpression("getTempDirectoryPath()")
+                tempdir_str = self.sendExpression(expr="getTempDirectoryPath()")
             tempdir_base = self.omcpath(tempdir_str)
 
         tempdir: Optional[OMCPath] = None
@@ -855,7 +855,7 @@ class OMCSession(metaclass=OMCSessionMeta):
 
         return self.sendExpression(command, parsed=False)
 
-    def sendExpression(self, command: str, parsed: bool = True) -> Any:
+    def sendExpression(self, expr: str, parsed: bool = True) -> Any:
         """
         Send an expression to the OMC server and return the result.
 
@@ -866,12 +866,12 @@ class OMCSession(metaclass=OMCSessionMeta):
         if self._omc_zmq is None:
             raise OMCSessionException("No OMC running. Please create a new instance of OMCSession!")
 
-        logger.debug("sendExpression(%r, parsed=%r)", command, parsed)
+        logger.debug("sendExpression(expr='%r', parsed=%r)", str(expr), parsed)
 
         loop = self._timeout_loop(timestep=0.05)
         while next(loop):
             try:
-                self._omc_zmq.send_string(str(command), flags=zmq.NOBLOCK)
+                self._omc_zmq.send_string(str(expr), flags=zmq.NOBLOCK)
                 break
             except zmq.error.Again:
                 pass
@@ -885,7 +885,7 @@ class OMCSession(metaclass=OMCSessionMeta):
             logger.error(f"OMC did not start. Log-file says:\n{log_content}")
             raise OMCSessionException(f"No connection with OMC (timeout={self._timeout}).")
 
-        if command == "quit()":
+        if expr == "quit()":
             self._omc_zmq.close()
             self._omc_zmq = None
             return None
@@ -895,13 +895,13 @@ class OMCSession(metaclass=OMCSessionMeta):
         if result.startswith('Error occurred building AST'):
             raise OMCSessionException(f"OMC error: {result}")
 
-        if command == "getErrorString()":
+        if expr == "getErrorString()":
             # no error handling if 'getErrorString()' is called
             if parsed:
                 logger.warning("Result of 'getErrorString()' cannot be parsed!")
             return result
 
-        if command == "getMessagesStringInternal()":
+        if expr == "getMessagesStringInternal()":
             # no error handling if 'getMessagesStringInternal()' is called
             if parsed:
                 logger.warning("Result of 'getMessagesStringInternal()' cannot be parsed!")
@@ -955,7 +955,7 @@ class OMCSession(metaclass=OMCSessionMeta):
                 log_level = log_raw[0][8]
                 log_id = log_raw[0][9]
 
-                msg_short = (f"[OMC log for 'sendExpression({command}, {parsed})']: "
+                msg_short = (f"[OMC log for 'sendExpression(expr={expr}, parsed={parsed})']: "
                              f"[{log_kind}:{log_level}:{log_id}] {log_message}")
 
                 # response according to the used log level
@@ -977,7 +977,7 @@ class OMCSession(metaclass=OMCSessionMeta):
                 msg_long_list.append(msg_long)
             if has_error:
                 msg_long_str = '\n'.join(f"{idx:02d}: {msg}" for idx, msg in enumerate(msg_long_list))
-                raise OMCSessionException(f"OMC error occurred for 'sendExpression({command}, {parsed}):\n"
+                raise OMCSessionException(f"OMC error occurred for 'sendExpression(expr={expr}, parsed={parsed}):\n"
                                           f"{msg_long_str}")
 
         if not parsed:
