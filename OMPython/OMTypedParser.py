@@ -34,23 +34,23 @@ __maintainer__ = "https://openmodelica.org"
 from typing import Any
 
 from pyparsing import (
+    alphanums,
+    alphas,
     Combine,
+    DelimitedList,
     Dict,
+    infix_notation,
     Forward,
     Group,
     Keyword,
+    nums,
+    opAssoc,
     Optional,
     QuotedString,
+    replace_with,
     StringEnd,
     Suppress,
     Word,
-    alphanums,
-    alphas,
-    delimitedList,
-    nums,
-    replaceWith,
-    infixNotation,
-    opAssoc,
 )
 
 
@@ -97,7 +97,7 @@ def evaluate_expression(s, loc, toks):
 
 
 # Number parsing (supports arithmetic expressions in dimensions) (e.g., {1 + 1, 1})
-arrayDimension = infixNotation(
+arrayDimension = infix_notation(
     Word(alphas + "_", alphanums + "_") | Word(nums),
     [
         (Word("+-", exact=1), 1, opAssoc.RIGHT),
@@ -109,28 +109,28 @@ arrayDimension = infixNotation(
 omcRecord = Forward()
 omcValue = Forward()
 
-# pyparsing's replace_with (and thus replaceWith) has incorrect type
+# pyparsing's replace_with (and thus replace_with) has incorrect type
 # annotation: https://github.com/pyparsing/pyparsing/issues/602
-TRUE = Keyword("true").set_parse_action(replaceWith(True))  # type: ignore
-FALSE = Keyword("false").set_parse_action(replaceWith(False))  # type: ignore
-NONE = (Keyword("NONE") + Suppress("(") + Suppress(")")).set_parse_action(replaceWith(None))  # type: ignore
+TRUE = Keyword("true").set_parse_action(replace_with(True))   # type: ignore
+FALSE = Keyword("false").set_parse_action(replace_with(False))   # type: ignore
+NONE = (Keyword("NONE") + Suppress("(") + Suppress(")")).set_parse_action(replace_with(None))  # type: ignore
 SOME = (Suppress(Keyword("SOME")) + Suppress("(") + omcValue + Suppress(")"))
 
-omcString = QuotedString(quoteChar='"', escChar='\\', multiline=True).set_parse_action(convert_string)
+omcString = QuotedString(quote_char='"', esc_char='\\', multiline=True).set_parse_action(convert_string)
 omcNumber = Combine(Optional('-') + ('0' | Word('123456789', nums)) +
                     Optional('.' + Word(nums)) +
                     Optional(Word('eE', exact=1) + Word(nums + '+-', nums)))
 
 # ident = Word(alphas + "_", alphanums + "_") | Combine("'" + Word(alphanums + "!#$%&()*+,-./:;<>=?@[]^{}|~ ") + "'")
 ident = (Word(alphas + "_", alphanums + "_")
-         | QuotedString(quoteChar='\'', escChar='\\').set_parse_action(convert_string2))
+         | QuotedString(quote_char='\'', esc_char='\\').set_parse_action(convert_string2))
 fqident = Forward()
 fqident << ((ident + "." + fqident) | ident)
-omcValues = delimitedList(omcValue)
+omcValues = DelimitedList(omcValue)
 omcTuple = Group(Suppress('(') + Optional(omcValues) + Suppress(')')).set_parse_action(convert_tuple)
 omcArray = Group(Suppress('{') + Optional(omcValues) + Suppress('}')).set_parse_action(convert_tuple)
 omcArraySpecialTypes = Group(Suppress('{')
-                             + delimitedList(arrayDimension)
+                             + DelimitedList(arrayDimension)
                              + Suppress('}')).set_parse_action(convert_tuple)
 omcValue << (omcString
              | omcNumber
@@ -143,7 +143,7 @@ omcValue << (omcString
              | FALSE
              | NONE
              | Combine(fqident))
-recordMember = delimitedList(Group(ident + Suppress('=') + omcValue))
+recordMember = DelimitedList(Group(ident + Suppress('=') + omcValue))
 omcRecord << Group(Suppress('record')
                    + Suppress(fqident)
                    + Dict(recordMember)
