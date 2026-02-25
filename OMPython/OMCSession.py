@@ -23,10 +23,10 @@ import time
 from typing import Any, Optional, Tuple
 import uuid
 import warnings
-import zmq
 
 import psutil
 import pyparsing
+import zmq
 
 # TODO: replace this with the new parser
 from OMPython.OMTypedParser import om_parser_typed
@@ -406,13 +406,6 @@ class OMCPathReal(pathlib.PurePosixPath):
             return int(res[1])
 
         raise OMCSessionException(f"Error reading file size for path {self.as_posix()}!")
-
-    def stat(self):
-        """
-        The function stat() cannot be implemented using OMC.
-        """
-        raise NotImplementedError("The function stat() cannot be implemented using OMC; "
-                                  "use size() to get the file size.")
 
 
 if sys.version_info < (3, 12):
