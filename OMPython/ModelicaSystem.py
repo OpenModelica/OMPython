@@ -352,7 +352,7 @@ class ModelicaSystem:
             self._session = OMCSessionLocal(omhome=omhome)
 
         # get OpenModelica version
-        version_str = self.sendExpression(expr="getVersion()")
+        version_str = self._session.get_version()
         self._version = self._parse_om_version(version=version_str)
         # set commandLineOptions using default values or the user defined list
         if command_line_options is None:
@@ -514,8 +514,7 @@ class ModelicaSystem:
                 raise IOError(f"{workdir} could not be created")
 
         logger.info("Define work dir as %s", workdir)
-        expr = f'cd("{workdir.as_posix()}")'
-        self.sendExpression(expr=expr)
+        self._session.set_workdir(workdir=workdir)
 
         # set the class variable _work_dir ...
         self._work_dir = workdir
