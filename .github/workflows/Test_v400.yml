@@ -1,4 +1,4 @@
-name: Test-v4.x.x
+name: Test-v4.0.0
 
 on:
   workflow_dispatch:
@@ -68,6 +68,6 @@ jobs:
           verbose: true
           emoji: true
           job-summary: true
-          custom-arguments: '-v ./tests'
+          custom-arguments: '-v ./tests_v400'
           click-to-expand: true
           report-title: 'Test Report'
