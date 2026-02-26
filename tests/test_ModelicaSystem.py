@@ -345,20 +345,33 @@ end M_getters;
     with pytest.raises(KeyError):
         mod.getInputs("thisInputDoesNotExist")
     # getOutputs before simulate()
-    assert mod.getOutputs() == {'y': '-0.4'}
-    assert mod.getOutputs("y") == ["-0.4"]
-    assert mod.getOutputs(["y", "y"]) == ["-0.4", "-0.4"]
+    output = mod.getOutputs()
+    assert len(output) == 1
+    assert 'y' in output.keys()
+    assert np.isclose(output['y'], -0.4)
+    assert np.isclose(mod.getOutputs("y"), -0.4)
+    output = mod.getOutputs(["y", "y"])
+    assert len(output) == 2
+    assert np.isclose(output[0], -0.4)
+    assert np.isclose(output[1], -0.4)
     with pytest.raises(KeyError):
         mod.getOutputs("thisOutputDoesNotExist")
 
     # getContinuous before simulate():
-    assert mod.getContinuous() == {
-        'x': '1.0',
-        'der(x)': None,
-        'y': '-0.4'
-    }
-    assert mod.getContinuous("y") == ['-0.4']
-    assert mod.getContinuous(["y", "x"]) == ['-0.4', '1.0']
+    continuous = mod.getContinuous()
+    assert len(continuous) == 3
+    assert 'x' in continuous.keys()
+    assert np.isclose(continuous['x'], 1.0)
+    assert 'der(x)' in continuous.keys()
+    assert np.isnan(continuous['der(x)'])
+    assert 'y' in continuous.keys()
+    assert np.isclose(continuous['y'], -0.4)
+    continuous = mod.getContinuous('y')
+    assert np.isclose(continuous, -0.4)
+    continuous = mod.getContinuous(['y', 'x'])
+    assert np.isclose(continuous[0], -0.4)
+    assert np.isclose(continuous[1], 1.0)
+
     with pytest.raises(KeyError):
         mod.getContinuous("a")  # a is a parameter
 
@@ -381,9 +394,9 @@ end M_getters;
         mod.getOutputs("thisOutputDoesNotExist")
 
     # getContinuous after simulate() should return values at end of simulation:
-    with pytest.raises(OMPython.ModelicaSystemError):
+    with pytest.raises(KeyError):
         mod.getContinuous("a")  # a is a parameter
-    with pytest.raises(OMPython.ModelicaSystemError):
+    with pytest.raises(KeyError):
         mod.getContinuous(["x", "a", "y"])  # a is a parameter
     d = mod.getContinuous()
     assert d.keys() == {"x", "der(x)", "y"}
@@ -393,7 +406,7 @@ end M_getters;
     assert mod.getContinuous("x") == [d["x"]]
     assert mod.getContinuous(["y", "x"]) == [d["y"], d["x"]]
 
-    with pytest.raises(OMPython.ModelicaSystemError):
+    with pytest.raises(KeyError):
         mod.getContinuous("a")  # a is a parameter
 
     with pytest.raises(OMPython.ModelicaSystemError):

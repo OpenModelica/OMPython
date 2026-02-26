@@ -32,13 +32,10 @@
  Version: 1.0
 """
 
-import sys
-from typing import Dict, Any
+from typing import Any
 
-result: Dict[str, Any] = dict()
+result: dict[str, Any] = {}
 
-inner_sets = []
-next_set_list = []
 next_set = []
 next_set.append('')
 
@@ -47,10 +44,9 @@ def bool_from_string(string):
     """Attempt conversion of string to a boolean """
     if string in {'true', 'True', 'TRUE'}:
         return True
-    elif string in {'false', 'False', 'FALSE'}:
+    if string in {'false', 'False', 'FALSE'}:
         return False
-    else:
-        raise ValueError
+    raise ValueError
 
 
 def typeCheck(string):
@@ -67,9 +63,7 @@ def typeCheck(string):
             return t(string)
         except ValueError:
             continue
-    else:
-        print("String contains un-handled datatype")
-        return string
+    raise ValueError(f"String contains un-handled datatype: {repr(string)}!")
 
 
 def make_values(strings, name):
@@ -161,14 +155,9 @@ def make_values(strings, name):
                 varValue = (varValue.replace('{', '').strip()).replace('}', '').strip()
                 multiple_values = varValue.split(",")
 
-            for n in range(len(multiple_values)):
-                each_v = multiple_values[n]
-                multiple_values.pop(n)
-                each_v = typeCheck(each_v)
-                multiple_values.append(each_v)
-
             if len(multiple_values) != 0:
-                result[main_set_name]['Elements'][name]['Properties']['Results'][varName] = multiple_values
+                multiple_values_type_checked = [typeCheck(val) for val in multiple_values]
+                result[main_set_name]['Elements'][name]['Properties']['Results'][varName] = multiple_values_type_checked
             elif varName != "" and varValue != "":
                 result[main_set_name]['Elements'][name]['Properties']['Results'][varName] = varValue
             else:
@@ -187,12 +176,12 @@ def delete_elements(strings):
                 char = strings[pos]
                 if char == "":
                     break
-                elif char == ",":
+                if char == ",":
                     break
-                elif char == " ":
+                if char == " ":
                     pos = pos + 1
                     break
-                elif char == "{":
+                if char == "{":
                     break
                 pos = pos - 1
             delStr = strings[pos: strings.rfind(")")]
@@ -566,8 +555,8 @@ def get_the_set(string):
                     break
             pos += 1
         if count != 0:
-            print("\nParser Error: Are you missing one or more '}'s? \n")
-            sys.exit(1)
+            raise ValueError("Parser Error: Are you missing one or more '}}'s in string? "
+                             f"(string value: {repr(string)}")
 
         if max_count >= 2:
             while position < end_of_main_set:
@@ -683,15 +672,14 @@ def get_the_set(string):
                 position += 1
         else:
             next_set[0] = ""
-            return (len(string) - 1)
+            return len(string) - 1
 
         max_of_sets = max(last_set, last_subset)
         max_of_main_set = max(max_of_sets, last_subset)
 
         if max_of_main_set != 0:
             return max_of_main_set
-        else:
-            return (len(string) - 1)
+        return len(string) - 1
 
     # Main entry of get_the_string()
     index = 0
@@ -745,8 +733,7 @@ def get_the_set(string):
         else:
             return current_set, next_set[0]
     else:
-        print("\nThe following String has no {}s to proceed\n")
-        print(string)
+        raise ValueError(f"The following String has no {{}}s to proceed: {repr(string)}!")
 
     # End of get_the_string()
 
@@ -835,7 +822,7 @@ def check_for_values(string):
     if "record SimulationResult" in string:
         formatSimRes(string)
         return result
-    elif "record " in string:
+    if "record " in string:
         formatRecords(string)
         return result
 
@@ -843,7 +830,7 @@ def check_for_values(string):
 
     if not isinstance(string, str):
         return string
-    elif string.find("{") == -1:
+    if string.find("{") == -1:
         return string
 
     current_set, next_set = get_the_set(string)

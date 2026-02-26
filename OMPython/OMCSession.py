@@ -23,10 +23,10 @@ import time
 from typing import Any, Optional, Tuple
 import uuid
 import warnings
-import zmq
 
 import psutil
 import pyparsing
+import zmq
 
 # TODO: replace this with the new parser
 from OMPython.OMTypedParser import om_parser_typed
@@ -407,13 +407,6 @@ class OMCPathReal(pathlib.PurePosixPath):
 
         raise OMCSessionException(f"Error reading file size for path {self.as_posix()}!")
 
-    def stat(self):
-        """
-        The function stat() cannot be implemented using OMC.
-        """
-        raise NotImplementedError("The function stat() cannot be implemented using OMC; "
-                                  "use size() to get the file size.")
-
 
 if sys.version_info < (3, 12):
 
@@ -765,6 +758,19 @@ class OMCSession(metaclass=OMCSessionMeta):
         Escape a string such that it can be used as string within OMC expressions, i.e. escape all double quotes.
         """
         return value.replace("\\", "\\\\").replace('"', '\\"')
+
+    def get_version(self) -> str:
+        """
+        Get the OM version.
+        """
+        return self.sendExpression("getVersion()", parsed=True)
+
+    def set_workdir(self, workdir: OMCPath) -> None:
+        """
+        Set the workdir for this session.
+        """
+        exp = f'cd("{workdir.as_posix()}")'
+        self.sendExpression(exp)
 
     def omcpath(self, *path) -> OMCPath:
         """

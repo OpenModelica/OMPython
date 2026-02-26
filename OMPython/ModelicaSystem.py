@@ -325,11 +325,8 @@ class ModelicaSystem:
         self._quantities: list[dict[str, Any]] = []
         self._params: dict[str, str] = {}  # even numerical values are stored as str
         self._inputs: dict[str, list[tuple[float, float]]] = {}
-        # _outputs values are str before simulate(), but they can be
-        # np.float64 after simulate().
-        self._outputs: dict[str, Any] = {}
-        # same for _continuous
-        self._continuous: dict[str, Any] = {}
+        self._outputs: dict[str, np.float64] = {}  # numpy.float64 as it allows to define None values
+        self._continuous: dict[str, np.float64] = {}  # numpy.float64 as it allows to define None values
         self._simulate_options: dict[str, str] = {}
         self._override_variables: dict[str, str] = {}
         self._simulate_options_override: dict[str, str] = {}
@@ -352,7 +349,7 @@ class ModelicaSystem:
             self._session = OMCSessionLocal(omhome=omhome)
 
         # get OpenModelica version
-        version_str = self.sendExpression(expr="getVersion()")
+        version_str = self._session.get_version()
         self._version = self._parse_om_version(version=version_str)
         # set commandLineOptions using default values or the user defined list
         if command_line_options is None:
@@ -514,8 +511,7 @@ class ModelicaSystem:
                 raise IOError(f"{workdir} could not be created")
 
         logger.info("Define work dir as %s", workdir)
-        expr = f'cd("{workdir.as_posix()}")'
-        self.sendExpression(expr=expr)
+        self._session.set_workdir(workdir=workdir)
 
         # set the class variable _work_dir ...
         self._work_dir = workdir
@@ -633,11 +629,11 @@ class ModelicaSystem:
                 else:
                     self._params[scalar["name"]] = scalar["start"]
             if scalar["variability"] == "continuous":
-                self._continuous[scalar["name"]] = scalar["start"]
+                self._continuous[scalar["name"]] = np.float64(scalar["start"])
             if scalar["causality"] == "input":
                 self._inputs[scalar["name"]] = scalar["start"]
             if scalar["causality"] == "output":
-                self._outputs[scalar["name"]] = scalar["start"]
+                self._outputs[scalar["name"]] = np.float64(scalar["start"])
 
             self._quantities.append(scalar)
 
@@ -698,15 +694,104 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getQuantities()")
 
+    def getContinuousInitial(
+            self,
+            names: Optional[str | list[str]] = None,
+    ) -> dict[str, np.float64] | list[np.float64]:
+        """
+        Get (initial) values of continuous signals.
+
+        Args:
+            names: Either None (default), a string with the continuous signal
+              name, or a list of signal name strings.
+        Returns:
+            If `names` is None, a dict in the format
+            {signal_name: signal_value} is returned.
+            If `names` is a string, a single element list [signal_value] is
+            returned.
+            If `names` is a list, a list with one value for each signal name
+            in names is returned: [signal1_value, signal2_value, ...].
+
+        Examples:
+            >>> mod.getContinuousInitial()
+            {'x': '1.0', 'der(x)': None, 'y': '-0.4'}
+            >>> mod.getContinuousInitial("y")
+            ['-0.4']
+            >>> mod.getContinuousInitial(["y","x"])
+            ['-0.4', '1.0']
+        """
+        if names is None:
+            return self._continuous
+        if isinstance(names, str):
+            return [self._continuous[names]]
+        if isinstance(names, list):
+            return [self._continuous[x] for x in names]
+
+        raise ModelicaSystemError("Unhandled input for getContinousInitial()")
+
+    def getContinuousFinal(
+            self,
+            names: Optional[str | list[str]] = None,
+    ) -> dict[str, np.float64] | list[np.float64]:
+        """
+        Get (final) values of continuous signals (at stopTime).
+
+        Args:
+            names: Either None (default), a string with the continuous signal
+              name, or a list of signal name strings.
+        Returns:
+            If `names` is None, a dict in the format
+            {signal_name: signal_value} is returned.
+            If `names` is a string, a single element list [signal_value] is
+            returned.
+            If `names` is a list, a list with one value for each signal name
+            in names is returned: [signal1_value, signal2_value, ...].
+
+        Examples:
+            >>> mod.getContinuousFinal()
+            {'x': np.float64(0.68), 'der(x)': np.float64(-0.24), 'y': np.float64(-0.24)}
+            >>> mod.getContinuousFinal("x")
+            [np.float64(0.68)]
+            >>> mod.getContinuousFinal(["y","x"])
+            [np.float64(-0.24), np.float64(0.68)]
+        """
+        if not self._simulated:
+            raise ModelicaSystemError("Please use getContinuousInitial() before the simulation was started!")
+
+        def get_continuous_solution(name_list: list[str]) -> None:
+            for name in name_list:
+                if name in self._continuous:
+                    value = self.getSolutions(name)
+                    self._continuous[name] = np.float64(value[0][-1])
+                else:
+                    raise KeyError(f"{names} is not continuous")
+
+        if names is None:
+            get_continuous_solution(name_list=list(self._continuous.keys()))
+            return self._continuous
+
+        if isinstance(names, str):
+            get_continuous_solution(name_list=[names])
+            return [self._continuous[names]]
+
+        if isinstance(names, list):
+            get_continuous_solution(name_list=names)
+            values = []
+            for name in names:
+                values.append(self._continuous[name])
+            return values
+
+        raise ModelicaSystemError("Unhandled input for getContinousFinal()")
+
     def getContinuous(
             self,
             names: Optional[str | list[str]] = None,
-    ) -> dict[str, str | numbers.Real] | list[str | numbers.Real]:
+    ) -> dict[str, np.float64] | list[np.float64]:
         """Get values of continuous signals.
 
-        If called before simulate(), the initial values are returned as
-        strings (or None). If called after simulate(), the final values (at
-        stopTime) are returned as numpy.float64.
+        If called before simulate(), the initial values are returned.
+        If called after simulate(), the final values (at stopTime) are returned.
+        The return format is always numpy.float64.
 
         Args:
             names: Either None (default), a string with the continuous signal
@@ -733,45 +818,13 @@ class ModelicaSystem:
             {'x': np.float64(0.68), 'der(x)': np.float64(-0.24), 'y': np.float64(-0.24)}
             >>> mod.getContinuous("x")
             [np.float64(0.68)]
-            >>> mod.getOutputs(["y","x"])
+            >>> mod.getContinuous(["y","x"])
             [np.float64(-0.24), np.float64(0.68)]
         """
         if not self._simulated:
-            if names is None:
-                return self._continuous
-            if isinstance(names, str):
-                return [self._continuous[names]]
-            if isinstance(names, list):
-                return [self._continuous[x] for x in names]
+            return self.getContinuousInitial(names=names)
 
-        if names is None:
-            for name in self._continuous:
-                try:
-                    value = self.getSolutions(name)
-                    self._continuous[name] = value[0][-1]
-                except (OMCSessionException, ModelicaSystemError) as ex:
-                    raise ModelicaSystemError(f"{name} could not be computed") from ex
-            return self._continuous
-
-        if isinstance(names, str):
-            if names in self._continuous:
-                value = self.getSolutions(names)
-                self._continuous[names] = value[0][-1]
-                return [self._continuous[names]]
-            raise ModelicaSystemError(f"{names} is not continuous")
-
-        if isinstance(names, list):
-            valuelist = []
-            for name in names:
-                if name in self._continuous:
-                    value = self.getSolutions(name)
-                    self._continuous[name] = value[0][-1]
-                    valuelist.append(value[0][-1])
-                else:
-                    raise ModelicaSystemError(f"{name} is not continuous")
-            return valuelist
-
-        raise ModelicaSystemError("Unhandled input for getContinous()")
+        return self.getContinuousFinal(names=names)
 
     def getParameters(
             self,
@@ -844,15 +897,103 @@ class ModelicaSystem:
 
         raise ModelicaSystemError("Unhandled input for getInputs()")
 
+    def getOutputsInitial(
+            self,
+            names: Optional[str | list[str]] = None,
+    ) -> dict[str, np.float64] | list[np.float64]:
+        """
+        Get (initial) values of output signals.
+
+        Args:
+            names: Either None (default), a string with the output name,
+              or a list of output name strings.
+        Returns:
+            If `names` is None, a dict in the format
+            {output_name: output_value} is returned.
+            If `names` is a string, a single element list [output_value] is
+            returned.
+            If `names` is a list, a list with one value for each output name
+            in names is returned: [output1_value, output2_value, ...].
+
+        Examples:
+            >>> mod.getOutputsInitial()
+            {'out1': '-0.4', 'out2': '1.2'}
+            >>> mod.getOutputsInitial("out1")
+            ['-0.4']
+            >>> mod.getOutputsInitial(["out1","out2"])
+            ['-0.4', '1.2']
+        """
+        if names is None:
+            return self._outputs
+        if isinstance(names, str):
+            return [self._outputs[names]]
+        if isinstance(names, list):
+            return [self._outputs[x] for x in names]
+
+        raise ModelicaSystemError("Unhandled input for getOutputsInitial()")
+
+    def getOutputsFinal(
+            self,
+            names: Optional[str | list[str]] = None,
+    ) -> dict[str, np.float64] | list[np.float64]:
+        """Get (final) values of output signals (at stopTime).
+
+        Args:
+            names: Either None (default), a string with the output name,
+              or a list of output name strings.
+        Returns:
+            If `names` is None, a dict in the format
+            {output_name: output_value} is returned.
+            If `names` is a string, a single element list [output_value] is
+            returned.
+            If `names` is a list, a list with one value for each output name
+            in names is returned: [output1_value, output2_value, ...].
+
+        Examples:
+            >>> mod.getOutputsFinal()
+            {'out1': np.float64(-0.1234), 'out2': np.float64(2.1)}
+            >>> mod.getOutputsFinal("out1")
+            [np.float64(-0.1234)]
+            >>> mod.getOutputsFinal(["out1","out2"])
+            [np.float64(-0.1234), np.float64(2.1)]
+        """
+        if not self._simulated:
+            raise ModelicaSystemError("Please use getOuputsInitial() before the simulation was started!")
+
+        def get_outputs_solution(name_list: list[str]) -> None:
+            for name in name_list:
+                if name in self._outputs:
+                    value = self.getSolutions(name)
+                    self._outputs[name] = np.float64(value[0][-1])
+                else:
+                    raise KeyError(f"{names} is not a valid output")
+
+        if names is None:
+            get_outputs_solution(name_list=list(self._outputs.keys()))
+            return self._outputs
+
+        if isinstance(names, str):
+            get_outputs_solution(name_list=[names])
+            return [self._outputs[names]]
+
+        if isinstance(names, list):
+            get_outputs_solution(name_list=names)
+            values = []
+            for name in names:
+                values.append(self._outputs[name])
+            return values
+
+        raise ModelicaSystemError("Unhandled input for getOutputs()")
+
     def getOutputs(
             self,
             names: Optional[str | list[str]] = None,
-    ) -> dict[str, str | numbers.Real] | list[str | numbers.Real]:
+    ) -> dict[str, np.float64] | list[np.float64]:
         """Get values of output signals.
 
-        If called before simulate(), the initial values are returned as
-        strings. If called after simulate(), the final values (at stopTime)
-        are returned as numpy.float64.
+        If called before simulate(), the initial values are returned.
+        If called after simulate(), the final values (at stopTime) are returned.
+        The return format is always numpy.float64.
 
         Args:
             names: Either None (default), a string with the output name,
@@ -883,37 +1024,9 @@ class ModelicaSystem:
             [np.float64(-0.1234), np.float64(2.1)]
         """
         if not self._simulated:
-            if names is None:
-                return self._outputs
-            if isinstance(names, str):
-                return [self._outputs[names]]
-            return [self._outputs[x] for x in names]
+            return self.getOutputsInitial(names=names)
 
-        if names is None:
-            for name in self._outputs:
-                value = self.getSolutions(name)
-                self._outputs[name] = value[0][-1]
-            return self._outputs
-
-        if isinstance(names, str):
-            if names in self._outputs:
-                value = self.getSolutions(names)
-                self._outputs[names] = value[0][-1]
-                return [self._outputs[names]]
-            raise KeyError(names)
-
-        if isinstance(names, list):
-            valuelist = []
-            for name in names:
-                if name in self._outputs:
-                    value = self.getSolutions(name)
-                    self._outputs[name] = value[0][-1]
-                    valuelist.append(value[0][-1])
-                else:
-                    raise KeyError(name)
-            return valuelist
-
-        raise ModelicaSystemError("Unhandled input for getOutputs()")
+        return self.getOutputsFinal(names=names)
 
     def getSimulationOptions(
             self,
