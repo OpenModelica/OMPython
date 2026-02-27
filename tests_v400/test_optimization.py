@@ -1,6 +1,5 @@
-import numpy as np
-
 import OMPython
+import numpy as np
 
 
 def test_optimization_example(tmp_path):
@@ -34,19 +33,12 @@ __OpenModelica_commandLineOptions="+g=Optimica");
 end BangBang2021;
 """)
 
-    mod = OMPython.ModelicaSystemOMC()
-    mod.model(
-        model_file=model_file,
-        model_name="BangBang2021",
-    )
+    mod = OMPython.ModelicaSystem(fileName=model_file.as_posix(), modelName="BangBang2021")
 
-    optimizationOptions = {
-        "numberOfIntervals": 16,
-        "stopTime": 1,
-        "stepSize": 0.001,
-        "tolerance": 1e-8,
-    }
-    mod.setOptimizationOptions(**optimizationOptions)
+    mod.setOptimizationOptions(optimizationOptions={"numberOfIntervals": 16,
+                                                    "stopTime": 1,
+                                                    "stepSize": 0.001,
+                                                    "tolerance": 1e-8})
 
     # test the getter
     assert mod.getOptimizationOptions()["stopTime"] == "1"
@@ -55,12 +47,7 @@ end BangBang2021;
 
     r = mod.optimize()
     # it is necessary to specify resultfile, otherwise it wouldn't find it.
-    resultfile_str = r["resultFile"]
-    resultfile_omcpath = mod.get_session().omcpath(resultfile_str)
-    time, f, v = mod.getSolutions(
-        varList=["time", "f", "v"],
-        resultfile=resultfile_omcpath,
-    )
+    time, f, v = mod.getSolutions(["time", "f", "v"], resultfile=r["resultFile"])
     assert np.isclose(f[0], 10)
     assert np.isclose(f[-1], -10)
 
