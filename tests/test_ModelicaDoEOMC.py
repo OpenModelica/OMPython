@@ -51,56 +51,73 @@ def param_doe() -> dict[str, list]:
     return param
 
 
-def test_ModelicaSystemDoE_local(tmp_path, model_doe, param_doe):
+def test_ModelicaDoEOMC_local(tmp_path, model_doe, param_doe):
     tmpdir = tmp_path / 'DoE'
     tmpdir.mkdir(exist_ok=True)
 
-    doe_mod = OMPython.ModelicaSystemDoE(
+    mod = OMPython.ModelicaSystemOMC()
+    mod.model(
         model_file=model_doe,
         model_name="M",
-        parameters=param_doe,
-        resultpath=tmpdir,
-        simargs={"override": {'stopTime': 1.0}},
     )
 
-    _run_ModelicaSystemDoe(doe_mod=doe_mod)
+    doe_mod = OMPython.ModelicaDoEOMC(
+        mod=mod,
+        parameters=param_doe,
+        resultpath=tmpdir,
+        simargs={"override": {'stopTime': '1.0'}},
+    )
+
+    _run_ModelicaDoEOMC(doe_mod=doe_mod)
 
 
 @skip_on_windows
 @skip_python_older_312
-def test_ModelicaSystemDoE_docker(tmp_path, model_doe, param_doe):
+def test_ModelicaDoEOMC_docker(tmp_path, model_doe, param_doe):
     omcs = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
     assert omcs.sendExpression("getVersion()") == "OpenModelica 1.25.0"
 
-    doe_mod = OMPython.ModelicaSystemDoE(
+    mod = OMPython.ModelicaSystemOMC(
+        session=omcs,
+    )
+    mod.model(
         model_file=model_doe,
         model_name="M",
-        parameters=param_doe,
-        session=omcs,
-        simargs={"override": {'stopTime': 1.0}},
     )
 
-    _run_ModelicaSystemDoe(doe_mod=doe_mod)
+    doe_mod = OMPython.ModelicaDoEOMC(
+        mod=mod,
+        parameters=param_doe,
+        simargs={"override": {'stopTime': '1.0'}},
+    )
+
+    _run_ModelicaDoEOMC(doe_mod=doe_mod)
 
 
 @pytest.mark.skip(reason="Not able to run WSL on github")
 @skip_python_older_312
-def test_ModelicaSystemDoE_WSL(tmp_path, model_doe, param_doe):
-    tmpdir = tmp_path / 'DoE'
-    tmpdir.mkdir(exist_ok=True)
+def test_ModelicaDoEOMC_WSL(tmp_path, model_doe, param_doe):
+    omcs = OMPython.OMCSessionWSL()
+    assert omcs.sendExpression("getVersion()") == "OpenModelica 1.25.0"
 
-    doe_mod = OMPython.ModelicaSystemDoE(
+    mod = OMPython.ModelicaSystemOMC(
+        session=omcs,
+    )
+    mod.model(
         model_file=model_doe,
         model_name="M",
-        parameters=param_doe,
-        resultpath=tmpdir,
-        simargs={"override": {'stopTime': 1.0}},
     )
 
-    _run_ModelicaSystemDoe(doe_mod=doe_mod)
+    doe_mod = OMPython.ModelicaDoEOMC(
+        mod=mod,
+        parameters=param_doe,
+        simargs={"override": {'stopTime': '1.0'}},
+    )
+
+    _run_ModelicaDoEOMC(doe_mod=doe_mod)
 
 
-def _run_ModelicaSystemDoe(doe_mod):
+def _run_ModelicaDoEOMC(doe_mod):
     doe_count = doe_mod.prepare()
     assert doe_count == 16
 
