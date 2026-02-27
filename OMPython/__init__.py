@@ -1,51 +1,105 @@
 # -*- coding: utf-8 -*-
 """
 OMPython is a Python interface to OpenModelica.
-To get started, create an OMCSessionZMQ object:
-from OMPython import OMCSessionZMQ
-omc = OMCSessionZMQ()
+To get started on a local OMC server, create an OMCSessionLocal object:
+
+```
+import OMPython
+omc = OMPython.OMCSessionLocal()
 omc.sendExpression("command")
+```
+
 """
+
+from OMPython.model_execution import (
+    ModelExecutionCmd,
+    ModelExecutionData,
+    ModelExecutionException,
+)
 
 from OMPython.ModelicaSystem import (
     LinearizationResult,
     ModelicaSystem,
-    ModelicaSystemCmd,
+    ModelicaSystemOMC,
     ModelicaSystemDoE,
+    ModelicaDoEOMC,
     ModelicaSystemError,
+    ModelicaSystemRunner,
+    ModelicaDoERunner,
+
+    doe_get_solutions,
+
+    ModelicaSystemCmd,
 )
 from OMPython.OMCSession import (
+    OMPathABC,
     OMCPath,
-    OMCSession,
+
+    OMSessionABC,
+    OMSessionRunner,
+
+    OMCSessionABC,
     OMCSessionCmd,
-    OMCSessionException,
-    OMCSessionRunData,
-    OMCSessionZMQ,
-    OMCSessionPort,
-    OMCSessionLocal,
     OMCSessionDocker,
     OMCSessionDockerContainer,
+    OMCSessionException,
+    OMCSessionLocal,
+    OMCSessionPort,
+
+    OMPathRunnerBash,
+    OMPathRunnerLocal,
+
     OMCSessionWSL,
+    OMCSessionZMQ,
+
+    OMCProcessLocal,
+    OMCProcessPort,
+    OMCProcessDocker,
+    OMCProcessDockerContainer,
 )
 
 # global names imported if import 'from OMPython import *' is used
 __all__ = [
     'LinearizationResult',
+
+    'ModelExecutionCmd',
+    'ModelExecutionData',
+    'ModelExecutionException',
+
     'ModelicaSystem',
+    'ModelicaSystemOMC',
     'ModelicaSystemCmd',
     'ModelicaSystemDoE',
+    'ModelicaDoEOMC',
     'ModelicaSystemError',
 
+    'ModelicaSystemRunner',
+    'ModelicaDoERunner',
+
+    'OMPathABC',
     'OMCPath',
 
-    'OMCSession',
+    'OMSessionABC',
+    'OMSessionRunner',
+
+    'doe_get_solutions',
+
+    'OMCSessionABC',
     'OMCSessionCmd',
-    'OMCSessionException',
-    'OMCSessionRunData',
-    'OMCSessionZMQ',
-    'OMCSessionPort',
-    'OMCSessionLocal',
     'OMCSessionDocker',
     'OMCSessionDockerContainer',
+    'OMCSessionException',
+    'OMCSessionPort',
+    'OMCSessionLocal',
+
+    'OMPathRunnerBash',
+    'OMPathRunnerLocal',
+
     'OMCSessionWSL',
+    'OMCSessionZMQ',
+
+    'OMCProcessLocal',
+    'OMCProcessPort',
+    'OMCProcessDocker',
+    'OMCProcessDockerContainer',
 ]
