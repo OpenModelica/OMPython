@@ -6,11 +6,6 @@ import pytest
 
 import OMPython
 
-skip_on_windows = pytest.mark.skipif(
-    sys.platform.startswith("win"),
-    reason="OpenModelica Docker image is Linux-only; skipping on Windows.",
-)
-
 skip_python_older_312 = pytest.mark.skipif(
     sys.version_info < (3, 12),
     reason="OMCPath(non-local) only working for Python >= 3.12.",
@@ -41,9 +36,6 @@ end M;
 @pytest.fixture
 def param_doe() -> dict[str, list]:
     param = {
-        # structural
-        'p': [1, 2],
-        'q': [3, 4],
         # simple
         'a': [5, 6],
         'b': [7, 8],
@@ -51,58 +43,76 @@ def param_doe() -> dict[str, list]:
     return param
 
 
-def test_ModelicaSystemDoE_local(tmp_path, model_doe, param_doe):
+def test_ModelicaDoERunner_ModelicaSystemOMC(tmp_path, model_doe, param_doe):
     tmpdir = tmp_path / 'DoE'
     tmpdir.mkdir(exist_ok=True)
 
-    doe_mod = OMPython.ModelicaSystemDoE(
+    mod = OMPython.ModelicaSystemOMC()
+    mod.model(
         model_file=model_doe,
         model_name="M",
-        parameters=param_doe,
-        resultpath=tmpdir,
-        simargs={"override": {'stopTime': 1.0}},
     )
 
-    _run_ModelicaSystemDoe(doe_mod=doe_mod)
+    resultfile_mod = mod.getWorkDirectory() / f"{mod.get_model_name()}_res_mod.mat"
+    _run_simulation(mod=mod, resultfile=resultfile_mod, param=param_doe)
+
+    doe_mod = OMPython.ModelicaDoERunner(
+        mod=mod,
+        parameters=param_doe,
+        resultpath=tmpdir,
+    )
+
+    _run_ModelicaDoERunner(doe_mod=doe_mod)
+
+    _check_runner_result(mod=mod, doe_mod=doe_mod)
 
 
-@skip_on_windows
-@skip_python_older_312
-def test_ModelicaSystemDoE_docker(tmp_path, model_doe, param_doe):
-    omcs = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
-    assert omcs.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+def test_ModelicaDoERunner_ModelicaSystemRunner(tmp_path, model_doe, param_doe):
+    tmpdir = tmp_path / 'DoE'
+    tmpdir.mkdir(exist_ok=True)
 
-    doe_mod = OMPython.ModelicaSystemDoE(
+    mod = OMPython.ModelicaSystemOMC()
+    mod.model(
         model_file=model_doe,
         model_name="M",
-        parameters=param_doe,
+    )
+
+    resultfile_mod = mod.getWorkDirectory() / f"{mod.get_model_name()}_res_mod.mat"
+    _run_simulation(mod=mod, resultfile=resultfile_mod, param=param_doe)
+
+    # run the model using only the runner class
+    omcs = OMPython.OMSessionRunner(
+        version=mod.get_session().get_version(),
+    )
+    modr = OMPython.ModelicaSystemRunner(
         session=omcs,
-        simargs={"override": {'stopTime': 1.0}},
+        work_directory=mod.getWorkDirectory(),
     )
-
-    _run_ModelicaSystemDoe(doe_mod=doe_mod)
-
-
-@pytest.mark.skip(reason="Not able to run WSL on github")
-@skip_python_older_312
-def test_ModelicaSystemDoE_WSL(tmp_path, model_doe, param_doe):
-    tmpdir = tmp_path / 'DoE'
-    tmpdir.mkdir(exist_ok=True)
-
-    doe_mod = OMPython.ModelicaSystemDoE(
-        model_file=model_doe,
+    modr.setup(
         model_name="M",
+    )
+    doe_mod = OMPython.ModelicaDoERunner(
+        mod=modr,
         parameters=param_doe,
         resultpath=tmpdir,
-        simargs={"override": {'stopTime': 1.0}},
     )
 
-    _run_ModelicaSystemDoe(doe_mod=doe_mod)
+    _run_ModelicaDoERunner(doe_mod=doe_mod)
+
+    _check_runner_result(mod=mod, doe_mod=doe_mod)
 
 
-def _run_ModelicaSystemDoe(doe_mod):
+def _run_simulation(mod, resultfile, param):
+    simOptions = {"stopTime": 1.0, "stepSize": 0.1, "tolerance": 1e-8}
+    mod.setSimulationOptions(**simOptions)
+    mod.simulate(resultfile=resultfile)
+
+    assert resultfile.exists()
+
+
+def _run_ModelicaDoERunner(doe_mod):
     doe_count = doe_mod.prepare()
-    assert doe_count == 16
+    assert doe_count == 4
 
     doe_def = doe_mod.get_doe_definition()
     assert isinstance(doe_def, dict)
@@ -115,9 +125,18 @@ def _run_ModelicaSystemDoe(doe_mod):
     doe_status = doe_mod.simulate()
     assert doe_status is True
 
-    doe_sol = doe_mod.get_doe_solutions()
+
+def _check_runner_result(mod, doe_mod):
+    doe_cmd = doe_mod.get_doe_command()
+    doe_def = doe_mod.get_doe_definition()
+
+    doe_sol = OMPython.doe_get_solutions(
+        msomc=mod,
+        resultpath=doe_mod.get_resultpath(),
+        doe_def=doe_def,
+    )
     assert isinstance(doe_sol, dict)
-    assert len(doe_sol.keys()) == doe_count
+    assert len(doe_sol.keys()) == len(doe_cmd.keys())
 
     assert sorted(doe_def.keys()) == sorted(doe_cmd.keys())
     assert sorted(doe_cmd.keys()) == sorted(doe_sol.keys())
@@ -132,12 +151,6 @@ def _run_ModelicaSystemDoe(doe_mod):
             # simple / non-structural parameters
             'a': float(row['a']),
             'b': float(row['b']),
-            # structural parameters
-            'p': float(row['p']),
-            'q': float(row['q']),
-            # variables using the structural parameters
-            f"x[{row['p']}]": float(row['a']),
-            f"y[{row['p']}]": float(row['b']),
         }
 
         for var in var_dict:
