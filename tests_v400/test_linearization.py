@@ -1,7 +1,6 @@
-import numpy as np
-import pytest
-
 import OMPython
+import pytest
+import numpy as np
 
 
 @pytest.fixture
@@ -25,11 +24,7 @@ end linearTest;
 
 
 def test_example(model_linearTest):
-    mod = OMPython.ModelicaSystemOMC()
-    mod.model(
-        model_file=model_linearTest,
-        model_name="linearTest",
-    )
+    mod = OMPython.ModelicaSystem(model_linearTest, "linearTest")
     [A, B, C, D] = mod.linearize()
     expected_matrixA = [[-3, 2, 0, 0], [-7, 0, -5, 1], [-1, 0, -1, 4], [0, 1, -1, 5]]
     assert A == expected_matrixA, f"Matrix does not match the expected value. Got: {A}, Expected: {expected_matrixA}"
@@ -60,29 +55,24 @@ y1 = y2 + 0.5*omega;
 y2 = phi + u1;
 end Pendulum;
 """)
-    mod = OMPython.ModelicaSystemOMC()
-    mod.model(
-        model_file=model_file,
-        model_name="Pendulum",
-        libraries=["Modelica"],
-    )
+    mod = OMPython.ModelicaSystem(fileName=model_file.as_posix(), modelName="Pendulum", lmodel=["Modelica"])
 
     d = mod.getLinearizationOptions()
     assert isinstance(d, dict)
     assert "startTime" in d
     assert "stopTime" in d
     assert mod.getLinearizationOptions(["stopTime", "startTime"]) == [d["stopTime"], d["startTime"]]
-    mod.setLinearizationOptions(stopTime=0.02)
+    mod.setLinearizationOptions(linearizationOptions={"stopTime": 0.02})
     assert mod.getLinearizationOptions("stopTime") == ["0.02"]
 
-    mod.setInputs(u1=10, u2=0)
+    mod.setInputs(name={"u1": 10, "u2": 0})
     [A, B, C, D] = mod.linearize()
     param_g = float(mod.getParameters("g")[0])
     param_l = float(mod.getParameters("l")[0])
     assert mod.getLinearInputs() == ["u1", "u2"]
     assert mod.getLinearStates() == ["omega", "phi"]
     assert mod.getLinearOutputs() == ["y1", "y2"]
-    assert np.isclose(A, [[0, param_g / param_l], [1, 0]]).all()
+    assert np.isclose(A, [[0, param_g/param_l], [1, 0]]).all()
     assert np.isclose(B, [[0, 0], [0, 1]]).all()
     assert np.isclose(C, [[0.5, 1], [0, 1]]).all()
     assert np.isclose(D, [[1, 0], [1, 0]]).all()
