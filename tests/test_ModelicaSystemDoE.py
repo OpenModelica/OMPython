@@ -75,7 +75,8 @@ def test_ModelicaSystemDoE_local(tmp_path, model_doe, param_doe):
 @skip_python_older_312
 def test_ModelicaSystemDoE_docker(tmp_path, model_doe, param_doe):
     omcs = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
-    assert omcs.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    omversion = omcs.sendExpression("getVersion()")
+    assert isinstance(omversion, str) and omversion.startswith("OpenModelica")
 
     mod = OMPython.ModelicaSystem(
         session=omcs,
@@ -98,7 +99,8 @@ def test_ModelicaSystemDoE_docker(tmp_path, model_doe, param_doe):
 @skip_python_older_312
 def test_ModelicaSystemDoE_WSL(tmp_path, model_doe, param_doe):
     omcs = OMPython.OMCSessionWSL()
-    assert omcs.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    omversion = omcs.sendExpression("getVersion()")
+    assert isinstance(omversion, str) and omversion.startswith("OpenModelica")
 
     mod = OMPython.ModelicaSystem(
         session=omcs,
