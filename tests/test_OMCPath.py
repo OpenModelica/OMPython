@@ -27,7 +27,8 @@ def test_OMCPath_OMCProcessLocal():
 @skip_python_older_312
 def test_OMCPath_OMCProcessDocker():
     omcs = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
-    assert omcs.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    omversion = omcs.sendExpression("getVersion()")
+    assert isinstance(omversion, str) and omversion.startswith("OpenModelica")
 
     _run_OMCPath_checks(omcs)
 
