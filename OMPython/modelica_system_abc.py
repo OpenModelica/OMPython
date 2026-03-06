@@ -5,6 +5,7 @@ Definition of main class to run Modelica simulations - ModelicaSystem.
 
 import abc
 import ast
+import csv
 from dataclasses import dataclass
 import logging
 import numbers
@@ -991,6 +992,44 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
                 raise ModelicaSystemError(f"Data cannot be evaluated for {repr(key)}: {repr(val)}")
 
         return True
+
+    def setInputsCSV(
+            self,
+            csvfile: os.PathLike,
+    ) -> None:
+        """
+        Read content from a CSV file and use it to define the time based input data.
+        """
+
+        # real type is 'dict[str, list[tuple[float, float]]]' - 'dict[str, Any]' is used to make setInputs() happy
+        inputs: dict[str, Any] = {}
+        try:
+            with open(csvfile, newline='') as csvfh:
+                dialect = csv.Sniffer().sniff(csvfh.read(1024))
+                csvfh.seek(0)
+                reader = csv.DictReader(csvfh, dialect=dialect)
+
+                keys: list[str] = []
+                for idx, line in enumerate(reader):
+                    if not keys:
+                        keys = list(line.keys())
+                        for var in keys[1:]:
+                            if var in inputs:
+                                raise ModelicaSystemError(f"Error reading {csvfile}: duplicated column {var}!")
+                            inputs[var] = []
+                    try:
+                        # use key[0] as time; all other columns use the header as name
+                        for var in keys[1:]:
+                            inputs[var].append((float(line[keys[0]]), float(line[var])))
+                    except (ValueError, TypeError) as exc2:
+                        raise ModelicaSystemError(f"Invalid value reading {csvfile} line {idx}/{var}: "
+                                                  f"{line}!") from exc2
+
+        except IOError as exc1:
+            raise ModelicaSystemError(f"Error reading {csvfile}: {exc1}") from exc1
+
+        if inputs:
+            self.setInputs(**inputs)
 
     def _createCSVData(self, csvfile: Optional[OMPathABC] = None) -> OMPathABC:
         """
