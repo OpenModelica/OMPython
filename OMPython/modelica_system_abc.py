@@ -215,6 +215,15 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
         root = tree.getroot()
         if root is None:
             raise ModelicaSystemError(f"Cannot read XML file: {xml_file}")
+        # check OM version - force the version used by the model executable
+        if 'generationTool' in root.attrib:
+            generation_tool_version = self._parse_om_version(version=root.attrib['generationTool'])
+            if self._version != generation_tool_version:
+                logger.warning(f"Mismatch in OpenModelica version: {self._version!r} (OMSession) "
+                               f"vs. {generation_tool_version!r} (model executable) "
+                               f"- using {generation_tool_version!r}!")
+                self._version = generation_tool_version
+
         for attr in root.iter('DefaultExperiment'):
             for key in ("startTime", "stopTime", "stepSize", "tolerance",
                         "solver", "outputFormat"):
