@@ -1,6 +1,6 @@
-from OMPython import OMParser
+import OMPython
 
-typeCheck = OMParser.typeCheck
+parser = OMPython.OMParser.om_parser_basic
 
 
 def test_newline_behaviour():
@@ -8,31 +8,38 @@ def test_newline_behaviour():
 
 
 def test_boolean():
-    assert typeCheck('TRUE') is True
-    assert typeCheck('True') is True
-    assert typeCheck('true') is True
-    assert typeCheck('FALSE') is False
-    assert typeCheck('False') is False
-    assert typeCheck('false') is False
+    assert parser('TRUE') is True
+    assert parser('True') is True
+    assert parser('true') is True
+    assert parser('FALSE') is False
+    assert parser('False') is False
+    assert parser('false') is False
 
 
 def test_int():
-    assert typeCheck('2') == 2
-    assert type(typeCheck('1')) == int
-    assert type(typeCheck('123123123123123123232323')) == int
-    assert type(typeCheck('9223372036854775808')) == int
+    assert parser('2') == 2
+    assert type(parser('1')) == int
+    assert type(parser('123123123123123123232323')) == int
+    assert type(parser('9223372036854775808')) == int
 
 
 def test_float():
-    assert type(typeCheck('1.2e3')) == float
+    assert type(parser('1.2e3')) == float
 
 
-# def test_dict():
-#     assert type(typeCheck('{"a": "b"}')) == dict
+def test_dict():
+    # TODO: why does it fail?
+    # assert type(parser('{"a": "b"}')) == dict
+    pass
 
 
 def test_ident():
-    assert typeCheck('blabla2') == "blabla2"
+    assert parser('blabla2') == "blabla2"
+
+
+def test_empty():
+    # TODO: this differs from OMTypedParser
+    assert parser('') == {}
 
 
 def test_str():
@@ -41,3 +48,17 @@ def test_str():
 
 def test_UnStringable():
     pass
+
+
+# def test_everything():
+#     # this test used to be in OMTypedParser.py's main()
+#     testdata = """
+#    (1.0,{{1,true,3},{"4\\"
+# ",5.9,6,NONE ( )},record ABC
+#   startTime = ErrorLevel.warning,
+#   'stop*Time' = SOME(1.0)
+# end ABC;})
+#     """
+#     expected = (1.0, ((1, True, 3), ('4"\n', 5.9, 6, None), {"'stop*Time'": 1.0, 'startTime': 'ErrorLevel.warning'}))
+#     results = parser(testdata)
+#     assert results == expected
