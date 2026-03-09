@@ -40,7 +40,7 @@ def model_firstorder(tmp_path, model_firstorder_content):
 
 def test_ModelicaSystem_loop(model_firstorder):
     def worker():
-        mod = OMPython.ModelicaSystem()
+        mod = OMPython.ModelicaSystemOMC()
         mod.model(
             model_file=model_firstorder,
             model_name="M",
@@ -56,15 +56,16 @@ def test_setParameters():
     omcs = OMPython.OMCSessionLocal()
     model_path_str = omcs.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels"
     model_path = omcs.omcpath(model_path_str)
-    mod = OMPython.ModelicaSystem()
+    mod = OMPython.ModelicaSystemOMC(
+        session=omcs,
+    )
     mod.model(
         model_file=model_path / "BouncingBall.mo",
         model_name="BouncingBall",
     )
 
-    # method 1 (test depreciated variants)
-    mod.setParameters("e=1.234")
-    mod.setParameters(["g=321.0"])
+    mod.setParameters(e=1.234)
+    mod.setParameters(g=321.0)
     assert mod.getParameters("e") == ["1.234"]
     assert mod.getParameters("g") == ["321.0"]
     assert mod.getParameters() == {
@@ -74,7 +75,6 @@ def test_setParameters():
     with pytest.raises(KeyError):
         mod.getParameters("thisParameterDoesNotExist")
 
-    # method 2 (new style)
     pvals = {"e": 21.3, "g": 0.12}
     mod.setParameters(**pvals)
     assert mod.getParameters() == {
@@ -91,7 +91,9 @@ def test_setSimulationOptions():
     omcs = OMPython.OMCSessionLocal()
     model_path_str = omcs.sendExpression("getInstallationDirectoryPath()") + "/share/doc/omc/testmodels"
     model_path = omcs.omcpath(model_path_str)
-    mod = OMPython.ModelicaSystem()
+    mod = OMPython.ModelicaSystemOMC(
+        session=omcs,
+    )
     mod.model(
         model_file=model_path / "BouncingBall.mo",
         model_name="BouncingBall",
@@ -128,7 +130,7 @@ def test_relative_path(model_firstorder):
         model_relative = str(model_file)
         assert "/" not in model_relative
 
-        mod = OMPython.ModelicaSystem()
+        mod = OMPython.ModelicaSystemOMC()
         mod.model(
             model_file=model_relative,
             model_name="M",
@@ -141,7 +143,7 @@ def test_relative_path(model_firstorder):
 def test_customBuildDirectory(tmp_path, model_firstorder):
     tmpdir = tmp_path / "tmpdir1"
     tmpdir.mkdir()
-    mod = OMPython.ModelicaSystem(work_directory=tmpdir)
+    mod = OMPython.ModelicaSystemOMC(work_directory=tmpdir)
     mod.model(
         model_file=model_firstorder,
         model_name="M",
@@ -157,7 +159,7 @@ def test_customBuildDirectory(tmp_path, model_firstorder):
 @skip_python_older_312
 def test_getSolutions_docker(model_firstorder):
     omcs = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
-    mod = OMPython.ModelicaSystem(
+    mod = OMPython.ModelicaSystemOMC(
         session=omcs,
     )
     mod.model(
@@ -169,7 +171,7 @@ def test_getSolutions_docker(model_firstorder):
 
 
 def test_getSolutions(model_firstorder):
-    mod = OMPython.ModelicaSystem()
+    mod = OMPython.ModelicaSystemOMC()
     mod.model(
         model_file=model_firstorder,
         model_name="M",
@@ -217,7 +219,7 @@ der(x) = x*a + b;
 y = der(x);
 end M_getters;
 """)
-    mod = OMPython.ModelicaSystem()
+    mod = OMPython.ModelicaSystemOMC()
     mod.model(
         model_file=model_file,
         model_name="M_getters",
@@ -426,7 +428,7 @@ der(x) = u1 + u2;
 y = x;
 end M_input;
 """)
-    mod = OMPython.ModelicaSystem()
+    mod = OMPython.ModelicaSystemOMC()
     mod.model(
         model_file=model_file,
         model_name="M_input",
@@ -434,6 +436,14 @@ end M_input;
 
     simOptions = {"stopTime": 1.0}
     mod.setSimulationOptions(**simOptions)
+
+    # check invalid inputs
+    # * 'None' cannot be converted to float
+    with pytest.raises(OMPython.ModelicaSystemError):
+        mod.setInputs(u1=[(0.0, None), (0.5, 1)])
+    # * 'abc' cannot be converted to float
+    with pytest.raises(OMPython.ModelicaSystemError):
+        mod.setInputs(u1=[(0.0, 0.0), ("abc", 1)])
 
     # integrate zero (no setInputs call) - it should default to None -> 0
     assert mod.getInputs() == {
@@ -491,7 +501,7 @@ end M_input;
     }
     mod.setInputs(**inputs)
     csv_file = mod._createCSVData()
-    assert pathlib.Path(csv_file).read_text() == """time,u1,u2,end
+    assert pathlib.Path(csv_file).read_text(encoding='utf-8') == """time,u1,u2,end
 0.0,0.0,0.0,0
 0.25,0.25,0.5,0
 0.5,0.5,1.0,0
