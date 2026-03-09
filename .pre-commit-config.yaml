@@ -33,7 +33,7 @@ repos:
     hooks:
       - id: mypy
         args: []
-        exclude: tests/
+        exclude: 'test|test_v400'
         additional_dependencies:
           - pyparsing
           - types-psutil
