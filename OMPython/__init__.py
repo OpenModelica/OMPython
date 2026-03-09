@@ -14,20 +14,37 @@ omc.sendExpression("command")
 from OMPython.ModelicaSystem import (
     LinearizationResult,
     ModelicaSystem,
-    ModelicaSystemCmd,
+    ModelicaSystemOMC,
+    ModelExecutionCmd,
     ModelicaSystemDoE,
+    ModelicaDoEOMC,
     ModelicaSystemError,
+    ModelicaSystemRunner,
+    ModelicaDoERunner,
+
+    doe_get_solutions,
 )
 from OMPython.OMCSession import (
+    OMPathABC,
     OMCPath,
-    OMCSession,
+
+    OMSessionRunner,
+
+    OMCSessionABC,
+
+    ModelExecutionData,
+    ModelExecutionException,
+
     OMCSessionCmd,
     OMCSessionDocker,
     OMCSessionDockerContainer,
     OMCSessionException,
     OMCSessionLocal,
     OMCSessionPort,
-    OMCSessionRunData,
+
+    OMPathRunnerBash,
+    OMPathRunnerLocal,
+
     OMCSessionWSL,
     OMCSessionZMQ,
 )
@@ -36,21 +53,38 @@ from OMPython.OMCSession import (
 __all__ = [
     'LinearizationResult',
 
+    'ModelExecutionData',
+    'ModelExecutionException',
+
     'ModelicaSystem',
-    'ModelicaSystemCmd',
+    'ModelicaSystemOMC',
+    'ModelExecutionCmd',
     'ModelicaSystemDoE',
+    'ModelicaDoEOMC',
     'ModelicaSystemError',
 
+    'ModelicaSystemRunner',
+    'ModelicaDoERunner',
+
+    'OMPathABC',
     'OMCPath',
 
-    'OMCSession',
+    'OMSessionRunner',
+
+    'OMCSessionABC',
+
+    'doe_get_solutions',
+
     'OMCSessionCmd',
     'OMCSessionDocker',
     'OMCSessionDockerContainer',
     'OMCSessionException',
     'OMCSessionPort',
     'OMCSessionLocal',
-    'OMCSessionRunData',
+
+    'OMPathRunnerBash',
+    'OMPathRunnerLocal',
+
     'OMCSessionWSL',
     'OMCSessionZMQ',
 ]
