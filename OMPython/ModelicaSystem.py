@@ -21,8 +21,10 @@ import xml.etree.ElementTree as ET
 import numpy as np
 
 from OMPython.OMCSession import (
+    ModelExecutionData,
+    ModelExecutionException,
+
     OMCSessionException,
-    OMCSessionRunData,
     OMCSession,
     OMCSessionLocal,
     OMCPath,
@@ -34,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 class ModelicaSystemError(Exception):
     """
-    Exception used in ModelicaSystem and ModelicaSystemCmd classes.
+    Exception used in ModelicaSystem classes.
     """
 
 
@@ -89,7 +91,7 @@ class LinearizationResult:
         return {0: self.A, 1: self.B, 2: self.C, 3: self.D}[index]
 
 
-class ModelicaSystemCmd:
+class ModelExecutionCmd:
     """
     All information about a compiled model executable. This should include data about all structured parameters, i.e.
     parameters which need a recompilation of the model. All non-structured parameters can be easily changed without
@@ -98,16 +100,22 @@ class ModelicaSystemCmd:
 
     def __init__(
             self,
-            session: OMCSession,
-            runpath: OMCPath,
-            modelname: Optional[str] = None,
+            runpath: os.PathLike,
+            cmd_prefix: list[str],
+            cmd_local: bool = False,
+            cmd_windows: bool = False,
+            timeout: float = 10.0,
+            model_name: Optional[str] = None,
     ) -> None:
-        if modelname is None:
-            raise ModelicaSystemError("Missing model name!")
+        if model_name is None:
+            raise ModelExecutionException("Missing model name!")
 
-        self._session = session
-        self._runpath = runpath
-        self._model_name = modelname
+        self._cmd_local = cmd_local
+        self._cmd_windows = cmd_windows
+        self._cmd_prefix = cmd_prefix
+        self._runpath = pathlib.PurePosixPath(runpath)
+        self._model_name = model_name
+        self._timeout = timeout
 
         # dictionaries of command line arguments for the model executable
         self._args: dict[str, str | None] = {}
@@ -152,26 +160,26 @@ class ModelicaSystemCmd:
             elif isinstance(orval, numbers.Number):
                 val_str = str(orval)
             else:
-                raise ModelicaSystemError(f"Invalid value for override key {orkey}: {type(orval)}")
+                raise ModelExecutionException(f"Invalid value for override key {orkey}: {type(orval)}")
 
             return f"{orkey}={val_str}"
 
         if not isinstance(key, str):
-            raise ModelicaSystemError(f"Invalid argument key: {repr(key)} (type: {type(key)})")
+            raise ModelExecutionException(f"Invalid argument key: {repr(key)} (type: {type(key)})")
         key = key.strip()
 
         if isinstance(val, dict):
             if key != 'override':
-                raise ModelicaSystemError("Dictionary input only possible for key 'override'!")
+                raise ModelExecutionException("Dictionary input only possible for key 'override'!")
 
             for okey, oval in val.items():
                 if not isinstance(okey, str):
-                    raise ModelicaSystemError("Invalid key for argument 'override': "
-                                              f"{repr(okey)} (type: {type(okey)})")
+                    raise ModelExecutionException("Invalid key for argument 'override': "
+                                                  f"{repr(okey)} (type: {type(okey)})")
 
                 if not isinstance(oval, (str, bool, numbers.Number, type(None))):
-                    raise ModelicaSystemError(f"Invalid input for 'override'.{repr(okey)}: "
-                                              f"{repr(oval)} (type: {type(oval)})")
+                    raise ModelExecutionException(f"Invalid input for 'override'.{repr(okey)}: "
+                                                  f"{repr(oval)} (type: {type(oval)})")
 
                 if okey in self._arg_override:
                     if oval is None:
@@ -193,7 +201,7 @@ class ModelicaSystemCmd:
         elif isinstance(val, numbers.Number):
             argval = str(val)
         else:
-            raise ModelicaSystemError(f"Invalid argument value for {repr(key)}: {repr(val)} (type: {type(val)})")
+            raise ModelExecutionException(f"Invalid argument value for {repr(key)}: {repr(val)} (type: {type(val)})")
 
         if key in self._args:
             logger.warning(f"Override model executable argument: {repr(key)} = {repr(argval)} "
@@ -233,7 +241,7 @@ class ModelicaSystemCmd:
 
         return cmdl
 
-    def definition(self) -> OMCSessionRunData:
+    def definition(self) -> ModelExecutionData:
         """
         Define all needed data to run the model executable. The data is stored in an OMCSessionRunData object.
         """
@@ -242,18 +250,50 @@ class ModelicaSystemCmd:
         if not isinstance(result_file, str):
             result_file = (self._runpath / f"{self._model_name}.mat").as_posix()
 
-        omc_run_data = OMCSessionRunData(
-            cmd_path=self._runpath.as_posix(),
+        # as this is the local implementation, pathlib.Path can be used
+        cmd_path = self._runpath
+
+        cmd_library_path = None
+        if self._cmd_local and self._cmd_windows:
+            cmd_library_path = ""
+
+            # set the process environment from the generated .bat file in windows which should have all the dependencies
+            # for this pathlib.PurePosixPath() must be converted to a pathlib.Path() object, i.e. WindowsPath
+            path_bat = pathlib.Path(cmd_path) / f"{self._model_name}.bat"
+            if not path_bat.is_file():
+                raise ModelExecutionException("Batch file (*.bat) does not exist " + str(path_bat))
+
+            content = path_bat.read_text(encoding='utf-8')
+            for line in content.splitlines():
+                match = re.match(pattern=r"^SET PATH=([^%]*)", string=line, flags=re.IGNORECASE)
+                if match:
+                    cmd_library_path = match.group(1).strip(';')  # Remove any trailing semicolons
+            my_env = os.environ.copy()
+            my_env["PATH"] = cmd_library_path + os.pathsep + my_env["PATH"]
+
+            cmd_model_executable = cmd_path / f"{self._model_name}.exe"
+        else:
+            # for Linux the paths to the needed libraries should be included in the executable (using rpath)
+            cmd_model_executable = cmd_path / self._model_name
+
+        # define local(!) working directory
+        cmd_cwd_local = None
+        if self._cmd_local:
+            cmd_cwd_local = cmd_path.as_posix()
+
+        omc_run_data = ModelExecutionData(
+            cmd_path=cmd_path.as_posix(),
             cmd_model_name=self._model_name,
             cmd_args=self.get_cmd_args(),
-            cmd_result_path=result_file,
+            cmd_result_file=result_file,
+            cmd_prefix=self._cmd_prefix,
+            cmd_library_path=cmd_library_path,
+            cmd_model_executable=cmd_model_executable.as_posix(),
+            cmd_cwd_local=cmd_cwd_local,
+            cmd_timeout=self._timeout,
         )
 
-        omc_run_data_updated = self._session.omc_run_data_update(
-            omc_run_data=omc_run_data,
-        )
-
-        return omc_run_data_updated
+        return omc_run_data
 
     @staticmethod
     def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, Any] | numbers.Number]]:
@@ -262,17 +302,19 @@ class ModelicaSystemCmd:
 
         The return data can be used as input for self.args_set().
         """
-        warnings.warn(message="The argument 'simflags' is depreciated and will be removed in future versions; "
-                              "please use 'simargs' instead",
-                      category=DeprecationWarning,
-                      stacklevel=2)
+        warnings.warn(
+            message="The argument 'simflags' is depreciated and will be removed in future versions; "
+                    "please use 'simargs' instead",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
 
         simargs: dict[str, Optional[str | dict[str, Any] | numbers.Number]] = {}
 
         args = [s for s in simflags.split(' ') if s]
         for arg in args:
             if arg[0] != '-':
-                raise ModelicaSystemError(f"Invalid simulation flag: {arg}")
+                raise ModelExecutionException(f"Invalid simulation flag: {arg}")
             arg = arg[1:]
             parts = arg.split('=')
             if len(parts) == 1:
@@ -284,12 +326,12 @@ class ModelicaSystemCmd:
                 for item in override.split(','):
                     kv = item.split('=')
                     if not 0 < len(kv) < 3:
-                        raise ModelicaSystemError(f"Invalid value for '-override': {override}")
+                        raise ModelExecutionException(f"Invalid value for '-override': {override}")
                     if kv[0]:
                         try:
                             override_dict[kv[0]] = kv[1]
                         except (KeyError, IndexError) as ex:
-                            raise ModelicaSystemError(f"Invalid value for '-override': {override}") from ex
+                            raise ModelExecutionException(f"Invalid value for '-override': {override}") from ex
 
                 simargs[parts[0]] = override_dict
 
@@ -549,15 +591,17 @@ class ModelicaSystem:
         logger.debug("OM model build result: %s", build_model_result)
 
         # check if the executable exists ...
-        om_cmd = ModelicaSystemCmd(
-            session=self._session,
+        om_cmd = ModelExecutionCmd(
             runpath=self.getWorkDirectory(),
-            modelname=self._model_name,
+            cmd_local=self._session.model_execution_local,
+            cmd_windows=self._session.model_execution_windows,
+            cmd_prefix=self._session.model_execution_prefix(cwd=self.getWorkDirectory()),
+            model_name=self._model_name,
         )
         # ... by running it - output help for command help
         om_cmd.arg_set(key="help", val="help")
         cmd_definition = om_cmd.definition()
-        returncode = self._session.run_model_executable(cmd_run_data=cmd_definition)
+        returncode = cmd_definition.run()
         if returncode != 0:
             raise ModelicaSystemError("Model executable not working!")
 
@@ -1162,7 +1206,7 @@ class ModelicaSystem:
 
     def _process_override_data(
             self,
-            om_cmd: ModelicaSystemCmd,
+            om_cmd: ModelExecutionCmd,
             override_file: OMCPath,
             override_var: dict[str, str],
             override_sim: dict[str, str],
@@ -1198,7 +1242,7 @@ class ModelicaSystem:
             result_file: OMCPath,
             simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
-    ) -> ModelicaSystemCmd:
+    ) -> ModelExecutionCmd:
         """
         This method prepares the simulates model according to the simulation options. It returns an instance of
         ModelicaSystemCmd which can be used to run the simulation.
@@ -1220,10 +1264,12 @@ class ModelicaSystem:
             An instance if ModelicaSystemCmd to run the requested simulation.
         """
 
-        om_cmd = ModelicaSystemCmd(
-            session=self._session,
+        om_cmd = ModelExecutionCmd(
             runpath=self.getWorkDirectory(),
-            modelname=self._model_name,
+            cmd_local=self._session.model_execution_local,
+            cmd_windows=self._session.model_execution_windows,
+            cmd_prefix=self._session.model_execution_prefix(cwd=self.getWorkDirectory()),
+            model_name=self._model_name,
         )
 
         # always define the result file to use
@@ -1312,7 +1358,7 @@ class ModelicaSystem:
             self._result_file.unlink()
         # ... run simulation ...
         cmd_definition = om_cmd.definition()
-        returncode = self._session.run_model_executable(cmd_run_data=cmd_definition)
+        returncode = cmd_definition.run()
         # and check returncode *AND* resultfile
         if returncode != 0 and self._result_file.is_file():
             # check for an empty (=> 0B) result file which indicates a crash of the model executable
@@ -1915,10 +1961,12 @@ class ModelicaSystem:
                 "use ModelicaSystem() to build the model first"
             )
 
-        om_cmd = ModelicaSystemCmd(
-            session=self._session,
+        om_cmd = ModelExecutionCmd(
             runpath=self.getWorkDirectory(),
-            modelname=self._model_name,
+            cmd_local=self._session.model_execution_local,
+            cmd_windows=self._session.model_execution_windows,
+            cmd_prefix=self._session.model_execution_prefix(cwd=self.getWorkDirectory()),
+            model_name=self._model_name,
         )
 
         self._process_override_data(
@@ -1958,7 +2006,7 @@ class ModelicaSystem:
         linear_file.unlink(missing_ok=True)
 
         cmd_definition = om_cmd.definition()
-        returncode = self._session.run_model_executable(cmd_run_data=cmd_definition)
+        returncode = cmd_definition.run()
         if returncode != 0:
             raise ModelicaSystemError(f"Linearize failed with return code: {returncode}")
         if not linear_file.is_file():
@@ -2129,7 +2177,7 @@ class ModelicaSystemDoE:
             self._parameters = {}
 
         self._doe_def: Optional[dict[str, dict[str, Any]]] = None
-        self._doe_cmd: Optional[dict[str, OMCSessionRunData]] = None
+        self._doe_cmd: Optional[dict[str, ModelExecutionData]] = None
 
     def get_session(self) -> OMCSession:
         """
@@ -2248,7 +2296,7 @@ class ModelicaSystemDoE:
         """
         return self._doe_def
 
-    def get_doe_command(self) -> Optional[dict[str, OMCSessionRunData]]:
+    def get_doe_command(self) -> Optional[dict[str, ModelExecutionData]]:
         """
         Get the definitions of simulations commands to run for this DoE.
         """
@@ -2294,13 +2342,13 @@ class ModelicaSystemDoE:
                 if cmd_definition is None:
                     raise ModelicaSystemError("Missing simulation definition!")
 
-                resultfile = cmd_definition.cmd_result_path
+                resultfile = cmd_definition.cmd_result_file
                 resultpath = self.get_session().omcpath(resultfile)
 
                 logger.info(f"[Worker {worker_id}] Performing task: {resultpath.name}")
 
                 try:
-                    returncode = self.get_session().run_model_executable(cmd_run_data=cmd_definition)
+                    returncode = cmd_definition.run()
                     logger.info(f"[Worker {worker_id}] Simulation {resultpath.name} "
                                 f"finished with return code: {returncode}")
                 except ModelicaSystemError as ex:
