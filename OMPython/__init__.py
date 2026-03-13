@@ -14,9 +14,13 @@ omc.sendExpression("command")
 from OMPython.ModelicaSystem import (
     LinearizationResult,
     ModelicaSystem,
+    ModelicaSystemOMC,
     ModelExecutionCmd,
     ModelicaSystemDoE,
+    ModelicaDoEOMC,
     ModelicaSystemError,
+
+    doe_get_solutions,
 )
 from OMPython.OMCSession import (
     OMCPath,
@@ -43,13 +47,18 @@ __all__ = [
     'ModelExecutionException',
 
     'ModelicaSystem',
+    'ModelicaSystemOMC',
     'ModelExecutionCmd',
     'ModelicaSystemDoE',
+    'ModelicaDoEOMC',
     'ModelicaSystemError',
 
     'OMCPath',
 
     'OMCSession',
+
+    'doe_get_solutions',
+
     'OMCSessionCmd',
     'OMCSessionDocker',
     'OMCSessionDockerContainer',
