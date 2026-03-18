@@ -41,6 +41,7 @@ import getpass
 import logging
 import json
 import os
+import pathlib
 import platform
 import psutil
 import re
@@ -831,6 +832,8 @@ class ModelicaSystem(object):
         self._omc_log_file = self.getconn._omc_log_file
         self._omc_process = self.getconn._omc_process
 
+        # get OpenModelica version
+        self._version = self.sendExpression("getVersion()", parsed=True)
         ## set commandLineOptions if provided by users
         if commandLineOptions is not None:
             exp="".join(["setCommandLineOptions(","\"",commandLineOptions,"\"",")"])
@@ -1216,6 +1219,14 @@ class ModelicaSystem(object):
         elif(isinstance(names, list)):
             return ([self.optimizeOptions.get(x,"NotExist") for x in names])
 
+    def parse_om_version(self, version: str) -> tuple[int, int, int]:
+        match = re.search(r"v?(\d+)\.(\d+)\.(\d+)", version)
+        if not match:
+            raise ValueError(f"Version not found in: {version}")
+        major, minor, patch = map(int, match.groups())
+
+        return major, minor, patch
+
     # to simulate or re-simulate model
     def simulate(self, resultfile=None, simflags=None, verbose=True):  # 11
         """
@@ -1243,18 +1254,29 @@ class ModelicaSystem(object):
             simflags=" " + simflags
 
         overrideFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName + "_override", "txt")).replace("\\", "/")
+        override_file = pathlib.Path(overrideFile)
+        override = ""
         if (self.overridevariables or self.simoptionsoverride):
-            tmpdict=self.overridevariables.copy()
-            tmpdict.update(self.simoptionsoverride)
-            # write to override file
-            file = open(overrideFile, "w")
-            for (key, value) in tmpdict.items():
-                name = key + "=" + value + "\n"
-                file.write(name)
-            file.close()
-            override =" -overrideFile=" + overrideFile
-        else:
-            override =""
+            # simulation options are not read from override file from version >= 1.26.0,
+            # pass them to simulation executable directly as individual arguments
+            # see https://github.com/OpenModelica/OpenModelica/pull/14813
+            major, minor, patch = self.parse_om_version(self._version)
+            if (major, minor, patch) >= (1, 26, 0):
+                for key, opt_value in self.simoptionsoverride.items():
+                    override += f" -{key}={str(opt_value)}"
+                override_content = (
+                        "\n".join([f"{key}={value}" for key, value in self.overridevariables.items()])
+                        + "\n"
+                )
+            else:
+                override_content = (
+                        "\n".join([f"{key}={value}" for key, value in self.overridevariables.items()])
+                        + "\n".join([f"{key}={value}" for key, value in self.simoptionsoverride.items()])
+                        + "\n"
+                )
+
+            override_file.write_text(override_content)
+            override += " -overrideFile=" + overrideFile
 
         if (self.inputFlag):  # if model has input quantities
             for i in self.inputlist:
@@ -1700,18 +1722,27 @@ class ModelicaSystem(object):
             return print("Linearization cannot be performed as the model is not build, use ModelicaSystem() to build the model first")
 
         overrideLinearFile = os.path.join(self.tempdir, '{}.{}'.format(self.modelName + "_override_linear", "txt")).replace("\\", "/")
+        override_file = pathlib.Path(overrideLinearFile)
+        override = ""
 
-        file = open(overrideLinearFile, "w")
-        for (key, value) in self.overridevariables.items():
-            name = key + "=" + value + "\n"
-            file.write(name)
-        for (key, value) in self.linearOptions.items():
-            name = key + "=" + str(value) + "\n"
-            file.write(name)
-        file.close()
+        # See comment in simulate_cmd regarding override file and OM version
+        major, minor, patch = self.parse_om_version(self._version)
+        if (major, minor, patch) >= (1, 26, 0):
+            for key, opt_value in self.linearOptions.items():
+                override += f" -{key}={str(opt_value)}"
+            override_content = (
+                    "\n".join([f"{key}={value}" for key, value in self.overridevariables.items()])
+                    + "\n"
+            )
+        else:
+            override_content = (
+                    "\n".join([f"{key}={value}" for key, value in self.overridevariables.items()])
+                    + "\n".join([f"{key}={value}" for key, value in self.linearOptions.items()])
+                    + "\n"
+            )
 
-        override =" -overrideFile=" + overrideLinearFile
-        # print(override)
+        override_file.write_text(override_content)
+        override += " -overrideFile=" + overrideLinearFile
 
         if self.inputFlag:
             nameVal = self.getInputs()
