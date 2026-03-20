@@ -517,7 +517,7 @@ class ModelicaSystem:
         Set the provided command line option via OMC setCommandLineOptions().
         """
         expr = f'setCommandLineOptions("{command_line_option}")'
-        self.sendExpression(expr=expr)
+        self.sendExpression(expr=expr, parsed=False)
 
     def _loadFile(self, fileName: OMCPath):
         # load file
@@ -1236,7 +1236,11 @@ class ModelicaSystem:
         if override_sim:
             if self._version >= (1, 26, 0):
                 for key, opt_value in override_sim.items():
-                    om_cmd.arg_set(key=key, val=str(opt_value))
+                    if key == "solver":
+                        k = "s"
+                    else:
+                        k = key
+                    om_cmd.arg_set(key=k, val=str(opt_value))
             else:
                 override_content += "\n".join([f"{key}={value}" for key, value in override_sim.items()]) + "\n"
 
