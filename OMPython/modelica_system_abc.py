@@ -937,6 +937,29 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             datatype="optimization-option",
             overridedata=None)
 
+    @staticmethod
+    def toInputs(data: dict[str, list[float]]) -> dict[str, list[tuple[float, float]]]:
+        """
+        Converts a dictionary of lists (from pandas DataFrame.to_dict(orient='list'))
+        into the OMPython setInputs input format.
+
+        Example: mod.setInputs(**toInputs(pdf.to_dict(orient='list')))
+
+        Assumes the dictionary contains a key named 'time'.
+        """
+        if "time" not in data:
+            raise ValueError("The provided data must contain a 'time' key.")
+
+        time_series = data["time"]
+
+        inputs = {
+            var_name: list(zip(time_series, values))
+            for var_name, values in data.items()
+            if var_name != "time"
+        }
+
+        return inputs
+
     def setInputs(
             self,
             *args: Any,
