@@ -34,7 +34,7 @@ __OpenModelica_commandLineOptions="+g=Optimica");
 end BangBang2021;
 """)
 
-    mod = OMPython.ModelicaSystem()
+    mod = OMPython.ModelicaSystemOMC()
     mod.model(
         model_file=model_file,
         model_name="BangBang2021",

@@ -18,7 +18,7 @@ end M;
 
 @pytest.fixture
 def mscmd_firstorder(model_firstorder):
-    mod = OMPython.ModelicaSystem()
+    mod = OMPython.ModelicaSystemOMC()
     mod.model(
         model_file=model_firstorder,
         model_name="M",

@@ -8,7 +8,7 @@ def test_isPackage():
 
 
 def test_isPackage2():
-    mod = OMPython.ModelicaSystem()
+    mod = OMPython.ModelicaSystemOMC()
     mod.model(
         model_name="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
         libraries=["Modelica"],
