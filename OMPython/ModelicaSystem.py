@@ -1059,7 +1059,7 @@ class ModelicaSystem:
             major, minor, patch = self.parse_om_version(self._version)
             if (major, minor, patch) >= (1, 26, 0):
                 for key, opt_value in self._simulate_options_override.items():
-                    k = "s" if key=="solver" else key
+                    k = "s" if key == "solver" else key
                     om_cmd.arg_set(key=k, val=str(opt_value))
                 override_content = (
                     "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
