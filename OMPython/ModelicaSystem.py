@@ -1059,7 +1059,7 @@ class ModelicaSystem:
             major, minor, patch = self.parse_om_version(self._version)
             if (major, minor, patch) >= (1, 26, 0):
                 for key, opt_value in self._simulate_options_override.items():
-                    k = "s" if key=="solver" else key
+                    k = "s" if key == "solver" else key
                     om_cmd.arg_set(key=k, val=str(opt_value))
                 override_content = (
                     "\n".join([f"{key}={value}" for key, value in self._override_variables.items()])
@@ -1682,12 +1682,6 @@ class ModelicaSystem:
 
         override_file = self.getWorkDirectory() / f'{self._model_name}_override_linear.txt'
         override_file.write_text(override_content)
-
-        with open(file=override_file, mode="w", encoding="utf-8") as fh:
-            for key1, value1 in self._override_variables.items():
-                fh.write(f"{key1}={value1}\n")
-            for key2, value2 in self._linearization_options.items():
-                fh.write(f"{key2}={value2}\n")
 
         om_cmd.arg_set(key="overrideFile", val=override_file.as_posix())
 
