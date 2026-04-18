@@ -2606,7 +2606,7 @@ class ModelicaSystemRunner(ModelicaSystemABC):
             session = OMSessionRunner()
 
         if not isinstance(session, OMSessionRunner):
-            raise ModelicaSystemError("Only working if OMCsessionDummy is used!")
+            raise ModelicaSystemError("Only working if OMCsessionRunner is used!")
 
         super().__init__(
             work_directory=work_directory,
