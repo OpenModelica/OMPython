@@ -680,6 +680,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             override_file=result_file.parent / f"{result_file.stem}_override.txt",
             override_var=self._override_variables,
             override_sim=self._simulate_options_override,
+            variable_filter=self._variable_filter,
         )
 
         if self._inputs:  # if model has input quantities
@@ -1189,6 +1190,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             override_file=self.getWorkDirectory() / f'{self._model_name}_override_linear.txt',
             override_var=self._override_variables,
             override_sim=self._linearization_options,
+            variable_filter=self._variable_filter,
         )
 
         if self._inputs:
