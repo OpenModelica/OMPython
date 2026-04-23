@@ -856,7 +856,7 @@ class ModelExecutionData:
 
         cmdl = self.get_cmd()
 
-        logger.debug("Run OM command %s in %s", repr(cmdl), self.cmd_path)
+        logger.debug("Run OM command %s in %s (timeout=%2fs)", repr(cmdl), self.cmd_path, self.cmd_timeout)
         try:
             cmdres = subprocess.run(
                 cmdl,
@@ -876,7 +876,8 @@ class ModelExecutionData:
             if stderr:
                 raise ModelExecutionException(f"Error running model executable {repr(cmdl)}: {stderr}")
         except subprocess.TimeoutExpired as ex:
-            raise ModelExecutionException(f"Timeout running model executable {repr(cmdl)}: {ex}") from ex
+            raise ModelExecutionException("OMPython timeout running model executable "
+                                          f"(timeout={self.cmd_timeout:.2f}s){repr(cmdl)}: {ex}") from ex
         except subprocess.CalledProcessError as ex:
             raise ModelExecutionException(f"Error running model executable {repr(cmdl)}: {ex}") from ex
 
@@ -1282,7 +1283,7 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
                 log_content = 'log not available'
 
             logger.error(f"OMC did not start. Log-file says:\n{log_content}")
-            raise OMCSessionException(f"No connection with OMC (timeout={self._timeout}).")
+            raise OMCSessionException(f"No connection with OMC (timeout={self._timeout:.2f}s).")
 
         if expr == "quit()":
             self._omc_zmq.close()
@@ -1509,7 +1510,7 @@ class OMCSessionLocal(OMCSessionABC):
                 break
         else:
             logger.error(f"OMC server did not start. Log-file says:\n{self.get_log()}")
-            raise OMCSessionException(f"OMC Server did not start (timeout={self._timeout}, "
+            raise OMCSessionException(f"OMC Server did not start (timeout={self._timeout:.2f}s, "
                                       f"logfile={repr(self._omc_logfile)}).")
 
         logger.info(f"Local OMC Server is up and running at ZMQ port {port} "
@@ -1648,7 +1649,7 @@ class OMCSessionDockerABC(OMCSessionABC, metaclass=abc.ABCMeta):
                 break
         else:
             logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
-            raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}).")
+            raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout:.2f}s).")
 
         return docker_process
 
@@ -1698,7 +1699,7 @@ class OMCSessionDockerABC(OMCSessionABC, metaclass=abc.ABCMeta):
                 break
         else:
             logger.error(f"Docker did not start. Log-file says:\n{self.get_log()}")
-            raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout}, "
+            raise OMCSessionException(f"Docker based OMC Server did not start (timeout={self._timeout:.2f}s, "
                                       f"logfile={repr(self._omc_logfile)}).")
 
         logger.info(f"Docker based OMC Server is up and running at port {port}")
@@ -1885,7 +1886,7 @@ class OMCSessionDocker(OMCSessionDockerABC):
             time.sleep(self._timeout / 40.0)
 
         if docker_cid is None:
-            raise OMCSessionException(f"Docker did not start (timeout={self._timeout} might be too short "
+            raise OMCSessionException(f"Docker did not start (timeout={self._timeout:.2f}s might be too short "
                                       "especially if you did not docker pull the image before this command). "
                                       f"Log-file says:\n{self.get_log()}")
 
@@ -2076,7 +2077,7 @@ class OMCSessionWSL(OMCSessionABC):
                 break
         else:
             logger.error(f"WSL based OMC server did not start. Log-file says:\n{self.get_log()}")
-            raise OMCSessionException(f"WSL based OMC Server did not start (timeout={self._timeout}, "
+            raise OMCSessionException(f"WSL based OMC Server did not start (timeout={self._timeout:2f}s, "
                                       f"logfile={repr(self._omc_logfile)}).")
 
         logger.info(f"WSL based OMC Server is up and running at ZMQ port {port} "
