@@ -596,12 +596,20 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             override_file: OMPathABC,
             override_var: dict[str, str],
             override_sim: dict[str, str],
+            variable_filter: Optional[str] = None,
     ) -> None:
         """
         Define the override parameters. As the definition of simulation specific override parameter changes with OM
         1.26.0, version specific code is needed. Please keep in mind, that this will fail if OMC is not used to run the
         model executable.
+
+        Including also override of variable filter settings.
         """
+
+        # define variable filter if defined (override any original setting)
+        if variable_filter is not None:
+            om_cmd.arg_set(key="variableFilter", val=variable_filter)
+
         if len(override_var) == 0 and len(override_sim) == 0:
             return
 
@@ -936,6 +944,29 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             classdata=self._optimization_options,
             datatype="optimization-option",
             overridedata=None)
+
+    def set_variable_filter(
+            self,
+            variable_filter: Optional[str] = None,
+            escape: bool = False,
+    ) -> None:
+        """
+        This method is used to set variable filters. If escape is True, all regex special characters are escaped.
+        """
+        if variable_filter is None:
+            self._variable_filter = None
+            return
+
+        if escape:
+            variable_filter = re.escape(variable_filter)
+
+        # Validate filter_val as a regular expression
+        try:
+            re.compile(variable_filter)
+        except re.error as exc:
+            raise ModelicaSystemError(f"Invalid variable_filter regular expression: {variable_filter!r} ({exc})")
+
+        self._variable_filter = variable_filter
 
     @staticmethod
     def toInputs(data: dict[str, list[float]]) -> dict[str, list[tuple[float, float]]]:
