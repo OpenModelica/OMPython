@@ -958,7 +958,8 @@ class OMSessionABC(metaclass=OMSessionMeta):
         retval = self._timeout
         if timeout is not None:
             if timeout <= 0.0:
-                raise OMCSessionException(f"Invalid timeout value: {timeout}!")
+                raise OMCSessionException(f"Invalid timeout value: {timeout}s!")
+            logger.info(f"Update timeout for {self.__class__.__name__}: {retval}s => {timeout}s")
             self._timeout = timeout
         return retval
 
