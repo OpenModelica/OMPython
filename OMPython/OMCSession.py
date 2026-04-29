@@ -551,7 +551,7 @@ else:
 
         This class is based on OMPathABC and, therefore, on pathlib.PurePosixPath. This is working well, but it is not
         the correct implementation on Windows systems. To get a valid Windows representation of the path, use the
-        conversion via pathlib.Path(<OMCPathDummy>.as_posix()).
+        conversion via pathlib.Path(<OM*Path*>.as_posix()).
         """
 
         def is_file(self) -> bool:
@@ -634,7 +634,7 @@ else:
 
         This class is based on OMPathABC and, therefore, on pathlib.PurePosixPath. This is working well, but it is not
         the correct implementation on Windows systems. To get a valid Windows representation of the path, use the
-        conversion via pathlib.Path(<OMCPathDummy>.as_posix()).
+        conversion via pathlib.Path(<OM*Path*>.as_posix()).
         """
 
         def is_file(self) -> bool:
