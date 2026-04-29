@@ -927,7 +927,7 @@ class OMSessionABC(metaclass=OMSessionMeta):
 
     def __init__(
             self,
-            timeout: float = 10.00,
+            timeout: Optional[float] = None,
             **kwargs,
     ) -> None:
         """
@@ -939,7 +939,8 @@ class OMSessionABC(metaclass=OMSessionMeta):
         self.model_execution_local = False
 
         # store variables
-        self._timeout = timeout
+        self._timeout = 10.0
+        self.set_timeout(timeout=timeout)
         # command prefix (to be used for docker or WSL)
         self._cmd_prefix: list[str] = []
 
@@ -947,6 +948,19 @@ class OMSessionABC(metaclass=OMSessionMeta):
         """
         Post initialisation method.
         """
+
+    def set_timeout(self, timeout: Optional[float] = None) -> float:
+        """
+        Set the timeout to be used for OMC communication (OMCSession).
+
+        The defined value is set and the current value is returned. If None is provided as argument, nothing is changed.
+        """
+        retval = self._timeout
+        if timeout is not None:
+            if timeout <= 0.0:
+                raise OMCSessionException(f"Invalid timeout value: {timeout}!")
+            self._timeout = timeout
+        return retval
 
     def get_cmd_prefix(self) -> list[str]:
         """
@@ -1040,7 +1054,7 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
 
     def __init__(
             self,
-            timeout: float = 10.00,
+            timeout: Optional[float] = None,
             **kwargs,
     ) -> None:
         """
@@ -1085,9 +1099,6 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
         """
         Create the connection to the OMC server using ZeroMQ.
         """
-        # set_timeout() is used to define the value of _timeout as it includes additional checks
-        self.set_timeout(timeout=self._timeout)
-
         port = self.get_port()
         if not isinstance(port, str):
             raise OMCSessionException(f"Invalid content for port: {port}")
@@ -1155,19 +1166,6 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
             time.sleep(timestep)
             yield True
         yield False
-
-    def set_timeout(self, timeout: Optional[float] = None) -> float:
-        """
-        Set the timeout to be used for OMC communication (OMCSession).
-
-        The defined value is set and the current value is returned. If None is provided as argument, nothing is changed.
-        """
-        retval = self._timeout
-        if timeout is not None:
-            if timeout <= 0.0:
-                raise OMCSessionException(f"Invalid timeout value: {timeout}!")
-            self._timeout = timeout
-        return retval
 
     @staticmethod
     def escape_str(value: str) -> str:
@@ -1432,7 +1430,7 @@ class OMCSessionPort(OMCSessionABC):
     def __init__(
             self,
             omc_port: str,
-            timeout: float = 10.0,
+            timeout: Optional[float] = None,
     ) -> None:
         super().__init__(timeout=timeout)
         self._omc_port = omc_port
@@ -1445,7 +1443,7 @@ class OMCSessionLocal(OMCSessionABC):
 
     def __init__(
             self,
-            timeout: float = 10.00,
+            timeout: Optional[float] = None,
             omhome: Optional[str | os.PathLike] = None,
     ) -> None:
 
@@ -1526,7 +1524,7 @@ class OMCSessionZMQ(OMSessionABC):
 
     def __init__(
             self,
-            timeout: float = 10.00,
+            timeout: Optional[float] = None,
             omhome: Optional[str] = None,
             omc_process: Optional[OMCSessionABC] = None,
     ) -> None:
@@ -1597,7 +1595,7 @@ class OMCSessionDockerABC(OMCSessionABC, metaclass=abc.ABCMeta):
 
     def __init__(
             self,
-            timeout: float = 10.0,
+            timeout: Optional[float] = None,
             docker: Optional[str] = None,
             dockerContainer: Optional[str] = None,
             dockerExtraArgs: Optional[list] = None,
@@ -1752,7 +1750,7 @@ class OMCSessionDocker(OMCSessionDockerABC):
 
     def __init__(
             self,
-            timeout: float = 10.00,
+            timeout: Optional[float] = None,
             docker: Optional[str] = None,
             dockerExtraArgs: Optional[list] = None,
             dockerOpenModelicaPath: str | os.PathLike = "omc",
@@ -1905,7 +1903,7 @@ class OMCSessionDockerContainer(OMCSessionDockerABC):
 
     def __init__(
             self,
-            timeout: float = 10.00,
+            timeout: Optional[float] = None,
             dockerContainer: Optional[str] = None,
             dockerExtraArgs: Optional[list] = None,
             dockerOpenModelicaPath: str | os.PathLike = "omc",
@@ -2005,7 +2003,7 @@ class OMCSessionWSL(OMCSessionABC):
 
     def __init__(
             self,
-            timeout: float = 10.00,
+            timeout: Optional[float] = None,
             wsl_omc: str = 'omc',
             wsl_distribution: Optional[str] = None,
             wsl_user: Optional[str] = None,
@@ -2093,7 +2091,7 @@ class OMSessionRunner(OMSessionABC):
 
     def __init__(
             self,
-            timeout: float = 10.0,
+            timeout: Optional[float] = None,
             version: str = "1.27.0",
             ompath_runner: Type[OMPathRunnerABC] = OMPathRunnerLocal,
             cmd_prefix: Optional[list[str]] = None,
