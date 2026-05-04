@@ -1883,7 +1883,6 @@ class OMCSessionDocker(OMCSessionDockerABC):
                 pass
             if docker_cid is not None:
                 break
-            time.sleep(self._timeout / 40.0)
 
         if docker_cid is None:
             raise OMCSessionException(f"Docker did not start (timeout={self._timeout:.2f}s might be too short "
