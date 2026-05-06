@@ -83,7 +83,7 @@ jobs:
           verbose: true
           emoji: true
           job-summary: true
-          custom-arguments: '-v ./test_v400'
+          custom-arguments: '-v ./tests_v400'
           click-to-expand: true
           report-title: 'Test Report'
 
