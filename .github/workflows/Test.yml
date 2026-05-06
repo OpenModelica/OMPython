@@ -73,7 +73,17 @@ jobs:
           verbose: true
           emoji: true
           job-summary: true
-          custom-arguments: '-v'
+          custom-arguments: '-v ./tests'
+          click-to-expand: true
+          report-title: 'Test Report'
+
+      - name: Run pytest based on v4.0.0
+        uses: pavelzw/pytest-action@v2
+        with:
+          verbose: true
+          emoji: true
+          job-summary: true
+          custom-arguments: '-v ./test_v400'
           click-to-expand: true
           report-title: 'Test Report'
 
