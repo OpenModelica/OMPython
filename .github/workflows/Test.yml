@@ -77,7 +77,7 @@ jobs:
           click-to-expand: true
           report-title: 'Test Report'
 
-      - name: Run pytest based on v4.0.0
+      - name: Run pytest based on v4.0.0 compatibility layer
         uses: pavelzw/pytest-action@v2
         with:
           verbose: true
@@ -85,7 +85,7 @@ jobs:
           job-summary: true
           custom-arguments: '-v ./tests_v400'
           click-to-expand: true
-          report-title: 'Test Report'
+          report-title: 'Test Report (v4.0.0 compatibility layer)'
 
   Publish:
     name: Publish to PyPI
