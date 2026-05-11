@@ -451,6 +451,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             cmd_local=self._session.model_execution_local,
             cmd_windows=self._session.model_execution_windows,
             cmd_prefix=self._session.model_execution_prefix(cwd=self.getWorkDirectory()),
+            timeout=self._session.set_timeout(),
             model_name=self._model_name,
         )
         # ... by running it - output help for command help
@@ -902,6 +903,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             cmd_local=self._session.model_execution_local,
             cmd_windows=self._session.model_execution_windows,
             cmd_prefix=self._session.model_execution_prefix(cwd=self.getWorkDirectory()),
+            timeout=self._session.set_timeout(),
             model_name=self._model_name,
         )
 
@@ -1394,6 +1396,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             cmd_local=self._session.model_execution_local,
             cmd_windows=self._session.model_execution_windows,
             cmd_prefix=self._session.model_execution_prefix(cwd=self.getWorkDirectory()),
+            timeout=self._session.set_timeout(),
             model_name=self._model_name,
         )
 
