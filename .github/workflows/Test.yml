@@ -11,7 +11,7 @@ on:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       matrix:
         # test for:
@@ -73,9 +73,19 @@ jobs:
           verbose: true
           emoji: true
           job-summary: true
-          custom-arguments: '-v'
+          custom-arguments: '-v ./tests'
           click-to-expand: true
           report-title: 'Test Report'
+
+      - name: Run pytest based on v4.0.0 compatibility layer
+        uses: pavelzw/pytest-action@v2
+        with:
+          verbose: true
+          emoji: true
+          job-summary: true
+          custom-arguments: '-v ./tests_v400'
+          click-to-expand: true
+          report-title: 'Test Report (v4.0.0 compatibility layer)'
 
   Publish:
     name: Publish to PyPI
