@@ -940,7 +940,7 @@ class OMSessionABC(metaclass=OMSessionMeta):
         self.model_execution_local = False
 
         # store variables
-        self._timeout = 60.0
+        self._timeout = 300.0
         self.set_timeout(timeout=timeout)
         # command prefix (to be used for docker or WSL)
         self._cmd_prefix: list[str] = []
