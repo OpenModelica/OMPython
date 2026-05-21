@@ -1,6 +1,5 @@
-import pytest
-
 import OMPython
+import pytest
 
 
 @pytest.fixture
@@ -18,20 +17,8 @@ end M;
 
 @pytest.fixture
 def mscmd_firstorder(model_firstorder):
-    mod = OMPython.ModelicaSystemOMC()
-    mod.model(
-        model_file=model_firstorder,
-        model_name="M",
-    )
-
-    mscmd = OMPython.ModelExecutionCmd(
-        runpath=mod.getWorkDirectory(),
-        cmd_local=mod.get_session().model_execution_local,
-        cmd_windows=mod.get_session().model_execution_windows,
-        cmd_prefix=mod.get_session().model_execution_prefix(cwd=mod.getWorkDirectory()),
-        model_name=mod._model_name,
-    )
-
+    mod = OMPython.ModelicaSystem(fileName=model_firstorder.as_posix(), modelName="M")
+    mscmd = OMPython.ModelicaSystemCmd(runpath=mod.getWorkDirectory(), modelname=mod._model_name)
     return mscmd
 
 
@@ -45,7 +32,8 @@ def test_simflags(mscmd_firstorder):
     with pytest.deprecated_call():
         mscmd.args_set(args=mscmd.parse_simflags(simflags="-noEventEmit -noRestart -override=a=1,x=3"))
 
-    assert mscmd.get_cmd_args() == [
+    assert mscmd.get_cmd() == [
+        mscmd.get_exe().as_posix(),
         '-noEventEmit',
         '-noRestart',
         '-override=a=1,b=2,x=3',
@@ -55,7 +43,8 @@ def test_simflags(mscmd_firstorder):
         "override": {'b': None},
     })
 
-    assert mscmd.get_cmd_args() == [
+    assert mscmd.get_cmd() == [
+        mscmd.get_exe().as_posix(),
         '-noEventEmit',
         '-noRestart',
         '-override=a=1,x=3',

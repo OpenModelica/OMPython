@@ -1,12 +1,17 @@
-import OMPython
 import shutil
 import os
+import pathlib
+
+import OMPython
 
 
 def test_CauerLowPassAnalog():
-    mod = OMPython.ModelicaSystem(modelName="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
-                                  lmodel=["Modelica"])
-    tmp = mod.getWorkDirectory()
+    mod = OMPython.ModelicaSystemOMC()
+    mod.model(
+        model_name="Modelica.Electrical.Analog.Examples.CauerLowPassAnalog",
+        libraries=["Modelica"],
+    )
+    tmp = pathlib.Path(mod.getWorkDirectory())
     try:
         fmu = mod.convertMo2Fmu(fileNamePrefix="CauerLowPassAnalog")
         assert os.path.exists(fmu)
@@ -15,8 +20,12 @@ def test_CauerLowPassAnalog():
 
 
 def test_DrumBoiler():
-    mod = OMPython.ModelicaSystem(modelName="Modelica.Fluid.Examples.DrumBoiler.DrumBoiler", lmodel=["Modelica"])
-    tmp = mod.getWorkDirectory()
+    mod = OMPython.ModelicaSystemOMC()
+    mod.model(
+        model_name="Modelica.Fluid.Examples.DrumBoiler.DrumBoiler",
+        libraries=["Modelica"],
+    )
+    tmp = pathlib.Path(mod.getWorkDirectory())
     try:
         fmu = mod.convertMo2Fmu(fileNamePrefix="DrumBoiler")
         assert os.path.exists(fmu)

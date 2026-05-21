@@ -1,9 +1,8 @@
-# OMPython
+# OMPython [![License: OSMC-PL-RT](https://img.shields.io/badge/license-OSMC--PL--RT-lightgrey.svg)](LICENSE)
 
 OMPython is a Python interface that uses ZeroMQ to
 communicate with OpenModelica.
 
-[![FMITest](https://github.com/OpenModelica/OMPython/actions/workflows/FMITest.yml/badge.svg)](https://github.com/OpenModelica/OMPython/actions/workflows/FMITest.yml)
 [![Test](https://github.com/OpenModelica/OMPython/actions/workflows/Test.yml/badge.svg)](https://github.com/OpenModelica/OMPython/actions/workflows/Test.yml)
 
 ## Dependencies
@@ -40,8 +39,8 @@ help(OMPython)
 ```
 
 ```python
-from OMPython import OMCSessionZMQ
-omc = OMCSessionZMQ()
+from OMPython import OMCSessionLocal
+omc = OMCSessionLocal()
 omc.sendExpression("getVersion()")
 ```
 
@@ -63,20 +62,9 @@ automatically run linters:
 pre-commit install
 ```
 
-## Conda Package
+## License
 
-Follow the steps to make a conda package,
-
- - Update the version number in `recipe/meta.yaml` file.
- - Update the `sha256` in `recipe/meta.yaml` according to the version number.
-   - You can get the `sha256` from https://pypi.org/project/OMPython/#files
- - Download and install conda if you don't have one.
- - Run command `conda install -c conda-forge conda-build` that will install `conda-build` tool into your conda environment.
- - Build conda recipe `conda build recipe`.
- - Do a local install and test.
-    - Install locally to test. Run `conda create -n test-ompython -c local -c conda-forge ompython`
-    - Activate the install. Run `conda activate test-ompython`
-    - Now test installed ompython `python -c "import OMPython; print(OMPython.__version__)"`
+This project is licensed under the OSMC Public Runtime License. See [LICENSE](LICENSE) for details.
 
 ## Contact
 

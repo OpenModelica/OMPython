@@ -31,28 +31,30 @@ __license__ = """
 __status__ = "Prototype"
 __maintainer__ = "https://openmodelica.org"
 
+from typing import Any
+
 from pyparsing import (
+    alphanums,
+    alphas,
     Combine,
+    DelimitedList,
     Dict,
+    infix_notation,
     Forward,
     Group,
     Keyword,
+    nums,
+    opAssoc,
     Optional,
     QuotedString,
+    replace_with,
     StringEnd,
     Suppress,
     Word,
-    alphanums,
-    alphas,
-    delimitedList,
-    nums,
-    replaceWith,
-    infixNotation,
-    opAssoc,
 )
 
 
-def convertNumbers(s, l, toks):
+def convert_numbers(s, loc, toks):
     n = toks[0]
     try:
         return int(n)
@@ -60,7 +62,7 @@ def convertNumbers(s, l, toks):
         return float(n)
 
 
-def convertString2(s, s2):
+def convert_string2(s, s2):
     tmp = s2[0].replace("\\\"", "\"")
     tmp = tmp.replace("\"", "\\\"")
     tmp = tmp.replace("\'", "\\'")
@@ -68,76 +70,97 @@ def convertString2(s, s2):
     tmp = tmp.replace("\n", "\\n")
     tmp = tmp.replace("\r", "\\r")
     tmp = tmp.replace("\t", "\\t")
-    return "'"+tmp+"'"
+    return "'" + tmp + "'"
 
 
-def convertString(s, s2):
+def convert_string(s, s2):
     return s2[0].replace("\\\"", '"')
 
 
-def convertDict(d):
+def convert_dict(d):
     return dict(d[0])
 
 
-def convertTuple(t):
+def convert_tuple(t):
     return tuple(t[0])
 
 
-def evaluateExpression(s, loc, toks):
+def evaluate_expression(s, loc, toks):
     # Convert the tokens (ParseResults) into a string expression
     flat_list = [item for sublist in toks[0] for item in sublist]
     expr = "".join(flat_list)
     try:
         # Evaluate the expression safely
         return eval(expr)
-    except Exception:
+    except (SyntaxError, NameError):
         return expr
 
 
 # Number parsing (supports arithmetic expressions in dimensions) (e.g., {1 + 1, 1})
-arrayDimension = infixNotation(
+arrayDimension = infix_notation(
     Word(alphas + "_", alphanums + "_") | Word(nums),
     [
         (Word("+-", exact=1), 1, opAssoc.RIGHT),
         (Word("*/", exact=1), 2, opAssoc.LEFT),
         (Word("+-", exact=1), 2, opAssoc.LEFT),
     ],
-).setParseAction(evaluateExpression)
+).set_parse_action(evaluate_expression)
 
 omcRecord = Forward()
 omcValue = Forward()
 
-# pyparsing's replace_with (and thus replaceWith) has incorrect type
+# pyparsing's replace_with (and thus replace_with) has incorrect type
 # annotation: https://github.com/pyparsing/pyparsing/issues/602
-TRUE = Keyword("true").setParseAction(replaceWith(True))  # type: ignore
-FALSE = Keyword("false").setParseAction(replaceWith(False))  # type: ignore
-NONE = (Keyword("NONE") + Suppress("(") + Suppress(")")).setParseAction(replaceWith(None))  # type: ignore
+TRUE = Keyword("true").set_parse_action(replace_with(True))   # type: ignore
+FALSE = Keyword("false").set_parse_action(replace_with(False))   # type: ignore
+NONE = (Keyword("NONE") + Suppress("(") + Suppress(")")).set_parse_action(replace_with(None))  # type: ignore
 SOME = (Suppress(Keyword("SOME")) + Suppress("(") + omcValue + Suppress(")"))
 
-omcString = QuotedString(quoteChar='"', escChar='\\', multiline=True).setParseAction(convertString)
+omcString = QuotedString(quote_char='"', esc_char='\\', multiline=True).set_parse_action(convert_string)
 omcNumber = Combine(Optional('-') + ('0' | Word('123456789', nums)) +
                     Optional('.' + Word(nums)) +
                     Optional(Word('eE', exact=1) + Word(nums + '+-', nums)))
 
 # ident = Word(alphas + "_", alphanums + "_") | Combine("'" + Word(alphanums + "!#$%&()*+,-./:;<>=?@[]^{}|~ ") + "'")
-ident = Word(alphas + "_", alphanums + "_") | QuotedString(quoteChar='\'', escChar='\\').setParseAction(convertString2)
+ident = (Word(alphas + "_", alphanums + "_")
+         | QuotedString(quote_char='\'', esc_char='\\').set_parse_action(convert_string2))
 fqident = Forward()
 fqident << ((ident + "." + fqident) | ident)
-omcValues = delimitedList(omcValue)
-omcTuple = Group(Suppress('(') + Optional(omcValues) + Suppress(')')).setParseAction(convertTuple)
-omcArray = Group(Suppress('{') + Optional(omcValues) + Suppress('}')).setParseAction(convertTuple)
-omcArraySpecialTypes = Group(Suppress('{') + delimitedList(arrayDimension) + Suppress('}')).setParseAction(convertTuple)
-omcValue << (omcString | omcNumber | omcRecord | omcArray | omcArraySpecialTypes | omcTuple | SOME | TRUE | FALSE | NONE | Combine(fqident))
-recordMember = delimitedList(Group(ident + Suppress('=') + omcValue))
-omcRecord << Group(Suppress('record') + Suppress(fqident) + Dict(recordMember) + Suppress('end') + Suppress(fqident) + Suppress(';')).setParseAction(convertDict)
+omcValues = DelimitedList(omcValue)
+omcTuple = Group(Suppress('(') + Optional(omcValues) + Suppress(')')).set_parse_action(convert_tuple)
+omcArray = Group(Suppress('{') + Optional(omcValues) + Suppress('}')).set_parse_action(convert_tuple)
+omcArraySpecialTypes = Group(Suppress('{')
+                             + DelimitedList(arrayDimension)
+                             + Suppress('}')).set_parse_action(convert_tuple)
+omcValue << (omcString
+             | omcNumber
+             | omcRecord
+             | omcArray
+             | omcArraySpecialTypes
+             | omcTuple
+             | SOME
+             | TRUE
+             | FALSE
+             | NONE
+             | Combine(fqident))
+recordMember = DelimitedList(Group(ident + Suppress('=') + omcValue))
+omcRecord << Group(Suppress('record')
+                   + Suppress(fqident)
+                   + Dict(recordMember)
+                   + Suppress('end')
+                   + Suppress(fqident)
+                   + Suppress(';')).set_parse_action(convert_dict)
 
 omcGrammar = Optional(omcValue) + StringEnd()
 
-omcNumber.setParseAction(convertNumbers)
+omcNumber.set_parse_action(convert_numbers)
 
 
-def parseString(string):
-    res = omcGrammar.parseString(string)
+def om_parser_typed(string) -> Any:
+    res = omcGrammar.parse_string(string)
     if len(res) == 0:
-        return
+        return None
     return res[0]
+
+
+parseString = om_parser_typed

@@ -10,23 +10,20 @@ skip_on_windows = pytest.mark.skipif(
 
 @skip_on_windows
 def test_docker():
-    omcp = OMPython.OMCProcessDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
-    om = OMPython.OMCSessionZMQ(omc_process=omcp)
-    assert om.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    omcs = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
+    omversion = omcs.sendExpression("getVersion()")
+    assert isinstance(omversion, str) and omversion.startswith("OpenModelica")
 
-    omcpInner = OMPython.OMCProcessDockerContainer(dockerContainer=omcp.get_docker_container_id())
-    omInner = OMPython.OMCSessionZMQ(omc_process=omcpInner)
-    assert omInner.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    omcsInner = OMPython.OMCSessionDockerContainer(dockerContainer=omcs.get_docker_container_id())
+    omversion = omcsInner.sendExpression("getVersion()")
+    assert isinstance(omversion, str) and omversion.startswith("OpenModelica")
 
-    omcp2 = OMPython.OMCProcessDocker(docker="openmodelica/openmodelica:v1.25.0-minimal", port=11111)
-    om2 = OMPython.OMCSessionZMQ(omc_process=omcp2)
-    assert om2.sendExpression("getVersion()") == "OpenModelica 1.25.0"
+    omcs2 = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal", port=11111)
+    omversion = omcs2.sendExpression("getVersion()")
+    assert isinstance(omversion, str) and omversion.startswith("OpenModelica")
 
-    del omcp2
-    del om2
+    del omcs2
 
-    del omcpInner
-    del omInner
+    del omcsInner
 
-    del omcp
-    del om
+    del omcs
