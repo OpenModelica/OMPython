@@ -22,13 +22,13 @@ jobs:
         # test for:
         # * oldest supported version
         # * latest available Python version
-        python-version: ['3.10']
+        python-version: ['3.10', '3.14']
         # * Linux using ubuntu-latest
         # * Windows using windows-latest
-        os: ['windows-latest']
+        os: ['ubuntu-latest', 'windows-latest']
         # * OM stable - latest stable version
         # * OM nightly - latest nightly build
-        omc-version: ['stable']
+        omc-version: ['stable', 'nightly']
 
     steps:
       - uses: actions/checkout@v6
@@ -71,12 +71,6 @@ jobs:
 
       - name: Check twine
         run: python -m twine check dist/*
-
-      - name: Disable Windows Error Reporting dialogs
-        if: runner.os == 'Windows'
-        run: |
-          reg add "HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting" /v DontShowUI /t REG_DWORD /d 1 /f
-          reg add "HKLM\SOFTWARE\Microsoft\Windows\Windows Error Reporting" /v Disabled /t REG_DWORD /d 1 /f
 
       - name: Run pytest
         uses: pavelzw/pytest-action@v2
