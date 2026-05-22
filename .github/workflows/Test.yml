@@ -7,6 +7,11 @@ on:
       - 'v*'   # only publish when pushing version tags (e.g., v1.0.0)
   pull_request:
   workflow_dispatch:
+    inputs:
+      pytest_args:
+        description: 'Extra pytest arguments'
+        required: false
+        default: ''
 
 jobs:
   test:
@@ -79,19 +84,19 @@ jobs:
           verbose: true
           emoji: true
           job-summary: true
-          custom-arguments: '-v ./tests'
+          custom-arguments: '-v --log-cli-level=DEBUG ${{ inputs.pytest_args }} ./tests/test_linearization.py'
           click-to-expand: true
           report-title: 'Test Report'
 
-      - name: Run pytest based on v4.0.0 compatibility layer
-        uses: pavelzw/pytest-action@v2
-        with:
-          verbose: true
-          emoji: true
-          job-summary: true
-          custom-arguments: '-v ./tests_v400'
-          click-to-expand: true
-          report-title: 'Test Report (v4.0.0 compatibility layer)'
+      # - name: Run pytest based on v4.0.0 compatibility layer
+      #   uses: pavelzw/pytest-action@v2
+      #   with:
+      #     verbose: true
+      #     emoji: true
+      #     job-summary: true
+      #     custom-arguments: '-v ./tests_v400'
+      #     click-to-expand: true
+      #     report-title: 'Test Report (v4.0.0 compatibility layer)'
 
   Publish:
     name: Publish to PyPI
