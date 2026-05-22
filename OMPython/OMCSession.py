@@ -851,7 +851,7 @@ class ModelExecutionData:
         """
 
         my_env = os.environ.copy()
-        logger.debug(f"ModelExecutionData::run() - Set library path for model executable: {repr(self.cmd_library_path)}")
+        logger.debug(f"ModelExecutionData::run() self.cmd_library_path: {repr(self.cmd_library_path)}")
         if isinstance(self.cmd_library_path, str):
             my_env["PATH"] = self.cmd_library_path + os.pathsep + my_env["PATH"]
 

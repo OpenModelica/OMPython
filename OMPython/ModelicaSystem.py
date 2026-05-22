@@ -272,7 +272,7 @@ class ModelExecutionCmd:
                 match = re.match(pattern=r"^SET PATH=([^%]*)", string=line, flags=re.IGNORECASE)
                 if match:
                     cmd_library_path = match.group(1).strip(';')  # Remove any trailing semicolons
-            logger.debug(f"ModelExecutionData::definition Set library path for model executable: {repr(cmd_library_path)}")
+            logger.debug(f"ModelExecutionData::definition cmd_library_path: {repr(cmd_library_path)}")
             my_env = os.environ.copy()
             my_env["PATH"] = cmd_library_path + os.pathsep + my_env["PATH"]
 
