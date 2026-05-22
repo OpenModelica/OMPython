@@ -78,7 +78,7 @@ jobs:
           verbose: true
           emoji: true
           job-summary: true
-          custom-arguments: '-v ${{ inputs.pytest_args }} ./tests'
+          custom-arguments: '-v --log-cli-level=DEBUG ${{ inputs.pytest_args }} ./tests'
           click-to-expand: true
           report-title: 'Test Report'
 
@@ -88,7 +88,7 @@ jobs:
           verbose: true
           emoji: true
           job-summary: true
-          custom-arguments: '-v ${{ inputs.pytest_args }} ./tests_v400'
+          custom-arguments: '-v --log-cli-level=DEBUG ${{ inputs.pytest_args }} ./tests_v400'
           click-to-expand: true
           report-title: 'Test Report (v4.0.0 compatibility layer)'
 
