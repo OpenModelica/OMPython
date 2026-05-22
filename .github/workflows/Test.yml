@@ -84,7 +84,7 @@ jobs:
           verbose: true
           emoji: true
           job-summary: true
-          custom-arguments: '-v --log-cli-level=DEBUG ${{ inputs.pytest_args }} ./tests/test_linearization.py'
+          custom-arguments: '-v --log-cli-level=DEBUG ${{ inputs.pytest_args }} ./tests'
           click-to-expand: true
           report-title: 'Test Report'
 
