@@ -12,6 +12,7 @@ skip_on_windows = pytest.mark.skipif(
     reason="OpenModelica FMI import is currently broken on Windows.",
 )
 
+
 @pytest.fixture
 def model_firstorder(tmp_path):
     mod = tmp_path / "M.mo"
@@ -23,6 +24,7 @@ equation
 end M;
 """)
     return mod
+
 
 @skip_on_windows
 def test_FMIImport(model_firstorder):
