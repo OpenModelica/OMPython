@@ -1,3 +1,4 @@
+import sys
 import os
 import shutil
 
@@ -6,6 +7,10 @@ import pytest
 
 import OMPython
 
+skip_on_windows = pytest.mark.skipif(
+    sys.platform.startswith("win"),
+    reason="OpenModelica FMI import is currently broken on Windows.",
+)
 
 @pytest.fixture
 def model_firstorder(tmp_path):
@@ -19,7 +24,7 @@ end M;
 """)
     return mod
 
-
+@skip_on_windows
 def test_FMIImport(model_firstorder):
     # create model & simulate it
     mod1 = OMPython.ModelicaSystemOMC()
