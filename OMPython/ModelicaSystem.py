@@ -37,6 +37,8 @@ from OMPython.OMCSession import (
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
 
+MODEL_EXECUTION_TIMEOUT: float = 300.0
+
 
 class ModelicaSystemError(Exception):
     """
@@ -108,7 +110,7 @@ class ModelExecutionCmd:
             cmd_prefix: list[str],
             cmd_local: bool = False,
             cmd_windows: bool = False,
-            timeout: float = 300.0,
+            timeout: Optional[float] = None,
             model_name: Optional[str] = None,
     ) -> None:
         if model_name is None:
@@ -119,7 +121,13 @@ class ModelExecutionCmd:
         self._cmd_prefix = cmd_prefix
         self._runpath = pathlib.PurePosixPath(runpath)
         self._model_name = model_name
-        self._timeout = timeout
+
+        if timeout is None:
+            # a separate timeout is defined here to allow the use of the class independent of the normal call chain via
+            # classes derived from OMSession (OMSESSION_TIMEOUT)
+            self._timeout: float = MODEL_EXECUTION_TIMEOUT
+        else:
+            self._timeout = timeout
 
         # dictionaries of command line arguments for the model executable
         self._args: dict[str, str | None] = {}
@@ -2830,14 +2838,14 @@ class ModelicaDoERunner(ModelicaDoEABC):
 
 class ModelicaSystemCmd(ModelExecutionCmd):
     """
-    Compatibility class; in the new version it is renamed as MOdelExecutionCmd.
+    Compatibility class; in the new version it is renamed as ModelExecutionCmd.
     """
 
     def __init__(
             self,
             runpath: pathlib.Path,
             modelname: str,
-            timeout: float = 300.0,
+            timeout: Optional[float] = None,
     ) -> None:
         super().__init__(
             runpath=runpath,

@@ -35,6 +35,8 @@ from OMPython.OMParser import om_parser_basic
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
 
+OMSESSION_TIMEOUT: float = 300.0
+
 
 class DockerPopen:
     """
@@ -953,7 +955,7 @@ class OMSessionABC(metaclass=OMSessionMeta):
         self.model_execution_local = False
 
         # store variables
-        self._timeout = 300.0
+        self._timeout = OMSESSION_TIMEOUT
         self.set_timeout(timeout=timeout)
         # command prefix (to be used for docker or WSL)
         self._cmd_prefix: list[str] = []
@@ -2113,7 +2115,7 @@ class OMSessionRunner(OMSessionRunnerABC):
     def __init__(
             self,
             ompath_runner: Type[OMPathRunnerABC] = OMPathRunnerLocal,
-            timeout: float = 10.0,
+            timeout: Optional[float] = None,
             version: str = "1.27.0",
             cmd_prefix: Optional[list[str]] = None,
             model_execution_local: bool = True,
