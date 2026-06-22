@@ -108,7 +108,7 @@ class ModelExecutionCmd:
             cmd_prefix: list[str],
             cmd_local: bool = False,
             cmd_windows: bool = False,
-            timeout: float = 10.0,
+            timeout: float = 300.0,
             model_name: Optional[str] = None,
     ) -> None:
         if model_name is None:
@@ -2837,7 +2837,7 @@ class ModelicaSystemCmd(ModelExecutionCmd):
             self,
             runpath: pathlib.Path,
             modelname: str,
-            timeout: float = 10.0,
+            timeout: float = 300.0,
     ) -> None:
         super().__init__(
             runpath=runpath,
