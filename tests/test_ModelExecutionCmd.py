@@ -29,7 +29,7 @@ def mscmd_firstorder(model_firstorder):
         cmd_local=mod.get_session().model_execution_local,
         cmd_windows=mod.get_session().model_execution_windows,
         cmd_prefix=mod.get_session().model_execution_prefix(cwd=mod.getWorkDirectory()),
-        model_name=mod._model_name,
+        model_name=mod.get_model_name(),
     )
 
     return mscmd

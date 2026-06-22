@@ -1,5 +1,7 @@
 import sys
+
 import pytest
+
 import OMPython
 
 skip_on_windows = pytest.mark.skipif(

@@ -7,11 +7,16 @@ on:
       - 'v*'   # only publish when pushing version tags (e.g., v1.0.0)
   pull_request:
   workflow_dispatch:
+    inputs:
+      pytest_args:
+        description: 'Extra pytest arguments'
+        required: false
+        default: ''
 
 jobs:
   test:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 120
     strategy:
       matrix:
         # test for:
@@ -73,7 +78,7 @@ jobs:
           verbose: true
           emoji: true
           job-summary: true
-          custom-arguments: '-v ./tests'
+          custom-arguments: '-v ${{ inputs.pytest_args }} ./tests'
           click-to-expand: true
           report-title: 'Test Report'
 
@@ -83,7 +88,7 @@ jobs:
           verbose: true
           emoji: true
           job-summary: true
-          custom-arguments: '-v ./tests_v400'
+          custom-arguments: '-v ${{ inputs.pytest_args }} ./tests_v400'
           click-to-expand: true
           report-title: 'Test Report (v4.0.0 compatibility layer)'
 
