@@ -416,16 +416,11 @@ def make_elements(parsed: OMParserData, strings: str):
             highest_count = 1
             for each_name in parsed.result[main_set_name]['Elements']:
                 if original_name in each_name:
-                    the_num = each_name.replace(original_name, '')
-                    the_num = int(the_num)
-                    if the_num > highest_count:
-                        highest_count = the_num
-                        the_num += 1
-                    elif highest_count > the_num:
-                        the_num = highest_count + 1
-                    else:
-                        the_num += 1
-                    name = original_name + str(the_num)
+                    highest_count, name = get_set_name(
+                        search_str=original_name,
+                        each_name=each_name,
+                        highest_count=highest_count,
+                    )
 
             parsed.result[main_set_name]['Elements'][name] = {}
             parsed.result[main_set_name]['Elements'][name]['Properties'] = {}
