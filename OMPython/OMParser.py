@@ -816,8 +816,8 @@ def check_for_values(parsed: OMParserData, string: str):
 
     for each_name in parsed.result:
         if "SET" in each_name:
-            the_num = each_name.replace("SET", '')
-            the_num = int(the_num)
+            the_num_str = each_name.replace("SET", '')
+            the_num = int(the_num_str)
             the_num = the_num + 1
             main_set_name = "SET" + str(the_num)
 
