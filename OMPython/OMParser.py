@@ -418,7 +418,7 @@ def make_elements(parsed: OMParserData, strings: str):
 
             highest_count = 1
             for each_name in parsed.result[main_set_name]['Elements']:
-                if original_name in each_name:
+                if each_name.startswith(original_name):
                     highest_count, name = get_set_name(
                         search_str=original_name,
                         each_name=each_name,
