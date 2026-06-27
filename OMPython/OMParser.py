@@ -194,6 +194,25 @@ def delete_elements(strings):
     return strings
 
 
+def get_set_name(
+        search_str: str,
+        each_name: str,
+        highest_count: int,
+) -> tuple[int, str]:
+    the_num_str = each_name.replace(search_str, '')
+    the_num = int(the_num_str)
+    if the_num > highest_count:
+        highest_count = the_num
+        the_num += 1
+    elif highest_count > the_num:
+        the_num = highest_count + 1
+    else:
+        the_num += 1
+    set_name = search_str + str(the_num)
+
+    return highest_count, set_name
+
+
 def make_subset_sets(parsed: OMParserData, strings: str, name: str):
     main_set_name = "SET1"
     subset_name = "Subset1"
@@ -223,16 +242,11 @@ def make_subset_sets(parsed: OMParserData, strings: str, name: str):
         # find the highest Set number & make the next Set in Subset
         for each_name in parsed.result[main_set_name][subset_name]:
             if "SET" in each_name:
-                the_num = each_name.replace('Set', '')
-                the_num = int(the_num)
-                if the_num > highest_count:
-                    highest_count = the_num
-                    the_num += 1
-                elif highest_count > the_num:
-                    the_num = highest_count + 1
-                else:
-                    the_num += 1
-                set_name = 'Set' + str(the_num)
+                highest_count, set_name = get_set_name(
+                    search_str='Set',
+                    each_name=each_name,
+                    highest_count=highest_count,
+                )
 
         parsed.result[main_set_name][subset_name] = {}
         parsed.result[main_set_name][subset_name][set_name] = []
@@ -253,16 +267,11 @@ def make_subset_sets(parsed: OMParserData, strings: str, name: str):
         highest_count = 1
         for each_name in parsed.result[main_set_name]['Elements'][name]['Properties'][subset_name]:
             if "SET" in each_name:
-                the_num = each_name.replace('Set', '')
-                the_num = int(the_num)
-                if the_num > highest_count:
-                    highest_count = the_num
-                    the_num += 1
-                elif highest_count > the_num:
-                    the_num = highest_count + 1
-                else:
-                    the_num += 1
-                set_name = 'Set' + str(the_num)
+                highest_count, set_name = get_set_name(
+                    search_str='Set',
+                    each_name=each_name,
+                    highest_count=highest_count,
+                )
 
         parsed.result[main_set_name]['Elements'][name]['Properties'][subset_name][set_name] = []
         parsed.result[main_set_name]['Elements'][name]['Properties'][subset_name][set_name] = items
@@ -294,16 +303,11 @@ def make_sets(parsed: OMParserData, strings: str, name: str):
         highest_count = 1
         for each_name in parsed.result[main_set_name]:
             if "SET" in each_name:
-                the_num = each_name.replace('Set', '')
-                the_num = int(the_num)
-                if the_num > highest_count:
-                    highest_count = the_num
-                    the_num += 1
-                elif highest_count > the_num:
-                    the_num = highest_count + 1
-                else:
-                    the_num += 1
-                set_name = 'Set' + str(the_num)
+                highest_count, set_name = get_set_name(
+                    search_str='Set',
+                    each_name=each_name,
+                    highest_count=highest_count,
+                )
 
         parsed.result[main_set_name][set_name] = []
         parsed.result[main_set_name][set_name] = items
@@ -312,16 +316,12 @@ def make_sets(parsed: OMParserData, strings: str, name: str):
         highest_count = 1
         for each_name in parsed.result[main_set_name]['Elements'][name]['Properties']:
             if "SET" in each_name:
-                the_num = each_name.replace('Set', '')
-                the_num = int(the_num)
-                if the_num > highest_count:
-                    highest_count = the_num
-                    the_num += 1
-                elif highest_count > the_num:
-                    the_num = highest_count + 1
-                else:
-                    the_num += 1
-                set_name = 'Set' + str(the_num)
+                highest_count, set_name = get_set_name(
+                    search_str='Set',
+                    each_name=each_name,
+                    highest_count=highest_count,
+                )
+
         parsed.result[main_set_name]['Elements'][name]['Properties'][set_name] = []
         parsed.result[main_set_name]['Elements'][name]['Properties'][set_name] = items
 
@@ -340,31 +340,21 @@ def get_inner_sets(parsed: OMParserData, strings: str, for_this: str, name: str)
             highest_count = 1
             for each_name in parsed.result[main_set_name]:
                 if each_name.find("Subset") != -1:
-                    the_num = each_name.replace('Subset', '')
-                    the_num = int(the_num)
-                    if the_num > highest_count:
-                        highest_count = the_num
-                        the_num += 1
-                    elif highest_count > the_num:
-                        the_num = highest_count + 1
-                    else:
-                        the_num += 1
-                    subset_name = subset_name + str(the_num)
+                    highest_count, subset_name = get_set_name(
+                        search_str='Subset',
+                        each_name=each_name,
+                        highest_count=highest_count,
+                    )
             parsed.result[main_set_name][subset_name] = {}
         else:
             highest_count = 1
             for each_name in parsed.result[main_set_name]['Elements'][name]['Properties']:
                 if each_name.find("Subset") != -1:
-                    the_num = each_name.replace('Subset', '')
-                    the_num = int(the_num)
-                    if the_num > highest_count:
-                        highest_count = the_num
-                        the_num += 1
-                    elif highest_count > the_num:
-                        the_num = highest_count + 1
-                    else:
-                        the_num += 1
-                    subset_name = "Subset" + str(the_num)
+                    highest_count, subset_name = get_set_name(
+                        search_str='Subset',
+                        each_name=each_name,
+                        highest_count=highest_count,
+                    )
             parsed.result[main_set_name]['Elements'][name]['Properties'][subset_name] = {}
 
         start = strings.find("{{")
