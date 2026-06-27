@@ -733,7 +733,7 @@ def get_the_set(parsed: OMParserData, string: str):
 def formatSimRes(parsed: OMParserData, strings: str):
     parsed.result['SimulationResults'] = {}
     simRes = strings[strings.find('  resultFile') + 1:strings.find('\nend SimulationResult')]
-    simRes = simRes.translate(None, "\\")
+    simRes = simRes.replace("\\", "")
     simRes = simRes.split('\n')
     simOps = simRes.pop(1)
     options = simOps[simOps.find('"startTime') + 1:simOps.find('",')]
@@ -777,7 +777,7 @@ def formatRecords(parsed: OMParserData, strings: str):
     recordName = recordName.replace("ecord ", '').strip()
     strings = strings.replace(("end " + recordName + ";"), '').strip()
     recordItems = strings[strings.find("\n") + 1: len(strings)]
-    recordItems = recordItems.translate(None, "\\")
+    recordItems = recordItems.replace("\\", "")
     recordItems = recordItems.split("\n")
     for each_item in recordItems:
         var = each_item[each_item.find('') + 1:each_item.find(" =")]
