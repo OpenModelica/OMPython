@@ -82,7 +82,7 @@ class ModelicaSystem(ModelicaSystemOMC):
             result_file: OMPathABC,
             simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
-    ) -> ModelExecutionCmd:
+    ) -> ModelExecutionConfig:
         """
         Compatibility layer for OMPython v4.0.0 - keep simflags available and use ModelicaSystemCmd!
         """
