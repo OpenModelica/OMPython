@@ -341,7 +341,7 @@ def get_inner_sets(parsed: OMParserData, strings: str, for_this: str, name: str)
         for each_name in parsed.result:
             if each_name.startswith("SET"):
                 main_set_name = each_name
-        if each_name.startswith("SET"):
+        if name.startswith("SET"):
             highest_count = 1
             for each_name in parsed.result[main_set_name]:
                 if each_name.startswith("Subset"):
