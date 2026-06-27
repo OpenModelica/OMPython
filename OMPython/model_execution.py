@@ -27,7 +27,7 @@ class ModelExecutionException(Exception):
 
 
 @dataclasses.dataclass
-class ModelExecutionData:
+class ModelExecutionRun:
     """
     Data class to store the command line data for running a model executable in the OMC environment.
 
@@ -105,7 +105,7 @@ class ModelExecutionData:
         return returncode
 
 
-class ModelExecutionCmd:
+class ModelExecutionConfig:
     """
     All information about a compiled model executable. This should include data about all structured parameters, i.e.
     parameters which need a recompilation of the model. All non-structured parameters can be easily changed without
@@ -261,7 +261,7 @@ class ModelExecutionCmd:
 
         return cmdl
 
-    def definition(self) -> ModelExecutionData:
+    def definition(self) -> ModelExecutionRun:
         """
         Define all needed data to run the model executable. The data is stored in an OMCSessionRunData object.
         """
@@ -301,7 +301,7 @@ class ModelExecutionCmd:
         if self._cmd_local:
             cmd_cwd_local = cmd_path.as_posix()
 
-        omc_run_data = ModelExecutionData(
+        omc_run_data = ModelExecutionRun(
             cmd_path=cmd_path.as_posix(),
             cmd_model_name=self._model_name,
             cmd_args=self.get_cmd_args(),

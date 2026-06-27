@@ -12,7 +12,7 @@ from typing import Any, Optional
 import numpy as np
 
 from OMPython.model_execution import (
-    ModelExecutionCmd,
+    ModelExecutionConfig,
     ModelExecutionException,
 )
 from OMPython.om_session_omc import (
@@ -176,7 +176,7 @@ class ModelicaSystemDoE(ModelicaDoEOMC):
     """
 
 
-class ModelicaSystemCmd(ModelExecutionCmd):
+class ModelicaSystemCmd(ModelExecutionConfig):
     """
     Compatibility class; in the new version it is renamed as ModelExecutionCmd.
     """

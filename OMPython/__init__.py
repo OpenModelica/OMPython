@@ -12,8 +12,8 @@ omc.sendExpression("getVersion()")
 """
 
 from OMPython.model_execution import (
-    ModelExecutionCmd,
-    ModelExecutionData,
+    ModelExecutionConfig,
+    ModelExecutionRun,
     ModelExecutionException,
 )
 from OMPython.om_session_abc import (
@@ -81,8 +81,8 @@ __all__ = [
 
     'LinearizationResult',
 
-    'ModelExecutionCmd',
-    'ModelExecutionData',
+    'ModelExecutionConfig',
+    'ModelExecutionRun',
     'ModelExecutionException',
 
     'ModelicaDoEABC',
