@@ -201,6 +201,8 @@ def get_set_name(
 ) -> tuple[int, str]:
     if not each_name.startswith(search_str):
         raise ValueError(f"Invalid name: {each_name} - searched for {search_str}")
+    if not each_name[len(search_str):].isdigit():
+        raise ValueError(f"Invalid name: {each_name} - no digits after {search_str}")
 
     the_num_str = each_name.replace(search_str, '')
     the_num = int(the_num_str)
