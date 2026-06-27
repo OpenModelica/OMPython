@@ -199,6 +199,9 @@ def get_set_name(
         each_name: str,
         highest_count: int,
 ) -> tuple[int, str]:
+    if not each_name.startswith(search_str):
+        raise ValueError(f"Invalid name: {each_name} - searched for {search_str}")
+
     the_num_str = each_name.replace(search_str, '')
     the_num = int(the_num_str)
     if the_num > highest_count:
