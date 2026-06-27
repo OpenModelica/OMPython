@@ -674,7 +674,7 @@ def get_the_set(parsed: OMParserData, string: str):
     next_set_list = []
     end = len(string)
 
-    if "{" and "}" in string:
+    if "{" in string and "}" in string:
         while index < len(string):
             character = string[index]
             if character == "{":
