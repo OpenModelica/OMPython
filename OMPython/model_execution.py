@@ -29,12 +29,11 @@ class ModelExecutionException(Exception):
 @dataclasses.dataclass
 class ModelExecutionRun:
     """
-    Data class to store the command line data for running a model executable in the OMC environment.
+    Data class to store the command line data for running a model executable. This definition is independent of the OMC
+    environment as only the executable is needed.
 
-    All data should be defined for the environment, where OMC is running (local, docker or WSL)
-
-    To use this as a definition of an OMC simulation run, it has to be processed within
-    OMCProcess*.self_update(). This defines the attribute cmd_model_executable.
+    All data should be defined for the environment, where the executable was defined / is located. This is especially
+    important if OMPython and the executable are defined in different environments (docker or WSL).
     """
     # cmd_path is the expected working directory
     cmd_path: str
@@ -107,9 +106,10 @@ class ModelExecutionRun:
 
 class ModelExecutionConfig:
     """
-    All information about a compiled model executable. This should include data about all structured parameters, i.e.
-    parameters which need a recompilation of the model. All non-structured parameters can be easily changed without
-    the need for recompilation.
+    This class collects all information about a compiled model executable. This includes data about all structured
+    parameters, i.e. parameters which need a recompilation of the model. All non-structured parameters can be easily
+    changed without the need for recompilation. The final result is an instance of class ModelExecutionRun - a
+    definition to run one simulation based on the compiled model executable.
     """
 
     def __init__(
