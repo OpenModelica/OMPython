@@ -658,8 +658,8 @@ def get_the_set(parsed: OMParserData, string: str):
     index = 0
     count = 0
     parsed.next_set[0] = ''
-    inner_sets = []
-    next_set_list = []
+    inner_sets: list[str] = []
+    next_set_list: list[str] = []
     end = len(string)
 
     if "{" in string and "}" in string:
@@ -722,14 +722,14 @@ def formatSimRes(parsed: OMParserData, strings: str):
     parsed.result['SimulationResults'] = {}
     simRes = strings[strings.find('  resultFile') + 1:strings.find('\nend SimulationResult')]
     simRes = simRes.replace("\\", "")
-    simRes = simRes.split('\n')
-    simOps = simRes.pop(1)
+    simRes_splitted = simRes.split('\n')
+    simOps = simRes_splitted.pop(1)
     options = simOps[simOps.find('"startTime') + 1:simOps.find('",')]
     options = options + ","
     index = 0
     anchor = 0
 
-    for i in simRes:
+    for i in simRes_splitted:
         var = i[i.find('') + 1:i.find(" =")]
         var = (var.lstrip()).rstrip()
         value = i[i.find("= ") + 1:i.find(",")]
@@ -766,8 +766,8 @@ def formatRecords(parsed: OMParserData, strings: str):
     strings = strings.replace(("end " + recordName + ";"), '').strip()
     recordItems = strings[strings.find("\n") + 1: len(strings)]
     recordItems = recordItems.replace("\\", "")
-    recordItems = recordItems.split("\n")
-    for each_item in recordItems:
+    recordItems_splitted = recordItems.split("\n")
+    for each_item in recordItems_splitted:
         var = each_item[each_item.find('') + 1:each_item.find(" =")]
         var = (var.lstrip()).rstrip()
         value = each_item[each_item.find("= ") + 1:each_item.find(",")]
