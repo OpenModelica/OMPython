@@ -24,7 +24,7 @@ def mscmd_firstorder(model_firstorder):
         model_name="M",
     )
 
-    mscmd = OMPython.ModelExecutionCmd(
+    mscmd = OMPython.ModelExecutionConfig(
         runpath=mod.getWorkDirectory(),
         cmd_local=mod.get_session().model_execution_local,
         cmd_windows=mod.get_session().model_execution_windows,
