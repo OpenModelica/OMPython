@@ -859,4 +859,5 @@ def check_for_values(parsed: OMParserData, string: str):
 
 def om_parser_basic(string: str):
     parsed = OMParserData()
-    return check_for_values(parsed=parsed, string=string)
+    parsed_str = check_for_values(parsed=parsed, string=string)
+    return parsed_str
