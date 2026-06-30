@@ -52,19 +52,23 @@ else:
         OMCSession* classes.
         """
 
-        def is_file(self) -> bool:
+        def is_file(self, *, follow_symlinks=True) -> bool:
             """
             Check if the path is a regular file.
             """
+            del follow_symlinks
+
             retval = self.get_session().sendExpression(expr=f'regularFileExists("{self.as_posix()}")')
             if not isinstance(retval, bool):
                 raise OMSessionException(f"Invalid return value for is_file(): {retval} - expect bool")
             return retval
 
-        def is_dir(self) -> bool:
+        def is_dir(self, *, follow_symlinks: bool = True) -> bool:
             """
             Check if the path is a directory.
             """
+            del follow_symlinks
+
             retval = self.get_session().sendExpression(expr=f'directoryExists("{self.as_posix()}")')
             if not isinstance(retval, bool):
                 raise OMSessionException(f"Invalid return value for is_dir(): {retval} - expect bool")
@@ -78,19 +82,23 @@ else:
                 return pathlib.PureWindowsPath(self.as_posix()).is_absolute()
             return pathlib.PurePosixPath(self.as_posix()).is_absolute()
 
-        def read_text(self) -> str:
+        def read_text(self, encoding=None, errors=None, newline=None) -> str:
             """
             Read the content of the file represented by this path as text.
             """
+            del encoding, errors, newline
+
             retval = self.get_session().sendExpression(expr=f'readFile("{self.as_posix()}")')
             if not isinstance(retval, str):
                 raise OMSessionException(f"Invalid return value for read_text(): {retval} - expect str")
             return retval
 
-        def write_text(self, data: str) -> int:
+        def write_text(self, data: str, encoding=None, errors=None, newline=None) -> int:
             """
             Write text data to the file represented by this path.
             """
+            del encoding, errors, newline
+
             if not isinstance(data, str):
                 raise TypeError(f"data must be str, not {data.__class__.__name__}")
 
@@ -99,7 +107,7 @@ else:
 
             return len(data)
 
-        def mkdir(self, parents: bool = True, exist_ok: bool = False) -> None:
+        def mkdir(self, mode=0o777, parents: bool = False, exist_ok: bool = False) -> None:
             """
             Create a directory at the path represented by this class.
 
@@ -107,13 +115,15 @@ else:
             Python < 3.12. In this case, pathlib.Path is used directly and this option ensures, that missing parent
             directories are also created.
             """
+            del mode
+
             if self.is_dir() and not exist_ok:
                 raise FileExistsError(f"Directory {self.as_posix()} already exists!")
 
             if not self._session.sendExpression(expr=f'mkdir("{self.as_posix()}")'):
                 raise OMSessionException(f"Error on directory creation for {self.as_posix()}!")
 
-        def cwd(self) -> OMPathABC:
+        def cwd(self) -> OMPathABC:  # pylint: disable=W0221 # is @classmethod in the original; see pathlib.PathBase
             """
             Returns the current working directory as an OMPathABC object.
             """
