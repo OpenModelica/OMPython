@@ -126,7 +126,7 @@ class ModelicaSystemOMC(ModelicaSystemABC):
         # set variables
         self._model_name = model_name  # Model class name
         self._libraries = libraries  # may be needed if model is derived from other model
-        self._variable_filter = variable_filter
+        self.set_variable_filter(variable_filter=variable_filter, escape=True)
 
         if self._libraries:
             self._loadLibrary(libraries=self._libraries)

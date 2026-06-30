@@ -6,14 +6,14 @@ To get started on a local OMC server, create an OMCSessionLocal object:
 ```
 import OMPython
 omc = OMPython.OMCSessionLocal()
-omc.sendExpression("command")
+omc.sendExpression("getVersion()")
 ```
 
 """
 
 from OMPython.model_execution import (
-    ModelExecutionCmd,
-    ModelExecutionData,
+    ModelExecutionConfig,
+    ModelExecutionRun,
     ModelExecutionException,
 )
 from OMPython.om_session_abc import (
@@ -58,37 +58,20 @@ from OMPython.modelica_doe_runner import (
     ModelicaDoERunner,
 )
 
-from OMPython.ModelicaSystem import (
-    ModelicaSystem,
-    ModelicaSystemDoE,
-    ModelicaSystemCmd,
-)
-from OMPython.OMCSession import (
-    OMCSessionCmd,
-    OMCSessionZMQ,
-    OMCSessionException,
-
-    OMCProcessLocal,
-    OMCProcessPort,
-    OMCProcessDocker,
-    OMCProcessDockerContainer,
-)
-
 # global names imported if import 'from OMPython import *' is used
 __all__ = [
     'doe_get_solutions',
 
     'LinearizationResult',
 
-    'ModelExecutionCmd',
-    'ModelExecutionData',
+    'ModelExecutionConfig',
+    'ModelExecutionRun',
     'ModelExecutionException',
 
     'ModelicaDoEABC',
     'ModelicaDoEOMC',
     'ModelicaDoERunner',
     'ModelicaSystemABC',
-    'ModelicaSystemDoE',
     'ModelicaSystemError',
     'ModelicaSystemOMC',
     'ModelicaSystemRunner',
@@ -108,19 +91,4 @@ __all__ = [
     'OMPathRunnerBash',
     'OMPathRunnerLocal',
     'OMSessionRunner',
-
-    'ModelicaSystemCmd',
-    'ModelicaSystem',
-
-    'OMCSessionABC',
-    'OMCSessionCmd',
-
-    'OMCSessionException',
-
-    'OMCSessionZMQ',
-
-    'OMCProcessLocal',
-    'OMCProcessPort',
-    'OMCProcessDocker',
-    'OMCProcessDockerContainer',
 ]
