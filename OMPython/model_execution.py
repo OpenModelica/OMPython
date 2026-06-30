@@ -12,7 +12,6 @@ import pathlib
 import re
 import subprocess
 from typing import Any, Optional
-import warnings
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
@@ -27,14 +26,13 @@ class ModelExecutionException(Exception):
 
 
 @dataclasses.dataclass
-class ModelExecutionData:
+class ModelExecutionRun:
     """
-    Data class to store the command line data for running a model executable in the OMC environment.
+    Data class to store the command line data for running a model executable. This definition is independent of the OMC
+    environment as only the executable is needed.
 
-    All data should be defined for the environment, where OMC is running (local, docker or WSL)
-
-    To use this as a definition of an OMC simulation run, it has to be processed within
-    OMCProcess*.self_update(). This defines the attribute cmd_model_executable.
+    All data should be defined for the environment, where the executable was defined / is located. This is especially
+    important if OMPython and the executable are defined in different environments (docker or WSL).
     """
     # cmd_path is the expected working directory
     cmd_path: str
@@ -105,11 +103,12 @@ class ModelExecutionData:
         return returncode
 
 
-class ModelExecutionCmd:
+class ModelExecutionConfig:
     """
-    All information about a compiled model executable. This should include data about all structured parameters, i.e.
-    parameters which need a recompilation of the model. All non-structured parameters can be easily changed without
-    the need for recompilation.
+    This class collects all information about a compiled model executable. This includes data about all structured
+    parameters, i.e. parameters which need a recompilation of the model. All non-structured parameters can be easily
+    changed without the need for recompilation. The final result is an instance of class ModelExecutionRun - a
+    definition to run one simulation based on the compiled model executable.
     """
 
     def __init__(
@@ -261,7 +260,7 @@ class ModelExecutionCmd:
 
         return cmdl
 
-    def definition(self) -> ModelExecutionData:
+    def definition(self) -> ModelExecutionRun:
         """
         Define all needed data to run the model executable. The data is stored in an OMCSessionRunData object.
         """
@@ -301,7 +300,7 @@ class ModelExecutionCmd:
         if self._cmd_local:
             cmd_cwd_local = cmd_path.as_posix()
 
-        omc_run_data = ModelExecutionData(
+        omc_run_data = ModelExecutionRun(
             cmd_path=cmd_path.as_posix(),
             cmd_model_name=self._model_name,
             cmd_args=self.get_cmd_args(),
@@ -314,45 +313,3 @@ class ModelExecutionCmd:
         )
 
         return omc_run_data
-
-    @staticmethod
-    def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, Any] | numbers.Number]]:
-        """
-        Parse a simflag definition; this is deprecated!
-
-        The return data can be used as input for self.args_set().
-        """
-        warnings.warn(
-            message="The argument 'simflags' is depreciated and will be removed in future versions; "
-                    "please use 'simargs' instead",
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
-
-        simargs: dict[str, Optional[str | dict[str, Any] | numbers.Number]] = {}
-
-        args = [s for s in simflags.split(' ') if s]
-        for arg in args:
-            if arg[0] != '-':
-                raise ModelExecutionException(f"Invalid simulation flag: {arg}")
-            arg = arg[1:]
-            parts = arg.split('=')
-            if len(parts) == 1:
-                simargs[parts[0]] = None
-            elif parts[0] == 'override':
-                override = '='.join(parts[1:])
-
-                override_dict = {}
-                for item in override.split(','):
-                    kv = item.split('=')
-                    if not 0 < len(kv) < 3:
-                        raise ModelExecutionException(f"Invalid value for '-override': {override}")
-                    if kv[0]:
-                        try:
-                            override_dict[kv[0]] = kv[1]
-                        except (KeyError, IndexError) as ex:
-                            raise ModelExecutionException(f"Invalid value for '-override': {override}") from ex
-
-                simargs[parts[0]] = override_dict
-
-        return simargs
