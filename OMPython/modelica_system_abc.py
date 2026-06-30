@@ -11,13 +11,13 @@ import numbers
 import os
 import re
 from typing import Any, Optional
-import warnings
 import xml.etree.ElementTree as ET
 
 import numpy as np
 
 from OMPython.model_execution import (
-    ModelExecutionCmd,
+    ModelExecutionConfig,
+    ModelExecutionException,
 )
 from OMPython.om_session_abc import (
     OMPathABC,
@@ -189,7 +189,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
         Check if the model executable is working
         """
         # check if the executable exists ...
-        om_cmd = ModelExecutionCmd(
+        om_cmd = ModelExecutionConfig(
             runpath=self.getWorkDirectory(),
             cmd_local=self._session.model_execution_local,
             cmd_windows=self._session.model_execution_windows,
@@ -200,7 +200,10 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
         # ... by running it - output help for command help
         om_cmd.arg_set(key="help", val="help")
         cmd_definition = om_cmd.definition()
-        returncode = cmd_definition.run()
+        try:
+            returncode = cmd_definition.run()
+        except ModelExecutionException as exc:
+            raise ModelicaSystemError(f"Cannot execute model: {exc}") from exc
         if returncode != 0:
             raise ModelicaSystemError("Model executable not working!")
 
@@ -579,7 +582,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
 
     def _process_override_data(
             self,
-            om_cmd: ModelExecutionCmd,
+            om_cmd: ModelExecutionConfig,
             override_file: OMPathABC,
             override_var: dict[str, str],
             override_sim: dict[str, str],
@@ -619,7 +622,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             result_file: OMPathABC,
             simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
-    ) -> ModelExecutionCmd:
+    ) -> ModelExecutionConfig:
         """
         This method prepares the simulates model according to the simulation options. It returns an instance of
         ModelicaSystemCmd which can be used to run the simulation.
@@ -641,7 +644,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             An instance if ModelicaSystemCmd to run the requested simulation.
         """
 
-        om_cmd = ModelExecutionCmd(
+        om_cmd = ModelExecutionConfig(
             runpath=self.getWorkDirectory(),
             cmd_local=self._session.model_execution_local,
             cmd_windows=self._session.model_execution_windows,
@@ -736,7 +739,10 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             self._result_file.unlink()
         # ... run simulation ...
         cmd_definition = om_cmd.definition()
-        returncode = cmd_definition.run()
+        try:
+            returncode = cmd_definition.run()
+        except ModelExecutionException as exc:
+            raise ModelicaSystemError(f"Cannot execute model: {exc}") from exc
         # and check returncode *AND* resultfile
         if returncode != 0 and self._result_file.is_file():
             # check for an empty (=> 0B) result file which indicates a crash of the model executable
@@ -752,48 +758,12 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
 
     @staticmethod
     def _prepare_input_data(
-            input_args: Any,
             input_kwargs: dict[str, Any],
     ) -> dict[str, str]:
         """
         Convert raw input to a structured dictionary {'key1': 'value1', 'key2': 'value2'}.
         """
-
-        def prepare_str(str_in: str) -> dict[str, str]:
-            str_in = str_in.replace(" ", "")
-            key_val_list: list[str] = str_in.split("=")
-            if len(key_val_list) != 2:
-                raise ModelicaSystemError(f"Invalid 'key=value' pair: {str_in}")
-
-            input_data_from_str: dict[str, str] = {key_val_list[0]: key_val_list[1]}
-
-            return input_data_from_str
-
         input_data: dict[str, str] = {}
-
-        for input_arg in input_args:
-            if isinstance(input_arg, str):
-                warnings.warn(message="The definition of values to set should use a dictionary, "
-                                      "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
-                                      "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
-                              category=DeprecationWarning,
-                              stacklevel=3)
-                input_data = input_data | prepare_str(input_arg)
-            elif isinstance(input_arg, list):
-                warnings.warn(message="The definition of values to set should use a dictionary, "
-                                      "i.e. {'key1': 'val1', 'key2': 'val2', ...}. Please convert all cases which "
-                                      "use a string ('key=val') or list ['key1=val1', 'key2=val2', ...]",
-                              category=DeprecationWarning,
-                              stacklevel=3)
-
-                for item in input_arg:
-                    if not isinstance(item, str):
-                        raise ModelicaSystemError(f"Invalid input data type for set*() function: {type(item)}!")
-                    input_data = input_data | prepare_str(item)
-            elif isinstance(input_arg, dict):
-                input_data = input_data | input_arg
-            else:
-                raise ModelicaSystemError(f"Invalid input data type for set*() function: {type(input_arg)}!")
 
         if len(input_kwargs):
             for key, val in input_kwargs.items():
@@ -872,21 +842,17 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
 
     def setContinuous(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set continuous values. It can be called:
-        with a sequence of continuous name and assigning corresponding values as arguments as show in the example below:
-        usage
-        >>> setContinuous("Name=value")  # depreciated
-        >>> setContinuous(["Name1=value1","Name2=value2"])  # depreciated
+        This method is used to set continuous values.
 
+        usage:
         >>> setContinuous(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setContinuous(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -896,21 +862,17 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
 
     def setParameters(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set parameter values. It can be called:
-        with a sequence of parameter name and assigning corresponding value as arguments as show in the example below:
-        usage
-        >>> setParameters("Name=value")  # depreciated
-        >>> setParameters(["Name1=value1","Name2=value2"])  # depreciated
+        This method is used to set parameter values
 
+        usage:
         >>> setParameters(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setParameters(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -920,22 +882,17 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
 
     def setSimulationOptions(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set simulation options. It can be called:
-        with a sequence of simulation options name and assigning corresponding values as arguments as show in the
-        example below:
-        usage
-        >>> setSimulationOptions("Name=value")  # depreciated
-        >>> setSimulationOptions(["Name1=value1","Name2=value2"])  # depreciated
+        This method is used to set simulation options.
 
+        usage:
         >>> setSimulationOptions(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setSimulationOptions(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -945,22 +902,17 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
 
     def setLinearizationOptions(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set linearization options. It can be called:
-        with a sequence of linearization options name and assigning corresponding value as arguments as show in the
-        example below
-        usage
-        >>> setLinearizationOptions("Name=value")  # depreciated
-        >>> setLinearizationOptions(["Name1=value1","Name2=value2"])  # depreciated
+        This method is used to set linearization options.
 
+        usage:
         >>> setLinearizationOptions(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setLinearizationOptions(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -970,22 +922,17 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
 
     def setOptimizationOptions(
             self,
-            *args: Any,
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set optimization options. It can be called:
-        with a sequence of optimization options name and assigning corresponding values as arguments as show in the
-        example below:
-        usage
-        >>> setOptimizationOptions("Name=value")  # depreciated
-        >>> setOptimizationOptions(["Name1=value1","Name2=value2"])  # depreciated
+        This method is used to set optimization options.
 
+        usage:
         >>> setOptimizationOptions(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setOptimizationOptions(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         return self._set_method_helper(
             inputdata=inputdata,
@@ -999,19 +946,17 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             **kwargs: dict[str, Any],
     ) -> bool:
         """
-        This method is used to set input values. It can be called with a sequence of input name and assigning
-        corresponding values as arguments as show in the example below. Compared to other set*() methods this is a
-        special case as value could be a list of tuples - these are converted to a string in _prepare_input_data()
-        and restored here via ast.literal_eval().
+        This method is used to set input values.
 
-        >>> setInputs("Name=value")  # depreciated
-        >>> setInputs(["Name1=value1","Name2=value2"])  # depreciated
+        Compared to other set*() methods this is a special case as value could be a list of tuples - these are
+        converted to a string in _prepare_input_data() and restored here via ast.literal_eval().
 
+        usage:
         >>> setInputs(Name1="value1", Name2="value2")
         >>> param = {"Name1": "value1", "Name2": "value2"}
         >>> setInputs(**param)
         """
-        inputdata = self._prepare_input_data(input_args=args, input_kwargs=kwargs)
+        inputdata = self._prepare_input_data(input_kwargs=kwargs)
 
         for key, val in inputdata.items():
             if key not in self._inputs:
@@ -1021,27 +966,37 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
                 raise ModelicaSystemError(f"Invalid data in input for {repr(key)}: {repr(val)}")
 
             val_evaluated = ast.literal_eval(val)
-
             if isinstance(val_evaluated, (int, float)):
                 self._inputs[key] = [(float(self._simulate_options["startTime"]), float(val)),
                                      (float(self._simulate_options["stopTime"]), float(val))]
             elif isinstance(val_evaluated, list):
-                if not all([isinstance(item, tuple) for item in val_evaluated]):
+                if not all(isinstance(item, tuple) for item in val_evaluated):
                     raise ModelicaSystemError("Value for setInput() must be in tuple format; "
                                               f"got {repr(val_evaluated)}")
-                if val_evaluated != sorted(val_evaluated, key=lambda x: x[0]):
-                    raise ModelicaSystemError("Time value should be in increasing order; "
-                                              f"got {repr(val_evaluated)}")
 
+                val_evaluated_checked: list[tuple[float, float]] = []
                 for item in val_evaluated:
-                    if item[0] < float(self._simulate_options["startTime"]):
-                        raise ModelicaSystemError(f"Time value in {repr(item)} of {repr(val_evaluated)} is less "
-                                                  "than the simulation start time")
                     if len(item) != 2:
                         raise ModelicaSystemError(f"Value {repr(item)} of {repr(val_evaluated)} "
                                                   "is in incorrect format!")
 
-                self._inputs[key] = val_evaluated
+                    try:
+                        val_evaluated_checked.append((float(item[0]), float(item[1])))
+                    except (ValueError, TypeError) as exc:
+                        raise ModelicaSystemError("All elements of the input for setInput() should be convertible to "
+                                                  "type Tuple[float, float] - "
+                                                  f"found [{repr(item[0])}, {repr(item[1])}] with types "
+                                                  f"[{type(item[0])}, {type(item[1])}]!") from exc
+
+                    if item[0] < float(self._simulate_options["startTime"]):
+                        raise ModelicaSystemError(f"Time value in {repr(item)} of {repr(val_evaluated)} is less "
+                                                  "than the simulation start time")
+
+                if val_evaluated_checked != sorted(val_evaluated_checked, key=lambda x: x[0]):
+                    raise ModelicaSystemError("Time value should be in increasing order; "
+                                              f"got {repr(val_evaluated_checked)}")
+
+                self._inputs[key] = val_evaluated_checked
             else:
                 raise ModelicaSystemError(f"Data cannot be evaluated for {repr(key)}: {repr(val)}")
 
@@ -1134,7 +1089,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
                 "use ModelicaSystemOMC() to build the model first"
             )
 
-        om_cmd = ModelExecutionCmd(
+        om_cmd = ModelExecutionConfig(
             runpath=self.getWorkDirectory(),
             cmd_local=self._session.model_execution_local,
             cmd_windows=self._session.model_execution_windows,
@@ -1180,7 +1135,10 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
         linear_file.unlink(missing_ok=True)
 
         cmd_definition = om_cmd.definition()
-        returncode = cmd_definition.run()
+        try:
+            returncode = cmd_definition.run()
+        except ModelExecutionException as exc:
+            raise ModelicaSystemError(f"Cannot execute model: {exc}") from exc
         if returncode != 0:
             raise ModelicaSystemError(f"Linearize failed with return code: {returncode}")
         if not linear_file.is_file():
