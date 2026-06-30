@@ -6,14 +6,14 @@ To get started on a local OMC server, create an OMCSessionLocal object:
 ```
 import OMPython
 omc = OMPython.OMCSessionLocal()
-omc.sendExpression("command")
+omc.sendExpression("getVersion()")
 ```
 
 """
 
 from OMPython.model_execution import (
-    ModelExecutionCmd,
-    ModelExecutionData,
+    ModelExecutionConfig,
+    ModelExecutionRun,
     ModelExecutionException,
 )
 from OMPython.om_session_abc import (
@@ -58,15 +58,16 @@ from OMPython.modelica_doe_runner import (
     ModelicaDoERunner,
 )
 
+# the imports below are compatibility functionality (OMPython v4.0.0)
 from OMPython.ModelicaSystem import (
     ModelicaSystem,
-    ModelicaSystemDoE,
     ModelicaSystemCmd,
+    ModelicaSystemDoE,
 )
 from OMPython.OMCSession import (
     OMCSessionCmd,
-    OMCSessionZMQ,
     OMCSessionException,
+    OMCSessionZMQ,
 
     OMCProcessLocal,
     OMCProcessPort,
@@ -80,8 +81,8 @@ __all__ = [
 
     'LinearizationResult',
 
-    'ModelExecutionCmd',
-    'ModelExecutionData',
+    'ModelExecutionConfig',
+    'ModelExecutionRun',
     'ModelExecutionException',
 
     'ModelicaDoEABC',
