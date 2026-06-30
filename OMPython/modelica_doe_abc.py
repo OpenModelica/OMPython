@@ -13,7 +13,8 @@ import threading
 from typing import Any, cast, Optional, Tuple
 
 from OMPython.model_execution import (
-    ModelExecutionData,
+    ModelExecutionRun,
+    ModelExecutionException,
 )
 from OMPython.om_session_abc import (
     OMPathABC,
@@ -138,7 +139,7 @@ class ModelicaDoEABC(metaclass=abc.ABCMeta):
             self._parameters = {}
 
         self._doe_def: Optional[dict[str, dict[str, Any]]] = None
-        self._doe_cmd: Optional[dict[str, ModelExecutionData]] = None
+        self._doe_cmd: Optional[dict[str, ModelExecutionRun]] = None
 
     def get_session(self) -> OMSessionABC:
         """
@@ -209,7 +210,7 @@ class ModelicaDoEABC(metaclass=abc.ABCMeta):
                         }
                 )
 
-                self._mod.setParameters(sim_param_non_structural)
+                self._mod.setParameters(**sim_param_non_structural)
                 mscmd = self._mod.simulate_cmd(
                     result_file=resultfile,
                 )
@@ -255,7 +256,7 @@ class ModelicaDoEABC(metaclass=abc.ABCMeta):
         """
         return self._doe_def
 
-    def get_doe_command(self) -> Optional[dict[str, ModelExecutionData]]:
+    def get_doe_command(self) -> Optional[dict[str, ModelExecutionRun]]:
         """
         Get the definitions of simulations commands to run for this DoE.
         """
@@ -310,8 +311,8 @@ class ModelicaDoEABC(metaclass=abc.ABCMeta):
                     returncode = cmd_definition.run()
                     logger.info(f"[Worker {worker_id}] Simulation {resultpath.name} "
                                 f"finished with return code: {returncode}")
-                except ModelicaSystemError as ex:
-                    logger.warning(f"Simulation error for {resultpath.name}: {ex}")
+                except ModelExecutionException as exc:
+                    logger.warning(f"Simulation error for {resultpath.name}: {exc}")
 
                 # Mark the task as done
                 task_queue.task_done()

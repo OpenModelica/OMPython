@@ -64,9 +64,8 @@ def test_setParameters():
         model_name="BouncingBall",
     )
 
-    # method 1 (test depreciated variants)
-    mod.setParameters("e=1.234")
-    mod.setParameters(["g=321.0"])
+    mod.setParameters(e=1.234)
+    mod.setParameters(g=321.0)
     assert mod.getParameters("e") == ["1.234"]
     assert mod.getParameters("g") == ["321.0"]
     assert mod.getParameters() == {
@@ -76,7 +75,6 @@ def test_setParameters():
     with pytest.raises(KeyError):
         mod.getParameters("thisParameterDoesNotExist")
 
-    # method 2 (new style)
     pvals = {"e": 21.3, "g": 0.12}
     mod.setParameters(**pvals)
     assert mod.getParameters() == {
@@ -438,6 +436,14 @@ end M_input;
 
     simOptions = {"stopTime": 1.0}
     mod.setSimulationOptions(**simOptions)
+
+    # check invalid inputs
+    # * 'None' cannot be converted to float
+    with pytest.raises(OMPython.ModelicaSystemError):
+        mod.setInputs(u1=[(0.0, None), (0.5, 1)])
+    # * 'abc' cannot be converted to float
+    with pytest.raises(OMPython.ModelicaSystemError):
+        mod.setInputs(u1=[(0.0, 0.0), ("abc", 1)])
 
     # integrate zero (no setInputs call) - it should default to None -> 0
     assert mod.getInputs() == {
