@@ -8,8 +8,8 @@ OMPython is a Python interface that uses ZeroMQ to communicate with OpenModelica
 
 ## Dependencies
 
--   Python 3.x supported
--   PyZMQ is required
+  - Python >= 3.10 supported with complete functionality for Python >= 3.12
+  - Additional packages: numpy, psutil, pyparsing and pyzmq
 
 ## Installation
 
@@ -49,8 +49,8 @@ help(OMPython)
 ```
 
 ```python
-from OMPython import OMCSessionLocal
-omc = OMCSessionLocal()
+import OMPython
+omc = OMPython.OMCSessionLocal()
 omc.sendExpression("getVersion()")
 ```
 

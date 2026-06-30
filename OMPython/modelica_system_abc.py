@@ -17,7 +17,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 
 from OMPython.model_execution import (
-    ModelExecutionCmd,
+    ModelExecutionConfig,
 )
 from OMPython.om_session_abc import (
     OMPathABC,
@@ -189,7 +189,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
         Check if the model executable is working
         """
         # check if the executable exists ...
-        om_cmd = ModelExecutionCmd(
+        om_cmd = ModelExecutionConfig(
             runpath=self.getWorkDirectory(),
             cmd_local=self._session.model_execution_local,
             cmd_windows=self._session.model_execution_windows,
@@ -579,7 +579,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
 
     def _process_override_data(
             self,
-            om_cmd: ModelExecutionCmd,
+            om_cmd: ModelExecutionConfig,
             override_file: OMPathABC,
             override_var: dict[str, str],
             override_sim: dict[str, str],
@@ -619,7 +619,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             result_file: OMPathABC,
             simflags: Optional[str] = None,
             simargs: Optional[dict[str, Optional[str | dict[str, Any] | numbers.Number]]] = None,
-    ) -> ModelExecutionCmd:
+    ) -> ModelExecutionConfig:
         """
         This method prepares the simulates model according to the simulation options. It returns an instance of
         ModelicaSystemCmd which can be used to run the simulation.
@@ -641,7 +641,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             An instance if ModelicaSystemCmd to run the requested simulation.
         """
 
-        om_cmd = ModelExecutionCmd(
+        om_cmd = ModelExecutionConfig(
             runpath=self.getWorkDirectory(),
             cmd_local=self._session.model_execution_local,
             cmd_windows=self._session.model_execution_windows,
@@ -1026,7 +1026,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
                 self._inputs[key] = [(float(self._simulate_options["startTime"]), float(val)),
                                      (float(self._simulate_options["stopTime"]), float(val))]
             elif isinstance(val_evaluated, list):
-                if not all([isinstance(item, tuple) for item in val_evaluated]):
+                if not all(isinstance(item, tuple) for item in val_evaluated):
                     raise ModelicaSystemError("Value for setInput() must be in tuple format; "
                                               f"got {repr(val_evaluated)}")
                 if val_evaluated != sorted(val_evaluated, key=lambda x: x[0]):
@@ -1134,7 +1134,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
                 "use ModelicaSystemOMC() to build the model first"
             )
 
-        om_cmd = ModelExecutionCmd(
+        om_cmd = ModelExecutionConfig(
             runpath=self.getWorkDirectory(),
             cmd_local=self._session.model_execution_local,
             cmd_windows=self._session.model_execution_windows,

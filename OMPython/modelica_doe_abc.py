@@ -13,7 +13,7 @@ import threading
 from typing import Any, cast, Optional, Tuple
 
 from OMPython.model_execution import (
-    ModelExecutionData,
+    ModelExecutionRun,
 )
 from OMPython.om_session_abc import (
     OMPathABC,
@@ -138,7 +138,7 @@ class ModelicaDoEABC(metaclass=abc.ABCMeta):
             self._parameters = {}
 
         self._doe_def: Optional[dict[str, dict[str, Any]]] = None
-        self._doe_cmd: Optional[dict[str, ModelExecutionData]] = None
+        self._doe_cmd: Optional[dict[str, ModelExecutionRun]] = None
 
     def get_session(self) -> OMSessionABC:
         """
@@ -255,7 +255,7 @@ class ModelicaDoEABC(metaclass=abc.ABCMeta):
         """
         return self._doe_def
 
-    def get_doe_command(self) -> Optional[dict[str, ModelExecutionData]]:
+    def get_doe_command(self) -> Optional[dict[str, ModelExecutionRun]]:
         """
         Get the definitions of simulations commands to run for this DoE.
         """
