@@ -35,7 +35,6 @@ from OMPython.om_session_abc import (
 
 # TODO: replace this with the new parser
 from OMPython.OMTypedParser import om_parser_typed
-from OMPython.OMParser import om_parser_basic
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
@@ -517,12 +516,8 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
 
         try:
             return om_parser_typed(result)
-        except pyparsing.ParseException as ex1:
-            logger.warning('OMTypedParser error: %s. Returning the basic parser result.', ex1.msg)
-            try:
-                return om_parser_basic(result)
-            except (TypeError, UnboundLocalError) as ex2:
-                raise OMSessionException("Cannot parse OMC result") from ex2
+        except pyparsing.ParseException as exc:
+            raise OMSessionException("Cannot parse OMC result") from exc
 
     def get_port(self) -> Optional[str]:
         """
