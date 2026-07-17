@@ -282,14 +282,14 @@ class OMCSessionZMQ(OMSessionABC):
     def execute(self, command: str):
         return self.omc_process.execute(command=command)
 
-    def sendExpression(self, command: str, parsed: bool = True) -> Any:
+    def sendExpression(self, command: str, parsed: bool = True, raise_on_error: bool = True) -> Any:
         """
         Send an expression to the OMC server and return the result.
 
         The complete error handling of the OMC result is done within this method using '"getMessagesStringInternal()'.
         Caller should only check for OMSessionException.
         """
-        return self.omc_process.sendExpression(expr=command, parsed=parsed)
+        return self.omc_process.sendExpression(expr=command, parsed=parsed, raise_on_error=raise_on_error)
 
     def get_version(self) -> str:
         return self.omc_process.get_version()

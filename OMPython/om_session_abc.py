@@ -317,7 +317,10 @@ class OMSessionABC(metaclass=OMSessionMeta):
         return tempdir
 
     @abc.abstractmethod
-    def sendExpression(self, expr: str, parsed: bool = True) -> Any:
+    def sendExpression(self, expr: str, parsed: bool = True, raise_on_error: bool = True) -> Any:
         """
         Function needed to send expressions to the OMC server via ZMQ.
+
+        If raise_on_error is False, 'error'-level OMC diagnostics are logged instead of raised as an
+        OMSessionException; use this only when the caller has its own, more precise way of verifying success.
         """

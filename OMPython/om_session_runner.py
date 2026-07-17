@@ -379,5 +379,5 @@ class OMSessionRunner(OMSessionRunnerABC):
 
         return self._tempdir(tempdir_base=tempdir_base)
 
-    def sendExpression(self, expr: str, parsed: bool = True) -> Any:
+    def sendExpression(self, expr: str, parsed: bool = True, raise_on_error: bool = True) -> Any:
         raise OMSessionException(f"{self.__class__.__name__} does not uses an OMC server!")
