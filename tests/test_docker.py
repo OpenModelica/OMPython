@@ -12,7 +12,7 @@ skip_on_windows = pytest.mark.skipif(
 
 @skip_on_windows
 def test_docker():
-    omcs = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal")
+    omcs = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.27.0-ompython")
     omversion = omcs.sendExpression("getVersion()")
     assert isinstance(omversion, str) and omversion.startswith("OpenModelica")
 
@@ -20,7 +20,7 @@ def test_docker():
     omversion = omcsInner.sendExpression("getVersion()")
     assert isinstance(omversion, str) and omversion.startswith("OpenModelica")
 
-    omcs2 = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.25.0-minimal", port=11111)
+    omcs2 = OMPython.OMCSessionDocker(docker="openmodelica/openmodelica:v1.27.0-ompython", port=11111)
     omversion = omcs2.sendExpression("getVersion()")
     assert isinstance(omversion, str) and omversion.startswith("OpenModelica")
 
