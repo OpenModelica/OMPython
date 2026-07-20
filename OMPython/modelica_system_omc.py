@@ -206,8 +206,7 @@ class ModelicaSystemOMC(ModelicaSystemABC):
         # buildModel() can emit 'error'-level diagnostics (e.g. a structurally singular initialization
         # system) that OMC itself recovers from without actually failing the build. Don't raise on those
         # here; check_model_executable()/_xmlparse() below independently verify the build really succeeded.
-        build_model_result = self._requestApi(apiName="buildModel", entity=self._model_name, properties=var_filter,
-                                               raise_on_error=False)
+        build_model_result = self._requestApi(apiName="buildModel", entity=self._model_name, properties=var_filter, raise_on_error=False)
         logger.debug("OM model build result: %s", build_model_result)
 
         # check if the executable exists ...
