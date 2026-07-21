@@ -875,17 +875,20 @@ class OMCSessionDocker(OMCSessionDockerABC):
         loop = self._timeout_loop(timestep=0.1)
         while next(loop):
             try:
-                with open(file=docker_cid_file, mode="r", encoding="utf-8") as fh:
+                with open(docker_cid_file, "r", encoding="utf-8") as fh:
                     docker_cid = fh.read().strip()
             except IOError:
-                pass
-            if docker_cid is not None:
+                continue
+
+            if docker_cid:
                 break
 
-        if docker_cid is None:
-            raise OMSessionException(f"Docker did not start (timeout={self._timeout:.2f}s might be too short "
-                                     "especially if you did not docker pull the image before this command). "
-                                     f"Log-file says:\n{self.get_log()}")
+        if not docker_cid:
+            raise OMSessionException(
+                f"Docker did not start (timeout={self._timeout:.2f}s might be too short "
+                "especially if you did not docker pull the image before this command). "
+                f"Log-file says:\n{self.get_log()}"
+            )
 
         docker_process = self._docker_process_get(docker_cid=docker_cid)
         if docker_process is None:
