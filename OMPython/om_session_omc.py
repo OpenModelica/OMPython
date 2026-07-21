@@ -387,12 +387,18 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
 
         return self.sendExpression(command, parsed=False)
 
-    def sendExpression(self, expr: str, parsed: bool = True) -> Any:
+    def sendExpression(self, expr: str, parsed: bool = True, raise_on_error: bool = True) -> Any:
         """
         Send an expression to the OMC server and return the result.
 
         The complete error handling of the OMC result is done within this method using 'getMessagesStringInternal()'.
         Caller should only check for OMSessionException.
+
+        Some OMC API calls (e.g. buildModel) can emit 'error'-level diagnostics that are recoverable and don't
+        actually prevent the call from succeeding (e.g. a structurally singular initialization system that OMC
+        resolves via a fallback). Callers who have their own, more precise way of verifying success (such as
+        checking that the resulting files/executable actually exist) can pass raise_on_error=False to have such
+        messages logged instead of raised as an exception.
         """
 
         if self._omc_zmq is None:
@@ -509,8 +515,11 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
                 msg_long_list.append(msg_long)
             if has_error:
                 msg_long_str = '\n'.join(f"{idx:02d}: {msg}" for idx, msg in enumerate(msg_long_list))
-                raise OMSessionException(f"OMC error occurred for 'sendExpression(expr={expr}, parsed={parsed}):\n"
-                                         f"{msg_long_str}")
+                if raise_on_error:
+                    raise OMSessionException(
+                        f"OMC error occurred for 'sendExpression(expr={expr}, parsed={parsed}):\n{msg_long_str}")
+                logger.warning("OMC reported 'error'-level messages for 'sendExpression(expr=%s, parsed=%s)', but "
+                               "raise_on_error=False was requested; continuing:\n%s", expr, parsed, msg_long_str)
 
         if not parsed:
             return result
@@ -866,17 +875,20 @@ class OMCSessionDocker(OMCSessionDockerABC):
         loop = self._timeout_loop(timestep=0.1)
         while next(loop):
             try:
-                with open(file=docker_cid_file, mode="r", encoding="utf-8") as fh:
+                with open(docker_cid_file, "r", encoding="utf-8") as fh:
                     docker_cid = fh.read().strip()
             except IOError:
-                pass
-            if docker_cid is not None:
+                continue
+
+            if docker_cid:
                 break
 
-        if docker_cid is None:
-            raise OMSessionException(f"Docker did not start (timeout={self._timeout:.2f}s might be too short "
-                                     "especially if you did not docker pull the image before this command). "
-                                     f"Log-file says:\n{self.get_log()}")
+        if not docker_cid:
+            raise OMSessionException(
+                f"Docker did not start (timeout={self._timeout:.2f}s might be too short "
+                "especially if you did not docker pull the image before this command). "
+                f"Log-file says:\n{self.get_log()}"
+            )
 
         docker_process = self._docker_process_get(docker_cid=docker_cid)
         if docker_process is None:

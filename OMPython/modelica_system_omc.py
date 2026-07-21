@@ -203,7 +203,15 @@ class ModelicaSystemOMC(ModelicaSystemABC):
         else:
             var_filter = 'variableFilter=".*"'
 
-        build_model_result = self._requestApi(apiName="buildModel", entity=self._model_name, properties=var_filter)
+        # buildModel() can emit 'error'-level diagnostics (e.g. a structurally singular initialization
+        # system) that OMC itself recovers from without actually failing the build. Don't raise on those
+        # here; check_model_executable()/_xmlparse() below independently verify the build really succeeded.
+        build_model_result = self._requestApi(
+            apiName="buildModel",
+            entity=self._model_name,
+            properties=var_filter,
+            raise_on_error=False,
+        )
         logger.debug("OM model build result: %s", build_model_result)
 
         # check if the executable exists ...
@@ -212,12 +220,12 @@ class ModelicaSystemOMC(ModelicaSystemABC):
         xml_file = self._session.omcpath(build_model_result[0]).parent / build_model_result[1]
         self._xmlparse(xml_file=xml_file)
 
-    def sendExpression(self, expr: str, parsed: bool = True) -> Any:
+    def sendExpression(self, expr: str, parsed: bool = True, raise_on_error: bool = True) -> Any:
         """
         Wrapper for OMCSession.sendExpression().
         """
         try:
-            retval = self._session.sendExpression(expr=expr, parsed=parsed)
+            retval = self._session.sendExpression(expr=expr, parsed=parsed, raise_on_error=raise_on_error)
         except OMSessionException as ex:
             raise ModelicaSystemError(f"Error executing {repr(expr)}: {ex}") from ex
 
@@ -231,6 +239,7 @@ class ModelicaSystemOMC(ModelicaSystemABC):
             apiName: str,
             entity: Optional[str] = None,
             properties: Optional[str] = None,
+            raise_on_error: bool = True,
     ) -> Any:
         if entity is not None and properties is not None:
             expr = f'{apiName}({entity}, {properties})'
@@ -242,7 +251,7 @@ class ModelicaSystemOMC(ModelicaSystemABC):
         else:
             expr = f'{apiName}()'
 
-        return self.sendExpression(expr=expr)
+        return self.sendExpression(expr=expr, raise_on_error=raise_on_error)
 
     def getContinuousFinal(
             self,
