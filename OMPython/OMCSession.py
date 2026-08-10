@@ -282,7 +282,12 @@ class OMCSessionZMQ(OMSessionABC):
     def execute(self, command: str):
         return self.omc_process.execute(command=command)
 
-    def sendExpression(self, command: str, parsed: bool = True, raise_on_error: bool = True) -> Any:  # pylint: disable=W0237
+    def sendExpression(
+        self,
+        command: str,
+        parsed: bool = True,
+        raise_on_error: bool = True,
+    ) -> Any:  # pylint: disable=W0237
         """
         Send an expression to the OMC server and return the result.
 
