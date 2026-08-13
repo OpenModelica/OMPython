@@ -27,14 +27,13 @@ class ModelExecutionException(Exception):
 
 
 @dataclasses.dataclass
-class ModelExecutionData:
+class ModelExecutionRun:
     """
-    Data class to store the command line data for running a model executable in the OMC environment.
+    Data class to store the command line data for running a model executable. This definition is independent of the OMC
+    environment as only the executable is needed.
 
-    All data should be defined for the environment, where OMC is running (local, docker or WSL)
-
-    To use this as a definition of an OMC simulation run, it has to be processed within
-    OMCProcess*.self_update(). This defines the attribute cmd_model_executable.
+    All data should be defined for the environment, where the executable was defined / is located. This is especially
+    important if OMPython and the executable are defined in different environments (docker or WSL).
     """
     # cmd_path is the expected working directory
     cmd_path: str
@@ -105,11 +104,12 @@ class ModelExecutionData:
         return returncode
 
 
-class ModelExecutionCmd:
+class ModelExecutionConfig:
     """
-    All information about a compiled model executable. This should include data about all structured parameters, i.e.
-    parameters which need a recompilation of the model. All non-structured parameters can be easily changed without
-    the need for recompilation.
+    This class collects all information about a compiled model executable. This includes data about all structured
+    parameters, i.e. parameters which need a recompilation of the model. All non-structured parameters can be easily
+    changed without the need for recompilation. The final result is an instance of class ModelExecutionRun - a
+    definition to run one simulation based on the compiled model executable.
     """
 
     def __init__(
@@ -261,7 +261,7 @@ class ModelExecutionCmd:
 
         return cmdl
 
-    def definition(self) -> ModelExecutionData:
+    def definition(self) -> ModelExecutionRun:
         """
         Define all needed data to run the model executable. The data is stored in an OMCSessionRunData object.
         """
@@ -301,7 +301,7 @@ class ModelExecutionCmd:
         if self._cmd_local:
             cmd_cwd_local = cmd_path.as_posix()
 
-        omc_run_data = ModelExecutionData(
+        omc_run_data = ModelExecutionRun(
             cmd_path=cmd_path.as_posix(),
             cmd_model_name=self._model_name,
             cmd_args=self.get_cmd_args(),
