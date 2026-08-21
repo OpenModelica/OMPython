@@ -5,6 +5,7 @@ Definition of main class to run Modelica simulations - ModelicaSystem.
 
 import abc
 import ast
+import csv
 from dataclasses import dataclass
 import logging
 import numbers
@@ -216,6 +217,15 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
         root = tree.getroot()
         if root is None:
             raise ModelicaSystemError(f"Cannot read XML file: {xml_file}")
+        # check OM version - force the version used by the model executable
+        if 'generationTool' in root.attrib:
+            generation_tool_version = self._parse_om_version(version=root.attrib['generationTool'])
+            if self._version != generation_tool_version:
+                logger.warning(f"Mismatch in OpenModelica version: {self._version!r} (OMSession) "
+                               f"vs. {generation_tool_version!r} (model executable) "
+                               f"- using {generation_tool_version!r}!")
+                self._version = generation_tool_version
+
         for attr in root.iter('DefaultExperiment'):
             for key in ("startTime", "stopTime", "stepSize", "tolerance",
                         "solver", "outputFormat"):
@@ -586,12 +596,20 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             override_file: OMPathABC,
             override_var: dict[str, str],
             override_sim: dict[str, str],
+            variable_filter: Optional[str] = None,
     ) -> None:
         """
         Define the override parameters. As the definition of simulation specific override parameter changes with OM
         1.26.0, version specific code is needed. Please keep in mind, that this will fail if OMC is not used to run the
         model executable.
+
+        Including also override of variable filter settings.
         """
+
+        # define variable filter if defined (override any original setting)
+        if variable_filter is not None:
+            om_cmd.arg_set(key="variableFilter", val=variable_filter)
+
         if len(override_var) == 0 and len(override_sim) == 0:
             return
 
@@ -662,6 +680,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             override_file=result_file.parent / f"{result_file.stem}_override.txt",
             override_var=self._override_variables,
             override_sim=self._simulate_options_override,
+            variable_filter=self._variable_filter,
         )
 
         if self._inputs:  # if model has input quantities
@@ -927,6 +946,52 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             datatype="optimization-option",
             overridedata=None)
 
+    def set_variable_filter(
+            self,
+            variable_filter: Optional[str] = None,
+            escape: bool = False,
+    ) -> None:
+        """
+        This method is used to set variable filters. If escape is True, all regex special characters are escaped.
+        """
+        if variable_filter is None:
+            self._variable_filter = None
+            return
+
+        if escape:
+            variable_filter = re.escape(variable_filter)
+
+        # Validate filter_val as a regular expression
+        try:
+            re.compile(variable_filter)
+        except re.error as exc:
+            raise ModelicaSystemError(f"Invalid variable_filter regular expression: {variable_filter!r} ({exc})")
+
+        self._variable_filter = variable_filter
+
+    @staticmethod
+    def toInputs(data: dict[str, list[float]]) -> dict[str, list[tuple[float, float]]]:
+        """
+        Converts a dictionary of lists (from pandas DataFrame.to_dict(orient='list'))
+        into the OMPython setInputs input format.
+
+        Example: mod.setInputs(**toInputs(pdf.to_dict(orient='list')))
+
+        Assumes the dictionary contains a key named 'time'.
+        """
+        if "time" not in data:
+            raise ValueError("The provided data must contain a 'time' key.")
+
+        time_series = data["time"]
+
+        inputs = {
+            var_name: list(zip(time_series, values))
+            for var_name, values in data.items()
+            if var_name != "time"
+        }
+
+        return inputs
+
     def setInputs(
             self,
             *args: Any,
@@ -988,6 +1053,44 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
                 raise ModelicaSystemError(f"Data cannot be evaluated for {repr(key)}: {repr(val)}")
 
         return True
+
+    def setInputsCSV(
+            self,
+            csvfile: os.PathLike,
+    ) -> None:
+        """
+        Read content from a CSV file and use it to define the time based input data.
+        """
+
+        # real type is 'dict[str, list[tuple[float, float]]]' - 'dict[str, Any]' is used to make setInputs() happy
+        inputs: dict[str, Any] = {}
+        try:
+            with open(csvfile, newline='') as csvfh:
+                dialect = csv.Sniffer().sniff(csvfh.read(1024))
+                csvfh.seek(0)
+                reader = csv.DictReader(csvfh, dialect=dialect)
+
+                keys: list[str] = []
+                for idx, line in enumerate(reader):
+                    if not keys:
+                        keys = list(line.keys())
+                        for var in keys[1:]:
+                            if var in inputs:
+                                raise ModelicaSystemError(f"Error reading {csvfile}: duplicated column {var}!")
+                            inputs[var] = []
+                    try:
+                        # use key[0] as time; all other columns use the header as name
+                        for var in keys[1:]:
+                            inputs[var].append((float(line[keys[0]]), float(line[var])))
+                    except (ValueError, TypeError) as exc2:
+                        raise ModelicaSystemError(f"Invalid value reading {csvfile} line {idx}/{var}: "
+                                                  f"{line}!") from exc2
+
+        except IOError as exc1:
+            raise ModelicaSystemError(f"Error reading {csvfile}: {exc1}") from exc1
+
+        if inputs:
+            self.setInputs(**inputs)
 
     def _createCSVData(self, csvfile: Optional[OMPathABC] = None) -> OMPathABC:
         """
@@ -1087,6 +1190,7 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             override_file=self.getWorkDirectory() / f'{self._model_name}_override_linear.txt',
             override_var=self._override_variables,
             override_sim=self._linearization_options,
+            variable_filter=self._variable_filter,
         )
 
         if self._inputs:
