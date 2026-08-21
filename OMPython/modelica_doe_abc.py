@@ -210,7 +210,7 @@ class ModelicaDoEABC(metaclass=abc.ABCMeta):
                         }
                 )
 
-                self._mod.setParameters(sim_param_non_structural)
+                self._mod.setParameters(**sim_param_non_structural)
                 mscmd = self._mod.simulate_cmd(
                     result_file=resultfile,
                 )
