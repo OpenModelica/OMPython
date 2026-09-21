@@ -147,7 +147,7 @@ class ModelicaSystemOMC(ModelicaSystemABC):
                 # same directory tree (e.g. Tests/StableBouncingBall.mo). Copying
                 # just this one file into a randomly-named work directory breaks
                 # both of those, so load it in place instead.
-                self._file_name = file_path
+                self._file_name = self._session.omcpath(file_path)
             else:
                 self._file_name = self.getWorkDirectory() / file_path.name
                 if (isinstance(self._session, OMCSessionLocal)
