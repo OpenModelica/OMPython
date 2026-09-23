@@ -287,8 +287,6 @@ class ModelExecutionConfig:
                 match = re.match(pattern=r"^SET PATH=([^%]*)", string=line, flags=re.IGNORECASE)
                 if match:
                     cmd_library_path = match.group(1).strip(';')  # Remove any trailing semicolons
-            my_env = os.environ.copy()
-            my_env["PATH"] = cmd_library_path + os.pathsep + my_env["PATH"]
 
             cmd_model_executable = cmd_path / f"{self._model_name}.exe"
         else:
