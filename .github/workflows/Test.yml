@@ -69,6 +69,21 @@ jobs:
       - name: Build wheel and sdist packages
         run: python -m build --wheel --sdist --outdir dist
 
+      - name: OMPython version
+        id: ompython_version
+        shell: bash
+        run: |
+          V=$(python -c "
+          import OMPython
+          v = OMPython.__version__
+          assert v != 'unknown', 'Version resolution failed'
+          print(v)
+          ")
+          echo "Resolved OMPython version: $V"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "### OMPython Version" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`$V\`" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Check twine
         run: python -m twine check dist/*
 
