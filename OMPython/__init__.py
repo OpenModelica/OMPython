@@ -9,7 +9,10 @@ omc = OMPython.OMCSessionLocal()
 omc.sendExpression("getVersion()")
 ```
 
+
 """
+
+from OMPython._version import __version__, get_version
 
 from OMPython.model_execution import (
     ModelExecutionConfig,
@@ -77,6 +80,9 @@ from OMPython.OMCSession import (
 
 # global names imported if import 'from OMPython import *' is used
 __all__ = [
+    '__version__',
+    'get_version',
+
     'doe_get_solutions',
 
     'LinearizationResult',
