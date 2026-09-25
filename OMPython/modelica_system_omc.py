@@ -140,15 +140,24 @@ class ModelicaSystemOMC(ModelicaSystemABC):
             if not file_path.is_file():
                 raise IOError(f"Model file {file_path} does not exist!")
 
-            self._file_name = self.getWorkDirectory() / file_path.name
-            if (isinstance(self._session, OMCSessionLocal)
-                    and file_path.as_posix() == self._file_name.as_posix()):
-                pass
-            elif self._file_name.is_file():
-                raise IOError(f"Simulation model file {self._file_name} exist - not overwriting!")
+            if isinstance(self._session, OMCSessionLocal) and file_path.name == "package.mo":
+                # Structured/directory-based package: OMC requires the enclosing
+                # directory's name to match the package name declared inside
+                # package.mo, and the package may span sibling .mo files in that
+                # same directory tree (e.g. Tests/StableBouncingBall.mo). Copying
+                # just this one file into a randomly-named work directory breaks
+                # both of those, so load it in place instead.
+                self._file_name = self._session.omcpath(file_path)
             else:
-                content = file_path.read_text(encoding='utf-8')
-                self._file_name.write_text(content)
+                self._file_name = self.getWorkDirectory() / file_path.name
+                if (isinstance(self._session, OMCSessionLocal)
+                        and file_path.as_posix() == self._file_name.as_posix()):
+                    pass
+                elif self._file_name.is_file():
+                    raise IOError(f"Simulation model file {self._file_name} exist - not overwriting!")
+                else:
+                    content = file_path.read_text(encoding='utf-8')
+                    self._file_name.write_text(content)
 
         if self._file_name is not None:
             self._loadFile(fileName=self._file_name)
