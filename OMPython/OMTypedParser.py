@@ -161,6 +161,3 @@ def om_parser_typed(string) -> Any:
     if len(res) == 0:
         return None
     return res[0]
-
-
-parseString = om_parser_typed

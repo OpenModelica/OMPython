@@ -15,14 +15,6 @@ skip_python_older_312 = pytest.mark.skipif(
 )
 
 
-# TODO: based on compatibility layer
-def test_OMCPath_OMCSessionZMQ():
-    om = OMPython.OMCSessionZMQ()
-
-    _run_OMPath_checks(om)
-    _run_OMPath_write_file(om)
-
-
 def test_OMCPath_OMCSessionLocal():
     oms = OMPython.OMCSessionLocal()
 
