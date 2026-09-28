@@ -602,7 +602,7 @@ class DockerPopen:
 
     def kill(self) -> None:
         """Send SIGKILL to the process."""
-        return os.kill(pid=self.pid, signal=signal.SIGKILL)
+        self.process.kill()
 
     def wait(self, timeout: Optional[float] = None) -> None:
         """Wait for the process to terminate.
