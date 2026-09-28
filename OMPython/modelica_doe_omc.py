@@ -45,7 +45,17 @@ class ModelicaDoEOMC(ModelicaDoEABC):
             resultpath: Optional[str | os.PathLike] = None,
             parameters: Optional[dict[str, list[str] | list[int] | list[float]]] = None,
     ) -> None:
+        """Initialize a DoE run based on a ModelicaSystemOMC model.
 
+        Args:
+            mod: The (configured) ModelicaSystemOMC instance to run the DoE with.
+            simargs: Simulation arguments passed to each model run.
+            resultpath: Directory for the DoE results.
+            parameters: Dictionary of structural parameters to vary.
+
+        Raises:
+            ModelicaSystemError: If ``mod`` is not a ModelicaSystemOMC instance.
+        """
         if not isinstance(mod, ModelicaSystemOMC):
             raise ModelicaSystemError(f"Invalid definition for mod: {type(mod)} - expect ModelicaSystemOMC!")
 
@@ -62,6 +72,20 @@ class ModelicaDoEOMC(ModelicaDoEABC):
             pc_structure: Tuple,
             param_structure: dict[str, list[str] | list[int] | list[float]],
     ) -> dict[str, str | int | float]:
+        """Set structural parameters, rebuild the model and report their values.
+
+        Args:
+            idx_pc_structure: Index of the current parameter combination (run).
+            pc_structure: Tuple of parameter values for this combination.
+            param_structure: Mapping of parameter names to their possible values.
+
+        Returns:
+            Dictionary of the parameter names to the values applied for this run.
+
+        Raises:
+            ModelicaSystemError: If a model executable has no OMC backend or a
+                structural parameter cannot be set.
+        """
         build_dir = self._resultpath / f"DOE_{idx_pc_structure:09d}"
         build_dir.mkdir()
         self._mod.setWorkDirectory(work_directory=build_dir)

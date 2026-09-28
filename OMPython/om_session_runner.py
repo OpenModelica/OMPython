@@ -37,6 +37,11 @@ else:
         """
 
         def _path(self) -> pathlib.Path:
+            """Convert the POSIX path to a local pathlib.Path.
+
+            Returns:
+                The local path corresponding to the POSIX path.
+            """
             return pathlib.Path(self.as_posix())
 
     class _OMPathRunnerLocal(OMPathRunnerABC):
@@ -323,6 +328,18 @@ class OMSessionRunnerABC(OMSessionABC, metaclass=abc.ABCMeta):
             cmd_prefix: Optional[list[str]] = None,
             model_execution_local: bool = True,
     ) -> None:
+        """Initialize a runner-based OMC session without an OMC server.
+
+        Args:
+            ompath_runner: OMPath implementation class used for this session.
+            timeout: Timeout in seconds for operations.
+            version: Version string reported as the OpenModelica version.
+            cmd_prefix: Command prefix for model execution.
+            model_execution_local: Whether the model executes on the local machine.
+
+        Raises:
+            OMSessionException: If ``ompath_runner`` is not an OMPathRunnerABC subclass.
+        """
         super().__init__(timeout=timeout)
         self._version = version
 
@@ -348,6 +365,15 @@ class OMSessionRunner(OMSessionRunnerABC):
             cmd_prefix: Optional[list[str]] = None,
             model_execution_local: bool = True,
     ) -> None:
+        """Initialize an OMSessionRunner session without an OMC server.
+
+        Args:
+            ompath_runner: OMPath implementation class used for this session.
+            timeout: Timeout in seconds for operations.
+            version: Version string reported as the OpenModelica version.
+            cmd_prefix: Command prefix for model execution.
+            model_execution_local: Whether the model executes on the local machine.
+        """
         super().__init__(
             ompath_runner=ompath_runner,
             timeout=timeout,
@@ -397,4 +423,9 @@ class OMSessionRunner(OMSessionRunnerABC):
         return self._tempdir(tempdir_base=tempdir_base)
 
     def sendExpression(self, expr: str, parsed: bool = True, raise_on_error: bool = True) -> Any:
+        """Sending expressions is not supported for a runner-based session.
+
+        Raises:
+            OMSessionException: Always, as there is no OMC server to talk to.
+        """
         raise OMSessionException(f"{self.__class__.__name__} does not uses an OMC server!")

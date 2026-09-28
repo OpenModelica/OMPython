@@ -220,8 +220,11 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
             timeout: Optional[float] = None,
             **kwargs,
     ) -> None:
-        """
-        Initialisation for OMCSession
+        """Initialize an OMC session base.
+
+        Args:
+            timeout: Communication timeout in seconds with the OMC server.
+            **kwargs: Extra arguments forwarded to base classes.
         """
         super().__init__(timeout=timeout)
 
@@ -276,6 +279,11 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
         self._omc_zmq = omc
 
     def __del__(self):
+        """Shut down the OMC server.
+
+        Sends ``quit()`` to OMC, closes the log file and terminates (or kills)
+        the OMC process if it did not exit on its own.
+        """
         if isinstance(self._omc_zmq, zmq.Socket):
             try:
                 self.sendExpression(expr="quit()")
@@ -553,6 +561,11 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
         return log
 
     def _get_portfile_path(self) -> Optional[pathlib.Path]:
+        """Extract the OMC port file path from the OMC session log.
+
+        Returns:
+            Path to the OMC port file, or None if not found in the log.
+        """
         omc_log = self.get_log()
 
         portfile = self._re_portfile_path.findall(string=omc_log)
@@ -569,18 +582,34 @@ class DockerPopen:
     Dummy implementation of Popen for a (running) docker process. The process is identified by its process ID (pid).
     """
 
-    def __init__(self, pid):
+    def __init__(self, pid: int) -> None:
+        """Initialize DockerPopen with the process ID.
+
+        Args:
+            pid: The process ID (PID) of the container process.
+        """
         self.pid = pid
         self.process = psutil.Process(pid)
         self.returncode = 0
 
-    def poll(self):
+    def poll(self) -> Optional[bool]:
+        """Check if the process is still running.
+
+        Returns:
+            None if still running, True if terminated.
+        """
         return None if self.process.is_running() else True
 
-    def kill(self):
+    def kill(self) -> None:
+        """Send SIGKILL to the process."""
         return os.kill(pid=self.pid, signal=signal.SIGKILL)
 
-    def wait(self, timeout):
+    def wait(self, timeout: Optional[float] = None) -> None:
+        """Wait for the process to terminate.
+
+        Args:
+            timeout: Maximum wait time in seconds.
+        """
         try:
             self.process.wait(timeout=timeout)
         except psutil.TimeoutExpired:
@@ -602,6 +631,17 @@ class OMCSessionDockerABC(OMCSessionABC, metaclass=abc.ABCMeta):
             dockerNetwork: Optional[str] = None,
             port: Optional[int] = None,
     ) -> None:
+        """Initialize Docker-based OMC session base.
+
+        Args:
+            timeout: Timeout in seconds for OMC communication.
+            docker: Docker image name to run.
+            dockerContainer: Existing container ID to connect to.
+            dockerExtraArgs: Additional arguments passed to the docker command.
+            dockerOpenModelicaPath: Path to the OMC binary inside the container.
+            dockerNetwork: Docker network to connect to.
+            port: Port to expose/bind for ZMQ communication.
+        """
         super().__init__(timeout=timeout)
 
         if dockerExtraArgs is None:
@@ -627,6 +667,21 @@ class OMCSessionDockerABC(OMCSessionABC, metaclass=abc.ABCMeta):
         self._cmd_prefix = self.model_execution_prefix()
 
     def _docker_process_get(self, docker_cid: str) -> Optional[DockerPopen]:
+        """Find the OMC process running inside the Docker container.
+
+        Polls ``docker top`` until a process matching the session random
+        string appears.
+
+        Args:
+            docker_cid: Docker container ID.
+
+        Returns:
+            A DockerPopen for the OMC process.
+
+        Raises:
+            OMSessionException: If OMC does not start within the timeout.
+            NotImplementedError: On win32 (docker sessions are unsupported).
+        """
         if sys.platform == 'win32':
             raise NotImplementedError("Docker not supported on win32!")
 
@@ -657,6 +712,7 @@ class OMCSessionDockerABC(OMCSessionABC, metaclass=abc.ABCMeta):
             docker_cid: Optional[str] = None,
             omc_port: Optional[int] = None,
     ) -> Tuple[subprocess.Popen, DockerPopen, str]:
+        """Start the OMC server in a Docker container (abstract)."""
         pass
 
     @staticmethod
@@ -674,6 +730,19 @@ class OMCSessionDockerABC(OMCSessionABC, metaclass=abc.ABCMeta):
             self,
             docker_cid: str,
     ) -> str:
+        """Determine the port on which the OMC server listens.
+
+        Polls the OMC port file inside the container until the port is known.
+
+        Args:
+            docker_cid: Docker container ID.
+
+        Returns:
+            The server address (port) string of the OMC server.
+
+        Raises:
+            OMSessionException: If the OMC server does not start within the timeout.
+        """
         port = None
 
         if not isinstance(docker_cid, str):
@@ -756,7 +825,16 @@ class OMCSessionDocker(OMCSessionDockerABC):
             dockerNetwork: Optional[str] = None,
             port: Optional[int] = None,
     ) -> None:
+        """Start a new Docker container and launch an OMC server inside it.
 
+        Args:
+            timeout: Timeout in seconds for OMC communication.
+            docker: Docker image name (defaults to standard OpenModelica image).
+            dockerExtraArgs: Additional arguments passed to `docker run`.
+            dockerOpenModelicaPath: Path to `omc` inside the container.
+            dockerNetwork: Optional Docker network name.
+            port: Interactive ZMQ port number.
+        """
         super().__init__(
             timeout=timeout,
             docker=docker,
@@ -767,7 +845,7 @@ class OMCSessionDocker(OMCSessionDockerABC):
         )
 
     def __del__(self) -> None:
-
+        """Stop the OMC process in the Docker container and clean up."""
         if hasattr(self, '_docker_process') and isinstance(self._docker_process, DockerPopen):
             try:
                 self._docker_process.wait(timeout=2.0)
@@ -844,7 +922,19 @@ class OMCSessionDocker(OMCSessionDockerABC):
             docker_cid: Optional[str] = None,
             omc_port: Optional[int] = None,
     ) -> Tuple[subprocess.Popen, DockerPopen, str]:
+        """Start the OMC server inside a Docker container.
 
+        Args:
+            docker_image: Docker image to use.
+            docker_cid: Optional predefined container ID.
+            omc_port: Optional interactive ZMQ port.
+
+        Returns:
+            A tuple of (docker process, OMC process handle, port string).
+
+        Raises:
+            OMSessionException: If the image name is missing or the server fails to start.
+        """
         if not isinstance(docker_image, str):
             raise OMSessionException("A docker image name must be provided!")
 
@@ -911,7 +1001,16 @@ class OMCSessionDockerContainer(OMCSessionDockerABC):
             dockerNetwork: Optional[str] = None,
             port: Optional[int] = None,
     ) -> None:
+        """Connect to an existing running Docker container and launch OMC inside it.
 
+        Args:
+            timeout: Timeout in seconds for OMC communication.
+            dockerContainer: Container ID or name of the running container.
+            dockerExtraArgs: Additional arguments passed to `docker exec`.
+            dockerOpenModelicaPath: Path to `omc` inside the container.
+            dockerNetwork: Optional Docker network name.
+            port: Interactive ZMQ port number.
+        """
         super().__init__(
             timeout=timeout,
             dockerContainer=dockerContainer,
@@ -922,7 +1021,10 @@ class OMCSessionDockerContainer(OMCSessionDockerABC):
         )
 
     def __del__(self) -> None:
+        """Clean up the OMC process in the connected container.
 
+        Sends ``quit()`` and terminates the docker process/cid.
+        """
         super().__del__()
 
         # docker container ID was provided - do NOT kill the docker process!
@@ -967,7 +1069,19 @@ class OMCSessionDockerContainer(OMCSessionDockerABC):
             docker_cid: Optional[str] = None,
             omc_port: Optional[int] = None,
     ) -> Tuple[subprocess.Popen, DockerPopen, str]:
+        """Start the OMC server inside an existing Docker container.
 
+        Args:
+            docker_image: Not used; kept for the abstract API.
+            docker_cid: ID (or name) of the running container.
+            omc_port: Optional interactive ZMQ port.
+
+        Returns:
+            A tuple of (omc process, docker process handle, container ID).
+
+        Raises:
+            OMSessionException: If no container ID is given or OMC fails to start.
+        """
         if not isinstance(docker_cid, str):
             raise OMSessionException("A docker container ID must be provided!")
 
@@ -1007,7 +1121,13 @@ class OMCSessionLocal(OMCSessionABC):
             timeout: Optional[float] = None,
             omhome: Optional[str | os.PathLike] = None,
     ) -> None:
+        """Start and connect to a local OMC server instance via ZeroMQ.
 
+        Args:
+            timeout: Communication timeout in seconds with the OMC server.
+            omhome: Path to the OpenModelica installation directory. If None,
+                it is resolved from OPENMODELICAHOME or the system PATH.
+        """
         super().__init__(timeout=timeout)
 
         self.model_execution_local = True
@@ -1021,6 +1141,18 @@ class OMCSessionLocal(OMCSessionABC):
 
     @staticmethod
     def _omc_home_get(omhome: Optional[str | os.PathLike] = None) -> pathlib.Path:
+        """Resolve the OpenModelica installation directory.
+
+        Args:
+            omhome: Explicit OpenModelica home path. If None, ``OPENMODELICAHOME``
+                or the location of ``omc`` on PATH is used.
+
+        Returns:
+            Path to the OpenModelica installation directory.
+
+        Raises:
+            OMSessionException: If OpenModelica cannot be located.
+        """
         # use the provided path
         if omhome is not None:
             return pathlib.Path(omhome)
@@ -1038,6 +1170,11 @@ class OMCSessionLocal(OMCSessionABC):
         raise OMSessionException("Cannot find OpenModelica executable, please install from openmodelica.org")
 
     def _omc_process_get(self) -> subprocess.Popen:
+        """Start the local ``omc`` process in interactive ZMQ mode.
+
+        Returns:
+            The Popen handle of the started OMC process.
+        """
         my_env = os.environ.copy()
         my_env["PATH"] = (self._omhome / "bin").as_posix() + os.pathsep + my_env["PATH"]
 
@@ -1054,6 +1191,14 @@ class OMCSessionLocal(OMCSessionABC):
         return omc_process
 
     def _omc_port_get(self) -> str:
+        """Read the ZMQ port of the local OMC server from its port file.
+
+        Returns:
+            The port string the OMC server listens on.
+
+        Raises:
+            OMSessionException: If the server does not start within the timeout.
+        """
         port = None
 
         # See if the omc server is running
@@ -1088,6 +1233,12 @@ class OMCSessionPort(OMCSessionABC):
             omc_port: str,
             timeout: Optional[float] = None,
     ) -> None:
+        """Connect to an already running OMC server on a given port.
+
+        Args:
+            omc_port: The ZMQ port (address string) of the running OMC server.
+            timeout: Communication timeout in seconds with the OMC server.
+        """
         super().__init__(timeout=timeout)
         self._omc_port = omc_port
 
@@ -1104,9 +1255,15 @@ class OMCSessionWSL(OMCSessionABC):
             wsl_distribution: Optional[str] = None,
             wsl_user: Optional[str] = None,
     ) -> None:
+        """Start an OMC server process under Windows Subsystem for Linux (WSL).
 
+        Args:
+            timeout: Communication timeout in seconds with the OMC server.
+            wsl_omc: Command or path of ``omc`` inside the WSL distribution.
+            wsl_distribution: Optional WSL distribution name to use.
+            wsl_user: Optional WSL user to run as.
+        """
         super().__init__(timeout=timeout)
-
         # where to find OpenModelica
         self._wsl_omc = wsl_omc
         # store WSL distribution and user
@@ -1136,6 +1293,11 @@ class OMCSessionWSL(OMCSessionABC):
         return wsl_cmd
 
     def _omc_process_get(self) -> subprocess.Popen:
+        """Start the ``omc`` process inside the WSL distribution.
+
+        Returns:
+            The Popen handle of the started OMC process.
+        """
         my_env = os.environ.copy()
 
         omc_command = self.model_execution_prefix() + [
@@ -1152,6 +1314,14 @@ class OMCSessionWSL(OMCSessionABC):
         return omc_process
 
     def _omc_port_get(self) -> str:
+        """Read the ZMQ port of the WSL OMC server from its port file.
+
+        Returns:
+            The port string the OMC server listens on.
+
+        Raises:
+            OMSessionException: If the server does not start within the timeout.
+        """
         port = None
 
         # See if the omc server is running

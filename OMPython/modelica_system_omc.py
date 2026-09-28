@@ -164,11 +164,27 @@ class ModelicaSystemOMC(ModelicaSystemABC):
         self.sendExpression(expr=expr, parsed=False)
 
     def _loadFile(self, fileName: OMPathABC):
+        """Load a Modelica file via the OMC ``loadFile`` call.
+
+        Args:
+            fileName: Path to the ``.mo`` file to load.
+        """
         # load file
         self.sendExpression(expr=f'loadFile("{fileName.as_posix()}")')
 
     # for loading file/package, loading model and building model
     def _loadLibrary(self, libraries: list):
+        """Load a list of Modelica libraries or files.
+
+        Each element can be a library name (e.g. ``"Modelica"``), a ``.mo``
+        path, or a ``(name, version)`` tuple.
+
+        Args:
+            libraries: List of libraries/files to load.
+
+        Raises:
+            ModelicaSystemError: If an element has an unsupported type.
+        """
         # load Modelica standard libraries or Modelica files if needed
         for element in libraries:
             if element is not None:
@@ -192,6 +208,18 @@ class ModelicaSystemOMC(ModelicaSystemABC):
                                               '2)[("Modelica","3.2.3"), "PowerSystems"]\n')
 
     def buildModel(self, variableFilter: Optional[str] = None):
+        """Build (translate) the model via OMC ``buildModel``.
+
+        The build result is validated against the produced model executable and
+        initialization XML file.
+
+        Args:
+            variableFilter: Filter for variables to include in the model;
+              falls back to the instance filter or ``".*"`` if not given.
+
+        Raises:
+            ModelicaSystemError: If the model executable or its init XML is missing.
+        """
         filter_def: Optional[str] = None
         if variableFilter is not None:
             filter_def = variableFilter
@@ -241,6 +269,17 @@ class ModelicaSystemOMC(ModelicaSystemABC):
             properties: Optional[str] = None,
             raise_on_error: bool = True,
     ) -> Any:
+        """Send a generic OMC API call.
+
+        Args:
+            apiName: Name of the OMC API function to call.
+            entity: First argument of the API call (e.g. model name or file).
+            properties: Second argument of the API call.
+            raise_on_error: Whether to raise if OMC reports an error.
+
+        Returns:
+            The parsed result of the API call.
+        """
         if entity is not None and properties is not None:
             expr = f'{apiName}({entity}, {properties})'
         elif entity is not None and properties is None:
@@ -283,6 +322,7 @@ class ModelicaSystemOMC(ModelicaSystemABC):
             raise ModelicaSystemError("Please use getContinuousInitial() before the simulation was started!")
 
         def get_continuous_solution(name_list: list[str]) -> None:
+            """Update the continuous variables with their final simulation values."""
             for name in name_list:
                 if name in self._continuous:
                     value = self.getSolutions(name)
@@ -379,6 +419,7 @@ class ModelicaSystemOMC(ModelicaSystemABC):
             raise ModelicaSystemError("Please use getOuputsInitial() before the simulation was started!")
 
         def get_outputs_solution(name_list: list[str]) -> None:
+            """Update the output variables with their final simulation values."""
             for name in name_list:
                 if name in self._outputs:
                     value = self.getSolutions(name)
