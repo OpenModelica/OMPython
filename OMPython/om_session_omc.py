@@ -14,7 +14,6 @@ import pathlib
 import platform
 import re
 import shutil
-import signal
 import subprocess
 import sys
 import tempfile
