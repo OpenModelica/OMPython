@@ -140,6 +140,23 @@ def test_relative_path(model_firstorder):
         model_file.unlink()  # clean up the temporary file
 
 
+def test_load_structured_package():
+    # Regression test for loading a directory-based package via its package.mo:
+    # OMC requires the enclosing directory's name to match the package name, and
+    # the package spans a sibling file in a nested subdirectory
+    # (Tests/StableBouncingBall.mo). Both break if package.mo gets copied out of
+    # its directory instead of being loaded in place.
+    package_dir = pathlib.Path(__file__).parent / "resources" / "BouncingBalls"
+
+    mod = OMPython.ModelicaSystemOMC()
+    mod.model(
+        model_file=package_dir / "package.mo",
+        model_name="BouncingBalls.Tests.StableBouncingBall",
+        libraries=["Modelica"],
+    )
+    mod.simulate()
+
+
 def test_customBuildDirectory(tmp_path, model_firstorder):
     tmpdir = tmp_path / "tmpdir1"
     tmpdir.mkdir()
