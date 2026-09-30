@@ -77,8 +77,8 @@ end Pendulum;
 
     mod.setInputs(u1=10, u2=0)
     [A, B, C, D] = mod.linearize()
-    param_g = float(mod.getParameters("g")[0])
-    param_l = float(mod.getParameters("l")[0])
+    # param_g = float(mod.getParameters("g")[0])
+    # param_l = float(mod.getParameters("l")[0])
     assert mod.getLinearInputs() == ["u1", "u2"]
     assert mod.getLinearStates() == ["omega", "phi"]
     assert mod.getLinearOutputs() == ["y1", "y2"]
