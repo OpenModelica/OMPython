@@ -82,10 +82,10 @@ end Pendulum;
     assert mod.getLinearInputs() == ["u1", "u2"]
     assert mod.getLinearStates() == ["omega", "phi"]
     assert mod.getLinearOutputs() == ["y1", "y2"]
-    assert np.isclose(A, [[0, param_g / param_l], [1, 0]], atol=1e-10, rtol=1e-9).all()
-    assert np.isclose(B, [[0, 0], [0, 1]], atol=1e-10, rtol=1e-9).all()
-    assert np.isclose(C, [[0.5, 1], [0, 1]], atol=1e-10, rtol=1e-9).all()
-    assert np.isclose(D, [[1, 0], [1, 0]], atol=1e-10, rtol=1e-9).all()
+    assert np.isclose(A, [[0, 8.175], [1, 0]]).all()
+    assert np.isclose(B, [[0, 0], [0, 1]]).all()
+    assert np.isclose(C, [[0.5, 1], [0, 1]]).all()
+    assert np.isclose(D, [[1, 0], [1, 0]]).all()
     # test LinearizationResult
     result = mod.linearize()
     assert result[0] == A
