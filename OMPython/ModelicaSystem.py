@@ -34,14 +34,14 @@ from OMPython.modelica_doe_omc import (
 )
 
 from OMPython.compatibility_v400 import (
-    depreciated_class,
+    deprecated_class,
 )
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
 
 
-@depreciated_class(msg="Please use class ModelicaSystemOMC instead!")
+@deprecated_class(msg="Please use class ModelicaSystemOMC instead!")
 class ModelicaSystem(ModelicaSystemOMC):
     """
     High-level interface for loading, compiling, and simulating Modelica models.
@@ -432,7 +432,7 @@ class ModelicaSystem(ModelicaSystemOMC):
         raise ModelicaSystemError("Invalid data!")
 
 
-@depreciated_class(msg="Please use class ModelicaDoEOMC instead!")
+@deprecated_class(msg="Please use class ModelicaDoEOMC instead!")
 class ModelicaSystemDoE(ModelicaDoEOMC):
     """
     Compatibility class for Design of Experiments (DoE) with Modelica models.
@@ -441,7 +441,7 @@ class ModelicaSystemDoE(ModelicaDoEOMC):
     """
 
 
-@depreciated_class(msg="Please use class ModelExecutionConfig instead!")
+@deprecated_class(msg="Please use class ModelExecutionConfig instead!")
 class ModelicaSystemCmd(ModelExecutionConfig):
     """
     Compatibility wrapper for model execution configuration.
@@ -484,7 +484,7 @@ def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, Any] | n
         ModelExecutionException: If a flag or override definition is malformed.
     """
     warnings.warn(
-        message="The argument 'simflags' is depreciated and will be removed in future versions; "
+        message="The argument 'simflags' is deprecated and will be removed in future versions; "
                 "please use 'simargs' instead",
         category=DeprecationWarning,
         stacklevel=2,
