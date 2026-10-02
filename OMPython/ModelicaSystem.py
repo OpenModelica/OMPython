@@ -195,6 +195,11 @@ class ModelicaSystem(ModelicaSystemOMC):
             input_args.append(args[0])
         elif pkey in kwargs:
             input_args.append(kwargs[pkey])
+        elif kwargs:
+            # New-style call, e.g. setInputs(u1=10, u2=0) instead of the old
+            # setInputs(name={"u1": 10, "u2": 0}) / setInputs("u1=10,u2=0").
+            # Treat kwargs itself as the payload instead of silently dropping it.
+            input_args.append(kwargs)
 
         # the code below is based on _prepare_input_data2()
 
