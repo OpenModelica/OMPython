@@ -26,24 +26,24 @@ from OMPython.om_session_omc import (
 )
 
 from OMPython.compatibility_v400 import (
-    depreciated_class,
+    deprecated_class,
 )
 
 # define logger using the current module name as ID
 logger = logging.getLogger(__name__)
 
 
-@depreciated_class(msg="Please use class OMSessionException instead!")
+@deprecated_class(msg="Please use class OMSessionException instead!")
 class OMCSessionException(OMSessionException):
     """
     Just a compatibility layer ...
     """
 
 
-@depreciated_class(msg="Please use OMCSession*.sendExpression(...) instead!")
+@deprecated_class(msg="Please use OMCSession*.sendExpression(...) instead!")
 class OMCSessionCmd:
     """
-    Implementation of Open Modelica Compiler API functions. Depreciated!
+    Implementation of Open Modelica Compiler API functions. Deprecated!
     """
 
     def __init__(self, session: OMSessionABC, readonly: bool = False):
@@ -289,7 +289,7 @@ class OMCSessionCmd:
         return self._ask(question='getClassNames', opt=opt)
 
 
-@depreciated_class(msg="Please use OMCSession* classes instead!")
+@deprecated_class(msg="Please use OMCSession* classes instead!")
 class OMCSessionZMQ(OMSessionABC):
     """
     This class is a compatibility layer for the new schema using OMCSession* classes.
@@ -347,7 +347,7 @@ class OMCSessionZMQ(OMSessionABC):
             The unparsed OMC response.
         """
         warnings.warn(
-            message="This function is depreciated and will be removed in future versions; "
+            message="This function is deprecated and will be removed in future versions; "
                     "please use sendExpression() instead",
             category=DeprecationWarning,
             stacklevel=2,
@@ -383,35 +383,35 @@ class OMCSessionZMQ(OMSessionABC):
         return self.omc_process.set_workdir(workdir=workdir)
 
 
-@depreciated_class(msg="Please use class OMCSessionLocal instead!")
+@deprecated_class(msg="Please use class OMCSessionLocal instead!")
 class OMCProcessLocal(OMCSessionLocal):
     """
     Just a wrapper class; OMCProcessLocal => OMCSessionLocal
     """
 
 
-@depreciated_class(msg="Please use class OMCSessionPort instead!")
+@deprecated_class(msg="Please use class OMCSessionPort instead!")
 class OMCProcessPort(OMCSessionPort):
     """
     Just a wrapper class; OMCProcessPort => OMCSessionPort
     """
 
 
-@depreciated_class(msg="Please use class OMCSessionDocker instead!")
+@deprecated_class(msg="Please use class OMCSessionDocker instead!")
 class OMCProcessDocker(OMCSessionDocker):
     """
     Just a wrapper class; OMCProcessDocker => OMCSessionDocker
     """
 
 
-@depreciated_class(msg="Please use class OMCSessionDockerContainer instead!")
+@deprecated_class(msg="Please use class OMCSessionDockerContainer instead!")
 class OMCProcessDockerContainer(OMCSessionDockerContainer):
     """
     Just a wrapper class; OMCProcessDockerContainer => OMCSessionDockerContainer
     """
 
 
-@depreciated_class(msg="Please use class OMCSessionWSL instead!")
+@deprecated_class(msg="Please use class OMCSessionWSL instead!")
 class OMCProcessWSL(OMCSessionWSL):
     """
     Just a wrapper class; OMCProcessWSL => OMCSessionWSL
