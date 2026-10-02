@@ -25,6 +25,9 @@ logger = logging.getLogger(__name__)
 class ModelicaSystemRunner(ModelicaSystemABC):
     """
     Class to simulate a Modelica model using a pre-compiled model binary.
+
+    Executes a pre-compiled Modelica executable and reads its initialization XML
+    file without requiring an active OpenModelica Compiler (OMC) server connection.
     """
 
     def __init__(
@@ -32,6 +35,17 @@ class ModelicaSystemRunner(ModelicaSystemABC):
             work_directory: Optional[str | os.PathLike] = None,
             session: Optional[OMSessionABC] = None,
     ) -> None:
+        """Initialize ModelicaSystemRunner.
+
+        Args:
+            work_directory: Directory containing the compiled model executable and
+                initialization XML file. If unspecified, a temporary directory is created.
+            session: An instance of OMSessionRunner. If unspecified, a new
+                OMSessionRunner is created.
+
+        Raises:
+            ModelicaSystemError: If the provided session is not an OMSessionRunner.
+        """
         if session is None:
             session = OMSessionRunner()
 
@@ -48,13 +62,20 @@ class ModelicaSystemRunner(ModelicaSystemABC):
             model_name: Optional[str] = None,
             variable_filter: Optional[str] = None,
     ) -> None:
-        """
-        Needed definitions to set up the runner class. This class expects the model (defined by model_name) to exists
-        within the working directory. At least two files are needed:
+        """Set up the runner for a pre-compiled model.
 
-        * model executable (as '<model_name>' or '<model_name>.exe'; in case of Windows additional '<model_name>.bat'
-          is expected to evaluate the path to needed dlls
-        * the model initialization file (as '<model_name>_init.xml')
+        Expects the model files to exist within the working directory:
+        * Model executable ('<model_name>' or '<model_name>.exe'; on Windows,
+          optionally '<model_name>.bat')
+        * Model initialization file ('<model_name>_init.xml')
+
+        Args:
+            model_name: The name of the model to execute.
+            variable_filter: Optional regex pattern for filtering result variables.
+
+        Raises:
+            ModelicaSystemError: If the instance already has a model configured,
+                if model_name is missing, or if the model binary/XML is invalid.
         """
 
         if self._model_name is not None:

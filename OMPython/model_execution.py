@@ -120,6 +120,19 @@ class ModelExecutionConfig:
             timeout: Optional[float] = None,
             model_name: Optional[str] = None,
     ) -> None:
+        """Initialize a model execution configuration.
+
+        Args:
+            runpath: Directory in which the compiled model executable is located.
+            cmd_prefix: Command prefix to invoke the executable (e.g. for docker or WSL).
+            cmd_local: Whether the executable is run on the local machine.
+            cmd_windows: Whether the executable targets Windows.
+            timeout: Execution timeout in seconds; defaults to MODEL_EXECUTION_TIMEOUT.
+            model_name: Name of the model to execute.
+
+        Raises:
+            ModelExecutionException: If ``model_name`` is None.
+        """
         if model_name is None:
             raise ModelExecutionException("Missing model name!")
 

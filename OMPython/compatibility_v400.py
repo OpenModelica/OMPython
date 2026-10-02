@@ -22,6 +22,7 @@ def depreciated_class(msg: Optional[str] = None):
             """
 
             def __init__(self, *args, **kwargs):
+                """Construct the deprecated class and emit a deprecation warning."""
                 message = f"The class {cls.__name__} is depreciated and will be removed in future versions!"
                 if msg is not None:
                     message += f" {msg}"

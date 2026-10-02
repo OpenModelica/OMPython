@@ -47,6 +47,12 @@ class OMCSessionCmd:
     """
 
     def __init__(self, session: OMSessionABC, readonly: bool = False):
+        """Initialize the OMC API compatibility wrapper.
+
+        Args:
+            session: The OMC session to send expressions to.
+            readonly: Whether responses may be served from a cache.
+        """
         if not isinstance(session, OMSessionABC):
             raise OMCSessionException("Invalid OMC process definition!")
         self._session = session
@@ -54,7 +60,19 @@ class OMCSessionCmd:
         self._omc_cache: dict[tuple[str, bool], Any] = {}
 
     def _ask(self, question: str, opt: Optional[list[str]] = None, parsed: bool = True):
+        """Send an OMC API question to the session.
 
+        Args:
+            question: The OMC API function name to call.
+            opt: Optional list of arguments for the API call.
+            parsed: Whether to parse the OMC response.
+
+        Returns:
+            The (optionally parsed) OMC response.
+
+        Raises:
+            OMSessionException: If the options are invalid or the call fails.
+        """
         if opt is None:
             expression = question
         elif isinstance(opt, list):
@@ -81,66 +99,87 @@ class OMCSessionCmd:
 
     # TODO: Open Modelica Compiler API functions. Would be nice to generate these.
     def loadFile(self, filename):
+        """Load a Modelica file. Deprecated."""
         return self._ask(question='loadFile', opt=[f'"{filename}"'])
 
     def loadModel(self, className):
+        """Load a Modelica model/package. Deprecated."""
         return self._ask(question='loadModel', opt=[className])
 
     def isModel(self, className):
+        """Check if ``className`` is a model. Deprecated."""
         return self._ask(question='isModel', opt=[className])
 
     def isPackage(self, className):
+        """Check if ``className`` is a package. Deprecated."""
         return self._ask(question='isPackage', opt=[className])
 
     def isPrimitive(self, className):
+        """Check if ``className`` is a primitive. Deprecated."""
         return self._ask(question='isPrimitive', opt=[className])
 
     def isConnector(self, className):
+        """Check if ``className`` is a connector. Deprecated."""
         return self._ask(question='isConnector', opt=[className])
 
     def isRecord(self, className):
+        """Check if ``className`` is a record. Deprecated."""
         return self._ask(question='isRecord', opt=[className])
 
     def isBlock(self, className):
+        """Check if ``className`` is a block. Deprecated."""
         return self._ask(question='isBlock', opt=[className])
 
     def isType(self, className):
+        """Check if ``className`` is a type. Deprecated."""
         return self._ask(question='isType', opt=[className])
 
     def isFunction(self, className):
+        """Check if ``className`` is a function. Deprecated."""
         return self._ask(question='isFunction', opt=[className])
 
     def isClass(self, className):
+        """Check if ``className`` is a class. Deprecated."""
         return self._ask(question='isClass', opt=[className])
 
     def isParameter(self, className):
+        """Check if ``className`` is a parameter. Deprecated."""
         return self._ask(question='isParameter', opt=[className])
 
     def isConstant(self, className):
+        """Check if ``className`` is a constant. Deprecated."""
         return self._ask(question='isConstant', opt=[className])
 
     def isProtected(self, className):
+        """Check if ``className`` is protected. Deprecated."""
         return self._ask(question='isProtected', opt=[className])
 
     def getPackages(self, className="AllLoadedClasses"):
+        """Get the loaded packages. Deprecated."""
         return self._ask(question='getPackages', opt=[className])
 
     def getClassRestriction(self, className):
+        """Get the class restriction of ``className``. Deprecated."""
         return self._ask(question='getClassRestriction', opt=[className])
 
     def getDerivedClassModifierNames(self, className):
+        """Get the derived class modifier names. Deprecated."""
         return self._ask(question='getDerivedClassModifierNames', opt=[className])
 
     def getDerivedClassModifierValue(self, className, modifierName):
+        """Get the value of a derived class modifier. Deprecated."""
         return self._ask(question='getDerivedClassModifierValue', opt=[className, modifierName])
 
     def typeNameStrings(self, className):
+        """Get the type name strings of ``className``. Deprecated."""
         return self._ask(question='typeNameStrings', opt=[className])
 
     def getComponents(self, className):
+        """Get the components of ``className``. Deprecated."""
         return self._ask(question='getComponents', opt=[className])
 
     def getClassComment(self, className):
+        """Get the comment of ``className``. Deprecated."""
         try:
             return self._ask(question='getClassComment', opt=[className])
         except pyparsing.ParseException as ex:
@@ -153,22 +192,28 @@ class OMCSessionCmd:
         return self._ask(question='getNthComponent', opt=[className, comp_id])
 
     def getNthComponentAnnotation(self, className, comp_id):
+        """Get the annotation of the n-th component. Deprecated."""
         return self._ask(question='getNthComponentAnnotation', opt=[className, comp_id])
 
     def getImportCount(self, className):
+        """Get the number of imports of ``className``. Deprecated."""
         return self._ask(question='getImportCount', opt=[className])
 
     def getNthImport(self, className, importNumber):
+        """Get the n-th import of ``className``. Deprecated."""
         # [Path, id, kind]
         return self._ask(question='getNthImport', opt=[className, importNumber])
 
     def getInheritanceCount(self, className):
+        """Get the number of inherited classes of ``className``. Deprecated."""
         return self._ask(question='getInheritanceCount', opt=[className])
 
     def getNthInheritedClass(self, className, inheritanceDepth):
+        """Get the n-th inherited class of ``className``. Deprecated."""
         return self._ask(question='getNthInheritedClass', opt=[className, inheritanceDepth])
 
     def getParameterNames(self, className):
+        """Get the parameter names of ``className``. Deprecated."""
         try:
             return self._ask(question='getParameterNames', opt=[className])
         except KeyError as ex:
@@ -177,6 +222,7 @@ class OMCSessionCmd:
             return []
 
     def getParameterValue(self, className, parameterName):
+        """Get the value of a parameter. Deprecated."""
         try:
             return self._ask(question='getParameterValue', opt=[className, parameterName])
         except pyparsing.ParseException as ex:
@@ -185,18 +231,23 @@ class OMCSessionCmd:
             return ""
 
     def getComponentModifierNames(self, className, componentName):
+        """Get the modifier names of a component. Deprecated."""
         return self._ask(question='getComponentModifierNames', opt=[className, componentName])
 
     def getComponentModifierValue(self, className, componentName):
+        """Get the modifier value of a component. Deprecated."""
         return self._ask(question='getComponentModifierValue', opt=[className, componentName])
 
     def getExtendsModifierNames(self, className, componentName):
+        """Get the modifier names of an extends clause. Deprecated."""
         return self._ask(question='getExtendsModifierNames', opt=[className, componentName])
 
     def getExtendsModifierValue(self, className, extendsName, modifierName):
+        """Get the modifier value of an extends clause. Deprecated."""
         return self._ask(question='getExtendsModifierValue', opt=[className, extendsName, modifierName])
 
     def getNthComponentModification(self, className, comp_id):
+        """Get the modification of the n-th component. Deprecated."""
         # FIXME: OMPython exception Results KeyError exception
 
         # get {$Code(....)} field
@@ -217,6 +268,19 @@ class OMCSessionCmd:
     # end getClassNames;
     def getClassNames(self, className=None, recursive=False, qualified=False, sort=False, builtin=False,
                       showProtected=False):
+        """Get class names, optionally filtered. Deprecated.
+
+        Args:
+            className: Name of the class to query (defaults to all loaded classes).
+            recursive: Whether to include nested classes.
+            qualified: Whether to return qualified names.
+            sort: Whether to sort the result.
+            builtin: Whether to include built-in classes.
+            showProtected: Whether to include protected classes.
+
+        Returns:
+            The parsed list of class names.
+        """
         opt = [className] if className else [] + [f'recursive={str(recursive).lower()}',
                                                   f'qualified={str(qualified).lower()}',
                                                   f'sort={str(sort).lower()}',
@@ -249,6 +313,7 @@ class OMCSessionZMQ(OMSessionABC):
         super().__init__(timeout=timeout)
 
     def __del__(self):
+        """Clean up the underlying OMC process."""
         if hasattr(self, 'omc_process'):
             del self.omc_process
 
@@ -273,6 +338,14 @@ class OMCSessionZMQ(OMSessionABC):
         return self.omc_process.omcpath_tempdir(tempdir_base=tempdir_base)
 
     def execute(self, command: str):
+        """Execute a raw command on the OMC server. Deprecated.
+
+        Args:
+            command: The raw OMC expression to execute.
+
+        Returns:
+            The unparsed OMC response.
+        """
         warnings.warn(
             message="This function is depreciated and will be removed in future versions; "
                     "please use sendExpression() instead",
@@ -298,12 +371,15 @@ class OMCSessionZMQ(OMSessionABC):
         return self.omc_process.sendExpression(expr=command, parsed=parsed, raise_on_error=raise_on_error)
 
     def get_version(self) -> str:
+        """Get the version of the OMC server. Deprecated."""
         return self.omc_process.get_version()
 
     def model_execution_prefix(self, cwd: Optional[OMPathABC] = None) -> list[str]:
+        """Get the model execution command prefix. Deprecated."""
         return self.omc_process.model_execution_prefix(cwd=cwd)
 
     def set_workdir(self, workdir: OMPathABC) -> None:
+        """Set the working directory. Deprecated."""
         return self.omc_process.set_workdir(workdir=workdir)
 
 

@@ -44,7 +44,11 @@ logger = logging.getLogger(__name__)
 @depreciated_class(msg="Please use class ModelicaSystemOMC instead!")
 class ModelicaSystem(ModelicaSystemOMC):
     """
-    Compatibility class.
+    High-level interface for loading, compiling, and simulating Modelica models.
+
+    This class provides backwards compatibility with OMPython v4.0.0 while extending
+    ModelicaSystemOMC. It manages model compilation, parameter modification, simulation
+    runs, and result inspection via an OMC session.
     """
 
     def __init__(
@@ -59,6 +63,26 @@ class ModelicaSystem(ModelicaSystemOMC):
             omc_process: Optional[OMCSessionLocal] = None,
             build: bool = True,
     ) -> None:
+        """Initialize and optionally build a Modelica model.
+
+        Args:
+            fileName: Path to the Modelica source file (.mo). Either absolute
+                or relative to the working directory.
+            modelName: The name of the Modelica model class (e.g. "ModelName" or
+                "PackageName.ModelName").
+            lmodel: List of libraries to load before the model. Entries can be
+                library names (e.g. ["Modelica"]) or name-version tuples (e.g.
+                [("Modelica", "3.2.3")]).
+            commandLineOptions: Extra command-line options passed to OMC.
+            variableFilter: Regular expression filter for variables to store in
+                the simulation result file. Defaults to ".*".
+            customBuildDirectory: Path to directory for build artifacts and
+                executable. If unspecified, a temporary directory is created.
+            omhome: Path to the OpenModelica installation directory.
+            omc_process: Pre-existing OMCSessionLocal instance. If unspecified,
+                a new local session is created.
+            build: If True (default), builds the model executable upon initialization.
+        """
         super().__init__(
             command_line_options=commandLineOptions,
             work_directory=customBuildDirectory,
@@ -75,6 +99,11 @@ class ModelicaSystem(ModelicaSystemOMC):
         self._getconn = self._session
 
     def setCommandLineOptions(self, commandLineOptions: str):
+        """Pass command-line flags to the underlying OMC compiler instance.
+
+        Args:
+            commandLineOptions: Flag or option string (e.g. "--generateSymbolicLinearization").
+        """
         super().set_command_line_options(command_line_option=commandLineOptions)
 
     def simulate_cmd(  # type: ignore[override]
@@ -148,6 +177,19 @@ class ModelicaSystem(ModelicaSystemOMC):
             args: Any,
             kwargs: dict[str, Any],
     ) -> dict[str, Any]:
+        """Convert the legacy positional/keyword inputs into a value dictionary.
+
+        Args:
+            pkey: The keyword name to look up in ``kwargs``.
+            args: The positional arguments given to the wrapper.
+            kwargs: The keyword arguments given to the wrapper.
+
+        Returns:
+            A dictionary mapping variable names to values.
+
+        Raises:
+            ModelicaSystemError: If a ``key=value`` string is invalid.
+        """
         input_args = []
         if len(args) == 1:
             input_args.append(args[0])
@@ -157,6 +199,7 @@ class ModelicaSystem(ModelicaSystemOMC):
         # the code below is based on _prepare_input_data2()
 
         def prepare_str(str_in: str) -> dict[str, str]:
+            """Parse a single ``key=value`` string into a one-entry dictionary."""
             str_in = str_in.replace(" ", "")
             key_val_list: list[str] = str_in.split("=")
             if len(key_val_list) != 2:
@@ -392,19 +435,19 @@ class ModelicaSystem(ModelicaSystemOMC):
 @depreciated_class(msg="Please use class ModelicaDoEOMC instead!")
 class ModelicaSystemDoE(ModelicaDoEOMC):
     """
-    Compatibility class.
+    Compatibility class for Design of Experiments (DoE) with Modelica models.
+
+    Inherits from ModelicaDoEOMC to provide backwards compatibility with OMPython v4.0.0.
     """
 
 
 @depreciated_class(msg="Please use class ModelExecutionConfig instead!")
 class ModelicaSystemCmd(ModelExecutionConfig):
     """
-    Compatibility class; not much content.
+    Compatibility wrapper for model execution configuration.
 
-    Missing definitions:
-    * get_exe() - see self.definition.cmd_model_executable
-    * get_cmd() - use self.get_cmd_args() or self.definition().get_cmd()
-    * run() - use self.definition().run()
+    Subclasses ModelExecutionConfig to store configuration for running compiled model
+    binaries.
     """
 
     def __init__(
@@ -413,6 +456,13 @@ class ModelicaSystemCmd(ModelExecutionConfig):
             modelname: str,
             timeout: Optional[float] = None,
     ) -> None:
+        """Initialize ModelicaSystemCmd.
+
+        Args:
+            runpath: Working directory path where the model binary is located.
+            modelname: Name of the Modelica model.
+            timeout: Execution timeout in seconds.
+        """
         super().__init__(
             runpath=runpath,
             timeout=timeout,
@@ -422,10 +472,16 @@ class ModelicaSystemCmd(ModelExecutionConfig):
 
 
 def parse_simflags(simflags: str) -> dict[str, Optional[str | dict[str, Any] | numbers.Number]]:
-    """
-    Parse a simflag definition; this is deprecated!
+    """Parse legacy simulation flag string into a dictionary suitable for simargs.
 
-    The return data can be used as input for self.args_set().
+    Args:
+        simflags: Space-separated simulation flags (e.g. "-s=dassl -override=stopTime=2.0").
+
+    Returns:
+        Dictionary mapping flag names to values or override dictionaries.
+
+    Raises:
+        ModelExecutionException: If a flag or override definition is malformed.
     """
     warnings.warn(
         message="The argument 'simflags' is depreciated and will be removed in future versions; "

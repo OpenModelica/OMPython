@@ -38,6 +38,7 @@ if sys.version_info < (3, 12):
 
         # modified copy of pathlib.Path.__new__() definition
         def __new__(cls, *args, **kwargs):
+            """Modified copy of ``pathlib.Path.__new__`` for Python < 3.12."""
             logger.warning("Python < 3.12 - using a version of class OMCPath "
                            "based on pathlib.Path for local usage only.")
 
@@ -79,6 +80,12 @@ else:
         """
 
         def __init__(self, *path, session: OMSessionABC) -> None:
+            """Initialize the OMPath with the owning session.
+
+            Args:
+                *path: Path segments as in pathlib.PurePosixPath.
+                session: The session used for filesystem-related operations.
+            """
             super().__init__(*path)
             self._session = session
 
@@ -195,6 +202,11 @@ class PostInitCaller(type):
     """
 
     def __call__(cls, *args, **kwargs):
+        """Call the class and trigger ``__post_init__`` of all bases.
+
+        Invokes ``type.__call__`` and then automatically runs every
+        ``__post_init__`` up the MRO.
+        """
         obj = type.__call__(cls, *args, **kwargs)
         obj.__post_init__()
         return obj
@@ -298,6 +310,14 @@ class OMSessionABC(metaclass=OMSessionMeta):
 
     @staticmethod
     def _tempdir(tempdir_base: OMPathABC) -> OMPathABC:
+        """Create a new unique temporary directory below ``tempdir_base``.
+
+        Args:
+            tempdir_base: Base directory for the new temporary directory.
+
+        Returns:
+            An OMPathABC pointing to the created temporary directory.
+        """
         names = [str(uuid.uuid4()) for _ in range(100)]
 
         tempdir: Optional[OMPathABC] = None

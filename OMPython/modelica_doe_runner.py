@@ -38,6 +38,17 @@ class ModelicaDoERunner(ModelicaDoEABC):
             resultpath: Optional[str | os.PathLike] = None,
             parameters: Optional[dict[str, list[str] | list[int] | list[float]]] = None,
     ) -> None:
+        """Initialize a DoE run based on a pre-compiled model binary.
+
+        Args:
+            mod: The ModelicaSystemRunner instance used to execute the model.
+            simargs: Simulation arguments passed to each model run.
+            resultpath: Directory for the DoE results.
+            parameters: Dictionary of structural parameters to vary.
+
+        Raises:
+            ModelicaSystemError: If ``mod`` is not a ModelicaSystemABC instance.
+        """
         if not isinstance(mod, ModelicaSystemABC):
             raise ModelicaSystemError(f"Invalid definition for ModelicaSystem*: {type(mod)}!")
 
@@ -54,6 +65,22 @@ class ModelicaDoERunner(ModelicaDoEABC):
             pc_structure: Tuple,
             param_structure: dict[str, list[str] | list[int] | list[float]],
     ) -> dict[str, str | int | float]:
+        """Apply the structural parameter combination for one DoE run.
+
+        As the runner uses a pre-compiled model binary, structural parameters
+        cannot be set.
+
+        Args:
+            idx_pc_structure: Index of the current parameter combination (run).
+            pc_structure: Tuple of parameter values for this combination.
+            param_structure: Mapping of parameter names to their possible values.
+
+        Returns:
+            An empty dictionary, as no structural parameters can be applied.
+
+        Raises:
+            ModelicaSystemError: If ``param_structure`` is not empty.
+        """
         if len(param_structure.keys()) > 0:
             raise ModelicaSystemError(f"{self.__class__.__name__} can not handle structure parameters as it uses a "
                                       "pre-compiled binary of model.")

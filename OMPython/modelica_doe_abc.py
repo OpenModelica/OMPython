@@ -291,6 +291,7 @@ class ModelicaDoEABC(metaclass=abc.ABCMeta):
             raise ModelicaSystemError("Missing Doe Summary!")
 
         def worker(worker_id, task_queue):
+            """Run simulations taken from ``task_queue`` until it is empty."""
             while True:
                 try:
                     # Get the next task from the queue

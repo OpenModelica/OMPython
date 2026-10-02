@@ -209,6 +209,18 @@ class ModelicaSystemABC(metaclass=abc.ABCMeta):
             raise ModelicaSystemError("Model executable not working!")
 
     def _xmlparse(self, xml_file: OMPathABC):
+        """Parse a model initialization XML file.
+
+        Reads the ``*_init.xml`` written by the model executable, extracting the
+        default experiment settings and all scalar variables (parameters,
+        continuous variables, inputs and outputs) into the model attributes.
+
+        Args:
+            xml_file: Path to the initialization XML file.
+
+        Raises:
+            ModelicaSystemError: If the XML file does not exist or cannot be parsed.
+        """
         if not xml_file.is_file():
             raise ModelicaSystemError(f"XML file not generated: {xml_file}")
 

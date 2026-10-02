@@ -32,6 +32,16 @@ def _read_version_from_pyproject() -> str:
 
 
 def _resolve_version() -> str:
+    """Resolve the installed package version.
+
+    Preference is given to the version reported by importlib.metadata for the
+    installed distribution. If the package is not installed, the version is
+    read from the ``pyproject.toml`` next to this module; both fall back to
+    a hardcoded string.
+
+    Returns:
+        The OMPython version as a string.
+    """
     try:
         return version(__package__ or "OMPython")
     except PackageNotFoundError:

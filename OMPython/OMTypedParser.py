@@ -55,6 +55,7 @@ from pyparsing import (
 
 
 def convert_numbers(s, loc, toks):
+    """Convert parsed numeric tokens to int (falls back to float)."""
     n = toks[0]
     try:
         return int(n)
@@ -63,6 +64,7 @@ def convert_numbers(s, loc, toks):
 
 
 def convert_string2(s, s2):
+    """Convert a quoted-string token back to a Modelica string literal."""
     tmp = s2[0].replace("\\\"", "\"")
     tmp = tmp.replace("\"", "\\\"")
     tmp = tmp.replace("\'", "\\'")
@@ -74,18 +76,22 @@ def convert_string2(s, s2):
 
 
 def convert_string(s, s2):
+    """Unescape double quotes in a string token."""
     return s2[0].replace("\\\"", '"')
 
 
 def convert_dict(d):
+    """Convert a parsed record into a dictionary."""
     return dict(d[0])
 
 
 def convert_tuple(t):
+    """Convert a parsed array/tuple into a Python tuple."""
     return tuple(t[0])
 
 
 def evaluate_expression(s, loc, toks):
+    """Evaluate an arithmetic dimension expression or return it verbatim."""
     # Convert the tokens (ParseResults) into a string expression
     flat_list = [item for sublist in toks[0] for item in sublist]
     expr = "".join(flat_list)
@@ -157,6 +163,15 @@ omcNumber.set_parse_action(convert_numbers)
 
 
 def om_parser_typed(string) -> Any:
+    """Parse a typed OMC response string.
+
+    Args:
+        string: The typed OMC response (with ``record`` blocks, arrays,
+            tuples and native Modelica types).
+
+    Returns:
+        The parsed Python object, or None for an empty response.
+    """
     res = omcGrammar.parse_string(string)
     if len(res) == 0:
         return None
