@@ -6,24 +6,24 @@ import warnings
 from typing import Optional
 
 
-def depreciated_class(msg: Optional[str] = None):
+def deprecated_class(msg: Optional[str] = None):
     """
-    Decorator for depreciated / compatibility classes.
+    Decorator for deprecated / compatibility classes.
     """
 
-    def depreciated(cls):
+    def deprecated(cls):
         """
         Helper functions to do the decoration part.
         """
 
         class Wrapper(cls):
             """
-            Wrapper to define the depreciation message.
+            Wrapper to define the deprecation message.
             """
 
             def __init__(self, *args, **kwargs):
                 """Construct the deprecated class and emit a deprecation warning."""
-                message = f"The class {cls.__name__} is depreciated and will be removed in future versions!"
+                message = f"The class {cls.__name__} is deprecated and will be removed in future versions!"
                 if msg is not None:
                     message += f" {msg}"
 
@@ -37,4 +37,4 @@ def depreciated_class(msg: Optional[str] = None):
 
         return Wrapper
 
-    return depreciated
+    return deprecated
