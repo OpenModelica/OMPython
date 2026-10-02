@@ -39,13 +39,15 @@ class ModelicaSystemOMC(ModelicaSystemABC):
             work_directory: Optional[str | os.PathLike] = None,
             omhome: Optional[str] = None,
             session: Optional[OMSessionABC] = None,
+            use_default_command_line_options: bool = True,
     ) -> None:
         """Create a ModelicaSystem instance. To define the model use model() or convertFmu2Mo().
 
         Args:
             command_line_options: List with extra command line options as elements. The list elements are
-              provided to omc via setCommandLineOptions(). If set, the default values will be overridden.
-              To disable any command line options, use an empty list.
+              provided to omc via setCommandLineOptions() in addition to OMPython's default options.
+            use_default_command_line_options: Whether to set OMPython's default options for linearization.
+              Set to False to use only command_line_options, or no options if it is unspecified or empty.
             work_directory: Path to a directory to be used for temporary
               files like the model executable. If left unspecified, a tmp
               directory will be created.
@@ -62,15 +64,17 @@ class ModelicaSystemOMC(ModelicaSystemABC):
             work_directory=work_directory,
         )
 
-        # set commandLineOptions using default values or the user defined list
-        if command_line_options is None:
+        options: list[str] = []
+        if use_default_command_line_options:
             # set default command line options to improve the performance of linearization and to avoid recompilation if
             # the simulation executable is reused in linearize() via the runtime flag '-l'
-            command_line_options = [
+            options.extend([
                 "--linearizationDumpLanguage=python",
                 "--generateSymbolicLinearization",
-            ]
-        for opt in command_line_options:
+            ])
+        if command_line_options is not None:
+            options.extend(command_line_options)
+        for opt in options:
             self.set_command_line_options(command_line_option=opt)
 
     def model(

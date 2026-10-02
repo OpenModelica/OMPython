@@ -38,6 +38,30 @@ def model_firstorder(tmp_path, model_firstorder_content):
     return mod
 
 
+@pytest.mark.parametrize(
+    ("use_defaults", "custom_options", "expected_options"),
+    [
+        (True, ["--showAnnotations"], [
+            "--linearizationDumpLanguage=python",
+            "--generateSymbolicLinearization",
+            "--showAnnotations",
+        ]),
+        (False, ["--showAnnotations"], ["--showAnnotations"]),
+        (False, [], []),
+    ],
+)
+def test_command_line_options(use_defaults, custom_options, expected_options):
+    session = OMPython.OMCSessionLocal()
+    mod = OMPython.ModelicaSystemOMC(
+        session=session,
+        command_line_options=custom_options,
+        use_default_command_line_options=use_defaults,
+    )
+
+    current_options = mod.sendExpression("getCommandLineOptions()")
+    assert current_options == expected_options
+
+
 def test_ModelicaSystem_loop(model_firstorder):
     def worker():
         mod = OMPython.ModelicaSystemOMC()
