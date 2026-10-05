@@ -46,7 +46,7 @@ def model_firstorder(tmp_path, model_firstorder_content):
             "--generateSymbolicLinearization",
             "--showAnnotations=true",
         ]),
-        (False, ["--showAnnotations"], ["--showAnnotations"]),
+        (False, ["--showAnnotations"], ["--showAnnotations=true"]),
     ],
 )
 def test_command_line_options(use_defaults, custom_options, expected_options):
