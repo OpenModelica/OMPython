@@ -43,7 +43,7 @@ def model_firstorder(tmp_path, model_firstorder_content):
     [
         (True, ["--showAnnotations"], [
             "--linearizationDumpLanguage=python",
-            "--generateSymbolicLinearization",
+            "--generateSymbolicLinearization=true",
             "--showAnnotations=true",
         ]),
         (False, ["--showAnnotations"], ["--showAnnotations=true"]),
