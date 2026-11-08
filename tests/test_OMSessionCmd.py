@@ -1,3 +1,5 @@
+import pytest
+
 import OMPython
 
 
@@ -18,3 +20,10 @@ def test_isPackage2():
 
 
 # TODO: add more checks ...
+
+
+def test_error_message_file():
+    # omc names the file field of a message filename or fileName (OpenModelica issue 17891)
+    omcs = OMPython.OMCSessionLocal()
+    with pytest.raises(OMPython.OMSessionException, match=r"\[bad\.mo:"):
+        omcs.sendExpression('loadString("model M Real x = ; end M;", "bad.mo")')

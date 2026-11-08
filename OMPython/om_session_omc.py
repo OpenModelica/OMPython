@@ -466,7 +466,7 @@ class OMCSessionABC(OMSessionABC, metaclass=abc.ABCMeta):
             if not self._re_log_raw:
                 self._re_log_raw = re.compile(
                     pattern=r"\s*info = record OpenModelica\.Scripting\.SourceInfo\n"
-                            r"\s*filename = \"(.*?)\",\n"
+                            r"\s*file[nN]ame = \"(.*?)\",\n"  # older omc: filename, newer: fileName
                             r"\s*readonly = (.*?),\n"
                             r"\s*lineStart = (\d+),\n"
                             r"\s*columnStart = (\d+),\n"
