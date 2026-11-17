@@ -40,6 +40,7 @@ class ModelicaSystemOMC(ModelicaSystemABC):
             omhome: Optional[str] = None,
             session: Optional[OMSessionABC] = None,
             use_default_command_line_options: bool = True,
+            version: Optional[str] = None,
     ) -> None:
         """Create a ModelicaSystem instance. To define the model use model() or convertFmu2Mo().
 
@@ -52,12 +53,14 @@ class ModelicaSystemOMC(ModelicaSystemABC):
               files like the model executable. If left unspecified, a tmp
               directory will be created.
             omhome: path to OMC to be used when creating the OMC session (see OMCSession).
+            version: OpenModelica version to be used when creating the OMC session if several versions are
+              installed, e.g. "1.27.0" (see OMCSessionLocal).
             session: definition of a (local) OMC session to be used. If
               unspecified, a new local session will be created.
         """
 
         if session is None:
-            session = OMCSessionLocal(omhome=omhome)
+            session = OMCSessionLocal(omhome=omhome, version=version)
 
         super().__init__(
             session=session,

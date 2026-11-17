@@ -18,7 +18,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Any, Optional, Tuple
+from typing import Any, Mapping, Optional, Tuple
 import uuid
 
 import psutil
@@ -1110,6 +1110,76 @@ class OMCSessionDockerContainer(OMCSessionDockerABC):
         return omc_process, docker_process, docker_cid
 
 
+OMHOME_ENV = "OPENMODELICAHOME"
+OMHOME_ENV_VERSION_PREFIX = OMHOME_ENV + "_"
+
+
+def omc_version_env_name(version: str) -> str:
+    """Name of the environment variable that holds the installation directory of an OpenModelica version.
+
+    The Windows installer sets ``OPENMODELICAHOME_<version>`` for each installed version, where every character
+    of the version that is not a letter or a digit is replaced by an underscore: version ``1.27.0`` is found via
+    ``OPENMODELICAHOME_1_27_0``. A leading ``v`` (as in the git tag ``v1.27.0``) is ignored.
+    """
+    version = version.strip()
+    if version[:1] in ("v", "V") and version[1:2].isdigit():
+        version = version[1:]
+    return OMHOME_ENV_VERSION_PREFIX + re.sub(r"[^0-9A-Za-z]", "_", version)
+
+
+def _omc_version_sort_key(name: str) -> tuple:
+    """Sort key for the names ``OPENMODELICAHOME_<version>``; the newest version has the highest key.
+
+    The version is ``<major>_<minor>_<patch>`` followed by nothing for a release (1_27_0), by a pre-release part
+    for a build before that release (1_28_0_dev_1962_g6e348e217c) or by the number of commits for a build after
+    that release (1_27_0_5_g0123456789). For the same ``<major>_<minor>_<patch>`` a pre-release is older than the
+    release, which is older than a build after it; the numbers that follow (e.g. the number of commits) decide
+    between two builds of the same kind.
+    """
+    parts = name[len(OMHOME_ENV_VERSION_PREFIX):].split("_")
+    numbers: list[int] = []
+    while parts and parts[0].isdigit() and len(numbers) < 3:
+        numbers.append(int(parts.pop(0)))
+    numbers += [0] * (3 - len(numbers))
+
+    if not parts:
+        kind = 1  # release
+    elif parts[0].isdigit():
+        kind = 2  # commits after the release
+    else:
+        kind = 0  # dev, alpha, beta, rc, ...
+    return tuple(numbers), kind, tuple(int(part) for part in parts if part.isdigit())
+
+
+def omc_home_versions(environ: Optional[Mapping[str, str]] = None) -> dict[str, pathlib.Path]:
+    """The OpenModelica installations registered as ``OPENMODELICAHOME_<version>``, newest version first.
+
+    Args:
+        environ: The environment to look at, ``os.environ`` if None.
+
+    Returns:
+        A dictionary from the name of the environment variable to the installation directory. Variables which
+        point to a directory without an omc executable are left out.
+    """
+    if environ is None:
+        environ = os.environ
+
+    homes = {}
+    for name, value in environ.items():
+        # the names of environment variables are case-insensitive on Windows
+        if not name.upper().startswith(OMHOME_ENV_VERSION_PREFIX) or not value:
+            continue
+        home = pathlib.Path(value)
+        if _omc_home_has_omc(home):
+            homes[name] = home
+
+    return dict(sorted(homes.items(), key=lambda item: _omc_version_sort_key(item[0]), reverse=True))
+
+
+def _omc_home_has_omc(omhome: pathlib.Path) -> bool:
+    return (omhome / "bin" / "omc").is_file() or (omhome / "bin" / "omc.exe").is_file()
+
+
 class OMCSessionLocal(OMCSessionABC):
     """
     OMCSession implementation which runs the OMC server locally on the machine (Linux / Windows).
@@ -1119,32 +1189,52 @@ class OMCSessionLocal(OMCSessionABC):
             self,
             timeout: Optional[float] = None,
             omhome: Optional[str | os.PathLike] = None,
+            version: Optional[str] = None,
     ) -> None:
         """Start and connect to a local OMC server instance via ZeroMQ.
 
         Args:
             timeout: Communication timeout in seconds with the OMC server.
             omhome: Path to the OpenModelica installation directory. If None,
-                it is resolved from OPENMODELICAHOME or the system PATH.
+                it is resolved from the environment, see ``version``.
+            version: The OpenModelica version to use if several are installed, e.g. "1.27.0" or "1.27" for the
+                newest 1.27.x. It is looked up in the environment variables ``OPENMODELICAHOME_<version>`` which
+                the Windows installer sets for each installed version. If ``omhome`` and ``version`` are None,
+                ``OPENMODELICAHOME``, the newest ``OPENMODELICAHOME_<version>`` and the system PATH are tried
+                in this order.
         """
         super().__init__(timeout=timeout)
 
         self.model_execution_local = True
 
         # where to find OpenModelica
-        self._omhome = self._omc_home_get(omhome=omhome)
+        self._omhome = self._omc_home_get(omhome=omhome, version=version)
         # start up omc executable, which is waiting for the ZMQ connection
         self._omc_process = self._omc_process_get()
         # connect to the running omc instance using ZMQ
         self._omc_port = self._omc_port_get()
 
     @staticmethod
-    def _omc_home_get(omhome: Optional[str | os.PathLike] = None) -> pathlib.Path:
+    def _omc_home_get(
+            omhome: Optional[str | os.PathLike] = None,
+            version: Optional[str] = None,
+            environ: Optional[Mapping[str, str]] = None,
+    ) -> pathlib.Path:
         """Resolve the OpenModelica installation directory.
 
+        The first one that applies is used:
+
+        1. ``omhome``
+        2. ``version``: ``OPENMODELICAHOME_<version>``, or the newest ``OPENMODELICAHOME_<version>...`` if only
+           the start of a version is given ("1.27" for the newest 1.27.x)
+        3. ``OPENMODELICAHOME``, if there is an omc executable in it
+        4. the newest ``OPENMODELICAHOME_<version>``
+        5. the location of ``omc`` on PATH
+
         Args:
-            omhome: Explicit OpenModelica home path. If None, ``OPENMODELICAHOME``
-                or the location of ``omc`` on PATH is used.
+            omhome: Explicit OpenModelica home path.
+            version: The OpenModelica version to use, one of the installed ones.
+            environ: The environment to look at, ``os.environ`` if None.
 
         Returns:
             Path to the OpenModelica installation directory.
@@ -1152,17 +1242,43 @@ class OMCSessionLocal(OMCSessionABC):
         Raises:
             OMSessionException: If OpenModelica cannot be located.
         """
+        if environ is None:
+            environ = os.environ
+
         # use the provided path
         if omhome is not None:
             return pathlib.Path(omhome)
 
+        versions = omc_home_versions(environ=environ)
+
+        # use the requested version
+        if version is not None:
+            name = omc_version_env_name(version)
+            for name_installed, home in versions.items():
+                if name_installed.upper() == name.upper():
+                    return home
+            # versions are sorted, newest first
+            for name_installed, home in versions.items():
+                if name_installed.upper().startswith(name.upper() + "_"):
+                    return home
+
+            installed = ", ".join(versions) if versions else "none"
+            raise OMSessionException(f"Cannot find OpenModelica version {version!r}: no environment variable "
+                                     f"{name} or {name}_*. Installed versions: {installed}")
+
         # check the environment variable
-        omhome = os.environ.get('OPENMODELICAHOME')
-        if omhome is not None:
+        omhome = environ.get(OMHOME_ENV)
+        if omhome and (not versions or _omc_home_has_omc(pathlib.Path(omhome))):
+            # Without versioned installations the path is used as it is, as it always was. With them, a path
+            # left behind by an uninstalled version is skipped.
             return pathlib.Path(omhome)
 
+        # use the newest of the installed versions
+        if versions:
+            return next(iter(versions.values()))
+
         # Get the path to the OMC executable, if not installed this will be None
-        path_to_omc = shutil.which("omc")
+        path_to_omc = shutil.which("omc", path=environ.get("PATH"))
         if path_to_omc is not None:
             return pathlib.Path(path_to_omc).parents[1]
 

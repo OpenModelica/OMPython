@@ -11,6 +11,22 @@ OMPython is a Python interface that uses ZeroMQ to communicate with OpenModelica
   - Python >= 3.10; Python >= 3.12 for `OMPath` functionality (handle file system access via OMC using a `pathlib.Path` compatible abstraction layer)
   - Additional packages: numpy, psutil, pyparsing and pyzmq
 
+## Selecting the OpenModelica installation
+
+`OMCSessionLocal` and `ModelicaSystemOMC` look for OpenModelica in this order:
+
+1. the `omhome` argument: `OMPython.OMCSessionLocal(omhome="C:/Program Files/OpenModelica1.27.0-64bit")`
+2. the `version` argument: `OMPython.OMCSessionLocal(version="1.27.0")`, or `version="1.27"` for the newest
+   installed 1.27.x
+3. the environment variable `OPENMODELICAHOME`
+4. the newest version found in the environment variables `OPENMODELICAHOME_<version>`
+5. `omc` on the `PATH`
+
+The Windows installer of OpenModelica allows several versions to be installed side by side and sets
+`OPENMODELICAHOME_<version>` for each of them, with every character of the version that is not a letter or a
+digit replaced by an underscore: `OPENMODELICAHOME_1_27_0` for version 1.27.0. `OPENMODELICAHOME` points to the
+version selected as the default one.
+
 ## Installation
 
 Installation using `pip` is recommended.
