@@ -3,6 +3,7 @@ Where OMCSessionLocal looks for OpenModelica: omhome, version, OPENMODELICAHOME,
 No omc is started, the installations are directories with an empty bin/omc.
 """
 
+import os
 import pathlib
 
 import pytest
@@ -111,7 +112,10 @@ def test_default_newest_version(environ):
 
 def test_default_path(tmp_path):
     home = install(tmp_path, "onpath")
-    (pathlib.Path(home) / "bin" / "omc").chmod(0o755)
+    # an executable that is found on the PATH: Windows looks for omc.exe
+    omc = pathlib.Path(home) / "bin" / ("omc.exe" if os.name == "nt" else "omc")
+    omc.touch()
+    omc.chmod(0o755)
     assert omc_home_get({"PATH": str(pathlib.Path(home) / "bin")}) == pathlib.Path(home)
 
 
