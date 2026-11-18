@@ -1242,12 +1242,12 @@ class OMCSessionLocal(OMCSessionABC):
         Raises:
             OMSessionException: If OpenModelica cannot be located.
         """
-        if environ is None:
-            environ = os.environ
-
         # use the provided path
         if omhome is not None:
             return pathlib.Path(omhome)
+
+        if environ is None:
+            environ = os.environ
 
         versions = omc_home_versions(environ=environ)
 
